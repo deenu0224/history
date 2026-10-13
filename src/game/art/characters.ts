@@ -34,7 +34,7 @@ export const CHAR_FRAMES = {
 
 type Tones = [string, string, string, string]; // 밝음, 중간, 어두움, 윤곽선
 
-interface Style {
+export interface Style {
   kind: 'danryeong' | 'clerk' | 'servant' | 'modern';
   robe: Tones;
   inner: string; // 동정/속옷 색
@@ -43,7 +43,7 @@ interface Style {
   hair: [string, string]; // 머리/수염 기본, 하이라이트
   beard: 'none' | 'short' | 'long' | 'mustache' | 'goatee';
   beardTone?: [string, string];
-  hat: 'samo' | 'gat' | 'topknot' | 'hair';
+  hat: 'samo' | 'gat' | 'topknot' | 'hair' | 'cap' | 'bun';
   hatTone: [string, string, string]; // 기본, 하이라이트, 그늘
   build: -1 | 0 | 1; // 마름/보통/풍채
   badge?: [string, string]; // 흉배(TEMP)
@@ -53,6 +53,12 @@ interface Style {
   pants?: [string, string, string];
   shoe: string;
   hunch?: boolean;
+  /** 치마 폭 나눗수(작을수록 넓게 퍼짐). 기본 3(서리 4) */
+  flare?: number;
+  /** 허리 아래 치마 색(저고리와 다른 색). 몸통과 같은 톤 구조 [밝음, 중간, 어두움] */
+  skirt?: [string, string, string];
+  /** 가슴 고름 색 [기본, 어두움] */
+  sash?: [string, string];
 }
 
 const HAT_DARK: [string, string, string] = [C.ink1, C.ink0, C.ink2];
@@ -104,6 +110,31 @@ function hatFront(g: Grid, st: Style, dx: number, dy: number): void {
     S(15, 7, C.cloth2);
     S(7, 8, C.cloth2);
     S(7, 9, C.cloth1);
+  } else if (st.hat === 'cap') {
+    // 둥근 윗면의 낮은 모자 + 턱끈(날개·챙 없음)
+    H(10, 1, 4, base);
+    H(9, 2, 6, base);
+    H(8, 3, 8, base);
+    for (let y = 4; y <= 6; y++) H(7, y, 10, base);
+    H(7, 7, 10, sh);
+    for (let y = 2; y <= 6; y++) S(8, y, hi);
+    S(10, 2, hi);
+    for (let y = 3; y <= 6; y++) S(15, y, sh), S(16, y, sh);
+    H(7, 6, 10, hi);
+    for (let y = 8; y <= 10; y++) S(7, y, sh), S(16, y, sh);
+  } else if (st.hat === 'bun') {
+    // 가르마 탄 머리 + 이마를 덮는 옆머리
+    H(9, 3, 6, base);
+    H(8, 4, 8, base);
+    for (let y = 5; y <= 7; y++) H(7, y, 10, base);
+    for (let y = 4; y <= 7; y++) S(11, y, hi), S(12, y, y < 6 ? hi : base);
+    S(8, 5, hi);
+    S(9, 4, hi);
+    S(7, 8, base);
+    S(16, 8, base);
+    S(7, 9, sh);
+    S(16, 9, sh);
+    for (let y = 5; y <= 7; y++) S(15, y, sh), S(16, y, sh);
   } else {
     // 현대 머리(짧은 머리)
     H(9, 2, 6, base);
@@ -125,7 +156,7 @@ function hatFront(g: Grid, st: Style, dx: number, dy: number): void {
   }
 }
 
-function headFront(g: Grid, st: Style, dx: number, dy: number): void {
+export function headFront(g: Grid, st: Style, dx: number, dy: number): void {
   const [hi, base, sh] = st.skin;
   const S = (x: number, y: number, c: string) => g.set(x + dx, y + dy, c);
   const H = (x: number, y: number, w: number, c: string) => g.hline(x + dx, y + dy, w, c);
@@ -213,7 +244,7 @@ function headFront(g: Grid, st: Style, dx: number, dy: number): void {
   hatFront(g, st, dx, dy);
 }
 
-function headSide(g: Grid, st: Style, dx: number, dy: number): void {
+export function headSide(g: Grid, st: Style, dx: number, dy: number): void {
   // 왼쪽을 바라봄
   const [hi, base, sh] = st.skin;
   const S = (x: number, y: number, c: string) => g.set(x + dx, y + dy, c);
@@ -291,6 +322,24 @@ function headSide(g: Grid, st: Style, dx: number, dy: number): void {
     S(14, 7, C.cloth0);
     S(15, 8, C.cloth2);
     S(16, 8, C.cloth2);
+  } else if (st.hat === 'cap') {
+    H(9, 1, 5, hb);
+    for (let y = 2; y <= 6; y++) H(8, y, 8, hb);
+    H(8, 7, 8, hs);
+    for (let y = 2; y <= 6; y++) S(9, y, hh), S(15, y, hs);
+    H(9, 1, 2, hh);
+    H(8, 6, 8, hh);
+    for (let y = 8; y <= 10; y++) S(12, y, hs);
+  } else if (st.hat === 'bun') {
+    for (let y = 3; y <= 8; y++) H(8, y, 8, hb);
+    H(9, 3, 6, hb);
+    H(8, 4, 3, hh);
+    for (let y = 9; y <= 11; y++) H(13, y, 3, hb);
+    g.ellipse(15.5 + dx, 10 + dy, 2.6, 2.6, hb);
+    S(14, 9, hh);
+    H(12, 10, 6, C.ochre1);
+    S(18, 10, C.red1);
+    S(12, 10, C.ochre0);
   } else {
     for (let y = 2; y <= 8; y++) H(8, y, 8, hb);
     H(9, 2, 6, hb);
@@ -303,7 +352,7 @@ function headSide(g: Grid, st: Style, dx: number, dy: number): void {
   }
 }
 
-function headBack(g: Grid, st: Style, dx: number, dy: number): void {
+export function headBack(g: Grid, st: Style, dx: number, dy: number): void {
   const S = (x: number, y: number, c: string) => g.set(x + dx, y + dy, c);
   const H = (x: number, y: number, w: number, c: string) => g.hline(x + dx, y + dy, w, c);
   const [hb, hh, hs] = st.hatTone;
@@ -325,6 +374,17 @@ function headBack(g: Grid, st: Style, dx: number, dy: number): void {
   }
   if (st.hat === 'topknot') {
     for (let y = 3; y <= 7; y++) S(12, y, hh);
+  }
+  if (st.hat === 'bun') {
+    for (let y = 8; y <= 13; y++) H(8, y, 8, hb);
+    H(9, 14, 6, hb);
+    g.ellipse(12 + dx, 12 + dy, 3.6, 3.1, hb);
+    S(11, 10, hh);
+    S(10, 11, hh);
+    H(7, 12, 10, C.ochre1);
+    S(7, 12, C.red1);
+    S(16, 12, C.red1);
+    S(13, 13, hs);
   }
   void hh;
 }
@@ -390,6 +450,36 @@ function legsAndFeet(g: Grid, st: Style, dir: Dir, f: number): void {
   }
 }
 
+
+/** 저고리(윗옷)와 치마를 다른 색으로: 허리 위는 저고리, 아래는 치마. 가슴 고름 포함. 소매는 이 뒤에 그려진다. */
+function paintSkirt(g: Grid, st: Style, dir: Dir, bob: number, half: number): void {
+  const sk = st.skirt;
+  if (!sk) return;
+  const [r0, r1, r2] = st.robe;
+  const map: Record<string, string> = { [r0]: sk[0], [r1]: sk[1], [r2]: sk[2] };
+  const y0 = 19 + bob;
+  const div = st.flare ?? 3;
+  for (let y = y0; y <= 30; y++) {
+    const flare = y < 22 + bob ? 0 : Math.floor((y - 22) / div);
+    const w = half + flare;
+    for (let x = 12 - w; x < 12 + w; x++) {
+      const c = g.get(x, y);
+      const m = map[c];
+      if (m) g.set(x, y, m);
+    }
+  }
+  // 허리 선(치마 말기) + 고름
+  g.hline(12 - half, y0, half * 2, sk[2]);
+  if (dir === 'down') {
+    const [s1, s2] = st.sash ?? [C.red1, C.red2];
+    g.set(11, y0 - 2, s1).set(12, y0 - 2, s1);
+    g.set(10, y0 - 1, s1).set(13, y0 - 1, s2);
+    g.vline(11, y0, 7, s1);
+    g.vline(12, y0, 6, s2);
+    g.set(11, y0 + 7, s2);
+  }
+}
+
 function robeBody(g: Grid, st: Style, p: Pose): void {
   const [r0, r1, r2, r3] = st.robe;
   const { dir, f } = p;
@@ -412,13 +502,13 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
     }
     // 치마 자락(아래로 퍼짐)
     for (let y = 22 + dy; y <= hem; y++) {
-      const flare = st.kind === 'clerk' ? Math.floor((y - 22) / 4) : Math.floor((y - 22) / 3);
+      const flare = Math.floor((y - 22) / (st.flare ?? (st.kind === 'clerk' ? 4 : 3)));
       const w = half + flare;
       R(12 - w, y, w * 2, 1, r1);
     }
     // 음영
     for (let y = top; y <= hem; y++) {
-      const flare = y < 22 + dy ? 0 : st.kind === 'clerk' ? Math.floor((y - 22) / 4) : Math.floor((y - 22) / 3);
+      const flare = y < 22 + dy ? 0 : Math.floor((y - 22) / (st.flare ?? (st.kind === 'clerk' ? 4 : 3)));
       const w = (y === top ? half - 1 : half) + flare;
       g.set(12 - w, y, r0);
       g.set(13 - w, y, r0);
@@ -429,7 +519,7 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
     for (let y = 22 + dy; y <= hem; y += 1) if (y % 3 !== 0) g.set(back ? 12 : 11, y, r2);
     g.set(back ? 11 : 12, 24 + dy, r0).set(back ? 11 : 12, 25 + dy, r0);
     // 아랫단
-    g.hline(12 - half - Math.floor((hem - 22) / 3), hem, (half + Math.floor((hem - 22) / 3)) * 2, r2);
+    g.hline(12 - half - Math.floor((hem - 22) / (st.flare ?? 3)), hem, (half + Math.floor((hem - 22) / (st.flare ?? 3))) * 2, r2);
     // 허리띠
     const beltY = 21 + dy;
     R(12 - half, beltY, half * 2, 2, st.belt[0]);
@@ -466,6 +556,7 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
       g.box(bx, by, 5, 4, st.badge[1]);
       g.set(bx + 2, by + 1, st.badge[1]).set(bx + 1, by + 2, st.badge[1]).set(bx + 3, by + 2, st.badge[1]);
     }
+    if (st.skirt) paintSkirt(g, st, dir, p.bob, half);
     // 소매
     const sleeveW = st.kind === 'danryeong' ? 4 : st.kind === 'clerk' ? 3 : 3;
     const sleeveH = st.kind === 'danryeong' ? 10 : st.kind === 'clerk' ? 8 : 9;
@@ -495,7 +586,7 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
     // 옆모습 (왼쪽을 향함)
     const half = 4 + (bd > 0 ? 1 : 0);
     for (let y = top; y <= hem; y++) {
-      const flare = y < 22 + dy ? 0 : st.kind === 'clerk' ? Math.floor((y - 22) / 4) : Math.floor((y - 22) / 3);
+      const flare = y < 22 + dy ? 0 : Math.floor((y - 22) / (st.flare ?? (st.kind === 'clerk' ? 4 : 3)));
       const x0 = 12 - half - flare;
       const x1 = 12 + half + flare + (st.kind === 'danryeong' ? 0 : 0);
       R(x0, y, x1 - x0, 1, r1);
@@ -504,7 +595,7 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
       g.set(x1 - 1, y, r2);
       g.set(x1 - 2, y, r2);
     }
-    g.hline(12 - half - Math.floor((hem - 22) / 3), hem, (half + Math.floor((hem - 22) / 3)) * 2, r2);
+    g.hline(12 - half - Math.floor((hem - 22) / (st.flare ?? 3)), hem, (half + Math.floor((hem - 22) / (st.flare ?? 3))) * 2, r2);
     // 허리띠
     const beltY = 21 + dy;
     R(12 - half, beltY, half * 2, 2, st.belt[0]);
@@ -518,6 +609,7 @@ function robeBody(g: Grid, st: Style, p: Pose): void {
       g.line(14, beltY + 1, 15, beltY + 6, C.ochre1);
       g.set(15, beltY + 7, C.ink2);
     }
+    if (st.skirt) paintSkirt(g, st, dir, p.bob, half);
     // 팔(소매) — 몸 중앙에서 앞뒤로 스윙
     const sleeveW = st.kind === 'danryeong' ? 5 : 3;
     const sleeveH = st.kind === 'danryeong' ? 10 : 8;
@@ -646,7 +738,7 @@ function shortBody(g: Grid, st: Style, p: Pose): void {
 }
 
 /** 한 프레임 그리기 */
-function drawFrame(st: Style, dir: Dir, f: number): Grid {
+export function drawFrame(st: Style, dir: Dir, f: number): Grid {
   const g = new Grid(CHAR_W, CHAR_H);
   const bob = f === 2 || f === 4 ? -1 : 0;
   // 바닥 그림자
@@ -667,7 +759,7 @@ function flipKeep(g: Grid): Grid {
 }
 
 /** 인사(bow) : 정면, 고개를 숙이고 두 손을 모음 */
-function drawBow(st: Style): Grid {
+export function drawBow(st: Style): Grid {
   const g = new Grid(CHAR_W, CHAR_H);
   g.ellipse(12, 34, 7, 1.6, C.shade1);
   const p: Pose = { dir: 'down', f: 0, bob: 0 };
@@ -762,7 +854,7 @@ function drawSeated(st: Style, mode: 'write' | 'read', k: number): Grid {
   return g;
 }
 
-function finish(grids: Grid[], st: Style): Grid[] {
+export function finish(grids: Grid[], st: Style): Grid[] {
   // 외곽선: 로브 계열은 로브 윤곽색, 머리/피부는 짙은 갈색, 모자는 ink
   const robeChars = new Set<string>(st.robe.slice(0, 3));
   const skinChars = new Set<string>(st.skin);
@@ -783,7 +875,7 @@ function finish(grids: Grid[], st: Style): Grid[] {
   });
 }
 
-function buildCharacter(st: Style, extras: { bow?: boolean; write?: boolean; read?: boolean }): PixelSprite {
+export function buildCharacter(st: Style, extras: { bow?: boolean; write?: boolean; read?: boolean }): PixelSprite {
   const frames: Grid[] = [];
   for (const d of DIRS) for (let f = 0; f < 5; f++) frames.push(drawFrame(st, d, f));
   if (extras.bow) frames.push(drawBow(st));
@@ -813,7 +905,7 @@ const modernStyle: Style = {
   shoe: C.ink2,
 };
 
-const officialRed: Style = {
+export const officialRed: Style = {
   kind: 'danryeong',
   robe: [C.red0, C.red1, C.red2, C.red3],
   inner: C.hanji0,
@@ -829,7 +921,7 @@ const officialRed: Style = {
   wrinkle: true,
   shoe: C.ink2,
 };
-const officialBlue: Style = {
+export const officialBlue: Style = {
   kind: 'danryeong',
   robe: [C.blue0, C.blue1, C.blue2, C.blue3],
   inner: C.hanji0,
@@ -843,7 +935,7 @@ const officialBlue: Style = {
   badge: [C.hanji1, C.ink1],
   shoe: C.ink2,
 };
-const officialGreen: Style = {
+export const officialGreen: Style = {
   kind: 'danryeong',
   robe: [C.grass0, C.grass1, C.grass2, C.grass3],
   inner: C.hanji0,
@@ -856,7 +948,7 @@ const officialGreen: Style = {
   build: -1,
   shoe: C.ink2,
 };
-const sagwan: Style = {
+export const sagwan: Style = {
   kind: 'danryeong',
   robe: [C.green0, C.green1, C.green2, C.green3],
   inner: C.hanji0,
@@ -870,7 +962,7 @@ const sagwan: Style = {
   brush: true,
   shoe: C.ink2,
 };
-const clerk: Style = {
+export const clerk: Style = {
   kind: 'clerk',
   robe: [C.stone1, C.stone2, C.stone3, C.ink2],
   inner: C.cloth1,
@@ -884,7 +976,7 @@ const clerk: Style = {
   hunch: true,
   shoe: C.ink2,
 };
-const servant: Style = {
+export const servant: Style = {
   kind: 'servant',
   robe: [C.cloth0, C.cloth1, C.cloth2, C.cloth3],
   inner: C.cloth0,
@@ -897,6 +989,46 @@ const servant: Style = {
   build: 0,
   pants: [C.cloth0, C.cloth1, C.cloth2],
   shoe: C.ochre2,
+};
+
+/** TEMP: 내관(궁중 환관 시종). 단순한 짙은 남색 도포, 수염 없는 매끈한 얼굴, 날개 없는 낮은 모자. 복식은 미확인. */
+export const naegwan: Style = {
+  kind: 'danryeong',
+  robe: [C.blue1, C.blue2, C.blue3, C.ink2],
+  inner: C.hanji0,
+  belt: [C.ink1, C.ink0],
+  skin: OFFICIAL_SKIN,
+  hair: [C.ink2, C.ink0],
+  beard: 'none',
+  hat: 'cap',
+  hatTone: HAT_DARK,
+  build: -1,
+  shoe: C.ink2,
+};
+
+/** TEMP: 궁녀. 노란 저고리 + 쪽진 머리 + 넓게 퍼지는 치마. 복식은 미확인. */
+export const gungnyeoA: Style = {
+  kind: 'clerk',
+  robe: [C.lamp1, C.ochre0, C.ochre1, C.ochre2],
+  inner: C.hanji0,
+  belt: [C.blue2, C.blue1],
+  skin: OFFICIAL_SKIN,
+  hair: [C.ink2, C.ink0],
+  beard: 'none',
+  hat: 'bun',
+  hatTone: [C.ink2, C.ink0, C.ink3],
+  build: -1,
+  skirt: [C.blue1, C.blue2, C.blue3],
+  sash: [C.red1, C.red2],
+  flare: 2,
+  shoe: C.hanji1,
+};
+export const gungnyeoB: Style = {
+  ...gungnyeoA,
+  robe: [C.hanji0, C.hanji1, C.hanji2, C.hanji3],
+  belt: [C.red2, C.red1],
+  skirt: [C.red0, C.red1, C.red2],
+  sash: [C.blue1, C.blue3],
 };
 
 const playerModern = buildCharacter(modernStyle, {});
@@ -915,6 +1047,8 @@ export const CHARACTERS: Record<string, PixelSprite> = {
   char_sagwan: buildCharacter(sagwan, { bow: true, write: true, read: true }),
   char_clerk: buildCharacter(clerk, { bow: true }),
   char_servant: buildCharacter(servant, { bow: true }),
+  char_naegwan: buildCharacter(naegwan, { bow: true }),
+  char_gungnyeo: buildCharacter(gungnyeoA, { bow: true }),
 };
 
 void PALETTE;

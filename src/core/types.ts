@@ -1,5 +1,5 @@
-// 결록 도메인 타입(v3 「대조」). 데이터(src/data) → 코어(src/core) → 스토어(src/store) 가 공유한다.
-// 설계: docs/DESIGN_V3.md
+// 결록 도메인 타입(v4 「근무」 — v3 「대조」 위에 근무·건·규정을 얹었다). 데이터(src/data) → 코어(src/core) → 스토어(src/store) 가 공유한다.
+// 설계: docs/DESIGN_V4.md (v3 부분: docs/DESIGN_V3.md)
 
 export type Id = string;
 /** 서기 연도(정수). 음력/월일은 다루지 않는다. */
@@ -158,6 +158,8 @@ export interface PlayStats {
   stampMisses: number;
   reportSubmits: number;
   reportFails: number;
+  /** v4: 검사 모드 연결 시도 */
+  inspects: number;
 }
 
 /**
@@ -182,7 +184,26 @@ export interface StateCondition extends FlagCondition {
   filed?: Id[];
   hintsDone?: Id[];
   minStats?: Partial<PlayStats>;
+  /** v4: 시작한 근무 */
+  duties?: Id[];
+  /** v4: 끝낸 근무 */
+  dutiesEnded?: Id[];
+  /** v4: 처리한(도장 찍은) 건 */
+  cases?: Id[];
+  /** v4: 지금 책상 위에 있는 건 */
+  current?: Id;
+  /** v4: 수치 조건(카운터 키는 core/duty.ts dutyCounters) */
+  counters?: CounterCondition[];
+  /** v4: 이 타임라인을 이 시각(분)까지 본 적이 있다 */
+  reached?: { timelineId: Id; minute: number };
   any?: StateCondition[];
+}
+
+/** 카운터 조건: min ≤ 값 ≤ max(없으면 제한 없음) */
+export interface CounterCondition {
+  key: string;
+  min?: number;
+  max?: number;
 }
 
 export interface Grants {
@@ -314,32 +335,7 @@ export interface Clue extends ContentBase {
 }
 
 // ── 업무: 배정·체크리스트 ─────────────────────────────────────────
-export type Verb = 'look' | 'listen' | 'capture' | 'scrub' | 'stamp' | 'search' | 'report';
-
-export interface ChecklistItem {
-  id: Id;
-  no: number;
-  title: string;
-  /** 참조 표시(예: '실록청') — 이름·연도 금지 */
-  refLabel: string;
-  prompt: string;
-  teaches: Verb[];
-  /** 도장이 눌리는 조건 */
-  ready: StateCondition;
-  notReadyText: string;
-  expected?: Stamp;
-  wrongText?: string;
-  /** 마지막 판정 항목 */
-  final?: {
-    recommend: Stamp;
-    recommendText: string;
-    recommendButton: string;
-    /** [불일치]에 필요한 근거(지금 프레임 단서 중 하나) */
-    mismatchNeedsAnyClue: Id[];
-    mismatchNeedsText: string;
-  };
-}
-
+/** @deprecated v3 체크리스트는 v4 「근무」에서 건(CaseDef)으로 대체되었다. */
 export interface Assignment extends ContentBase {
   code: string;
   title: string;
@@ -351,7 +347,6 @@ export interface Assignment extends ContentBase {
   /** 이 지점을 가리키는 기록(종결 뒤 탭하면 DB 기록) */
   refs: { title: string; recordId?: Id; searchEntryId?: Id }[];
   timelineId: Id;
-  checklist: ChecklistItem[];
   /** 제출 직후 자동 분류 문구 */
   autoClassification: string;
   reportId: Id;
@@ -560,7 +555,7 @@ export interface Message extends ContentBase {
   hint?: boolean;
 }
 
-export type FailKind = 'stamp_miss' | 'report_fail' | 'unknown_search' | 'empty_tap' | 'capture_full';
+export type FailKind = 'stamp_miss' | 'report_fail' | 'unknown_search' | 'empty_tap' | 'capture_full' | 'inspect_none' | 'case_not_ready';
 
 /** 힌트 사다리(메신저만). 방치·실패로 한 단씩, 최대 steps 개. */
 export interface HintLadder extends ContentBase {
@@ -623,6 +618,10 @@ export interface RealityShift extends ContentBase {
   restores: RestoredItem[];
   /** 주소가 돌아오면 흐려졌던 구간도 다시 선명해진다 */
   clearDegraded?: boolean;
+  /** v4: 이 규정 위반 경고장을 '해당 없음'으로 다시 쓴다(복원된 현실에서는 위반이 아니었다) */
+  voidWarnings?: { ruleId: Id; text: string }[];
+  /** v4: 건 카드의 탐지 문구 다시 쓰기 */
+  caseRewrites?: { caseId: Id; detection?: string }[];
   unlocks?: Grants;
 }
 
@@ -633,7 +632,7 @@ export interface RewriteEntry {
   seq: number;
   sourceId: Id;
   tone: RewriteTone;
-  kind: 'message' | 'record' | 'search' | 'assignment' | 'closed' | 'closure' | 'observation';
+  kind: 'message' | 'record' | 'search' | 'assignment' | 'closed' | 'closure' | 'observation' | 'warning' | 'case';
   targetId: Id;
   before: string;
   after: string;

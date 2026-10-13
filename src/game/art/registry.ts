@@ -9,6 +9,9 @@ import { MODERN_OBJECTS } from './objects_modern';
 import { CHARACTERS, CHAR_FRAMES, DIRS } from './characters';
 import { UI_SPRITES } from './ui';
 import { OS_SPRITES } from './os_sprites';
+import { DESK_SPRITES } from './desk_sprites';
+import { SCENE_POSES } from './characters_scene';
+import { SCENE_OBJECTS } from './objects_scene';
 
 /** 타일 레지스트리 (32×32, 텍스처 키 = 키) */
 export const TILES: Record<string, PixelSprite> = { ...TILE_DEFS };
@@ -20,6 +23,9 @@ export const SPRITES: Record<string, PixelSprite> = {
   ...CHARACTERS,
   ...UI_SPRITES,
   ...OS_SPRITES,
+  ...DESK_SPRITES,
+  ...SCENE_POSES,
+  ...SCENE_OBJECTS,
 };
 
 // ───────────────────────── 키 상수 ─────────────────────────
@@ -105,6 +111,8 @@ export const CHAR_KEYS = {
   sagwan: 'char_sagwan',
   clerk: 'char_clerk',
   servant: 'char_servant',
+  naegwan: 'char_naegwan',
+  gungnyeo: 'char_gungnyeo',
 } as const;
 
 export const UI_KEYS = {

@@ -8,6 +8,7 @@ import { Grid, autoOutline, rng, sprite } from './draw';
 import { OS_NINE_SLICE } from './os_chrome';
 import { OS_OBSERVE_NINE_SLICE } from './os_observe';
 import { OS_NOTEBOOK_NINE_SLICE } from './os_notebook';
+import { DESK_NINE_SLICE } from './desk_ui';
 
 /** 9-slice 정의 (Phaser add.nineslice 의 leftWidth 등과 일치) */
 export const NINE_SLICE: Record<string, { left: number; right: number; top: number; bottom: number }> = {
@@ -16,6 +17,7 @@ export const NINE_SLICE: Record<string, { left: number; right: number; top: numb
   ...OS_NINE_SLICE,
   ...OS_OBSERVE_NINE_SLICE,
   ...OS_NOTEBOOK_NINE_SLICE,
+  ...DESK_NINE_SLICE,
 };
 
 function panelHanji(): PixelSprite {
