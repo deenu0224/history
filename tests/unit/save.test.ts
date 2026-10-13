@@ -8,9 +8,9 @@ describe('save/load', () => {
   it('round-trips a save through IndexedDB', async () => {
     const data = initialPersisted();
     data.flags.met = true;
-    data.evidence.e1 = 2;
-    data.collection.c1 = 3;
-    data.notebook.question.push({ id: 'q', section: 'question', text: '언제?', seq: 0 });
+    data.heard.push('m2');
+    data.checklist.ck_place = 'match';
+    data.frames.push({ id: 'fr_1', seq: 1, minute: 850, centerTile: { x: 1, y: 2 }, zoom: 2, visibleHotspotIds: [], heardLineIds: ['m2'], clueIds: ['cl_order'] });
     await saveGame('manual', data, new Date('2026-01-01T00:00:00Z'));
     const file = await loadGame('manual');
     expect(file).toMatchObject({ schema: SAVE_SCHEMA, version: SAVE_VERSION, slot: 'manual', savedAt: '2026-01-01T00:00:00.000Z' });
@@ -34,7 +34,7 @@ describe('save/load', () => {
     expect(() => migrate(null)).toThrow(SaveError);
   });
 
-  it('migrates a v1 (walking) save through v2 (terminal) to v3 (reality shifts)', () => {
+  it('migrates v1 → v2 → v3 → v4: old progress (notebook, board, memos) is dropped, settings survive', () => {
     const v1 = {
       schema: SAVE_SCHEMA,
       version: 1,
@@ -55,30 +55,18 @@ describe('save/load', () => {
     };
     const out = migrate(v1);
     expect(out.version).toBe(SAVE_VERSION);
-    expect(out.data).not.toHaveProperty('currentScene');
-    expect(out.data).not.toHaveProperty('examined');
-    expect(out.data).toMatchObject({
-      flags: { obs001_entered: true },
-      evidence: { ev_myoho: 0 },
-      tapped: ['hs_obs_store_sacho'],
-      terms: [],
-      inbox: [],
-      stats: { deductionAttempts: 2, searches: 0, links: 0 },
-      shifts: [],
-      rewriteLog: [],
-      recorded: [],
-      tutorial: { done: [], dismissed: [], fails: {}, idleTier: {} },
-      settings: { volume: 0.5, hintLevel: 'normal', haptics: true, reduceFlicker: false },
-    });
     expect(Object.keys(out.data).sort()).toEqual(Object.keys(initialPersisted()).sort());
+    for (const gone of ['notebook', 'evidence', 'collection', 'solved', 'tutorial', 'links', 'recorded', 'memos', 'phrases'])
+      expect(out.data).not.toHaveProperty(gone);
+    expect(out.data.settings).toEqual({ textSpeed: 1, volume: 0.5, showProvenance: false, hintLevel: 'normal', haptics: true, reduceFlicker: false });
+    expect(out.data.frames).toEqual([]);
   });
 
-  it('v2 → v3 maps merged apps (reader → search, archive → notebook)', () => {
-    const v2 = { schema: SAVE_SCHEMA, version: 2, savedAt: 'x', slot: 'auto', data: { appsOpened: ['messenger', 'reader', 'archive', 'notebook'], stats: { searches: 3 } } };
-    const out = migrate(v2);
-    expect(out.data.appsOpened).toEqual(['messenger', 'search', 'notebook']);
-    expect(out.data.stats).toMatchObject({ searches: 3, links: 0, linkMisses: 0 });
-    expect(out.data.shifts).toEqual([]);
+  it('v3 → v4 keeps only settings', () => {
+    const v3 = { schema: SAVE_SCHEMA, version: 3, savedAt: 'x', slot: 'auto', data: { flags: { a: true }, notebook: {}, settings: { volume: 0.2, hintLevel: 'off' } } };
+    const out = migrate(v3);
+    expect(out.data.flags).toEqual({});
+    expect(out.data.settings).toMatchObject({ volume: 0.2, hintLevel: 'off' });
   });
 
   it('applies migrations step by step', () => {

@@ -1,138 +1,114 @@
-import { judgeDeduction, judgeEvent, judgePerson, resolveDeduction } from '@/core/deduction';
-import type { Deduction, EventDeduction, JudgeResult, PersonDeduction } from '@/core/types';
-import { ctxFor, sampleContent } from './fixtures';
+// 보고서 엔진(core/report.ts) + 인물 판정(core/deduction.ts) — 실제 콘텐츠로.
+import { judgePerson } from '@/core/deduction';
+import { blankClues, emptyDraft, frameClues, judgeFacts, judgeReport, judgeWhen, judgeWho, type Frame, type ReportWorld } from '@/core/report';
+import { idealSnapshot } from '@/core/validate';
+import { content } from '@/data';
+import { FACT } from '@/data/historical/facts';
 
-const c = sampleContent();
-const get = <T extends Deduction>(id: string) => c.deductions.find((d) => d.id === id) as T;
-const person = get<PersonDeduction>('sample_ded_person');
-const event = get<EventDeduction>('sample_ded_event');
-const codes = (r: JudgeResult) => r.feedback.map((f) => f.code);
+const spec = content.reports[0]!;
+const clue = (id: string) => content.clues.find((c) => c.id === id)!;
+const frameFor = (id: string): Frame => {
+  const snap = idealSnapshot(clue(id).frame!, content)!;
+  return { ...snap, id: `f_${id}`, seq: 1, clueIds: frameClues(snap, content.clues) };
+};
+const frames = ['cl_order', 'cl_alive', 'cl_veteran', 'cl_dangsang', 'cl_objection', 'cl_bundles'].map(frameFor);
+const w: ReportWorld = {
+  clues: content.clues,
+  frames,
+  records: Object.fromEntries(content.records.map((r) => [r.id, r])),
+  persons: Object.fromEntries(content.persons.map((p) => [p.id, p])),
+};
+const F = (id: string) => ({ kind: 'frame' as const, id: `f_${id}` });
+const R = (id: string) => ({ kind: 'record' as const, id });
 
-const OFFICIAL = 'sample_ev_unknown_official';
-const ZITHER = 'sample_ev_zither';
-
-describe('judgePerson', () => {
-  const full = ctxFor(c, { [OFFICIAL]: 0, [ZITHER]: 1 });
-
-  it('confirms the right candidate with all required facts', () => {
-    expect(judgePerson(person, { candidateId: 'sample_person_scribe', evidenceIds: [OFFICIAL, ZITHER] }, full).verdict).toBe(
-      'confirmed',
-    );
+describe('frames → clues', () => {
+  it('a frame proves what it heard and showed', () => {
+    expect(frameFor('cl_order').clueIds).toContain('cl_order');
+    expect(frameFor('cl_veteran').clueIds).toEqual(expect.arrayContaining(['cl_veteran', 'cl_dangsang']));
+    // 붉은 관복이 화면에 없으면 귓속말은 그를 가리키지 못한다
+    const snap = { ...idealSnapshot(clue('cl_veteran').frame!, content)!, visibleHotspotIds: ['hs_npc_clerk'] };
+    expect(frameClues(snap, content.clues)).not.toContain('cl_veteran');
   });
 
-  it('is undetermined (same answer for right and wrong candidates) when a required fact is missing', () => {
-    for (const candidateId of ['sample_person_scribe', 'sample_person_scholar']) {
-      const r = judgePerson(person, { candidateId, evidenceIds: [OFFICIAL] }, full);
-      expect(r.verdict).toBe('undetermined');
-      expect(codes(r)).toEqual(['missing_fact']);
-      expect(r.feedback[0]!.message).toContain('소유물');
-      expect(r.feedback[0]!.message).not.toContain('거문고');
-    }
-  });
-
-  it('reveal level matters: zither at level 0 proves nothing', () => {
-    const r = judgePerson(
-      person,
-      { candidateId: 'sample_person_scribe', evidenceIds: [OFFICIAL, ZITHER] },
-      ctxFor(c, { [OFFICIAL]: 0, [ZITHER]: 0 }),
-    );
-    expect(r.verdict).toBe('undetermined');
-  });
-
-  it('wrong when cited facts contradict the candidate, naming the fact', () => {
-    const r = judgePerson(person, { candidateId: 'sample_person_minister', evidenceIds: [OFFICIAL] }, full);
-    expect(r.verdict).toBe('wrong');
-    expect(r.feedback.find((f) => f.code === 'fact_contradiction')!.fact).toEqual({ kind: 'office', value: '샘플 사관직' });
-  });
-
-  it('wrong for a look-alike candidate once discriminating fact is cited', () => {
-    const r = judgePerson(person, { candidateId: 'sample_person_scholar', evidenceIds: [OFFICIAL, ZITHER] }, full);
-    expect(r.verdict).toBe('wrong');
-    expect(r.feedback.some((f) => f.fact?.kind === 'possession')).toBe(true);
-  });
-
-  it('rejects candidates outside the list', () => {
-    expect(codes(judgePerson(person, { candidateId: 'nobody', evidenceIds: [] }, full))).toEqual(['unknown_choice']);
-  });
-
-  it('reports evidence that proves no facts', () => {
-    const r = judgePerson(
-      person,
-      { candidateId: 'sample_person_scribe', evidenceIds: ['sample_ev_book'] },
-      ctxFor(c, { sample_ev_book: 0 }),
-    );
-    expect(codes(r)).toContain('no_facts');
+  it('combo clue needs the report-wide 전교 frame', () => {
+    const base = blankClues([F('cl_alive'), R('rec_alt_kim_ilson')], [], w);
+    expect(base.ids).not.toContain('cl_when_pinned');
+    expect(base.blocked.map((c) => c.id)).toEqual(['cl_when_pinned']);
+    expect(blankClues([F('cl_alive'), R('rec_alt_kim_ilson')], ['cl_order'], w).ids).toContain('cl_when_pinned');
   });
 });
 
-describe('judgeEvent', () => {
-  const ctx = ctxFor(c, { sample_ev_order_record: 0, sample_ev_petition_log: 0 });
-  const both = ['sample_ev_order_record', 'sample_ev_petition_log'];
+describe('report blanks', () => {
+  it('언제: partial by the 실록청 range; confirmed only with alive + death + 전교 somewhere', () => {
+    const d = emptyDraft();
+    d.when = { attachments: [R('rec_seongjong_sillok')], from: 1495, to: 1499 };
+    expect(judgeWhen(spec, d, w).verdict).toBe('partial');
+    d.when = { attachments: [R('rec_seongjong_sillok')], from: 1498, to: 1498 };
+    expect(judgeWhen(spec, d, w).verdict).toBe('undetermined');
+    d.when = { attachments: [F('cl_alive'), R('rec_alt_kim_ilson')], from: 1498, to: 1498 };
+    expect(judgeWhen(spec, d, w).verdict).toBe('undetermined');
+    d.what.attachments = [F('cl_order')];
+    const ok = judgeWhen(spec, d, w);
+    expect(ok.verdict).toBe('confirmed');
+    expect(ok.implied).toEqual({ from: 1498, to: 1498 });
+    d.when.from = 1497;
+    d.when.to = 1497;
+    expect(judgeWhen(spec, d, w).verdict).toBe('wrong');
+  });
 
-  it('confirms the supported statement', () => {
-    expect(judgeEvent(event, { statementId: 'ordered', evidenceIds: both }, ctx).verdict).toBe('confirmed');
+  it('누구: candidate = attached person record; facts only from frames', () => {
+    const d = emptyDraft();
+    d.who.attachments = [R('rec_alt_yi_geukdon')];
+    expect(judgeWho(spec, d, w).verdict).toBe('undetermined'); // 기록만으로는 증명하지 않는다
+    d.who.attachments = [R('rec_alt_yi_geukdon'), F('cl_dangsang')];
+    const tip = judgeWho(spec, d, w);
+    expect(tip.verdict).toBe('undetermined');
+    expect(tip.feedback.map((f) => f.code)).toContain('missing_fact');
+    d.who.attachments = [R('rec_alt_yi_geukdon'), F('cl_veteran')];
+    expect(judgeWho(spec, d, w).verdict).toBe('confirmed');
+    d.who.attachments = [R('rec_eo_segyeom'), F('cl_veteran')];
+    expect(judgeWho(spec, d, w).verdict).toBe('wrong');
+    d.who.attachments = [R('rec_alt_kim_ilson'), F('cl_veteran')];
+    const contra = judgeWho(spec, d, w);
+    expect(contra.verdict).toBe('wrong');
+    expect(contra.feedback[0]!.code).toBe('fact_contradiction');
+    d.who.attachments = [R('rec_alt_kim_ilson'), R('rec_alt_yi_geukdon')];
+    expect(judgeWho(spec, d, w).feedback[0]!.message).toBe(spec.who.twoPersonsText);
   });
-  it('wrong when a cited fact refutes the statement', () => {
-    const r = judgeEvent(event, { statementId: 'tolerated', evidenceIds: ['sample_ev_order_record'] }, ctx);
-    expect(r.verdict).toBe('wrong');
-    expect(codes(r)).toContain('fact_contradiction');
+
+  it('무슨 일 / 그 결과: required, wrong and near facts', () => {
+    const d = emptyDraft();
+    d.what.attachments = [F('cl_bundles')];
+    expect(judgeFacts('what', spec.what, d, w).verdict).toBe('wrong');
+    d.what.attachments = [F('cl_objection')];
+    expect(judgeFacts('what', spec.what, d, w).verdict).toBe('undetermined');
+    d.what.attachments = [F('cl_order'), F('cl_bundles')];
+    expect(judgeFacts('what', spec.what, d, w).verdict).toBe('confirmed');
+    d.result.attachments = [R('rec_seongjong_sillok')];
+    expect(judgeFacts('result', spec.result, d, w).verdict).toBe('wrong');
+    d.result.attachments = [R('rec_alt_yi_geukdon')];
+    expect(judgeFacts('result', spec.result, d, w).feedback[0]!.message).toContain('가장 큰 공백');
+    d.result.attachments = [F('cl_order'), R('rec_alt_kwon_obok')];
+    expect(judgeFacts('result', spec.result, d, w).verdict).toBe('confirmed');
   });
-  it('undetermined when not refuted but required facts missing', () => {
-    const r = judgeEvent(event, { statementId: 'permitted', evidenceIds: ['sample_ev_order_record'] }, ctx);
-    expect(r.verdict).toBe('undetermined');
-    expect(codes(r)).toEqual(['missing_fact']);
-    expect(judgeEvent(event, { statementId: 'ordered', evidenceIds: ['sample_ev_order_record'] }, ctx).verdict).toBe(
-      'undetermined',
-    );
-  });
-  it('wrong statement with full evidence but no refutation → not_supported', () => {
-    const e2: EventDeduction = { ...event, statements: [...event.statements, { id: 'other', text: '?' }] };
-    const r = judgeEvent(e2, { statementId: 'other', evidenceIds: both }, ctx);
-    expect(r.verdict).toBe('wrong');
-    expect(codes(r)).toContain('not_supported');
-  });
-  it('unknown statement', () => {
-    expect(judgeEvent(event, { statementId: 'x', evidenceIds: [] }, ctx).feedback[0]!.code).toBe('unknown_choice');
+
+  it('whole report', () => {
+    const d = emptyDraft();
+    d.when = { attachments: [F('cl_alive'), R('rec_alt_kim_ilson')], from: 1498, to: 1498 };
+    d.who.attachments = [F('cl_veteran'), R('rec_alt_yi_geukdon')];
+    d.what.attachments = [F('cl_order')];
+    d.result.attachments = [F('cl_order'), R('rec_alt_kim_ilson')];
+    expect(judgeReport(spec, d, w).complete).toBe(true);
+    expect(judgeReport(spec, emptyDraft(), w).complete).toBe(false);
   });
 });
 
-describe('judgeDeduction / resolveDeduction', () => {
-  const year = get<Deduction>('sample_ded_year');
-  const ctx = ctxFor(c, { sample_ev_edict: 0, sample_ev_calendar: 1, sample_ev_rumor: 0 });
-  const confirmedSub = {
-    kind: 'year' as const,
-    deductionId: 'sample_ded_year',
-    from: 1498,
-    to: 1498,
-    evidenceIds: ['sample_ev_edict', 'sample_ev_calendar'],
-  };
-  const partialSub = { ...confirmedSub, to: 1501, evidenceIds: ['sample_ev_edict', 'sample_ev_rumor'] };
-
-  it('dispatches by kind and rejects mismatched submissions', () => {
-    expect(judgeDeduction(year, confirmedSub, ctx).verdict).toBe('confirmed');
-    const bad = judgeDeduction(year, { kind: 'person', deductionId: 'sample_ded_year', candidateId: 'x', evidenceIds: [] }, ctx);
-    expect(bad.feedback[0]!.code).toBe('unknown_deduction');
-  });
-
-  it('first confirmed grants partial + confirmed rewards', () => {
-    const { rewards, improved } = resolveDeduction(year, confirmedSub, ctx);
-    expect(improved).toBe(true);
-    expect(rewards.map((r) => r.type)).toEqual(['flag', 'flag', 'collection', 'notebook', 'resolveQuestion']);
-  });
-
-  it('partial then confirmed grants each reward set once', () => {
-    const p = resolveDeduction(year, partialSub, ctx);
-    expect(p.result.verdict).toBe('partial');
-    expect(p.rewards).toEqual([{ type: 'flag', flag: 'sample_year_partial' }]);
-    expect(resolveDeduction(year, partialSub, ctx, 'partial').rewards).toEqual([]);
-    const c2 = resolveDeduction(year, confirmedSub, ctx, 'partial');
-    expect(c2.rewards).toHaveLength(4);
-    expect(resolveDeduction(year, confirmedSub, ctx, 'confirmed').rewards).toEqual([]);
-  });
-
-  it('failures grant nothing', () => {
-    const r = resolveDeduction(year, { ...confirmedSub, from: 1400, to: 1450 }, ctx);
-    expect(r.result.verdict).toBe('wrong');
-    expect(r.rewards).toEqual([]);
+describe('judgePerson (engine)', () => {
+  it('missing facts give the same answer for right and wrong candidates', () => {
+    const d = { id: 'p', provenance: 'fictional' as const, kind: 'person' as const, ...spec.who };
+    const ctx = { evidence: {}, persons: w.persons, owned: {} };
+    for (const candidateId of ['per_yi_geukdon', 'per_eo_segyeom'])
+      expect(judgePerson(d, { candidateId, evidenceIds: [] }, ctx).verdict).toBe('undetermined');
+    expect(FACT.eventSejoSillok.kind).toBe('event');
   });
 });

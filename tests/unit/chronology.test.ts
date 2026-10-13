@@ -1,7 +1,7 @@
 import { impliedRange, judgeYear } from '@/core/chronology';
 import { evidenceView } from '@/core/content';
 import type { JudgeResult } from '@/core/types';
-import { ctxFor, ownAll, sampleContent, timeEv, yearDed } from './fixtures';
+import { ownAll, timeEv, yearDed } from './fixtures';
 
 const codes = (r: JudgeResult) => r.feedback.map((f) => f.code);
 const forEv = (r: JudgeResult, id: string) => r.feedback.filter((f) => f.evidenceId === id).map((f) => f.code);
@@ -176,37 +176,5 @@ describe('judgeYear verdicts', () => {
     expect(forEv(r, 'lo')).toEqual(['not_owned']);
     expect(forEv(r, 'ghost')).toEqual(['unknown_evidence']);
     expect(forEv(r, 'hi')).toEqual(['bounds_upper']);
-  });
-});
-
-describe('judgeYear on sample content (reveal levels)', () => {
-  const c = sampleContent();
-  const d = c.deductions.find((x) => x.id === 'sample_ded_year')!;
-  if (d.kind !== 'year') throw new Error('fixture');
-
-  it('calendar at level 0 carries no time info', () => {
-    const r = judgeYear(d, { from: 1498, to: 1498, evidenceIds: ['sample_ev_edict', 'sample_ev_calendar'] }, ctxFor(c, {
-      sample_ev_edict: 0,
-      sample_ev_calendar: 0,
-    }));
-    expect(r.verdict).toBe('undetermined');
-    expect(forEv(r, 'sample_ev_calendar')).toEqual(['no_time_info']);
-  });
-
-  it('calendar at level 1 confirms', () => {
-    const r = judgeYear(d, { from: 1498, to: 1498, evidenceIds: ['sample_ev_edict', 'sample_ev_calendar'] }, ctxFor(c, {
-      sample_ev_edict: 0,
-      sample_ev_calendar: 1,
-    }));
-    expect(r.verdict).toBe('confirmed');
-  });
-
-  it('edict + rumor gives partial (upper from supporting testimony)', () => {
-    const r = judgeYear(d, { from: 1498, to: 1501, evidenceIds: ['sample_ev_edict', 'sample_ev_rumor'] }, ctxFor(c, {
-      sample_ev_edict: 0,
-      sample_ev_rumor: 0,
-    }));
-    expect(r.verdict).toBe('partial');
-    expect(codes(r)).toContain('needs_decisive');
   });
 });

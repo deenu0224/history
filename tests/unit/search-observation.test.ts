@@ -1,9 +1,9 @@
-import { clampMinute, formatClock, glitchAt, hotspotStatus, inWindow, linesAt, npcPoseAt } from '@/core/observation';
+import { clampMinute, findLine, formatClock, glitchAt, hotspotStatus, inSpans, inWindow, lineActiveAt, linesAt, npcPoseAt } from '@/core/observation';
 import { matchTerm, normalizeQuery, searchIndex, searchMessage } from '@/core/search';
-import { checkState, emptyStats, emptyTutorial, hintTier, hintText, tierFromIdle } from '@/core/terminal';
-import type { NpcDef, ObservationTimeline, SearchEntry, TutorialStep } from '@/core/types';
-import type { PersistedState } from '@/core/save';
-import { initialPersisted } from '@/store/gameStore';
+import { activeLadders, checkState, emptyHints, emptyStats, HINT_SILENCE_SECONDS, laddersDone, nextHintStep } from '@/core/terminal';
+import { HEAR_DEFAULT_MIN_ZOOM, HEAR_DEFAULT_RADIUS, type HintLadder, type NpcDef, type ObservationTimeline, type SearchEntry } from '@/core/types';
+import { conditionState, initialPersisted } from '@/store/gameStore';
+import { content } from '@/data';
 
 const entry = (id: string, terms: string[], extra: Partial<SearchEntry> = {}): SearchEntry => ({
   id,
@@ -124,52 +124,55 @@ describe('observation timeline', () => {
   });
 });
 
-describe('state conditions and hint tiers', () => {
-  const base = (): PersistedState => initialPersisted();
-  it('checkState covers flags, evidence, lists, stats and any-of', () => {
-    const s = base();
+describe('state conditions and hint ladders', () => {
+  const base = () => conditionState(initialPersisted(), content);
+  it('checkState covers flags, lists, stats and any-of', () => {
+    const s = { ...base(), flags: { a: true }, searched: ['se'], heard: ['m2'], clues: ['cl_order'], stats: { ...emptyStats(), taps: 2 } };
     expect(checkState(s, undefined)).toBe(true);
-    expect(checkState(s, { all: ['a'] })).toBe(false);
-    s.flags.a = true;
-    s.evidence.e = 0;
-    s.searched.push('se');
-    s.attempts.d = 1;
-    s.stats = { ...emptyStats(), taps: 2 };
-    expect(checkState(s, { all: ['a'], evidence: ['e'], searched: ['se'], attempted: ['d'], minStats: { taps: 2 } })).toBe(true);
+    expect(checkState(s, { all: ['a'], searched: ['se'], heard: ['m2'], clues: ['cl_order'], minStats: { taps: 2 } })).toBe(true);
     expect(checkState(s, { none: ['a'] })).toBe(false);
     expect(checkState(s, { minStats: { taps: 3 } })).toBe(false);
+    expect(checkState(s, { stamped: ['ck_place'] })).toBe(false);
     expect(checkState(s, { any: [{ all: ['zzz'] }, { minStats: { taps: 1 } }] })).toBe(true);
     expect(checkState(s, { any: [{ all: ['zzz'] }] })).toBe(false);
   });
 
-  const step: TutorialStep = {
-    id: 't',
+  const ladder: HintLadder = {
+    id: 'l',
     provenance: 'fictional',
     order: 0,
-    app: 'search',
-    target: 'x',
-    coach: 'c',
-    showWhen: {},
-    doneWhen: {},
-    hints: ['1', '2', '3'],
-    idleSeconds: 40,
+    activeWhen: {},
+    doneWhen: { all: ['done'] },
+    failOn: ['stamp_miss'],
+    steps: [
+      { idle: 30, fails: 2, messageId: 'a' },
+      { idle: 60, messageId: 'b' },
+    ],
   };
-  it('idle escalates every threshold; detailed halves it; off disables', () => {
-    expect(tierFromIdle(step, 39, 'normal')).toBe(0);
-    expect(tierFromIdle(step, 80, 'normal')).toBe(2);
-    expect(tierFromIdle(step, 500, 'normal')).toBe(3);
-    expect(tierFromIdle(step, 20, 'detailed')).toBe(1);
-    expect(tierFromIdle(step, 500, 'off')).toBe(0);
+  it('silence, idle thresholds, fails, detailed halves, off disables', () => {
+    const h = emptyHints();
+    expect(nextHintStep(ladder, h, 10, 'normal')).toBeNull();
+    expect(nextHintStep(ladder, h, 30, 'normal')).toEqual({ index: 0, messageId: 'a' });
+    expect(nextHintStep(ladder, { sent: {}, fails: { l: 2 } }, 0, 'normal')).toEqual({ index: 0, messageId: 'a' });
+    expect(nextHintStep(ladder, { sent: { l: 1 }, fails: {} }, 30, 'detailed')).toEqual({ index: 1, messageId: 'b' });
+    expect(nextHintStep(ladder, h, 500, 'off')).toBeNull();
+    expect(nextHintStep(ladder, { sent: { l: 2 }, fails: {} }, 500, 'normal')).toBeNull();
+    expect(laddersDone([ladder], { sent: { l: 2 }, fails: {} })).toEqual(['l']);
+    expect(activeLadders([ladder], { ...base(), flags: { done: true } })).toEqual([]);
+    expect(HINT_SILENCE_SECONDS).toBe(20);
   });
-  it('fails escalate (2 per tier normal, 1 per tier detailed), capped at 3', () => {
-    const t = emptyTutorial();
-    t.fails.t = 3;
-    expect(hintTier(step, t, 'normal')).toBe(1);
-    expect(hintTier(step, t, 'detailed')).toBe(3);
-    t.fails.t = 99;
-    expect(hintTier(step, t, 'normal')).toBe(3);
-    expect(hintTier(step, t, 'off')).toBe(0);
-    expect(hintText(step, 0)).toBeNull();
-    expect(hintText(step, 2)).toBe('2');
+});
+
+describe('hearing helpers', () => {
+  it('lines are active only in their window; ids resolve globally', () => {
+    expect(findLine(content.npcs, 'm2')!.npc.id).toBe('npc_messenger');
+    expect(lineActiveAt(content.npcs, 'm2', 839, {})).toBe(false);
+    expect(lineActiveAt(content.npcs, 'm2', 840, {})).toBe(true);
+    expect(lineActiveAt(content.npcs, 'r2', 520, {})).toBe(true); // 08:40
+    expect(lineActiveAt(content.npcs, 'b5', 960, {})).toBe(true); // 16:00
+    expect(lineActiveAt(content.npcs, 'nope', 960, {})).toBe(false);
+    expect(inSpans(850, [{ from: 840, to: 960 }])).toBe(true);
+    expect(HEAR_DEFAULT_MIN_ZOOM).toBe(1.6);
+    expect(HEAR_DEFAULT_RADIUS).toBe(3);
   });
 });

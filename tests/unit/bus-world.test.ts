@@ -1,6 +1,6 @@
 import { createBus, type BusEvents } from '@/core/bus';
 import { availableLines, canInteract, checkCondition, npcWaypointAt } from '@/core/world';
-import { sampleContent } from './fixtures';
+import type { Interactable, NpcDef } from '@/core/types';
 
 describe('bus', () => {
   it('delivers typed payloads, supports off/once/clear', () => {
@@ -35,13 +35,27 @@ describe('bus', () => {
 });
 
 describe('world helpers', () => {
-  const c = sampleContent();
-  const npc = c.npcs[0]!;
+  const npc: NpcDef = {
+    id: 'n',
+    provenance: 'fictional',
+    sceneId: 's',
+    spriteKey: 'x',
+    label: 'n',
+    schedule: [
+      { time: 480, x: 2, y: 2 },
+      { time: 720, x: 9, y: 5 },
+    ],
+    dialogue: [
+      { id: 'greet', text: 'hi', provenance: 'fictional' },
+      { id: 'secret', text: 'psst', provenance: 'fictional', when: { all: ['k'] } },
+    ],
+  };
+  const obj: Interactable = { id: 'o', provenance: 'fictional', sceneId: 's', x: 0, y: 0, spriteKey: 'x', kind: 'object', label: 'o', examine: [], requires: 'k' };
   it('flag conditions', () => {
     expect(checkCondition({ a: true }, { all: ['a'], none: ['b'] })).toBe(true);
     expect(checkCondition({ a: true, b: 1 }, { all: ['a'], none: ['b'] })).toBe(false);
     expect(checkCondition({}, undefined)).toBe(true);
-    expect(canInteract(c.worldObjects[2]!, {})).toBe(false);
+    expect(canInteract(obj, {})).toBe(false);
   });
   it('npc schedule wraps around the day', () => {
     expect(npcWaypointAt(npc, 500)).toMatchObject({ x: 2, y: 2 });
