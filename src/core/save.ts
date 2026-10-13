@@ -1,24 +1,18 @@
 import { del, get, set } from 'idb-keyval';
-import type { AppId, CollectionStage, FlagValue, Id, PlayerNotebook, PlayStats, RewriteEntry, Verdict } from './types';
-import type { HintLevel, TutorialState } from './terminal';
+import type { AppId, FlagValue, Id, PlayStats, RewriteEntry, Stamp } from './types';
+import type { HintLevel, HintState } from './terminal';
+import type { Frame, ReportDraft } from './report';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const SAVE_SCHEMA = 'gyeollok-save';
 export type SaveSlot = 'auto' | 'manual';
-
-export interface SolvedRecord {
-  /** 지금까지의 최고 판정(partial | confirmed) */
-  best: Extract<Verdict, 'partial' | 'confirmed'>;
-  attempts: number;
-}
 
 export interface Settings {
   textSpeed: number;
   volume: number;
-  showInteractHints: boolean;
   /** 엔딩 후 '재구성/가상' 표식 노출 */
   showProvenance: boolean;
-  /** 힌트 단계: 끔 / 보통 / 자세히 */
+  /** 메신저 힌트: 끔 / 보통 / 자세히 */
   hintLevel: HintLevel;
   /** 모바일 진동(navigator.vibrate) */
   haptics: boolean;
@@ -31,59 +25,75 @@ export interface SearchLogEntry {
   query: string;
   normalized: string;
   status: 'ok' | 'unknown' | 'too_short' | 'empty' | 'no_article';
-  /** 맞은 색인 항목 */
   entryIds: Id[];
 }
 
+/** 배정 종결(이번 건). 플레이어가 찍은 것과, 지금 현실이 보여 주는 것은 다를 수 있다(보정·복원). */
+export interface Closure {
+  /** 플레이어가 실제로 찍은 판정 */
+  verdict: Stamp;
+  /** 지금 현실이 보여 주는 판정(보정 뒤 '일치(노이즈)'로 바뀔 수 있다) */
+  shownVerdict: Stamp;
+  /** 플레이어가 적은 소견(보정이 지울 수 있다) */
+  note: string;
+  /** 근거로 붙인 프레임 */
+  frameIds: Id[];
+  /** 지금 현실의 분류 문구 */
+  classification: string;
+}
+
 /**
- * 저장되는 게임 상태(v2: 결록 단말). 구조를 바꾸면 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
- * v1 → v2: currentScene·examined 제거(걷기 폐지), 단말 상태 추가.
- * v2 → v3: 현실 이동(shifts·rewriteLog), 카드 겹치기(links), 기록하기(recorded) 추가. 앱 7 → 5(reader→search, archive→notebook).
+ * 저장되는 게임 상태(v4: 「대조」). 구조를 바꾸면 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
+ * v1 → v2: 걷기 폐지. v2 → v3: 현실 이동·카드 겹치기·기록하기.
+ * v3 → v4: v3 「대조」 재설계. 손 노트·메모·증거 보드·기록관·튜토리얼·증거 카드·추리·도감 상태를 버린다(설정만 유지).
  */
 export interface PersistedState {
   flags: Record<string, FlagValue>;
-  /** 보유 증거 id → 공개 단계 */
-  evidence: Record<Id, number>;
-  collection: Record<Id, CollectionStage>;
-  /** 손글씨 노트(오프라인 스캔) — 정합성 보정의 대상이 아니다 */
-  notebook: PlayerNotebook;
-  solved: Record<Id, SolvedRecord>;
-  /** 판정 시도 수(풀지 못한 문제 포함) */
-  attempts: Record<Id, number>;
-  observations: Id[];
-  /** 검색어 수첩(칩) — 표기 그대로 */
+  /** 검색어 칩(보고 들은 그대로) */
   terms: string[];
   searchLog: SearchLogEntry[];
   /** 한 번 이상 맞힌 색인 항목 */
   searched: Id[];
-  /** 사료 뷰어 서재 */
-  sources: Id[];
-  /** 등록한 구절 */
-  phrases: Id[];
+  /** 열어 본 DB 기록 */
+  recordsOpened: Id[];
   /** 도착한 메시지(도착 순) */
   inbox: Id[];
   read: Id[];
-  /** 메시지 id → 고른 답장 id */
   replies: Record<Id, Id>;
-  /** 적용된 정합성 보정 */
   corrections: Id[];
-  /** 적용된 현실 이동(적용 순) */
   shifts: Id[];
-  /** 합의된 현실의 다시 쓰기 기록(말소·복원). 플레이어 쪽 화면만 읽는다. */
   rewriteLog: RewriteEntry[];
-  /** 만든 카드 겹치기(EvidenceLink) */
-  links: Id[];
-  /** 손 노트에 기록한 사실(RecordAct) */
-  recorded: Id[];
+  /** 들은 대사(관측 내내 누적) */
+  heard: Id[];
+  /** 확대해서 본 핫스팟 */
+  seen: Id[];
+  /** 관측에서 머문 시(時) — 8~18 */
+  hoursVisited: number[];
   /** 탭한 핫스팟 */
   tapped: Id[];
-  /** 살펴본 기록관 전시물 */
-  exhibitsSeen: Id[];
   /** 타임라인 id → 마지막 시각(분) */
   obsMinute: Record<Id, number>;
   appsOpened: AppId[];
+  /** 필름(최대 6장, 칸 순서) */
+  frames: Frame[];
+  /** 지금까지 찍은 수(프레임 id·seq 용) */
+  frameSeq: number;
+  /** 열어 본 배정 */
+  assignmentsOpened: Id[];
+  /** 체크리스트 항목 → 찍은 도장 */
+  checklist: Record<Id, Stamp>;
+  /** 배정 → 종결 */
+  closures: Record<Id, Closure>;
+  /** 열어 본 종결 보고서 */
+  opened: Id[];
+  /** 보고서 초안 */
+  reports: Record<Id, ReportDraft>;
+  /** 도장 찍은(확정된) 보고서 */
+  filed: Id[];
+  /** 관측 훼손 구간 */
+  degraded: { from: number; to: number }[];
+  hints: HintState;
   stats: PlayStats;
-  tutorial: TutorialState;
   settings: Settings;
 }
 
@@ -143,6 +153,43 @@ export const migrations: Record<number, Migration> = {
       recorded: [],
       appsOpened: [...new Set(opened)],
       stats: { links: 0, linkMisses: 0, ...stats },
+    };
+  },
+  3: (d) => {
+    // v3(손 노트·보드) → v4(대조): 진행은 호환되지 않으므로 버리고 설정만 남긴다.
+    const old = (d.settings ?? {}) as Record<string, unknown>;
+    const { showInteractHints: _hints, ...settings } = old;
+    void _hints;
+    return {
+      flags: {},
+      terms: [],
+      searchLog: [],
+      searched: [],
+      recordsOpened: [],
+      inbox: [],
+      read: [],
+      replies: {},
+      corrections: [],
+      shifts: [],
+      rewriteLog: [],
+      heard: [],
+      seen: [],
+      hoursVisited: [],
+      tapped: [],
+      obsMinute: {},
+      appsOpened: [],
+      frames: [],
+      frameSeq: 0,
+      assignmentsOpened: [],
+      checklist: {},
+      closures: {},
+      opened: [],
+      reports: {},
+      filed: [],
+      degraded: [],
+      hints: { sent: {}, fails: {} },
+      stats: { searches: 0, unknownSearches: 0, scrubs: 0, taps: 0, captures: 0, stamps: 0, stampMisses: 0, reportSubmits: 0, reportFails: 0 },
+      settings: { textSpeed: 1, volume: 0.8, showProvenance: false, hintLevel: 'normal', haptics: true, reduceFlicker: false, ...settings },
     };
   },
 };

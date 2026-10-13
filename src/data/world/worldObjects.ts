@@ -2,7 +2,7 @@
  * 관측 뷰어(디오라마)의 사물 핫스팟. 좌표는 world/maps.ts 의 타일 좌표.
  *  - 걷기 폐지: 연구실·기록관 오브젝트는 단말 앱(검색·메신저·기록관)으로 옮겼다(src/data/terminal).
  *  - obs001(과거) 문구에는 연도·왕대·관청 이름·인물 이름을 넣지 않는다.
- *  - windows: 그 시각에만 살펴볼 수 있다(사람이 자리를 비웠을 때 등). 진행 필수 증거는 항상 열린 대체 경로가 있다.
+ *  - windows: 그 시각에만 살펴볼 수 있다(사람이 자리를 비웠을 때 등). v3: 사물 탭은 '살펴보기'일 뿐 단서는 프레임이 만든다.
  *  - grants.terms: 보고 들은 그대로의 표현 → 검색어 수첩(칩).
  *  - 탁영금은 DB 자료로만 등장한다(과거 장면에 두지 않음: 각자 시기 미확인).
  */
@@ -11,7 +11,7 @@ import { REF } from '@/data/historical/refs';
 
 const R = 'reconstructed' as const;
 
-// ── 관측 #001(obs001, 과거) ─────────────────────────────────
+// ── 관측 #C-2217(obs001, 과거) ─────────────────────────────────
 // 근거: 실록청에서 가장사초를 거두어 편찬함(E0029555, E0002091), 7월 11일 사초 반입 사건(kja_10407011_001).
 // 배치·사물의 세부 묘사는 재구성.
 const obs001: Interactable[] = [
@@ -26,7 +26,6 @@ const obs001: Interactable[] = [
     kind: 'object',
     label: '현판',
     examine: ['대문 곁의 현판. 글씨가 그늘에 묻혀 읽히지 않는다.', '관원과 서리가 쉴 새 없이 드나든다. 관청이다.'],
-    grants: { collect: [{ entryId: 'col_plc_chunchugwan', stage: 1 }] },
   },
   {
     id: 'obs_yard_well',
@@ -54,18 +53,6 @@ const obs001: Interactable[] = [
       '끈으로 묶은 종이 꾸러미가 수십 묶음 쌓여 있다.',
       '꼬리표마다 다른 사람의 이름. 여러 집에서 거둬 온 것이다.',
     ],
-    grants: {
-      evidence: [{ id: 'ev_gajang' }, { id: 'ev_sillokcheong' }],
-      flags: ['f_saw_bundles'],
-      notebook: [
-        {
-          id: 'note_bundles',
-          section: 'observed',
-          text: '안쪽 방에 여러 사람의 이름이 붙은 종이 꾸러미가 쌓여 있다.',
-          provenance: R,
-        },
-      ],
-    },
   },
   {
     id: 'obs_store_bookshelf',
@@ -114,18 +101,13 @@ const obs001: Interactable[] = [
     kind: 'object',
     label: '젊은 관원의 서안',
     examine: ['붓과 벼루, 옮겨 적다 만 종이.', "그리고 손때 묻은 책 한 권. 표지에 '經國大典'."],
-    // 주인이 자리를 비운 동안에만 책상 위가 보인다(선택 단서·레드 헤링)
+    // 주인이 자리를 비운 동안에만 책상 위가 보인다(살펴보기·레드 헤링)
     windows: [
       { from: 600, to: 720 },
       { from: 1020, to: 1141 },
     ],
     hiddenText: '젊은 관원이 서안 앞에 앉아 있어 책상 위가 가려져 있다.',
-    grants: {
-      evidence: [{ id: 'ev_lawbook' }],
-      flags: ['f_saw_lawbook'],
-      collect: [{ entryId: 'col_src_gyeongguk', stage: 1 }],
-      terms: ['經國大典'],
-    },
+    grants: { terms: ['經國大典'] },
   },
   {
     id: 'obs_hall_manuscript',
@@ -141,7 +123,6 @@ const obs001: Interactable[] = [
       '날짜 순으로 옮겨 적은 초고가 높이 쌓였다.',
       '한 임금의 치세를 하루하루 엮고 있다. 맨 끝은 그 임금의 마지막 날이다.',
     ],
-    grants: { evidence: [{ id: 'ev_sillokcheong' }], flags: ['f_saw_bundles'] },
   },
   {
     id: 'obs_hall_desk_red',
@@ -154,20 +135,9 @@ const obs001: Interactable[] = [
     kind: 'object',
     label: '당상의 서안',
     examine: ['펼쳐 둔 사초 한 묶음.', '같은 장을 몇 번이고 넘긴 자국이 있다.'],
-    // 붉은 관복의 노관이 일어서 있는 짧은 틈에만(선택 단서 → 기록관 전시물)
+    // 붉은 관복의 노관이 일어서 있는 짧은 틈에만(살펴보기)
     windows: [{ from: 840, to: 900 }],
     hiddenText: '붉은 관복의 노관이 서안을 차지하고 있다. 가까이 들여다볼 수 없다.',
-    grants: {
-      flags: ['f_saw_red_desk'],
-      notebook: [
-        {
-          id: 'note_red_desk',
-          section: 'observed',
-          text: '붉은 관복의 노관이 한 사초를 몇 번이고 다시 읽는다.',
-          provenance: R,
-        },
-      ],
-    },
   },
   {
     id: 'obs_hall_desk_blue',

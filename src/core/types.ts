@@ -1,4 +1,5 @@
-// 결록 도메인 타입. 데이터(src/data) → 코어(src/core) → 스토어(src/store) 가 공유한다.
+// 결록 도메인 타입(v3 「대조」). 데이터(src/data) → 코어(src/core) → 스토어(src/store) 가 공유한다.
+// 설계: docs/DESIGN_V3.md
 
 export type Id = string;
 /** 서기 연도(정수). 음력/월일은 다루지 않는다. */
@@ -22,7 +23,13 @@ export interface ContentBase {
   authorNote?: string;
 }
 
-// ── 사실(Fact): 증거가 입증하고, 인물·진술이 보유/요구한다 ─────────
+/** 낯선 실록 용어의 한 줄 풀이(탭하면 보임). 사실만, 짧게. */
+export interface Gloss {
+  term: string;
+  gloss: string;
+}
+
+// ── 사실(Fact): 단서가 입증하고, 인물·칸이 요구한다 ─────────────────
 export type FactKind =
   | 'name'
   | 'courtesyName'
@@ -32,7 +39,6 @@ export type FactKind =
   | 'origin'
   | 'relation'
   | 'possession'
-  | 'handwriting'
   | 'event'
   | 'claim'
   | 'trait';
@@ -49,7 +55,7 @@ export interface HistoricalPerson extends ContentBase {
   born?: Year;
   died?: Year;
   summary: string;
-  /** 검증된 사실. 인물 추리에서 증거 사실과 대조된다. */
+  /** 검증된 사실. 누구 칸에서 단서 사실과 대조된다. */
   facts: Fact[];
   relatedIds?: Id[];
 }
@@ -62,7 +68,6 @@ export interface HistoricalArtifact extends ContentBase {
   material?: string;
   holder?: string;
   summary: string;
-  sourceIds?: Id[];
   relatedIds?: Id[];
 }
 
@@ -73,8 +78,9 @@ export interface HistoricalSource extends ContentBase {
   compiled?: Year;
   author?: string;
   summary: string;
-  /** 원문/번역 발췌. provenance 가 verified 일 때만 원문으로 표시. */
+  /** 원문/번역 발췌. verified 일 때만 원문으로 표시. */
   excerpt?: string;
+  glossary?: Gloss[];
   relatedIds?: Id[];
 }
 
@@ -95,42 +101,33 @@ export interface Place extends ContentBase {
   summary: string;
 }
 
-// ── 증거 ──────────────────────────────────────────────────────
+// ── 연대 제약(연대 판정용) ─────────────────────────────────────────
 export type EvidenceStrength = 'decisive' | 'supporting' | 'weak';
 
-/** 연대 제약. notBefore/notAfter 는 포함(inclusive) 경계. 최소 하나는 있어야 한다. */
+/** notBefore/notAfter 는 포함(inclusive) 경계. 최소 하나는 있어야 한다. */
 export interface TimeConstraint {
   notBefore?: Year;
   notAfter?: Year;
   strength: EvidenceStrength;
-  /** weak 인 이유. 예: '장기간 사용된 물건', '후대 모사본일 수 있음' */
   weakReason?: string;
-  /**
-   * 카드 고유의 판정 피드백 한 줄(일반 문구 '하한만 제한합니다' 대신). 정답·정답 연도를 말하지 않는다(테스트).
-   * 4자리 연도를 쓰지 않는다 — 경계 수치는 UI 가 time 에서 직접 보여 준다.
-   */
+  /** 카드 고유 피드백 한 줄. 정답·4자리 연도를 쓰지 않는다(테스트). */
   feedback?: string;
 }
 
-/** 증거 카드의 공개 단계. levels[0] 은 처음 얻었을 때(예: '미확인 관료'). */
+/**
+ * 판정 엔진(chronology·deduction)이 읽는 증거 형태. v3 에서는 단서(Clue)를 이 형태로 바꿔 판정에 넘긴다(core/report.ts).
+ */
 export interface EvidenceLevel {
   label: string;
   text: string;
-  /** 이 단계에서 새로 입증되는 사실(이전 단계 사실은 누적). */
   proves?: Fact[];
-  /** 이 단계부터 알려지는 연대 제약(나중 단계가 덮어쓴다). */
   time?: TimeConstraint;
 }
-
 export type EvidenceCategory = 'object' | 'document' | 'person' | 'testimony' | 'place' | 'observation';
-
 export interface Evidence extends ContentBase {
   category: EvidenceCategory;
   levels: [EvidenceLevel, ...EvidenceLevel[]];
-  relatedIds?: Id[];
 }
-
-/** 특정 공개 단계에서 플레이어가 보는 증거. */
 export interface EvidenceView {
   id: Id;
   level: number;
@@ -140,66 +137,68 @@ export interface EvidenceView {
   time?: TimeConstraint;
 }
 
-// ── 보상·획득 ─────────────────────────────────────────────────
+// ── 조건 ───────────────────────────────────────────────────────
 export type FlagValue = boolean | number | string;
 
-export type NotebookSection = 'observed' | 'testimony' | 'verified' | 'hypothesis' | 'question';
-
-export interface NotebookGrant {
-  id: Id;
-  section: NotebookSection;
-  text: string;
-  refIds?: Id[];
-  provenance?: Provenance;
-  /**
-   * 현실 이동(RealityShift) 전의 상태. 손 노트에만 남는다: UI 는 before 를 취소선으로, text 를 새 글씨로 보여 준다.
-   * 단말(메신저·DB)에는 이전 상태를 보여 주는 표식이 없다.
-   */
-  before?: string;
-}
-
-export type Reward =
-  | { type: 'evidence'; evidenceId: Id; level?: number }
-  | { type: 'term'; term: string }
-  | { type: 'source'; sourceId: Id }
-  | { type: 'collection'; entryId: Id; stage: CollectionStage }
-  | { type: 'notebook'; note: NotebookGrant }
-  | { type: 'resolveQuestion'; noteId: Id }
-  | { type: 'flag'; flag: string; value?: FlagValue };
-
-export interface Grants {
-  evidence?: { id: Id; level?: number }[];
-  collect?: { entryId: Id; stage?: CollectionStage }[];
-  notebook?: NotebookGrant[];
-  flags?: string[];
-  observation?: Id;
-  /** 검색어 수첩에 추가되는 표현(보고 들은 그대로). 칩으로 검색할 수 있다. */
-  terms?: string[];
-  /** 사료 뷰어 서재에 들어가는 사료 id */
-  sources?: Id[];
-}
-
-/** 모든 플래그 조건은 truthy 검사. */
 export interface FlagCondition {
   all?: string[];
   none?: string[];
 }
 
-// ── 관측·월드 ─────────────────────────────────────────────────
-export interface Observation extends ContentBase {
-  sceneId: Id;
-  title: string;
-  lines: string[];
-  grants?: Grants;
+/** 체크리스트 도장 */
+export type Stamp = 'match' | 'mismatch';
+
+export interface PlayStats {
+  searches: number;
+  unknownSearches: number;
+  scrubs: number;
+  taps: number;
+  captures: number;
+  stamps: number;
+  stampMisses: number;
+  reportSubmits: number;
+  reportFails: number;
 }
 
-export type InteractableKind = 'object' | 'npc' | 'door' | 'observe';
+/**
+ * 상태 조건. 모든 항목은 AND(any 는 OR).
+ * heard: 들은 대사 · seen: (확대해서) 본 핫스팟 · clues: 지금 가진 프레임이 증명하는 단서 ·
+ * stamped: 도장 찍은 체크리스트 항목 · closed: 종결된 배정 · opened: 열어 본 종결 보고서 ·
+ * hintsDone: 끝까지 받은 힌트 사다리 · filed: 도장 찍은 보고서
+ */
+export interface StateCondition extends FlagCondition {
+  searched?: Id[];
+  records?: Id[];
+  read?: Id[];
+  appsOpened?: AppId[];
+  heard?: Id[];
+  seen?: Id[];
+  clues?: Id[];
+  stamped?: Id[];
+  closed?: Id[];
+  opened?: Id[];
+  corrections?: Id[];
+  shifts?: Id[];
+  filed?: Id[];
+  hintsDone?: Id[];
+  minStats?: Partial<PlayStats>;
+  any?: StateCondition[];
+}
 
+export interface Grants {
+  flags?: string[];
+  /** 검색어 칩(보고 들은 그대로) */
+  terms?: string[];
+}
+
+// ── 관측·월드 ─────────────────────────────────────────────────
 /** 관측 타임라인의 시각 구간(분). [from, to) */
 export interface TimeWindow {
   from: number;
   to: number;
 }
+
+export type InteractableKind = 'object' | 'npc' | 'door' | 'observe';
 
 export interface Interactable extends ContentBase {
   sceneId: Id;
@@ -208,22 +207,19 @@ export interface Interactable extends ContentBase {
   y: number;
   spriteKey: string;
   kind: InteractableKind;
-  /** 식별 전 표시 이름 */
+  /** 표시 이름(식별 전) */
   label: string;
   examine: string[];
   grants?: Grants;
-  /** 이 플래그가 truthy 일 때만 상호작용 가능 */
+  /** 이 플래그가 truthy 일 때만 보인다 */
   requires?: string;
-  /** door: 이동할 씬 (터미널 전환 후 미사용) */
   targetSceneId?: Id;
-  /** 관측 뷰어: 이 시각 구간에만 살펴볼 수 있다(없으면 항상) */
   windows?: TimeWindow[];
-  /** 구간 밖에서 탭했을 때 보여 줄 문구 */
   hiddenText?: string;
 }
 
 export interface Waypoint {
-  /** 게임 내 하루 분(0~1439). 해당 시각부터 이 위치로 이동/체류. */
+  /** 하루 분(0~1439). 해당 시각부터 이 위치로 이동/체류. */
   time: number;
   x: number;
   y: number;
@@ -231,125 +227,209 @@ export interface Waypoint {
   action?: string;
 }
 
+/** 엿듣기 규칙: 기준 배율의 minZoom 배 이상 확대 + 화면 중심에서 radiusTiles 타일 이내. */
+export interface HearSpec {
+  minZoom?: number;
+  radiusTiles?: number;
+}
+export const HEAR_DEFAULT_MIN_ZOOM = 1.6;
+export const HEAR_DEFAULT_RADIUS = 3;
+
 export interface DialogueLine {
+  /** 콘텐츠 전체에서 유일(hearLine·프레임·단서가 이 id 를 쓴다) */
   id: Id;
   speaker?: string;
   text: string;
   provenance: Provenance;
   sources?: SourceRef[];
   when?: FlagCondition;
-  /** 관측 뷰어: 이 시각 구간에만 들리는 말/보이는 행동(없으면 항상) */
+  /** 이 시각 구간에만 들린다/보인다(없으면 항상) */
   at?: TimeWindow[];
+  /** 엿듣기 규칙(없으면 기본값) */
+  hear?: HearSpec;
+  /** 들으면 생기는 것(검색어 칩·플래그) */
   grants?: Grants;
+  glossary?: Gloss[];
 }
 
 export interface NpcDef extends ContentBase {
   sceneId: Id;
   spriteKey: string;
-  /** 식별 전 표시 이름(예: '미확인 관료') */
+  /** 표시 이름(예: '붉은 관복') — 실존 인물 이름은 쓰지 않는다 */
   label: string;
   personId?: Id;
   schedule: Waypoint[];
   dialogue: DialogueLine[];
 }
 
-// ── 추리 ──────────────────────────────────────────────────────
-export type Verdict = 'confirmed' | 'partial' | 'undetermined' | 'wrong';
+export interface Hotspot {
+  id: Id;
+  targetId: Id;
+  kind: 'object' | 'npc';
+  windows?: TimeWindow[];
+  visibleWhen?: FlagCondition;
+}
 
-interface DeductionBase extends ContentBase {
+export interface ObservationTimeline extends ContentBase {
+  sceneId: Id;
   title: string;
-  prompt: string;
-  /** 이 추리에 쓰일 수 있는 증거(검증·획득 가능성 검사용). */
-  relevantEvidence: Id[];
-  rewards: { confirmed: Reward[]; partial?: Reward[] };
-  requires?: string;
+  start: number;
+  end: number;
+  initial: number;
+  camera: { x: number; y: number };
+  /** 메타데이터 패널(연도 '####' 등) */
+  meta: { label: string; value: string }[];
+  hotspots: Hotspot[];
+  /** 화면 불안정(노이즈) 구간. 0~1 */
+  glitches?: { from: number; to: number; intensity: number }[];
 }
 
-export interface YearDeduction extends DeductionBase {
-  kind: 'year';
-  /** 정답 범위(포함). 단일 연도면 from === to. */
-  target: { from: Year; to: Year };
-  /** 근거 없이 주어지는 전제(예: 조선 개국~). 경계 정당화에 쓰인다. */
-  context?: { from?: Year; to?: Year };
-  /** 부분 확정 허용 최대 폭(연 수, 포함 범위 to-from+1). */
-  maxPartialWidth: number;
-}
-
-export interface PersonDeduction extends DeductionBase {
-  kind: 'person';
-  /** 미확인 인물 카드(증거 id) */
-  subjectEvidenceId: Id;
-  candidates: Id[];
-  answer: Id;
-  /** 신원을 특정하는 데 반드시 인용되어야 할 사실 */
-  requiredFacts: Fact[];
-}
-
-export interface EventStatement {
-  id: Id;
-  text: string;
-  /** 이 사실이 인용되면 진술이 반박된다. */
-  refutedBy?: Fact[];
-}
-
-export interface EventDeduction extends DeductionBase {
-  kind: 'event';
-  eventId: Id;
-  statements: EventStatement[];
-  answer: Id;
-  requiredFacts: Fact[];
-}
-
-/** 인과 고리의 마디(플레이어가 보드에서 잇는 진술 카드). */
-export interface CausalNode {
-  id: Id;
-  text: string;
-}
-
-/** 정답 고리의 한 연결. requires 의 사실이 모두 인용되어야 '뒷받침'된다. */
-export interface CausalLinkRule {
-  from: Id;
-  to: Id;
-  requires: Fact[];
-}
-
-/** 알려진 틀린 연결과 그 고유 피드백(정답을 말하지 않는다). */
-export interface CausalWrongLink {
-  from: Id;
-  to: Id;
-  message: string;
+// ── 단서(프레임·기록에서 계산) ────────────────────────────────────
+/** 프레임이 이 단서를 증명하는 조건. 모든 항목 AND. */
+export interface FrameMatch {
+  heard?: Id[];
+  heardAny?: Id[];
+  visible?: Id[];
+  visibleAny?: Id[];
+  minute?: TimeWindow;
 }
 
 /**
- * 인과 추리: 마디를 화살표로 이어 '왜'를 설명한다. 각 화살표는 증거로 뒷받침되어야 한다.
- * 정답 = chain 의 연속한 쌍 전부(그리고 그것만). 판정 규칙은 core/deduction.ts judgeCausal.
+ * 단서: 프레임(frame) 또는 DB 기록(record) 또는 한 칸 안의 조합(combo)에서 생긴다.
+ * proves(사실)·time(연대 제약)이 보고서 판정의 재료다. 정답은 데이터에만 있다.
  */
-export interface CausalDeduction extends DeductionBase {
-  kind: 'causal';
-  nodes: CausalNode[];
-  /** 정답 고리(원인 → 결과 순) */
-  chain: Id[];
-  links: CausalLinkRule[];
-  wrongLinks?: CausalWrongLink[];
+export interface Clue extends ContentBase {
+  label: string;
+  text: string;
+  proves?: Fact[];
+  time?: TimeConstraint;
+  frame?: FrameMatch;
+  record?: Id;
+  /** all: 같은 칸 첨부의 단서들, report: 보고서 어디든 있어야 하는 단서 */
+  combo?: { all: Id[]; report?: Id[]; missingReportText?: string };
+  /** 기록에 없는 목격(불일치 근거) */
+  unrecorded?: boolean;
+  /** 핵심 단서: 보정 트리거·훼손 보호 */
+  key?: boolean;
 }
 
-export type Deduction = YearDeduction | PersonDeduction | EventDeduction | CausalDeduction;
+// ── 업무: 배정·체크리스트 ─────────────────────────────────────────
+export type Verb = 'look' | 'listen' | 'capture' | 'scrub' | 'stamp' | 'search' | 'report';
 
-export interface CausalSubmissionLink {
-  from: Id;
-  to: Id;
-  evidenceIds: Id[];
+export interface ChecklistItem {
+  id: Id;
+  no: number;
+  title: string;
+  /** 참조 표시(예: '실록청') — 이름·연도 금지 */
+  refLabel: string;
+  prompt: string;
+  teaches: Verb[];
+  /** 도장이 눌리는 조건 */
+  ready: StateCondition;
+  notReadyText: string;
+  expected?: Stamp;
+  wrongText?: string;
+  /** 마지막 판정 항목 */
+  final?: {
+    recommend: Stamp;
+    recommendText: string;
+    recommendButton: string;
+    /** [불일치]에 필요한 근거(지금 프레임 단서 중 하나) */
+    mismatchNeedsAnyClue: Id[];
+    mismatchNeedsText: string;
+  };
 }
 
-export type DeductionSubmission =
-  | { kind: 'year'; deductionId: Id; from: Year; to: Year; evidenceIds: Id[] }
-  | { kind: 'person'; deductionId: Id; candidateId: Id; evidenceIds: Id[] }
-  | { kind: 'event'; deductionId: Id; statementId: Id; evidenceIds: Id[] }
-  | { kind: 'causal'; deductionId: Id; links: CausalSubmissionLink[] };
+export interface Assignment extends ContentBase {
+  code: string;
+  title: string;
+  officer: string;
+  priority: string;
+  header: { key: string; label: string; value: string }[];
+  /** 참조 수렴 기록(종결 뒤 탭하면 DB 기록) */
+  refs: { title: string; recordId?: Id; searchEntryId?: Id }[];
+  timelineId: Id;
+  checklist: ChecklistItem[];
+  /** 제출 직후 자동 분류 문구 */
+  autoClassification: string;
+  reportId: Id;
+}
+
+/** 종결된 보고서(콘텐츠: 옛 보고서·예고 보고서). 이번 건의 종결은 상태에서 만든다. */
+export interface ClosedReport extends ContentBase {
+  code: string;
+  when: string;
+  officer: string;
+  verdict: string;
+  classification: string;
+  note: string;
+  fields?: { label: string; value: string }[];
+  showWhen?: StateCondition;
+  order: number;
+}
+
+// ── 보고서 ───────────────────────────────────────────────────────
+export type BlankKey = 'when' | 'who' | 'what' | 'result';
+export const BLANK_KEYS: readonly BlankKey[] = ['when', 'who', 'what', 'result'];
+
+export interface FactBlankSpec {
+  label: string;
+  prompt: string;
+  requires: Fact[];
+  /** 요구 사실이 빠졌을 때(같은 순서) */
+  missingText: string[];
+  /** 이 사실이 있으면 어긋남 */
+  wrong?: { fact: Fact; message: string }[];
+  /** 이 사실만 있으면 근거 부족(가까움) */
+  near?: { fact: Fact; message: string }[];
+  emptyText: string;
+  tips?: BlankTip[];
+}
+
+/** 칸 고유 피드백: 칸의 단서 집합이 has 를 모두 갖고 lacks 를 하나도 갖지 않으면(확인 전) 이 문구를 덧붙인다. 정답 금지. */
+export interface BlankTip {
+  has?: Id[];
+  lacks?: Id[];
+  message: string;
+}
+
+export interface ReportSpec extends ContentBase {
+  assignmentId: Id;
+  title: string;
+  maxAttachments: number;
+  unlockWhen: StateCondition;
+  when: {
+    label: string;
+    prompt: string;
+    target: { from: Year; to: Year };
+    maxPartialWidth: number;
+    /** chronology 피드백 코드 → 칸 고유 문구(정답·연도 금지) */
+    messages: Partial<Record<FeedbackCode, string>>;
+    emptyText: string;
+    noYearText: string;
+    tips?: BlankTip[];
+  };
+  who: {
+    label: string;
+    prompt: string;
+    candidates: Id[];
+    answer: Id;
+    requiredFacts: Fact[];
+    noPersonText: string;
+    twoPersonsText: string;
+    tips?: BlankTip[];
+  };
+  what: FactBlankSpec;
+  result: FactBlankSpec;
+  /** 도장 → 이 현실 이동 */
+  restores: Id;
+}
+
+// ── 판정 결과 ─────────────────────────────────────────────────────
+export type Verdict = 'confirmed' | 'partial' | 'undetermined' | 'wrong';
 
 export type FeedbackCode =
   | 'invalid_input'
-  | 'unknown_deduction'
   | 'unknown_evidence'
   | 'not_owned'
   | 'no_time_info'
@@ -370,149 +450,70 @@ export type FeedbackCode =
   | 'missing_fact'
   | 'not_supported'
   | 'unknown_choice'
-  | 'link_wrong'
-  | 'link_reversed'
-  | 'link_unsupported'
-  | 'chain_incomplete';
+  | 'missing_report_clue'
+  | 'empty';
 
 export interface Feedback {
   code: FeedbackCode;
   message: string;
   evidenceId?: Id;
   fact?: Fact;
-  /** 인과 추리: 이 피드백이 가리키는 연결 */
-  link?: { from: Id; to: Id };
 }
 
 export interface JudgeResult {
   deductionId: Id;
   verdict: Verdict;
   feedback: Feedback[];
-  /** 연도 추리: 인용한(약하지 않은) 증거가 함의하는 범위. 플레이어 자신의 증거로 계산되므로 공개 가능. */
   implied?: { from?: Year; to?: Year };
 }
 
-// ── 수집 ──────────────────────────────────────────────────────
-export type CollectionCategory = 'artifact' | 'source' | 'person' | 'event' | 'place';
-/** 0 미발견, 1 발견, 2 정체 식별, 3 정보 검증, 4 관련 기록 연결, 5 도감 완성 */
-export type CollectionStage = 0 | 1 | 2 | 3 | 4 | 5;
-
-export interface CollectionField {
-  key: string;
-  label: string;
-  value: string;
-  unlockStage: CollectionStage;
-  provenance?: Provenance;
-  /** 이 현실 이동(RealityShift id)이 적용되기 전에는 단계와 상관없이 보이지 않는다(말소된 사실). */
-  restoredBy?: Id;
+/** 판정 엔진 내부 문제 형태(보고서 칸에서 만든다) */
+export interface YearDeduction extends ContentBase {
+  kind: 'year';
+  target: { from: Year; to: Year };
+  context?: { from?: Year; to?: Year };
+  maxPartialWidth: number;
+}
+export interface PersonDeduction extends ContentBase {
+  kind: 'person';
+  candidates: Id[];
+  answer: Id;
+  requiredFacts: Fact[];
 }
 
-export interface CollectionEntry extends ContentBase {
-  category: CollectionCategory;
-  /** 연결된 콘텐츠 id(카테고리와 같은 종류여야 함) */
-  refId: Id;
-  title: string;
-  /** stage 1 에서 보이는 이름 */
-  unidentifiedTitle: string;
-  spriteKey?: string;
-  fields: CollectionField[];
-  links?: Id[];
+/** 판정에 필요한 최소 문맥. owned: 보유 증거 id → 공개 단계. */
+export interface JudgeContext {
+  evidence: Readonly<Record<Id, Evidence>>;
+  persons: Readonly<Record<Id, HistoricalPerson>>;
+  owned: Readonly<Record<Id, number>>;
 }
 
-// ── 노트 ──────────────────────────────────────────────────────
-export interface NoteEntry extends NotebookGrant {
-  seq: number;
-  resolved?: boolean;
-}
-
-export type PlayerNotebook = Record<NotebookSection, NoteEntry[]>;
-
-// ── 결록 단말(터미널) ───────────────────────────────────────────
-/**
- * 앱 5개. 사료 뷰어는 검색 앱 안의 '원문 보기'(구절 탭)로, 개인 기록관은 손 노트의 '기록관' 탭으로 합쳐졌다.
- * 설정은 시스템 패널(앱 아님).
- */
-export type AppId = 'messenger' | 'search' | 'viewer' | 'board' | 'notebook';
-
-/** 플레이 통계(상태 조건·튜토리얼 판정용). 오르기만 한다. */
-export interface PlayStats {
-  searches: number;
-  unknownSearches: number;
-  scrubs: number;
-  taps: number;
-  phrases: number;
-  phraseMisses: number;
-  deductionAttempts: number;
-  exhibits: number;
-  /** 보드에서 카드 겹치기(연결) 성공/실패 */
-  links: number;
-  linkMisses: number;
-}
-
-/**
- * 플래그 조건의 확장. 모든 항목은 AND.
- * all/none: 플래그 truthy 검사 · evidence: 보유 증거 · searched: 한 번 이상 맞힌 검색 항목
- * read: 읽은 메시지 · appsOpened: 열어 본 앱 · phrases: 등록한 구절 · tapped: 탭한 핫스팟
- * attempted: 한 번 이상 제출한 추리 · corrections: 적용된 보정 · minStats: 통계 하한
- */
-export interface StateCondition extends FlagCondition {
-  evidence?: Id[];
-  searched?: Id[];
-  read?: Id[];
-  appsOpened?: AppId[];
-  phrases?: Id[];
-  tapped?: Id[];
-  attempted?: Id[];
-  corrections?: Id[];
-  /** 적용된 현실 이동(RealityShift) */
-  shifts?: Id[];
-  /** 만든 카드 연결(EvidenceLink) */
-  links?: Id[];
-  /** 손 노트에 기록한 사실(RecordAct) */
-  recorded?: Id[];
-  minStats?: Partial<PlayStats>;
-  /** 이 중 하나 이상(OR). 막힘 방지용 대체 경로에 쓴다. */
-  any?: StateCondition[];
-}
+// ── 결록 단말 ───────────────────────────────────────────────────
+/** 앱 4개: 업무 · 관측 · DB 검색 · 메신저 */
+export type AppId = 'work' | 'viewer' | 'db' | 'messenger';
 
 export interface AppDef extends ContentBase {
   app: AppId;
   title: string;
-  /** src/game/art 의 아이콘 키 */
   iconKey: string;
   order: number;
-  /** 없으면 처음부터 열림 */
   unlockWhen?: StateCondition;
 }
 
-/** 검색 결과가 가리키는 콘텐츠 */
-export type SearchRefKind = 'person' | 'artifact' | 'source' | 'event' | 'place' | 'evidence' | 'record';
+export type SearchRefKind = 'person' | 'artifact' | 'source' | 'event' | 'place' | 'record';
 export interface SearchResultRef {
   kind: SearchRefKind;
   id: Id;
 }
 
-/**
- * 통합 DB 색인 항목. terms 는 정규화 전 표기(한글·한자 이형 포함). provenance 는 색인 자체(가상 DB)의 층위,
- * 결과로 보이는 내용은 각 ref 콘텐츠의 provenance 를 따른다.
- */
 export interface SearchEntry extends ContentBase {
   terms: string[];
-  /** 이 조건이 아니면 색인에 없는 것처럼 동작 */
   requires?: StateCondition;
   results: SearchResultRef[];
-  /** 맞힐 때마다(최초 1회 효과) 주는 것 */
   grants?: Grants;
-  /** 관측·사료로 뒷받침될 때만 주는 것(증거 단계 상승 등) */
-  conditional?: { when: StateCondition; grants: Grants; note?: string }[];
-  /** 칩 없이 직접 입력해야 닿는 선택 검색(호기심 보상). 진행 필수 항목에는 쓰지 않는다. */
   optional?: boolean;
-  /**
-   * 말소된 기사: 색인어는 있으나 결과가 없다 → '해당 기사 없음'. results 는 비워 두고, 복원하는 RealityShift 의
-   * searchRewrites 가 결과를 채운다(그 뒤로는 평범한 결과 — 복원 표식 없음).
-   */
+  /** 말소된 기사: 색인어는 있으나 결과가 없다 → '해당 기사 없음'. 복원이 결과를 채운다. */
   noArticle?: boolean;
-  /** noArticle 일 때의 문구(기본 '해당 기사 없음.'). 예: '그런 단어 없음.' */
   noArticleText?: string;
 }
 
@@ -522,108 +523,60 @@ export interface DbField {
   value: string;
 }
 
-/** DB 메타데이터 레코드(가상). 정합성 보정·현실 이동의 대상이 될 수 있다. */
+/** DB 레코드(현대 DB). 말소된 세계의 상태는 altered + fictional. */
 export interface DbRecord extends ContentBase {
   title: string;
   fields: DbField[];
   note?: string;
-  /**
-   * 변조된 상태(말소된 세계의 DB). 반드시 fictional. 원인 없는 결과(사인 없는 졸년 등)만 담는다.
-   * RealityShift.recordRewrites 로만 실제 역사(verified)로 바뀐다. 엔딩 뒤 기록 열람 모드에서 원래 상태는 '변조'로 표시.
-   */
   altered?: boolean;
+  /** 인물 기록이면 그 인물(누구 칸의 후보) */
+  personId?: Id;
+  glossary?: Gloss[];
 }
 
-/** 사료 뷰어에서 고를 수 있는 구절. text 는 사료 excerpt 의 부분 문자열이어야 한다(검증기). */
-export interface SourcePhrase extends ContentBase {
-  sourceId: Id;
-  text: string;
-  /** 연결할 관측이 있어야 효과가 난다 */
-  when?: StateCondition;
-  grants?: Grants;
-  /** when 불충족 시 피드백 */
-  missText?: string;
-}
-
-export interface Hotspot {
-  id: Id;
-  /** worldObject 또는 npc id */
-  targetId: Id;
-  kind: 'object' | 'npc';
-  windows?: TimeWindow[];
-  visibleWhen?: FlagCondition;
-}
-
-/** 관측 뷰어의 하루. 분 단위 [start, end]. */
-export interface ObservationTimeline extends ContentBase {
-  sceneId: Id;
-  /** 뷰어 시작 시 완료 처리되는 관측 */
-  observationId: Id;
-  /** 관측 종료 시 완료 처리되는 관측 */
-  returnObservationId?: Id;
-  title: string;
-  start: number;
-  end: number;
-  initial: number;
-  /** 첫 진입 카메라 중심(타일). 첫 핫스팟이 화면 안에 있도록. */
-  camera: { x: number; y: number };
-  /** 메타데이터 패널(연도 '####' 등) */
-  meta: { label: string; value: string }[];
-  hotspots: Hotspot[];
-  /** 화면 불안정(노이즈) 구간. 0~1 */
-  glitches?: { from: number; to: number; intensity: number }[];
-}
-
-/** archivist = 두 번째 동료(아키비스트, avatar_colleague_b). 기억이 한 선임과 다르게 흔들린다. */
-export type MessageThread = 'colleague' | 'device' | 'system' | 'mail' | 'archivist';
+/** 메신저 스레드: 오 실장(상사) · 한 선임(동료) · 시스템 · 나 */
+export type MessageThread = 'chief' | 'senior' | 'system' | 'me';
 
 export interface MessageChoice {
   id: Id;
   text: string;
-  /** 분위기·후속 대사용 플래그만. 퍼즐 플래그 금지(검증기). */
   setsFlags?: string[];
 }
 
 export interface Message extends ContentBase {
   thread: MessageThread;
-  /** 표시 이름 */
   from: string;
   text: string;
-  /** 도착 조건. 없으면 시작부터. */
+  /** 도착 조건. 없으면 시작부터. hint 메시지는 힌트 사다리가 보낸다. */
   when?: StateCondition;
-  /** 같은 순간 도착 시 정렬 */
   order: number;
-  /** 도착하는 순간 적용 */
   grants?: Grants;
   choices?: MessageChoice[];
+  /** 단말 시계 표시(연출) */
+  clock?: string;
+  /** 힌트 사다리 전용(when 으로 오지 않는다) */
+  hint?: boolean;
 }
 
-export interface ArchiveExhibit extends ContentBase {
-  title: string;
-  slot: 'case' | 'shelf' | 'register' | 'timeline' | 'center';
-  spriteKey: string;
-  requires?: StateCondition;
-  lines: string[];
-  grants?: Grants;
-  /** 이 전시물이 보여 주는 도감 항목 */
-  collectionIds?: Id[];
-  /** 복원 전시물: 이 현실 이동으로 되살아난 기록. 기록관(손 노트 탭)에만 '복원' 도장이 찍힌다. */
-  restoredBy?: Id;
+export type FailKind = 'stamp_miss' | 'report_fail' | 'unknown_search' | 'empty_tap' | 'capture_full';
+
+/** 힌트 사다리(메신저만). 방치·실패로 한 단씩, 최대 steps 개. */
+export interface HintLadder extends ContentBase {
+  activeWhen: StateCondition;
+  doneWhen: StateCondition;
+  steps: { idle: number; fails?: number; messageId: Id }[];
+  failOn?: FailKind[];
+  order: number;
 }
 
-/** 단말 메모(동기화됨). 손글씨 노트와 달리 정합성 보정의 대상이다. */
-export interface TerminalMemo extends ContentBase {
-  title: string;
-  text: string;
-  when?: StateCondition;
-}
-
-/** 정합성 보정(가상). 조건이 되면 조용히 레코드·메모를 고친다(지운다). verified 콘텐츠는 건드릴 수 없다. */
+/** 새벽 정합성 보정(가상). */
 export interface CorrectionEvent extends ContentBase {
   trigger: StateCondition;
-  recordPatches: { recordId: Id; key: string; value: string }[];
-  /** text 로 바꾸거나, remove 면 메모가 사라진다(흔적 없음). */
-  memoPatches: { memoId: Id; text?: string; remove?: boolean }[];
+  /** 훼손 구간. clue 가 있으면 그 단서를 프레임으로 가진 경우에만(실패 없음) */
+  degrade: { from: number; to: number; clue?: Id }[];
+  /** 이번 배정 종결의 판정 표시를 바꾸고 소견을 지운다 */
+  closure?: { assignmentId: Id; verdictShown: Stamp; clearNote: boolean };
+  clock?: string;
   grants?: Grants;
 }
 
@@ -632,122 +585,51 @@ export interface MessageRewrite {
   messageId: Id;
   newText: string;
 }
-
-/** 레코드 다시 쓰기: 주어진 것만 바꾼다. fields 는 key 기준으로 바꾸거나 덧붙인다. */
 export interface RecordRewrite {
   recordId: Id;
   title?: string;
   fields?: DbField[];
   note?: string;
-  /** 복원 뒤 레코드가 실제 역사가 되면 'verified' + sources(url) 필수(검증기) */
   provenance?: Provenance;
   sources?: SourceRef[];
 }
-
 export interface SearchRewrite {
   entryId: Id;
   results: SearchResultRef[];
 }
-
-/** 복원된 기사(개인 기록관의 '복원' 도장 목록). source·event 는 verified 여야 한다. */
 export interface RestoredItem {
   kind: 'source' | 'event' | 'record';
   id: Id;
 }
 
-/**
- * 현실 이동(가상 설정). 사실을 밝혀내면 세계 전체가 '원래부터' 그것을 알고 있었던 것이 된다.
- * 메신저의 지난 메시지가 새 현실로 다시 쓰이고, DB 레코드에 원인이 생기며, '해당 기사 없음'이 평범한 결과가 된다.
- * 단말에는 이전 상태를 보여 주는 표식이 없다. 이전/이후는 손 노트(notebookDiff)와 개인 기록관(restores)에만 남는다.
- */
 export interface RealityShift extends ContentBase {
-  /** 기록관 '복원' 도장 옆 이름 */
   title: string;
   when: StateCondition;
-  /** 같은 순간 여러 개가 맞으면 order 순으로 적용 */
   order: number;
   messageRewrites: MessageRewrite[];
   recordRewrites: RecordRewrite[];
   searchRewrites?: SearchRewrite[];
+  /** 배정 헤더 다시 쓰기(일시 #### → 복원된 날짜) */
+  assignmentRewrites?: { assignmentId: Id; header: { key: string; value: string }[] }[];
+  /** 종결 보고서 다시 쓰기 */
+  closedRewrites?: { reportId: Id; verdict?: string; classification?: string; note?: string }[];
+  /** 이번 배정 종결의 분류 다시 쓰기 */
+  closureRewrite?: { assignmentId: Id; classification: string; verdictShown?: Stamp };
   restores: RestoredItem[];
-  /** 적용되는 순간 주는 것(복원 플래그, 서재 사료, 도감 단계 등) */
   unlocks?: Grants;
-  /** 손 노트에 남는 이전/이후(취소선 + 새 글씨) */
-  notebookDiff: { id: Id; before: string; after: string; provenance?: Provenance }[];
 }
 
-/** 다시 쓰기의 결: 말소(차갑게, 무음, 명도 한 칸) / 복원(따뜻한 먹 번짐). UI 연출 구분용. */
 export type RewriteTone = 'erase' | 'restore';
 
-/**
- * 합의된 현실이 다시 쓰인 기록(저장됨). 말소(보정)와 복원(현실 이동) 모두 남는다 — 단말 화면에는 표식이 없고,
- * 플레이어 쪽(손 노트·메신저의 연필 표시 '어제는 이렇게 말했었다')만 이것을 읽는다.
- * before/after: 메시지·메모는 본문, 레코드는 '라벨: 값' 줄들, 검색은 결과 수 요약.
- */
+/** 합의된 현실이 다시 쓰인 기록(저장됨). 단말에는 표식이 없고, 플레이어 쪽 화면만 읽는다. */
 export interface RewriteEntry {
   seq: number;
-  /** CorrectionEvent 또는 RealityShift id */
   sourceId: Id;
   tone: RewriteTone;
-  kind: 'message' | 'record' | 'memo' | 'search';
+  kind: 'message' | 'record' | 'search' | 'assignment' | 'closed' | 'closure';
   targetId: Id;
   before: string;
   after: string;
-}
-
-/**
- * '기록하기'(사관의 직필): 추리를 확정한 뒤 플레이어가 손 노트에 핵심 문장을 직접 적으면(UI: 따라 쓰기/도장)
- * 그 사실이 복원된다. store.recordFact(actId) → 상태 recorded 에 들어가고 → when 에 recorded 를 가진 RealityShift 가 적용.
- */
-export interface RecordAct extends ContentBase {
-  title: string;
-  /** 기록할 수 있는 조건(추리 확정 등) */
-  requires: StateCondition;
-  /** 따라 쓸 문장(검증된 실록·사전 문장 그대로). provenance verified + sources 필수. */
-  sentence: string;
-  /** 이 기록이 적용하는 현실 이동 */
-  restores: Id;
-  order: number;
-}
-
-/** 증거 보드의 카드 겹치기: inputs 를 정확히 그 조합으로 겹치면 result 카드가 생긴다(추론 카드). */
-export interface EvidenceLink extends ContentBase {
-  /** 정확히 이 카드들(순서 무관). 2장 이상. */
-  inputs: Id[];
-  result: { id: Id; level?: number };
-  /** 겹치기가 성립하려면 더 필요한 상태 */
-  requires?: StateCondition;
-  /** requires 미충족 시 문구(정답 금지) */
-  missText?: string;
-  /** 성공 시 한 줄 */
-  text: string;
-  grants?: Grants;
-}
-
-/** 튜토리얼 단계: 앱 첫 사용 코치마크 + 막힘 시 3단 힌트(UI 조작만, 퍼즐 정답 금지) */
-export interface TutorialStep extends ContentBase {
-  id: Id;
-  app: AppId;
-  /** UI 요소 키(하이라이트 대상). 계약: TERMINAL_DESIGN §Contracts */
-  target: string;
-  /** 코치마크: 한 문장 이하 */
-  coach: string;
-  showWhen: StateCondition;
-  doneWhen: StateCondition;
-  /** [넛지, 방향, 근접] */
-  hints: [string, string, string];
-  /** 이 실패가 쌓이면 힌트 단계가 오른다 */
-  failOn?: ('unknown_search' | 'phrase_miss' | 'wrong_deduction' | 'empty_tap' | 'link_miss')[];
-  /** 기본 40초 */
-  idleSeconds?: number;
-  order: number;
-}
-
-export interface HelpCard extends ContentBase {
-  id: Id;
-  app: AppId;
-  title: string;
-  lines: string[];
 }
 
 // ── 콘텐츠 번들 ────────────────────────────────────────────────
@@ -757,36 +639,22 @@ export interface ContentBundle {
   sources: HistoricalSource[];
   events: HistoricalEvent[];
   places: Place[];
-  evidence: Evidence[];
-  deductions: Deduction[];
-  observations: Observation[];
   worldObjects: Interactable[];
   npcs: NpcDef[];
-  collection: CollectionEntry[];
-  // ── 결록 단말(터미널) ──
+  timelines: ObservationTimeline[];
+  clues: Clue[];
   apps: AppDef[];
+  assignments: Assignment[];
+  closedReports: ClosedReport[];
+  reports: ReportSpec[];
   searchEntries: SearchEntry[];
   records: DbRecord[];
-  phrases: SourcePhrase[];
-  timelines: ObservationTimeline[];
   messages: Message[];
-  exhibits: ArchiveExhibit[];
+  hints: HintLadder[];
   corrections: CorrectionEvent[];
-  memos: TerminalMemo[];
-  tutorial: TutorialStep[];
-  help: HelpCard[];
   shifts: RealityShift[];
-  links: EvidenceLink[];
-  acts: RecordAct[];
 }
 
 export type ContentKey = keyof ContentBundle;
 export type ContentModule = Partial<ContentBundle>;
 export type ContentItem = ContentBundle[ContentKey][number];
-
-/** 판정에 필요한 최소 문맥. owned: 보유 증거 id → 공개 단계. */
-export interface JudgeContext {
-  evidence: Readonly<Record<Id, Evidence>>;
-  persons: Readonly<Record<Id, HistoricalPerson>>;
-  owned: Readonly<Record<Id, number>>;
-}

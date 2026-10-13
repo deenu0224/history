@@ -1,20 +1,23 @@
 /**
- * 관측 #001 의 인물. 관측 장면은 음력 7월 11일, 왕의 사초 반입 전교가 실록청에 닿는 날을 재구성한다.
+ * 관측 #C-2217 의 인물. 장면은 실록청에 왕의 사초 반입 전교가 닿는 하루를 재구성한다(docs/NARRATIVE_FIRST10.md 시각표).
  *
  * provenance 원칙(HISTORICAL_SOURCES 7.4):
  *  - verified     : 실록 kja_10407011_001 국역을 그대로 옮긴 대사만(전교, 당상들의 간언).
  *  - reconstructed: 사실에 근거한 연출(호칭, 귀엣말, 행동 묘사).
  *  - fictional    : 관측자에 관한 SF 연출.
  *
- * 등장시키지 않는 것: 김일손 본인(1498년 소재 미확인), 유자광·어세겸(장면에 있었다는 근거 없음).
- * 이극돈 외의 관원은 신원을 정하지 않는다(personId 없음).
- * 관측 뷰어: 대사는 at(시각 구간, 분)과 when(플래그) 둘 다 맞아야 들린다(core/observation.ts linesAt).
- *   08:00 서리 → 10:00 안쪽 방의 젊은 관원 → 12:00 이후 「조의제문」 → 14:00 대문의 전교 → 15:00 봉함 → 16:00 "아직 살아 있소".
- *   진행 필수 증거는 둘 이상의 경로(다른 인물·사료 구절)로도 얻을 수 있다(재관측/대체 경로).
- * grants.terms: 들은 표현 그대로 → 검색어 수첩(칩).
+ * 표시 이름(label)에 실존 인물 이름을 쓰지 않는다. 김일손 본인·유자광·어세겸은 등장시키지 않는다(장면에 있었다는 근거 없음).
+ * 엿듣기: 대사는 at(시각) 구간에 말해지고, 뷰어는 hear(기본: 기준 배율 1.6배 이상 + 화면 중심 3타일 이내)일 때만 들려준다.
+ * 대사 id 는 콘텐츠 전체에서 유일하다(hearLine·프레임·단서가 쓴다).
+ *
+ * 시각표: 08:00 서리 「성종대왕 실록…」 · 08:40 붉은 관복 「…이 글은 그대로 넘길 수 없소.」 · 12:00 회랑 「조의제문」 ·
+ *   13:00 서리 귓속말(세조대왕 실록 편수) · 13:56 미세 지직 · 14:00 전교 + 당상들의 간언(verified) · 15:00 봉함 ·
+ *   16:00 푸른 관복 「사초를 쓴 사관은 아직 살아 있소.」
+ * grants.terms: 들은 표현 그대로 → 검색어 칩(밑줄).
  */
 import type { NpcDef } from '@/core/types';
 import { REF } from '@/data/historical/refs';
+import { GLOSS } from '@/data/glossary';
 
 const R = 'reconstructed' as const;
 const V = 'verified' as const;
@@ -27,7 +30,7 @@ export const npcs: NpcDef[] = [
     sources: [REF.yiGeukdon, REF.sillokSachoOrder],
     sceneId: 'obs001',
     spriteKey: 'npc_official_red',
-    label: '미확인 관료',
+    label: '붉은 관복',
     personId: 'per_yi_geukdon',
     schedule: [
       { time: 480, x: 19, y: 5, action: 'read' },
@@ -42,28 +45,21 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.yiGeukdon],
         at: [{ from: 480, to: 840 }],
-        grants: {
-          evidence: [{ id: 'ev_unknown_official' }],
-          flags: ['f_met_official'],
-          notebook: [{ id: 'q_who', section: 'question', text: '붉은 관복의 당상은 누구인가?', provenance: F }],
-        },
       },
       {
         id: 'r2',
-        speaker: '붉은 관복의 당상',
+        speaker: '붉은 관복',
         text: '…이 글은 그대로 넘길 수 없소.',
         provenance: R,
         sources: [REF.yiGeukdon, REF.muoSahwa],
-        at: [{ from: 480, to: 840 }],
+        at: [{ from: 520, to: 840 }],
       },
       {
         id: 'r3',
-        text: '(전교가 닿은 뒤, 다른 당상들과 사초 묶음을 다시 펼친다. 여섯 조목을 가려 뽑아 봉한다.)',
+        text: '(전교가 닿은 뒤, 다른 당상들과 사초 묶음을 다시 펼친다. 몇 장을 가려 뽑아 봉한다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
-        at: [{ from: 900, to: 1141 }],
-        grants: { evidence: [{ id: 'ev_six_articles' }], flags: ['f_saw_sealing'] },
+        at: [{ from: 900, to: 960 }],
       },
     ],
   },
@@ -73,7 +69,7 @@ export const npcs: NpcDef[] = [
     sources: [REF.sillokSachoOrder],
     sceneId: 'obs001',
     spriteKey: 'npc_official_blue',
-    label: '미확인 관료',
+    label: '푸른 관복',
     schedule: [
       { time: 480, x: 24, y: 5, action: 'read' },
       { time: 720, x: 21, y: 8, action: 'stand' },
@@ -83,7 +79,7 @@ export const npcs: NpcDef[] = [
     dialogue: [
       {
         id: 'b1',
-        text: '(문서를 정리하면서도 붉은 관복의 당상 쪽을 자주 살핀다.)',
+        text: '(문서를 정리하면서도 붉은 관복 쪽을 자주 살핀다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
         at: [{ from: 480, to: 840 }],
@@ -94,8 +90,9 @@ export const npcs: NpcDef[] = [
         text: '“예로부터 사초(史草)는 임금이 스스로 보지 않습니다.”',
         provenance: V,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
         at: [{ from: 840, to: 960 }],
+        grants: { terms: ['사초'] },
+        glossary: [GLOSS.sacho, GLOSS.dangsang],
       },
       {
         id: 'b3',
@@ -103,39 +100,25 @@ export const npcs: NpcDef[] = [
         text: '“임금이 만약 사초를 보면 후세에 직필(直筆)이 없기 때문입니다.”',
         provenance: V,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
         at: [{ from: 840, to: 960 }],
-        grants: {
-          terms: ['직필'],
-          evidence: [{ id: 'ev_objection' }],
-          notebook: [
-            {
-              id: 'note_objection',
-              section: 'testimony',
-              text: '당상들: 사초는 임금이 보지 않는 것이 예로부터의 일이며, 보면 직필이 사라진다.',
-              provenance: V,
-            },
-          ],
-        },
+        grants: { terms: ['직필'] },
+        glossary: [GLOSS.sacho, GLOSS.jikpil],
       },
       {
         id: 'b4',
-        text: '(간언은 받아들여지지 않은 듯하다. 당상들이 사초에서 여섯 조목을 가려 뽑아 봉한다. 붉은 관복의 당상도 그 자리에 있다.)',
+        text: '(간언은 받아들여지지 않은 듯하다. 당상들이 사초에서 몇 장을 가려 뽑아 봉한다. 붉은 관복도 그 자리에 있다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
         at: [{ from: 900, to: 960 }],
-        grants: { evidence: [{ id: 'ev_six_articles' }], flags: ['f_saw_sealing'] },
       },
       {
         id: 'b5',
-        speaker: '푸른 관복의 당상',
+        speaker: '푸른 관복',
         text: '사초를 쓴 사관은 아직 살아 있소. 곧 불려 가겠지.',
         provenance: R,
-        sources: [REF.muoSahwa],
-        when: { all: ['f_saw_order'] },
+        sources: [REF.muoSahwa, REF.sillokVerdict],
         at: [{ from: 960, to: 1141 }],
-        grants: { evidence: [{ id: 'ev_author_alive' }], flags: ['f_heard_alive'] },
+        glossary: [GLOSS.sacho],
       },
     ],
   },
@@ -149,7 +132,8 @@ export const npcs: NpcDef[] = [
     schedule: [
       { time: 480, x: 14, y: 5, action: 'write' },
       { time: 600, x: 4, y: 9, action: 'read' },
-      { time: 720, x: 14, y: 5, action: 'write' },
+      { time: 720, x: 33, y: 9, action: 'stand' },
+      { time: 840, x: 14, y: 5, action: 'write' },
       { time: 1020, x: 35, y: 12, action: 'stand' },
     ],
     dialogue: [
@@ -159,7 +143,9 @@ export const npcs: NpcDef[] = [
         text: '사관은 집에도 사초를 따로 적어 두오. 실록을 엮을 땐 그것까지 거두어 가지.',
         provenance: R,
         sources: [REF.geomyeol, REF.sagwan],
+        at: [{ from: 600, to: 720 }],
         grants: { terms: ['사초'] },
+        glossary: [GLOSS.sacho],
       },
       {
         id: 'y2',
@@ -168,7 +154,7 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.sagwan, REF.seongjongSillok],
         at: [{ from: 600, to: 720 }],
-        grants: { evidence: [{ id: 'ev_gajang' }], terms: ['집에 둔 사초'] },
+        grants: { terms: ['집에 둔 사초'] },
       },
       {
         id: 'y3',
@@ -176,14 +162,9 @@ export const npcs: NpcDef[] = [
         text: '당상께서 문제 삼으신 글이… 돌아가신 점필재 선생의 「조의제문」이라 하오.',
         provenance: R,
         sources: [REF.jouijemun, REF.muoSahwa, REF.yiGeukdon],
-        when: { all: ['f_met_official'] },
-        at: [{ from: 720, to: 1020 }],
-        grants: {
-          terms: ['조의제문', '점필재'],
-          evidence: [{ id: 'ev_jouijemun' }, { id: 'ev_jongjik_dead' }],
-          flags: ['f_heard_jouijemun'],
-          collect: [{ entryId: 'col_src_jouijemun', stage: 1 }],
-        },
+        at: [{ from: 720, to: 840 }],
+        grants: { terms: ['조의제문', '점필재'] },
+        glossary: [GLOSS.dangsang],
       },
       {
         id: 'y4',
@@ -191,9 +172,9 @@ export const npcs: NpcDef[] = [
         text: '직필이 없어진다는 말… 오늘 그 말이 지켜질지 모르겠소.',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
         at: [{ from: 1020, to: 1141 }],
         grants: { terms: ['직필'] },
+        glossary: [GLOSS.jikpil],
       },
     ],
   },
@@ -206,9 +187,9 @@ export const npcs: NpcDef[] = [
     label: '서리',
     schedule: [
       { time: 480, x: 5, y: 9, action: 'carry' },
-      { time: 540, x: 17, y: 8, action: 'carry' },
+      { time: 540, x: 18, y: 7, action: 'carry' },
       { time: 660, x: 5, y: 10, action: 'carry' },
-      { time: 780, x: 12, y: 8, action: 'carry' },
+      { time: 780, x: 17, y: 7, action: 'carry' },
       { time: 900, x: 9, y: 16, action: 'walk' },
     ],
     dialogue: [
@@ -218,19 +199,8 @@ export const npcs: NpcDef[] = [
         text: '성종대왕 실록을 다 엮어야 이 짐도 끝이 나지.',
         provenance: R,
         sources: [REF.sillokMyoho, REF.seongjongSillok],
-        grants: {
-          terms: ['성종대왕', '성종대왕 실록'],
-          evidence: [{ id: 'ev_myoho' }],
-          flags: ['f_heard_myoho'],
-          notebook: [
-            {
-              id: 'note_myoho',
-              section: 'testimony',
-              text: "서리: 엮고 있는 것은 '성종대왕 실록'.",
-              provenance: R,
-            },
-          ],
-        },
+        at: [{ from: 480, to: 780 }],
+        grants: { terms: ['성종대왕 실록', '성종대왕'] },
       },
       {
         id: 'c2',
@@ -238,28 +208,19 @@ export const npcs: NpcDef[] = [
         text: '당상 영감께서는 오늘 한 사초만 붙들고 계시네.',
         provenance: R,
         sources: [REF.yiGeukdon],
-        grants: { evidence: [{ id: 'ev_unknown_official' }] },
+        at: [{ from: 540, to: 660 }],
+        grants: { terms: ['당상'] },
+        glossary: [GLOSS.dangsang, GLOSS.sacho],
       },
       {
         id: 'c3',
         speaker: '서리',
-        text: '(목소리를 낮추며) 저 영감은 세조대왕 실록 때도 편수를 맡으셨다지.',
+        text: '(목소리를 낮추며) 저 당상 영감은 세조대왕 실록 때도 편수를 맡으셨다지.',
         provenance: R,
         sources: [REF.yiGeukdon],
-        when: { all: ['f_met_official'] },
-        at: [{ from: 780, to: 1141 }],
-        grants: {
-          terms: ['세조대왕 실록'],
-          evidence: [{ id: 'ev_veteran' }],
-          notebook: [
-            {
-              id: 'note_veteran',
-              section: 'testimony',
-              text: '서리: 붉은 관복의 당상은 세조대왕 실록 때도 편수를 맡았다.',
-              provenance: R,
-            },
-          ],
-        },
+        at: [{ from: 780, to: 900 }],
+        grants: { terms: ['세조대왕 실록'] },
+        glossary: [GLOSS.dangsang, GLOSS.pyeonsu],
       },
     ],
   },
@@ -269,7 +230,7 @@ export const npcs: NpcDef[] = [
     sources: [REF.sillokSachoOrder],
     sceneId: 'obs001',
     spriteKey: 'npc_official_green',
-    label: '미확인 관원',
+    label: '대문의 관원',
     schedule: [
       { time: 420, x: 20, y: 26, action: 'stand' },
       { time: 840, x: 20, y: 12, action: 'bow' },
@@ -290,19 +251,8 @@ export const npcs: NpcDef[] = [
         provenance: V,
         sources: [REF.sillokSachoOrder],
         at: [{ from: 840, to: 960 }],
-        grants: {
-          terms: ['대내', '김일손의 사초'],
-          evidence: [{ id: 'ev_royal_order' }],
-          flags: ['f_saw_order'],
-          notebook: [
-            {
-              id: 'note_order',
-              section: 'testimony',
-              text: '전교: 김일손이라는 사관의 사초를 모두 대내로 들이라.',
-              provenance: V,
-            },
-          ],
-        },
+        grants: { terms: ['대내로 들여오라', '김일손'] },
+        glossary: [GLOSS.jeongyo, GLOSS.sacho, GLOSS.daenae],
       },
     ],
   },
@@ -324,13 +274,14 @@ export const npcs: NpcDef[] = [
         id: 's1',
         text: '(물을 긷는다. 바로 곁에 선 관측자를 보지 못한다.)',
         provenance: F,
+        at: [{ from: 480, to: 840 }],
       },
       {
         id: 's2',
         text: '(대청 쪽이 술렁이자 고개를 들었다가, 다시 물동이를 든다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_saw_order'] },
+        at: [{ from: 840, to: 1141 }],
       },
     ],
   },

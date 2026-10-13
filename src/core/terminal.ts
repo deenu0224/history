@@ -1,16 +1,18 @@
 /**
- * 결록 단말의 순수 로직: 상태 조건, 앱 잠금, 메시지 도착, 정합성 보정·현실 이동(합의된 현실의 다시 쓰기),
- * 레코드/메모/메시지/검색 결과 보기, 카드 겹치기, 튜토리얼·힌트.
+ * 결록 단말의 순수 로직(v3): 상태 조건, 앱 잠금, 메시지 도착, 정합성 보정·현실 이동(합의된 현실의 다시 쓰기),
+ * 레코드/메시지/검색 결과/배정 헤더/종결 보고서 보기, 힌트 사다리.
  *
- * 다시 쓰기의 적용 순서(콘텐츠 기준, 결정적): 정합성 보정(적용 순) → 현실 이동(적용 순). 나중 것이 이긴다.
+ * 다시 쓰기 순서(결정적): 정합성 보정(적용 순) → 현실 이동(적용 순). 나중 것이 이긴다.
  */
 import type {
   AppDef,
   AppId,
+  Assignment,
+  ClosedReport,
   CorrectionEvent,
   DbRecord,
-  EvidenceLink,
   FlagValue,
+  HintLadder,
   Id,
   Message,
   PlayStats,
@@ -18,11 +20,9 @@ import type {
   SearchEntry,
   SearchResultRef,
   StateCondition,
-  TerminalMemo,
-  TutorialStep,
 } from './types';
 
-export const APP_IDS: readonly AppId[] = ['messenger', 'search', 'viewer', 'board', 'notebook'];
+export const APP_IDS: readonly AppId[] = ['work', 'viewer', 'db', 'messenger'];
 
 export function emptyStats(): PlayStats {
   return {
@@ -30,29 +30,31 @@ export function emptyStats(): PlayStats {
     unknownSearches: 0,
     scrubs: 0,
     taps: 0,
-    phrases: 0,
-    phraseMisses: 0,
-    deductionAttempts: 0,
-    exhibits: 0,
-    links: 0,
-    linkMisses: 0,
+    captures: 0,
+    stamps: 0,
+    stampMisses: 0,
+    reportSubmits: 0,
+    reportFails: 0,
   };
 }
 
-/** 조건 판정에 필요한 상태(PersistedState 가 구조적으로 만족한다). */
+/** 조건 판정에 필요한 상태. clues 는 '지금 가진 프레임이 증명하는 단서'(스토어가 계산해 넘긴다). */
 export interface ConditionState {
   flags: Readonly<Record<string, FlagValue>>;
-  evidence: Readonly<Record<Id, number>>;
   searched: readonly Id[];
+  recordsOpened: readonly Id[];
   read: readonly Id[];
   appsOpened: readonly AppId[];
-  phrases: readonly Id[];
-  tapped: readonly Id[];
-  attempts: Readonly<Record<Id, number>>;
+  heard: readonly Id[];
+  seen: readonly Id[];
+  clues: readonly Id[];
+  stamped: readonly Id[];
+  closed: readonly Id[];
+  opened: readonly Id[];
   corrections: readonly Id[];
   shifts: readonly Id[];
-  links: readonly Id[];
-  recorded: readonly Id[];
+  filed: readonly Id[];
+  hintsDone: readonly Id[];
   stats: PlayStats;
 }
 
@@ -61,11 +63,11 @@ export function checkState(s: ConditionState, c?: StateCondition): boolean {
   const has = (list: readonly string[], ids?: readonly string[]) => (ids ?? []).every((id) => list.includes(id));
   if (!(c.all ?? []).every((f) => Boolean(s.flags[f]))) return false;
   if ((c.none ?? []).some((f) => Boolean(s.flags[f]))) return false;
-  if (!(c.evidence ?? []).every((id) => s.evidence[id] !== undefined)) return false;
-  if (!has(s.searched, c.searched) || !has(s.read, c.read) || !has(s.appsOpened, c.appsOpened)) return false;
-  if (!has(s.phrases, c.phrases) || !has(s.tapped, c.tapped) || !has(s.corrections, c.corrections)) return false;
-  if (!has(s.shifts, c.shifts) || !has(s.links, c.links) || !has(s.recorded, c.recorded)) return false;
-  if (!(c.attempted ?? []).every((id) => (s.attempts[id] ?? 0) > 0)) return false;
+  if (!has(s.searched, c.searched) || !has(s.recordsOpened, c.records) || !has(s.read, c.read)) return false;
+  if (!has(s.appsOpened, c.appsOpened) || !has(s.heard, c.heard) || !has(s.seen, c.seen)) return false;
+  if (!has(s.clues, c.clues) || !has(s.stamped, c.stamped) || !has(s.closed, c.closed)) return false;
+  if (!has(s.opened, c.opened) || !has(s.corrections, c.corrections) || !has(s.shifts, c.shifts)) return false;
+  if (!has(s.filed, c.filed) || !has(s.hintsDone, c.hintsDone)) return false;
   for (const [k, v] of Object.entries(c.minStats ?? {}))
     if ((s.stats[k as keyof PlayStats] ?? 0) < (v ?? 0)) return false;
   if (c.any && c.any.length > 0 && !c.any.some((sub) => checkState(s, sub))) return false;
@@ -89,9 +91,11 @@ export function isAppUnlocked(apps: readonly AppDef[], app: AppId, s: ConditionS
   return !!def && checkState(s, def.unlockWhen);
 }
 
-/** 아직 도착하지 않았고 조건을 만족한 메시지(order 순) */
+/** 아직 도착하지 않았고 조건을 만족한 메시지(order 순). 힌트 메시지는 제외(사다리가 보낸다). */
 export function dueMessages(messages: readonly Message[], s: ConditionState, arrived: ReadonlySet<Id>): Message[] {
-  return messages.filter((m) => !arrived.has(m.id) && checkState(s, m.when)).sort((a, b) => a.order - b.order);
+  return messages
+    .filter((m) => !m.hint && !arrived.has(m.id) && checkState(s, m.when))
+    .sort((a, b) => a.order - b.order);
 }
 
 export function dueCorrections(events: readonly CorrectionEvent[], s: ConditionState): CorrectionEvent[] {
@@ -102,7 +106,7 @@ export function dueShifts(shifts: readonly RealityShift[], s: ConditionState): R
   return shifts.filter((x) => !s.shifts.includes(x.id) && checkState(s, x.when)).sort((a, b) => a.order - b.order);
 }
 
-/** 현실 층(콘텐츠)과 적용된 id. 상태(PersistedState)는 corrections·shifts 를 그대로 넘기면 된다. */
+// ── 현실 층 ─────────────────────────────────────────────────────
 export interface RealityLayers {
   corrections: readonly CorrectionEvent[];
   shifts: readonly RealityShift[];
@@ -115,12 +119,9 @@ export interface RealityApplied {
 const appliedIn = <T extends { id: Id }>(list: readonly T[], applied: readonly Id[]): T[] =>
   applied.map((id) => list.find((x) => x.id === id)).filter((x): x is T => !!x);
 
-/** 보정·현실 이동이 적용된 레코드. 흔적·표식을 남기지 않는다(같은 객체 또는 새 객체만). */
+/** 현실 이동이 적용된 레코드. 표식을 남기지 않는다. */
 export function recordView(rec: DbRecord, layers: RealityLayers, applied: RealityApplied): DbRecord {
   let out = rec;
-  for (const e of appliedIn(layers.corrections, applied.corrections))
-    for (const p of e.recordPatches)
-      if (p.recordId === rec.id) out = { ...out, fields: out.fields.map((f) => (f.key === p.key ? { ...f, value: p.value } : f)) };
   for (const sh of appliedIn(layers.shifts, applied.shifts))
     for (const r of sh.recordRewrites) {
       if (r.recordId !== rec.id) continue;
@@ -137,18 +138,6 @@ export function recordView(rec: DbRecord, layers: RealityLayers, applied: Realit
       };
     }
   return out;
-}
-
-/** 보정이 적용된 메모. 지워졌으면 null. */
-export function memoView(memo: TerminalMemo, layers: RealityLayers, applied: RealityApplied): TerminalMemo | null {
-  let text = memo.text;
-  for (const e of appliedIn(layers.corrections, applied.corrections))
-    for (const p of e.memoPatches)
-      if (p.memoId === memo.id) {
-        if (p.remove) return null;
-        if (p.text !== undefined) text = p.text;
-      }
-  return text === memo.text ? memo : { ...memo, text };
 }
 
 /** 지금 현실의 메시지 본문. */
@@ -181,75 +170,72 @@ export function searchResultsView(
   return { results, noArticle: !!e.noArticle && !rewritten };
 }
 
-// ── 카드 겹치기 ───────────────────────────────────────────────
-const sameSet = (a: readonly Id[], b: readonly Id[]) => {
-  const A = new Set(a);
-  const B = new Set(b);
-  return A.size === B.size && [...A].every((x) => B.has(x));
-};
-
-/** 고른 카드 집합과 정확히 같은 입력을 가진 연결(없으면 undefined). */
-export function findLink(links: readonly EvidenceLink[], ids: readonly Id[]): EvidenceLink | undefined {
-  return links.find((l) => sameSet(l.inputs, ids));
+/** 지금 현실의 배정 헤더(일시 #### → 복원된 날짜). */
+export function assignmentHeader(a: Assignment, layers: RealityLayers, applied: RealityApplied): Assignment['header'] {
+  let header = a.header;
+  for (const sh of appliedIn(layers.shifts, applied.shifts))
+    for (const r of sh.assignmentRewrites ?? [])
+      if (r.assignmentId === a.id)
+        header = header.map((h) => {
+          const nv = r.header.find((x) => x.key === h.key);
+          return nv ? { ...h, value: nv.value } : h;
+        });
+  return header;
 }
 
-// ── 튜토리얼·힌트 ─────────────────────────────────────────────
+/** 지금 현실의 종결 보고서(콘텐츠). */
+export function closedReportView(r: ClosedReport, layers: RealityLayers, applied: RealityApplied): ClosedReport {
+  let out = r;
+  for (const sh of appliedIn(layers.shifts, applied.shifts))
+    for (const w of sh.closedRewrites ?? [])
+      if (w.reportId === r.id)
+        out = {
+          ...out,
+          ...(w.verdict !== undefined ? { verdict: w.verdict } : {}),
+          ...(w.classification !== undefined ? { classification: w.classification } : {}),
+          ...(w.note !== undefined ? { note: w.note } : {}),
+        };
+  return out;
+}
+
+// ── 힌트 사다리(메신저만) ─────────────────────────────────────────
 export type HintLevel = 'off' | 'normal' | 'detailed';
-export const DEFAULT_IDLE_SECONDS = 40;
-export const FAILS_PER_TIER = 2;
+/** 첫 침묵(초): 사다리가 켜진 뒤 이 시간 전에는 아무것도 보내지 않는다 */
+export const HINT_SILENCE_SECONDS = 20;
 
-export interface TutorialState {
-  done: Id[];
-  /** 코치마크를 건너뛴 단계 */
-  dismissed: Id[];
-  /** 단계별 실패 수 */
+export interface HintState {
+  /** 사다리 id → 보낸 단 수 */
+  sent: Record<Id, number>;
+  /** 사다리 id → 실패 수 */
   fails: Record<Id, number>;
-  /** 단계별 방치로 오른 힌트 단계(0~3) */
-  idleTier: Record<Id, number>;
 }
 
-export function emptyTutorial(): TutorialState {
-  return { done: [], dismissed: [], fails: {}, idleTier: {} };
+export function emptyHints(): HintState {
+  return { sent: {}, fails: {} };
 }
 
-/** 보여 줄 단계: showWhen 충족, 아직 doneWhen 미충족·미완료. order 순. */
-export function activeSteps(steps: readonly TutorialStep[], s: ConditionState, t: TutorialState): TutorialStep[] {
-  return steps
-    .filter((st) => !t.done.includes(st.id) && checkState(s, st.showWhen) && !checkState(s, st.doneWhen))
+/** 지금 켜진 사다리(order 순) */
+export function activeLadders(ladders: readonly HintLadder[], s: ConditionState): HintLadder[] {
+  return ladders
+    .filter((l) => checkState(s, l.activeWhen) && !checkState(s, l.doneWhen))
     .sort((a, b) => a.order - b.order);
 }
 
-/** 이제 완료된 단계(스토어가 done 에 넣는다) */
-export function newlyDone(steps: readonly TutorialStep[], s: ConditionState, t: TutorialState): Id[] {
-  return steps.filter((st) => !t.done.includes(st.id) && checkState(s, st.doneWhen)).map((st) => st.id);
-}
-
-export function idleThreshold(step: TutorialStep, level: HintLevel): number {
-  const base = step.idleSeconds ?? DEFAULT_IDLE_SECONDS;
-  return level === 'detailed' ? Math.round(base / 2) : base;
-}
-
-/** 방치 시간 → 힌트 단계(0~3). 0초 이상 threshold 마다 한 단계. */
-export function tierFromIdle(step: TutorialStep, seconds: number, level: HintLevel): number {
-  if (level === 'off') return 0;
-  return Math.max(0, Math.min(3, Math.floor(seconds / idleThreshold(step, level))));
-}
-
 /**
- * 현재 힌트 단계. 끔=0. 보통: max(방치 단계, 실패 2회마다 1). 자세히: 최소 1, 실패 1회마다 1.
+ * 방치 시간·실패 수로 보낼 다음 단(없으면 null). 보통: 단의 idle 초 / 자세히: 절반. 끔: 없음.
+ * 한 번에 한 단만 오른다(스토어가 보낸 뒤 sent 를 올린다).
  */
-export function hintTier(step: TutorialStep, t: TutorialState, level: HintLevel): number {
-  if (level === 'off') return 0;
-  const fails = t.fails[step.id] ?? 0;
-  const perTier = level === 'detailed' ? 1 : FAILS_PER_TIER;
-  const tier = Math.max(t.idleTier[step.id] ?? 0, Math.floor(fails / perTier), level === 'detailed' ? 1 : 0);
-  return Math.min(3, tier);
+export function nextHintStep(l: HintLadder, h: HintState, idleSeconds: number, level: HintLevel) {
+  if (level === 'off') return null;
+  const sent = h.sent[l.id] ?? 0;
+  const step = l.steps[sent];
+  if (!step) return null;
+  const k = level === 'detailed' ? 0.5 : 1;
+  const idleOk = idleSeconds >= Math.max(HINT_SILENCE_SECONDS, step.idle * k);
+  const failOk = step.fails !== undefined && (h.fails[l.id] ?? 0) >= step.fails;
+  return idleOk || failOk ? { index: sent, messageId: step.messageId } : null;
 }
 
-export function hintText(step: TutorialStep, tier: number): string | null {
-  return tier <= 0 ? null : step.hints[Math.min(3, tier) - 1]!;
-}
-
-export function coachVisible(step: TutorialStep, t: TutorialState, level: HintLevel): boolean {
-  return level !== 'off' && !t.dismissed.includes(step.id) && !t.done.includes(step.id);
-}
+/** 끝까지 보낸 사다리 */
+export const laddersDone = (ladders: readonly HintLadder[], h: HintState): Id[] =>
+  ladders.filter((l) => (h.sent[l.id] ?? 0) >= l.steps.length).map((l) => l.id);

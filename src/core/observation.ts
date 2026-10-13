@@ -243,3 +243,23 @@ export function npcRoute(tl: ObservationTimeline, npc: NpcDef, minute: number): 
   });
   return { npcId: npc.id, label: npc.label, points, current };
 }
+
+// ── 엿듣기 보조(스토어 검증·검증기용) ──────────────────────────────
+/** 대사 id → (인물, 대사). 대사 id 는 콘텐츠 전체에서 유일하다(검증기). */
+export function findLine(npcs: readonly NpcDef[], lineId: Id): { npc: NpcDef; line: DialogueLine } | undefined {
+  for (const npc of npcs) {
+    const line = npc.dialogue.find((l) => l.id === lineId);
+    if (line) return { npc, line };
+  }
+  return undefined;
+}
+
+/** 그 시각·플래그에 이 대사가 말해지고 있는가(거리·배율은 뷰어가 본다). */
+export function lineActiveAt(npcs: readonly NpcDef[], lineId: Id, minute: number, flags: Flags): boolean {
+  const f = findLine(npcs, lineId);
+  return !!f && checkCondition(flags, f.line.when) && inWindow(minute, f.line.at);
+}
+
+/** 훼손 구간 안인가 */
+export const inSpans = (minute: number, spans: readonly TimeWindow[]): boolean =>
+  spans.some((s) => minute >= s.from && minute < s.to);
