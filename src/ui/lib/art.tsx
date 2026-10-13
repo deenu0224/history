@@ -61,3 +61,25 @@ export function osCssVars(): CSSProperties {
   for (const [v, k] of Object.entries(keys)) if (hasSprite(k)) out[v] = url(k);
   return out as CSSProperties;
 }
+
+/** 책상 CSS 변수: 상판·종이·전표·규정집·실 등을 border-image / background 로 쓴다. */
+export function deskCssVars(): CSSProperties {
+  const keys: Record<string, string> = {
+    '--d-surface': 'desk_surface',
+    '--d-edge': 'desk_edge',
+    '--d-lamp': 'desk_lamp_pool',
+    '--d-card': 'desk_card',
+    '--d-slip': 'desk_slip',
+    '--d-rulebook': 'desk_rulebook_open',
+    '--d-rules-tile': 'desk_rules_tile',
+    '--d-gutter': 'desk_rulebook_gutter',
+    '--d-thread': 'desk_thread_h',
+    '--d-dash': 'desk_thread_dash',
+    '--d-knot': 'desk_thread_knot',
+    '--d-knot-y': 'desk_thread_knot_yellow',
+    '--d-pin': 'desk_pin',
+  };
+  const out: Record<string, string> = {};
+  for (const [v, k] of Object.entries(keys)) if (hasSprite(k)) out[v] = url(k);
+  return out as CSSProperties;
+}

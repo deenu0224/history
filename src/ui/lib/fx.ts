@@ -4,26 +4,14 @@
  */
 import { bus, type FeedbackKind } from '@/core/bus';
 import { FEEDBACK } from '@/data/feedback';
-import { playSfx, type SfxName } from '@/game/audio';
+import { playSfx, resolveSfx, type SfxName } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 
 /** FEEDBACK 표의 효과음 이름 → src/game/audio 의 SfxName ('none' 은 무음) */
-const SFX: Record<string, SfxName> = {
-  tick: 'select',
-  search_hit: 'open',
-  search_miss: 'close',
-  paper: 'page',
-  clock_tick: 'step',
-  shutter: 'shutter',
-  stamp: 'page',
-  success: 'success',
-  partial: 'partial',
-  soft_thud: 'fail',
-  message: 'select',
-  ink_bloom: 'discover',
+export const sfxFor = (name: string): SfxName | undefined => {
+  const r = resolveSfx(name);
+  return r && r !== 'none' ? r : undefined;
 };
-
-export const sfxFor = (name: string): SfxName | undefined => SFX[name];
 
 export function fx(kind: FeedbackKind) {
   bus.emit('feedback', { kind });

@@ -1,23 +1,17 @@
 /**
- * 셸 로컬 UI 상태(저장되지 않음). 게임 진행 상태는 store/gameStore 가 가진다.
- * 창 배치·알림·설치 연출·메시지 전달 연출·다시 쓰기 연출처럼 '보기'에 관한 것만 둔다.
+ * 화면 로컬 UI 상태(저장되지 않음). 게임 진행 상태는 store/gameStore 가 가진다.
+ * 책상 위의 '보기'에 관한 것만 둔다: 열린 패널, 검사 모드, 알림, 메시지 전달 연출, 다시 쓰기 연출.
  */
 import { create } from 'zustand';
 import type { AppId, Id } from '@/core/types';
 import type { ThreadKey } from './lib/text';
 
-export type WinKey = AppId | 'settings';
-export type WorkTab = 'card' | 'closed' | 'report';
+/** 책상 위에 올라오는 패널. 앱(업무·관측·DB·메신저)과 규정집·설정·메뉴. */
+export type Panel = 'rules' | 'menu' | 'filing' | 'log' | 'db' | 'messenger' | 'settings';
+export type FilingTab = 'closed' | 'report';
 
-export interface WinState {
-  key: WinKey;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  z: number;
-  minimized: boolean;
-}
+export const APP_PANEL: Record<AppId, Panel> = { work: 'filing', viewer: 'log', db: 'db', messenger: 'messenger' };
+export const PANEL_APP: Partial<Record<Panel, AppId>> = { filing: 'work', log: 'viewer', db: 'db', messenger: 'messenger' };
 
 export interface Notice {
   id: number;
@@ -33,26 +27,24 @@ export interface RewritePlay {
   after: string;
 }
 
+/** 카드 위에 잠깐 뜨는 안내(도장이 아직 안 눌림, 검사 결과) */
+export interface CardMsg {
+  text: string;
+  tone: 'info' | 'warn' | 'yellow' | 'red';
+  n: number;
+}
+
 interface UiLocal {
-  /** boot: 콜드 오픈/로그인, os: 데스크톱 */
+  /** boot: 프롤로그/콜드 오픈/로그인, os: 책상 */
   phase: 'boot' | 'os';
   setPhase(p: 'boot' | 'os'): void;
 
-  windows: Partial<Record<WinKey, WinState>>;
-  zTop: number;
-  setWindow(key: WinKey, patch: Partial<WinState>): void;
-  openWindow(key: WinKey, init: Omit<WinState, 'z' | 'minimized' | 'key'>): void;
-  focusWindow(key: WinKey): void;
-  minimizeWindow(key: WinKey): void;
-  closeWindow(key: WinKey): void;
+  panel: Panel | null;
+  openPanel(p: Panel | null): void;
+  filingTab: FilingTab;
+  setFilingTab(t: FilingTab): void;
 
-  /** 독에 나타난 앱. 이후 새로 생기는 앱만 '설치' 연출 */
-  shown: AppId[];
-  installing: Partial<Record<AppId, number>>;
-  markShown(app: AppId, installing?: boolean): void;
-  clearInstalling(app: AppId): void;
-
-  /** 알림: banner 는 위에서 잠깐 내려오고, notices 는 홈 화면에 남는다 */
+  /** 알림: banner 는 위에서 잠깐 내려온다(사람의 말만) */
   notices: Notice[];
   banner: Notice | null;
   pushNotice(n: Omit<Notice, 'id'>, opts?: { banner?: boolean }): void;
@@ -63,8 +55,6 @@ interface UiLocal {
   searchPrefill: { q: string; nonce: number } | null;
   prefillSearch(q: string): void;
 
-  workTab: WorkTab;
-  setWorkTab(t: WorkTab): void;
   reportSeen: boolean;
   markReportSeen(): void;
 
@@ -76,7 +66,7 @@ interface UiLocal {
   typing: { thread: ThreadKey; from: string } | null;
   setTyping(t: { thread: ThreadKey; from: string } | null): void;
 
-  /** 다시 쓰기 연출 대기(보이는 순간 한 번 재생). key = 'message:<id>' | 'record:<id>' | 'assignment:<id>' */
+  /** 다시 쓰기 연출 대기. key = 'message:<id>' | 'record:<id>' | 'assignment:<id>' | 'case:<id>' | 'warning:<id>' */
   rewritePlay: Record<string, RewritePlay>;
   queueRewrite(key: string, p: RewritePlay): void;
   doneRewrite(key: string): void;
@@ -94,65 +84,109 @@ interface UiLocal {
   say(text: string): void;
   clearFlash(): void;
 
+  // ── 책상 ──
+  /** 책상 위에 보이는 카드(방금 도장 찍은 카드 포함). 다음 건이 올라오면 바뀐다 */
+  shownCase: Id | null;
+  setShownCase(id: Id | null): void;
+  /** 검사 모드(기록 낱말 → 관측 낱말을 차례로 짚는다) */
+  inspect: boolean;
+  setInspect(v: boolean): void;
+  /** 짚은 조각(기록 쪽 또는 관측 쪽). 반대쪽 조각을 누르면 실이 이어진다 */
+  sel: { side: 'rec' | 'obs'; id: Id } | null;
+  select(sel: { side: 'rec' | 'obs'; id: Id } | null): void;
+  /** 정정 직후: 바뀌어 있던 낱말이 번지며 원문으로 돌아오는 연출 */
+  ghost: { caseId: Id; segId: Id; from: string; at: number } | null;
+  setGhost(g: { caseId: Id; segId: Id; from: string } | null): void;
+  cardMsg: CardMsg | null;
+  cardSay(text: string, tone?: CardMsg['tone']): void;
+  clearCardMsg(): void;
+  /** 방금 막 만들어진 실(키 → 시각). 새 실만 번쩍이고, 나머지는 정지 상태로 그린다 */
+  bornLinks: Record<string, number>;
+  bornLink(key: string): void;
+  /** 카드가 뒤집혀 판정 이력을 보인다 */
+  flipped: boolean;
+  setFlipped(v: boolean): void;
+  /** 방금 찍은 도장 연출(건 id → 시각) */
+  freshStamp: { caseId: Id; at: number } | null;
+  stampFresh(caseId: Id): void;
+  /** 관측 창 확대 */
+  obsExpanded: boolean;
+  setObsExpanded(v: boolean): void;
+  /** 서랍을 처음 열었는가(마른 잉크 클로즈업) */
+  drawerSeen: boolean;
+  markDrawerSeen(): void;
+  /** 읽어야 하는 경고장(프린터에서 나온 뒤 탭해서 닫는다) */
+  slipReading: Id[];
+  readSlip(ids: Id[]): void;
+  closeSlip(): void;
+  /** 근무 보고 종이(근무가 끝난 직후) */
+  shiftReportFor: Id | null;
+  setShiftReportFor(id: Id | null): void;
+  /** 프린터 연출 */
+  printerNonce: number;
+  print(): void;
+  /** 이번 세션에서 읽은 규칙 안내(근무 명세를 한 번 접는다) */
+  briefingOpen: boolean;
+  setBriefingOpen(v: boolean): void;
+
+  /** 책상 위 상태만 비운다(근무가 새로 시작될 때) */
+  resetDesk(): void;
   /** 불러오기·처음부터 뒤에 화면 쪽 상태를 비운다 */
   resetSession(): void;
 
   textScale: number;
   setTextScale(n: number): void;
+  musicVolume: number;
+  sfxVolume: number;
+  setMusicVolume(n: number): void;
+  setSfxVolume(n: number): void;
 }
 
 let noticeSeq = 1;
 
-function loadScale(): number {
+function readNum(key: string, fallback: number, ok?: (n: number) => boolean): number {
   try {
-    const v = Number(localStorage.getItem('gyeollok.textScale'));
-    return v === 1.125 || v === 1.25 || v === 1.5 ? v : 1;
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const v = Number(raw);
+    return Number.isFinite(v) && (!ok || ok(v)) ? v : fallback;
   } catch {
-    return 1;
+    return fallback;
   }
 }
+function writeNum(key: string, v: number) {
+  try {
+    localStorage.setItem(key, String(v));
+  } catch {
+    /* 저장소 없음 */
+  }
+}
+
+const volOk = (n: number) => n >= 0 && n <= 1;
+
+const deskFresh = () => ({
+  shownCase: null as Id | null,
+  inspect: false,
+  sel: null as { side: 'rec' | 'obs'; id: Id } | null,
+  ghost: null as { caseId: Id; segId: Id; from: string; at: number } | null,
+  cardMsg: null as CardMsg | null,
+  bornLinks: {} as Record<string, number>,
+  flipped: false,
+  freshStamp: null as { caseId: Id; at: number } | null,
+  obsExpanded: false,
+  slipReading: [] as Id[],
+  shiftReportFor: null as Id | null,
+  briefingOpen: true,
+});
 
 export const useUi = create<UiLocal>()((set, get) => ({
   phase: 'boot',
   setPhase: (phase) => set({ phase }),
 
-  windows: {},
-  zTop: 10,
-  setWindow(key, patch) {
-    const w = get().windows[key];
-    if (w) set({ windows: { ...get().windows, [key]: { ...w, ...patch } } });
-  },
-  openWindow(key, init) {
-    const z = get().zTop + 1;
-    set({ zTop: z, windows: { ...get().windows, [key]: { ...init, key, z, minimized: false } } });
-  },
-  focusWindow(key) {
-    const w = get().windows[key];
-    if (!w) return;
-    const z = get().zTop + 1;
-    set({ zTop: z, windows: { ...get().windows, [key]: { ...w, z, minimized: false } } });
-  },
-  minimizeWindow(key) {
-    const w = get().windows[key];
-    if (w) set({ windows: { ...get().windows, [key]: { ...w, minimized: true } } });
-  },
-  closeWindow(key) {
-    const { [key]: _drop, ...rest } = get().windows;
-    void _drop;
-    set({ windows: rest });
-  },
-
-  shown: [],
-  installing: {},
-  markShown(app, installing = false) {
-    if (get().shown.includes(app)) return;
-    set({ shown: [...get().shown, app], installing: installing ? { ...get().installing, [app]: Date.now() } : get().installing });
-  },
-  clearInstalling(app) {
-    const { [app]: _drop, ...rest } = get().installing;
-    void _drop;
-    set({ installing: rest });
-  },
+  panel: null,
+  openPanel: (panel) => set({ panel }),
+  filingTab: 'closed',
+  setFilingTab: (filingTab) => set({ filingTab }),
 
   notices: [],
   banner: null,
@@ -166,8 +200,6 @@ export const useUi = create<UiLocal>()((set, get) => ({
   searchPrefill: null,
   prefillSearch: (q) => set({ searchPrefill: { q, nonce: Date.now() + Math.random() } }),
 
-  workTab: 'card',
-  setWorkTab: (workTab) => set({ workTab }),
   reportSeen: false,
   markReportSeen: () => set({ reportSeen: true }),
 
@@ -193,14 +225,37 @@ export const useUi = create<UiLocal>()((set, get) => ({
   showGloss: (term, text) => set({ gloss: { term, text, nonce: Date.now() + Math.random() } }),
   hideGloss: () => set({ gloss: null }),
 
+  flash: null,
+  say: (text) => set({ flash: { text, nonce: Date.now() + Math.random() } }),
+  clearFlash: () => set({ flash: null }),
+
+  ...deskFresh(),
+  setShownCase: (shownCase) => set({ shownCase }),
+  setInspect: (inspect) => set({ inspect, sel: null }),
+  select: (sel) => set({ sel }),
+  setGhost: (g) => set({ ghost: g ? { ...g, at: Date.now() } : null }),
+  cardSay: (text, tone = 'info') => set({ cardMsg: { text, tone, n: Date.now() + Math.random() } }),
+  clearCardMsg: () => set({ cardMsg: null }),
+  bornLink: (key) => set((s) => ({ bornLinks: { ...s.bornLinks, [key]: Date.now() } })),
+  setFlipped: (flipped) => set({ flipped }),
+  stampFresh: (caseId) => set({ freshStamp: { caseId, at: Date.now() } }),
+  setObsExpanded: (obsExpanded) => set({ obsExpanded }),
+  drawerSeen: false,
+  markDrawerSeen: () => set({ drawerSeen: true }),
+  readSlip: (ids) => set((s) => ({ slipReading: [...s.slipReading, ...ids.filter((i) => !s.slipReading.includes(i))] })),
+  closeSlip: () => set((s) => ({ slipReading: s.slipReading.slice(1) })),
+  setShiftReportFor: (shiftReportFor) => set({ shiftReportFor }),
+  printerNonce: 0,
+  print: () => set((s) => ({ printerNonce: s.printerNonce + 1 })),
+  setBriefingOpen: (briefingOpen) => set({ briefingOpen }),
+
+  resetDesk: () => set(deskFresh()),
   resetSession: () =>
     set({
-      windows: {},
-      shown: [],
-      installing: {},
+      panel: null,
       notices: [],
       banner: null,
-      workTab: 'card',
+      filingTab: 'closed',
       reportSeen: false,
       thread: null,
       revealed: [],
@@ -208,19 +263,23 @@ export const useUi = create<UiLocal>()((set, get) => ({
       rewritePlay: {},
       gloss: null,
       flash: null,
+      drawerSeen: false,
+      ...deskFresh(),
     }),
 
-  flash: null,
-  say: (text) => set({ flash: { text, nonce: Date.now() + Math.random() } }),
-  clearFlash: () => set({ flash: null }),
-
-  textScale: loadScale(),
+  textScale: readNum('gyeollok.textScale', 1, (v) => v === 1 || v === 1.125 || v === 1.25 || v === 1.5),
   setTextScale(n) {
-    try {
-      localStorage.setItem('gyeollok.textScale', String(n));
-    } catch {
-      /* 저장소 없음 */
-    }
+    writeNum('gyeollok.textScale', n);
     set({ textScale: n });
+  },
+  musicVolume: readNum('gyeollok.musicVolume', 0.8, volOk),
+  sfxVolume: readNum('gyeollok.sfxVolume', 1, volOk),
+  setMusicVolume(n) {
+    writeNum('gyeollok.musicVolume', n);
+    set({ musicVolume: n });
+  },
+  setSfxVolume(n) {
+    writeNum('gyeollok.sfxVolume', n);
+    set({ sfxVolume: n });
   },
 }));
