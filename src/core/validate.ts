@@ -172,9 +172,13 @@ export function validateContent(content: ContentBundle, opts: ValidateOptions = 
         err(r.id, 'answer_lacks_fact', `정답 인물에게 필요한 사실이 없습니다: ${f.value}`);
     const sol = solveReport(r.id, content);
     for (const k of BLANK_KEYS) if (!sol.solved[k]) err(r.id, 'blank_unsolvable', `'${k}' 칸을 데이터로 확인할 수 있는 첨부 조합이 없습니다.`);
-    for (const p of r.who.candidates)
-      if (p !== r.who.answer && sol.candidateConfirms.includes(p))
-        err(r.id, 'indistinguishable', `오답 후보 ${p} 도 확인됩니다.`);
+    for (const p of r.who.candidates) {
+      const person = idx.persons[p];
+      if (p === r.who.answer || !person) continue;
+      if (sol.candidateConfirms.includes(p)) err(r.id, 'indistinguishable', `오답 후보 ${p} 도 확인됩니다.`);
+      else if (r.who.requiredFacts.every((f) => person.facts.some((x) => x.kind === f.kind && x.value === f.value)))
+        err(r.id, 'indistinguishable', `오답 후보 ${p} 가 필요한 사실을 모두 가져 근거로 가려지지 않습니다.`);
+    }
   }
 
   // 7. 복원 규칙

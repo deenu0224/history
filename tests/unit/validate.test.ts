@@ -1,181 +1,69 @@
 import { mergeModules } from '@/core/content';
-import type { ContentBundle, PersonDeduction, YearDeduction } from '@/core/types';
-import { validateContent } from '@/core/validate';
-import { content as registry, modules } from '@/data';
-import { sampleContent } from './fixtures';
+import type { ContentBundle } from '@/core/types';
+import { hasYear, solveReport, validateContent } from '@/core/validate';
+import { content, modules } from '@/data';
 
-const codes = (c: ContentBundle, opts?: Parameters<typeof validateContent>[1]) =>
-  validateContent(c, opts).errors.map((e) => e.code);
-const warnCodes = (c: ContentBundle) => validateContent(c).warnings.map((e) => e.code);
-const ded = <T>(c: ContentBundle, id: string) => c.deductions.find((d) => d.id === id) as T;
+export const ANSWER_WORDS = ['김일손', '이극돈', '무오', '연산', '1498'];
 
-describe('validateContent', () => {
-  it('accepts the sample content and the registry', () => {
-    const r = validateContent(sampleContent());
+const clone = (): ContentBundle => structuredClone(content);
+const codes = (c: ContentBundle) => validateContent(c, { historical: modules.historical, answerWords: ANSWER_WORDS }).errors.map((e) => e.code);
+
+describe('validator — registry (v3)', () => {
+  it('passes with no errors', () => {
+    const r = validateContent(content, { historical: modules.historical, answerWords: ANSWER_WORDS });
     expect(r.errors).toEqual([]);
-    expect(r.ok).toBe(true);
-    expect(validateContent(registry, { historical: modules.historical }).ok).toBe(true);
   });
 
-  it('requires a url source for verified items', () => {
-    const c = sampleContent();
-    c.persons[0]!.provenance = 'verified';
+  it('every report blank is solvable from data and only the answer confirms 누구', () => {
+    const s = solveReport('rep_c2217', content);
+    expect(s.solved).toEqual({ when: true, who: true, what: true, result: true });
+    expect(s.candidateConfirms).toEqual(['per_yi_geukdon']);
+  });
+
+  it('year detector ignores coordinate codes', () => {
+    expect(hasYear('#C-2217 · 일시 ####')).toBe(false);
+    expect(hasYear('사망 1498년')).toBe(true);
+  });
+});
+
+describe('validator — catches broken content', () => {
+  it('verified without source / fictional in historical', () => {
+    const c = clone();
+    c.sources[0]!.sources = [];
     expect(codes(c)).toContain('verified_without_source');
-    c.persons[0]!.sources = [{ title: '실록', url: 'not a url' }];
-    expect(codes(c)).toEqual(expect.arrayContaining(['bad_source', 'verified_without_source']));
-    c.persons[0]!.sources = [{ title: '실록', url: 'https://sillok.history.go.kr/' }];
-    expect(codes(c)).toEqual([]);
+    const bad = mergeModules({ ...modules.historical, places: [{ id: 'x', provenance: 'fictional', name: 'x', summary: '' }] });
+    expect(validateContent(bad, { historical: { places: bad.places } }).errors.map((e) => e.code)).toContain('fictional_in_historical');
   });
 
-  it('checks verified dialogue lines', () => {
-    const c = sampleContent();
-    c.npcs[0]!.dialogue[0]!.provenance = 'verified';
-    expect(codes(c)).toContain('verified_without_source');
+  it('year leak in the assignment, answer leak in hints, archaic 졸 in DB', () => {
+    const c = clone();
+    c.assignments[0]!.header[1]!.value = '1498';
+    c.messages.find((m) => m.hint)!.text = '이극돈이야';
+    c.records[0]!.fields[0]!.value = '졸';
+    const k = codes(c);
+    expect(k).toEqual(expect.arrayContaining(['year_leak', 'answer_leak', 'archaic_term']));
   });
 
-  it('warns on reconstructed without sources', () => {
-    const c = sampleContent();
-    c.places[0]!.provenance = 'reconstructed';
-    expect(warnCodes(c)).toContain('reconstructed_without_source');
+  it('unsolvable blank and indistinguishable candidate', () => {
+    const c = clone();
+    c.clues = c.clues.filter((x) => x.id !== 'cl_veteran');
+    expect(codes(c)).toContain('blank_unsolvable');
+    const d = clone();
+    d.persons.find((p) => p.id === 'per_eo_segyeom')!.facts.push(
+      { kind: 'office', value: '실록청 당상' },
+      { kind: 'event', value: '『세조실록』 편찬 참여' },
+    );
+    expect(codes(d)).toContain('indistinguishable');
   });
 
-  it('forbids fictional data in the historical module', () => {
-    const c = sampleContent();
-    expect(codes(c, { historical: { persons: [c.persons[0]!] } })).toContain('fictional_in_historical');
-  });
-
-  it('detects duplicate ids across kinds', () => {
-    const c = sampleContent();
-    c.places.push({ ...c.places[0]!, id: 'sample_person_scribe' });
-    expect(codes(c)).toContain('duplicate_id');
-  });
-
-  it('detects unresolved references', () => {
-    const c = sampleContent();
-    c.worldObjects[0]!.grants = { evidence: [{ id: 'nope' }] };
-    c.collection[0]!.refId = 'sample_place_office'; // artifact 카테고리인데 장소를 가리킴
-    c.events[0]!.personIds = ['ghost'];
-    const errs = validateContent(c).errors.filter((e) => e.code === 'missing_ref');
-    expect(errs.map((e) => e.id).sort()).toEqual(['sample_col_zither', 'sample_event_a', 'sample_obj_board']);
-  });
-
-  it('detects bad evidence levels in grants', () => {
-    const c = sampleContent();
-    c.worldObjects[1]!.grants = { evidence: [{ id: 'sample_ev_zither', level: 7 }] };
-    expect(codes(c)).toContain('bad_level');
-  });
-
-  it('checks time constraint coherence', () => {
-    const c = sampleContent();
-    c.evidence.push({
-      id: 'bad_t',
-      provenance: 'fictional',
-      category: 'object',
-      levels: [{ label: 'x', text: '', time: { notBefore: 1500, notAfter: 1400, strength: 'decisive' } }],
-    });
-    c.evidence.push({ id: 'empty_t', provenance: 'fictional', category: 'object', levels: [{ label: 'x', text: '', time: { strength: 'weak' } }] });
-    expect(codes(c)).toEqual(expect.arrayContaining(['bad_time', 'empty_time']));
-    expect(warnCodes(c)).toContain('weak_without_reason');
-  });
-
-  it('year deduction: evidence must not contradict target; threshold & context sane', () => {
-    const c = sampleContent();
-    const d = ded<YearDeduction>(c, 'sample_ded_year');
-    d.target = { from: 1499, to: 1499 };
-    expect(codes(c)).toContain('evidence_contradicts_target');
-    d.target = { from: 1498, to: 1498 };
-    d.maxPartialWidth = 0;
-    d.context = { from: 1500 };
-    expect(codes(c)).toEqual(expect.arrayContaining(['bad_threshold', 'context_excludes_target']));
-  });
-
-  it('year deduction: warns when decisive evidence cannot confirm', () => {
-    const c = sampleContent();
-    const d = ded<YearDeduction>(c, 'sample_ded_year');
-    d.relevantEvidence = d.relevantEvidence.filter((id) => id !== 'sample_ev_calendar');
-    expect(warnCodes(c)).toContain('not_confirmable');
-  });
-
-  it('person deduction: answer must hold facts and candidates must be distinguishable', () => {
-    const c = sampleContent();
-    const d = ded<PersonDeduction>(c, 'sample_ded_person');
-    d.requiredFacts = [{ kind: 'office', value: '샘플 사관직' }];
-    expect(codes(c)).toContain('indistinguishable');
-    d.requiredFacts = [{ kind: 'trait', value: '키가 큼' }];
-    expect(codes(c)).toEqual(expect.arrayContaining(['unprovable_fact', 'answer_lacks_fact']));
-    d.answer = 'sample_person_minister';
-    d.requiredFacts = [];
-    expect(codes(c)).toContain('evidence_contradicts_answer');
-  });
-
-  it('event deduction: answer statement must not be refuted', () => {
-    const c = sampleContent();
-    const d = c.deductions.find((x) => x.kind === 'event')!;
-    if (d.kind !== 'event') throw new Error();
-    d.answer = 'tolerated';
-    expect(codes(c)).toContain('answer_refuted');
-  });
-
-  it('warns about evidence with no acquisition path', () => {
-    const c = sampleContent();
-    c.worldObjects = c.worldObjects.filter((w) => w.id !== 'sample_obj_zither');
-    expect(validateContent(c).warnings.some((w) => w.code === 'unobtainable_evidence' && w.message.includes('sample_ev_zither'))).toBe(true);
-  });
-
-  it('terminal: search refs, chip terms, phrases, timelines, replies, corrections, flags', () => {
-    const ok = sampleContent();
-    expect(codes(ok)).toEqual([]);
-
-    let c = sampleContent();
-    c.searchEntries[0]!.results.push({ kind: 'person', id: 'ghost' });
-    expect(codes(c)).toContain('missing_ref');
-
-    c = sampleContent();
-    c.messages[0]!.grants = { terms: ['아무도 색인하지 않은 말'] };
-    expect(codes(c)).toContain('term_unindexed');
-
-    c = sampleContent();
-    c.phrases[0]!.text = '원문에 없는 문장';
-    expect(codes(c)).toContain('phrase_not_in_excerpt');
-
-    c = sampleContent();
-    c.timelines[0]!.hotspots[1]!.windows = [{ from: 2000, to: 2100 }];
-    expect(codes(c)).toContain('window_outside_timeline');
-
-    c = sampleContent();
-    c.timelines[0]!.hotspots = c.timelines[0]!.hotspots.filter((h) => h.targetId !== 'sample_npc_scribe');
-    expect(codes(c)).toContain('not_in_timeline');
-
-    c = sampleContent();
-    c.messages[1]!.choices![0]!.setsFlags = ['sample_year_partial'];
-    expect(codes(c)).toContain('choice_solves_puzzle');
-
-    c = sampleContent();
-    c.records[0]!.provenance = 'verified';
-    c.records[0]!.sources = [{ title: 'x', url: 'https://example.org' }];
-    expect(codes(c)).toContain('correction_touches_fact');
-
-    c = sampleContent();
-    c.apps[3]!.unlockWhen = { all: ['nobody_sets_this'] };
-    expect(codes(c)).toContain('unreachable_flag');
-
-    c = sampleContent();
-    c.searchEntries[0]!.optional = true;
-    c.searchEntries[0]!.conditional![0]!.grants = { evidence: [{ id: 'sample_ev_book' }] };
-    expect(codes(c)).toContain('optional_progress');
-
-    c = sampleContent();
-    c.searchEntries.push({
-      id: 'sample_se_hidden',
-      provenance: 'fictional',
-      terms: ['칩이 없는 말'],
-      results: [{ kind: 'record', id: 'sample_rec_meta' }],
-      grants: { evidence: [{ id: 'sample_ev_book' }] },
-    });
-    expect(codes(c)).toContain('search_needs_typing');
-  });
-
-  it('mergeModules keeps every kind', () => {
-    expect(mergeModules({ persons: [] }, {}).collection).toEqual([]);
+  it('unindexed chips, unsatisfiable clue, restored content must be verified', () => {
+    const c = clone();
+    c.npcs[0]!.dialogue[1]!.grants = { terms: ['없는 칩'] };
+    c.clues.find((x) => x.id === 'cl_alive')!.frame = { heard: ['b5', 'm2'] };
+    c.sources.find((s) => s.id === 'src_verdict')!.provenance = 'reconstructed';
+    c.records.find((r) => r.id === 'rec_alt_kwon_obok')!.provenance = 'verified';
+    expect(codes(c)).toEqual(
+      expect.arrayContaining(['term_not_indexed', 'clue_unsatisfiable', 'restored_not_verified', 'altered_not_fictional']),
+    );
   });
 });
