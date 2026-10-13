@@ -313,7 +313,7 @@ p {
   animation: blink 1s steps(2) infinite;
 }
 .boot[data-step='prologue'] .boot-room {
-  opacity: 0;
+  opacity: 0.25;
   transition: opacity 1.2s;
 }
 .boot[data-step='prologue'] {
@@ -330,58 +330,6 @@ p {
   color: var(--k9);
   word-break: keep-all;
   animation: fade-in 0.6s both;
-}
-.prologue {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  padding: 0 24px;
-}
-.prologue-page {
-  width: min(78vw, 340px);
-  padding: 26px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: #e8dcc2;
-  box-shadow: 0 0 0 3px #3a2e22, 0 18px 60px rgba(0, 0, 0, 0.6);
-  animation: fade-in 1.2s both;
-  transition: opacity 1.4s, transform 1.4s;
-}
-.prologue--beats .prologue-page {
-  opacity: 0.18;
-  transform: scale(0.94);
-}
-.pg-faint {
-  display: block;
-  height: 9px;
-  background: repeating-linear-gradient(90deg, #8d7b60 0 7px, transparent 7px 10px, #8d7b60 10px 15px, transparent 15px 19px);
-  opacity: 0.45;
-}
-.pg-line {
-  margin: 0;
-  font-family: var(--f-pixel);
-  font-size: 1rem;
-  line-height: 1.6;
-  color: #1f1a14;
-  max-height: 3.4em;
-  overflow: hidden;
-  transition: max-height 1.1s ease-in-out, margin 1.1s ease-in-out;
-}
-.pg-line-closed {
-  max-height: 0;
-  margin: -6px 0;
-}
-.pg-ch {
-  transition: opacity 0.35s, filter 0.35s;
-}
-.pg-ch-gone {
-  opacity: 0;
-  filter: blur(2px);
 }
 .prologue-skip {
   position: absolute;

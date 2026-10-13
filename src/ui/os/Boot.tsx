@@ -7,7 +7,6 @@ import { useGameStore } from '@/store/gameStore';
 import { useTypewriter } from '../hooks';
 import { fx } from '../lib/fx';
 import { useUi } from '../uiStore';
-import { Prologue } from './Prologue';
 
 type Step = 'checking' | 'prologue' | 'cold' | 'login' | 'entering';
 
@@ -37,10 +36,10 @@ export function Boot() {
     };
   }, []);
 
-  const paging = step === 'cold';
-  const lines = EPISODE_1.coldOpen;
+  const paging = step === 'prologue' || step === 'cold';
+  const lines = step === 'prologue' ? EPISODE_1.prologue : EPISODE_1.coldOpen;
   const cur = lines[line]?.text ?? '';
-  const tw = useTypewriter(paging ? cur : '', 16);
+  const tw = useTypewriter(paging ? cur : '', step === 'prologue' ? 28 : 16);
 
   const toCold = () => {
     setLine(0);
@@ -69,6 +68,7 @@ export function Boot() {
     if (!tw.done) return tw.finish();
     fx('tap');
     if (line + 1 < lines.length) setLine(line + 1);
+    else if (step === 'prologue') toCold();
     else void enter('new');
   };
 
@@ -81,7 +81,8 @@ export function Boot() {
   // 줄이 다 써지면 잠시 뒤 스스로 넘어간다(짧게)
   useEffect(() => {
     if (!paging || !tw.done) return;
-    const t = window.setTimeout(advance, line + 1 < lines.length ? 1700 : 2100);
+    const base = step === 'prologue' ? 2600 : 1700;
+    const t = window.setTimeout(advance, line + 1 < lines.length ? base : base + 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, tw.done, line]);
@@ -96,7 +97,12 @@ export function Boot() {
         </div>
         <div className="boot-glow" />
       </div>
-      {step === 'prologue' && <Prologue onDone={toCold} />}
+      {step === 'prologue' && (
+        <p className="prologue-line" key={`p${line}`} data-testid="prologue">
+          {tw.shown}
+          <i className="caret" />
+        </p>
+      )}
       {step === 'prologue' && (
         <button type="button" className="btn btn-ghost prologue-skip" data-testid="boot-skip" onPointerDown={skip}>
           건너뛰기
