@@ -8,6 +8,7 @@ import { PAST_OBJECTS } from './objects_past';
 import { MODERN_OBJECTS } from './objects_modern';
 import { CHARACTERS, CHAR_FRAMES, DIRS } from './characters';
 import { UI_SPRITES } from './ui';
+import { OS_SPRITES } from './os_sprites';
 
 /** 타일 레지스트리 (32×32, 텍스처 키 = 키) */
 export const TILES: Record<string, PixelSprite> = { ...TILE_DEFS };
@@ -18,6 +19,7 @@ export const SPRITES: Record<string, PixelSprite> = {
   ...MODERN_OBJECTS,
   ...CHARACTERS,
   ...UI_SPRITES,
+  ...OS_SPRITES,
 };
 
 // ───────────────────────── 키 상수 ─────────────────────────
