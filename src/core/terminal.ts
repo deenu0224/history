@@ -55,12 +55,13 @@ export function checkState(s: ConditionState, c?: StateCondition): boolean {
   if (!(c.attempted ?? []).every((id) => (s.attempts[id] ?? 0) > 0)) return false;
   for (const [k, v] of Object.entries(c.minStats ?? {}))
     if ((s.stats[k as keyof PlayStats] ?? 0) < (v ?? 0)) return false;
+  if (c.any && c.any.length > 0 && !c.any.some((sub) => checkState(s, sub))) return false;
   return true;
 }
 
 /** 조건이 참조하는 플래그(검증기용) */
 export function conditionFlags(c?: StateCondition): string[] {
-  return [...(c?.all ?? []), ...(c?.none ?? [])];
+  return [...(c?.all ?? []), ...(c?.none ?? []), ...(c?.any ?? []).flatMap(conditionFlags)];
 }
 
 export function unlockedApps(apps: readonly AppDef[], s: ConditionState): AppId[] {

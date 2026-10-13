@@ -13,7 +13,8 @@
  */
 import type { Id } from '@/core/types';
 
-export type SceneId = 'lab' | 'archive' | 'obs001';
+/** 걷기 폐지: 남은 맵은 관측 뷰어 디오라마뿐이다(연구실·기록관 맵 삭제). */
+export type SceneId = 'obs001';
 
 export interface SceneMap {
   w: number;
@@ -55,87 +56,13 @@ export const PASSABLE_WALLS = new Set([' ', 'D', 'S']);
 
 /** 씬 표시 정보. 과거 씬은 이름·연도·장소를 알려주지 않는다. */
 export const SCENE_META: Record<SceneId, { title: string; hud: string[] }> = {
-  lab: { title: '기록 분석실', hud: ['현재'] },
-  archive: { title: '개인 기록관', hud: ['현재'] },
   obs001: {
     title: '관측 #001',
-    hud: ['관측 #001', '시대: 미상', '연도: 미상', '장소: 미확인', '인물: 미확인', '관측 기록: 작성 중'],
+    hud: ['관측 #001', '시대: 미상', '연도: ####', '장소: 미확인', '인물: 미확인', '관측 기록: 작성 중'],
   },
 };
 
 export const MAPS: Record<SceneId, SceneMap> = {
-  lab: {
-    w: 20,
-    h: 14,
-    ground: [
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwccccccccwwwwww",
-      "wwwwwwccccccccwwwwww",
-      "wwwwwwccccccccwwwwww",
-      "wwwwwwccccccccwwwwww",
-      "wwwwwwccccccccwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwwwww",
-    ],
-    walls: [
-      "MMMMMMMMMMMMMMMMMMMM",
-      "MNNMMNNMMNNMMNNMMNNM",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "M                  M",
-      "MMMMMMMMMMDMMMMMMMMM",
-    ],
-    spawn: { x: 10, y: 11 },
-    ambient: 'modern',
-  },
-  archive: {
-    w: 18,
-    h: 12,
-    ground: [
-      "wwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwww",
-      "wwwccccccccccccwww",
-      "wwwccccccccccccwww",
-      "wwwccccccccccccwww",
-      "wwwccccccccccccwww",
-      "wwwccccccccccccwww",
-      "wwwccccccccccccwww",
-      "wwwwwwwwwwwwwwwwww",
-      "wwwwwwwwwwwwwwwwww",
-    ],
-    walls: [
-      "MMMMMMMMMMMMMMMMMM",
-      "MMMMMMMMMMMMMMMMMM",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "M                M",
-      "MMMMMMMMMDMMMMMMMM",
-    ],
-    spawn: { x: 9, y: 9 },
-    ambient: 'modern',
-  },
   obs001: {
     w: 40,
     h: 30,

@@ -19,9 +19,22 @@ export const sources: HistoricalSource[] = [
     provenance: V,
     title: '『연산군일기』 연산 1년 1월 14일 기사',
     summary: '대행왕(세상을 떠난 왕)의 시호·묘호·능호·전호를 의논해 묘호를 ‘성(成)’으로 정한 기사.',
-    excerpt: '묘호는 성(成)이라 하고, 능호는 선(宣)이라 하고, 전호는 영사(永思)라 하였는데',
+    excerpt:
+      '정부·육조·홍문관·예문관·춘추관 5품 이상이 빈청(賓廳)에 모여서 대행왕의 시호 및 묘호(廟號)·능호(陵號)·전호(殿號)를 의논하였다. … ' +
+      '묘호는 성(成)이라 하고, 능호는 선(宣)이라 하고, 전호는 영사(永思)라 하였는데',
     sources: [REF.sillokMyoho, REF.myoho],
     relatedIds: ['src_seongjong_death'],
+  },
+  {
+    id: 'src_daehaengwang',
+    provenance: V,
+    title: '『연산군일기』 연산 즉위년 12월 29일 기사',
+    summary:
+      '승정원이 세조·예종·대행왕의 즉위 때 사령을 반포한 전례를 아뢴 기사. 묘호를 정하기 전에는 세상을 떠난 왕을 ' +
+      '‘대행왕’이라 불렀음을 보여 주는 예.',
+    excerpt: '승정원이 세조(世祖)·예종(睿宗)·대행왕의 즉위 때 사령(赦令)을 반포한 전례를 써서 아뢰니,',
+    sources: [REF.sillokDaehaengwang],
+    relatedIds: ['src_myoho', 'src_seongjong_death'],
   },
   {
     id: 'src_compile_order',

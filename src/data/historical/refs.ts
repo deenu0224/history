@@ -36,6 +36,7 @@ export const REF = {
   },
   // 조선왕조실록
   sillokSeongjongDeath: sillok('『성종실록』 성종 25년 12월 24일 「대조전에서 세상을 떠나다」', 'kia_12512024_004'),
+  sillokDaehaengwang: sillok('『연산군일기』 연산 즉위년 12월 29일 (‘대행왕’ 호칭 용례)', 'kja_10012029_001'),
   sillokMyoho: sillok('『연산군일기』 연산 1년 1월 14일 「…성종의 시호·묘호 등을 의논하다」', 'kja_10101014_001'),
   sillokCompileOrder: sillok('『연산군일기』 연산 1년 4월 19일 (『성종실록』 편찬 명령)', 'kja_10104019_002'),
   sillokSachoOrder: sillok(

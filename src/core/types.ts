@@ -400,6 +400,8 @@ export interface StateCondition extends FlagCondition {
   attempted?: Id[];
   corrections?: Id[];
   minStats?: Partial<PlayStats>;
+  /** 이 중 하나 이상(OR). 막힘 방지용 대체 경로에 쓴다. */
+  any?: StateCondition[];
 }
 
 export interface AppDef extends ContentBase {

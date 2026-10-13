@@ -1,4 +1,6 @@
 import { impliedRange } from './chronology';
+import { windowsOverlap } from './observation';
+import { normalizeQuery, searchIndex } from './search';
 import { CONTENT_KEYS, evidenceView, factText, hasFact, indexContent, maxLevel, type ContentIndex } from './content';
 import { personConflicts } from './deduction';
 import type {
@@ -13,7 +15,9 @@ import type {
   Id,
   Reward,
   SourceRef,
+  StateCondition,
   TimeConstraint,
+  TimeWindow,
 } from './types';
 
 export interface ValidationIssue {
@@ -92,6 +96,7 @@ export function validateContent(content: ContentBundle, opts: { historical?: Con
     }
     for (const c of g?.collect ?? []) ref(owner, c.entryId, 'collection');
     if (g?.observation) ref(owner, g.observation, 'observations');
+    g?.sources?.forEach((id) => ref(owner, id, 'sources'));
   };
   const checkRewards = (owner: Id, rewards: readonly Reward[]) => {
     for (const r of rewards) {
@@ -153,18 +158,36 @@ export function validateContent(content: ContentBundle, opts: { historical?: Con
   const obtainable = collectObtainable(content);
   for (const d of content.deductions) validateDeduction(d, idx, obtainable, err, warn, ref, checkRewards);
 
+  // 6. 결록 단말
+  validateTerminal(content, idx, err, warn, ref, checkGrants);
+
   const errors = issues.filter((i) => i.severity === 'error');
   return { ok: errors.length === 0, errors, warnings: issues.filter((i) => i.severity === 'warning') };
 }
 
 type Report = (id: Id, code: string, message: string) => void;
 
+/** 모든 획득처의 Grants(관측·핫스팟·대사·검색·사료 구절·메시지·전시물·보정). */
+export function allGrants(c: ContentBundle): { owner: Id; grants: Grants }[] {
+  const out: { owner: Id; grants: Grants }[] = [];
+  const push = (owner: Id, g?: Grants) => g && out.push({ owner, grants: g });
+  c.observations.forEach((o) => push(o.id, o.grants));
+  c.worldObjects.forEach((w) => push(w.id, w.grants));
+  c.npcs.forEach((n) => n.dialogue.forEach((l) => push(`${n.id}#${l.id}`, l.grants)));
+  c.searchEntries.forEach((e) => {
+    push(e.id, e.grants);
+    (e.conditional ?? []).forEach((x, i) => push(`${e.id}#c${i}`, x.grants));
+  });
+  c.phrases.forEach((p) => push(p.id, p.grants));
+  c.messages.forEach((m) => push(m.id, m.grants));
+  c.exhibits.forEach((x) => push(x.id, x.grants));
+  c.corrections.forEach((x) => push(x.id, x.grants));
+  return out;
+}
+
 function collectObtainable(c: ContentBundle): Set<Id> {
   const out = new Set<Id>();
-  const add = (g?: Grants) => g?.evidence?.forEach((e) => out.add(e.id));
-  c.observations.forEach((o) => add(o.grants));
-  c.worldObjects.forEach((w) => add(w.grants));
-  c.npcs.forEach((n) => n.dialogue.forEach((l) => add(l.grants)));
+  for (const { grants } of allGrants(c)) grants.evidence?.forEach((e) => out.add(e.id));
   for (const d of c.deductions)
     for (const r of [...d.rewards.confirmed, ...(d.rewards.partial ?? [])])
       if (r.type === 'evidence') out.add(r.evidenceId);
@@ -258,4 +281,237 @@ function validateDeduction(
   for (const s of d.statements)
     if (s.id !== d.answer && !(s.refutedBy ?? []).some((f) => hasFact(provable, f)))
       warn(d.id, 'unrefuted_statement', `오답 진술 ${s.id}을(를) 반박하는 증거가 없습니다(피드백이 빈약해집니다).`);
+}
+
+// ── 결록 단말 검증 ─────────────────────────────────────────────
+const SEARCH_REF_KEY: Record<string, ContentKey> = {
+  person: 'persons',
+  artifact: 'artifacts',
+  source: 'sources',
+  event: 'events',
+  place: 'places',
+  evidence: 'evidence',
+  record: 'records',
+};
+
+function stateConds(c: ContentBundle): { owner: Id; cond: StateCondition }[] {
+  const out: { owner: Id; cond: StateCondition }[] = [];
+  const push = (owner: Id, cond?: StateCondition) => cond && out.push({ owner, cond });
+  c.apps.forEach((a) => push(a.id, a.unlockWhen));
+  c.searchEntries.forEach((e) => {
+    push(e.id, e.requires);
+    (e.conditional ?? []).forEach((x) => push(e.id, x.when));
+  });
+  c.phrases.forEach((p) => push(p.id, p.when));
+  c.messages.forEach((m) => push(m.id, m.when));
+  c.exhibits.forEach((x) => push(x.id, x.requires));
+  c.memos.forEach((m) => push(m.id, m.when));
+  c.corrections.forEach((x) => push(x.id, x.trigger));
+  c.tutorial.forEach((t) => {
+    push(t.id, t.showWhen);
+    push(t.id, t.doneWhen);
+  });
+  c.npcs.forEach((n) => n.dialogue.forEach((l) => push(`${n.id}#${l.id}`, l.when)));
+  c.timelines.forEach((t) => t.hotspots.forEach((h) => push(h.id, h.visibleWhen)));
+  return out;
+}
+
+function flatten(c: StateCondition): StateCondition[] {
+  return [c, ...(c.any ?? []).flatMap(flatten)];
+}
+
+function validateTerminal(
+  content: ContentBundle,
+  idx: ContentIndex,
+  err: Report,
+  warn: Report,
+  ref: (owner: Id, id: Id, key?: ContentKey) => void,
+  checkGrants: (owner: Id, g?: Grants) => void,
+) {
+  const hotspotIds = new Set(content.timelines.flatMap((t) => t.hotspots.map((h) => h.id)));
+  const puzzleFlags = new Set<string>();
+  for (const d of content.deductions) {
+    if (d.requires) puzzleFlags.add(d.requires);
+    for (const r of [...d.rewards.confirmed, ...(d.rewards.partial ?? [])]) if (r.type === 'flag') puzzleFlags.add(r.flag);
+  }
+
+  // 6.1 생산 가능한 플래그
+  const produced = new Set<string>();
+  for (const { grants } of allGrants(content)) grants.flags?.forEach((f) => produced.add(f));
+  for (const d of content.deductions)
+    for (const r of [...d.rewards.confirmed, ...(d.rewards.partial ?? [])]) if (r.type === 'flag') produced.add(r.flag);
+  for (const m of content.messages) for (const ch of m.choices ?? []) ch.setsFlags?.forEach((f) => produced.add(f));
+  const needFlag = (owner: Id, f: string) => {
+    if (!produced.has(f)) err(owner, 'unreachable_flag', `플래그 '${f}'을(를) 세우는 곳이 없습니다.`);
+  };
+  for (const d of content.deductions) if (d.requires) needFlag(d.id, d.requires);
+  for (const w of content.worldObjects) if (w.requires) needFlag(w.id, w.requires);
+
+  // 6.2 상태 조건의 참조
+  for (const { owner, cond } of stateConds(content))
+    for (const c of flatten(cond)) {
+      [...(c.all ?? []), ...(c.none ?? [])].forEach((f) => needFlag(owner, f));
+      c.evidence?.forEach((id) => ref(owner, id, 'evidence'));
+      c.searched?.forEach((id) => ref(owner, id, 'searchEntries'));
+      c.read?.forEach((id) => ref(owner, id, 'messages'));
+      c.phrases?.forEach((id) => ref(owner, id, 'phrases'));
+      c.attempted?.forEach((id) => ref(owner, id, 'deductions'));
+      c.corrections?.forEach((id) => ref(owner, id, 'corrections'));
+      c.tapped?.forEach((id) => {
+        if (!hotspotIds.has(id)) err(owner, 'missing_ref', `핫스팟이 없습니다: ${id}`);
+      });
+    }
+
+  // 6.3 앱
+  const appSeen = new Set<string>();
+  for (const a of content.apps) {
+    if (appSeen.has(a.app)) err(a.id, 'duplicate_app', `앱 중복: ${a.app}`);
+    appSeen.add(a.app);
+  }
+
+  // 6.4 검색 색인
+  const visibleAll = () => true;
+  for (const e of content.searchEntries) {
+    if (!e.terms.length) err(e.id, 'empty_terms', '색인어가 없습니다.');
+    for (const t of e.terms) {
+      const n = normalizeQuery(t);
+      if (!n) err(e.id, 'bad_term', `색인어 '${t}'이(가) 정규화 후 비었습니다.`);
+      else if (n.length < 2) warn(e.id, 'short_term', `색인어 '${t}'은(는) 한 글자라 정확히 일치할 때만 맞습니다.`);
+    }
+    if (!e.results.length) err(e.id, 'empty_results', '결과가 없는 색인 항목입니다.');
+    for (const r of e.results) ref(e.id, r.id, SEARCH_REF_KEY[r.kind]);
+    checkGrants(e.id, e.grants);
+    (e.conditional ?? []).forEach((x) => checkGrants(e.id, x.grants));
+    const progress = [e.grants, ...(e.conditional ?? []).map((x) => x.grants)].some(
+      (g) => g?.evidence?.length || g?.flags?.some((f) => puzzleFlags.has(f) || produced.has(f)),
+    );
+    if (e.optional && progress && e.grants?.flags?.length)
+      err(e.id, 'optional_progress', '선택 검색(optional)이 진행 플래그를 주면 안 됩니다.');
+    if (e.optional && [e.grants, ...(e.conditional ?? []).map((x) => x.grants)].some((g) => g?.evidence?.length))
+      err(e.id, 'optional_progress', '선택 검색(optional)이 증거를 주면 안 됩니다.');
+  }
+  // 칩(검색어 수첩)으로 주어지는 표현은 반드시 색인에 맞아야 한다
+  const chipTerms = new Set<string>();
+  for (const { owner, grants } of allGrants(content))
+    for (const t of grants.terms ?? []) {
+      chipTerms.add(t);
+      if (searchIndex(content.searchEntries, t, visibleAll).status !== 'ok')
+        err(owner, 'term_unindexed', `검색어 '${t}'이(가) 어떤 색인에도 맞지 않습니다.`);
+    }
+  // 진행에 필요한 색인 항목은 칩만으로 닿아야 한다(모바일 탭 전용 플레이 보장)
+  const chipReach = new Set<Id>();
+  for (const t of chipTerms) searchIndex(content.searchEntries, t, visibleAll).matches.forEach((m) => chipReach.add(m.entry.id));
+  for (const e of content.searchEntries) {
+    const givesProgress =
+      !!e.grants?.flags?.length || [e.grants, ...(e.conditional ?? []).map((x) => x.grants)].some((g) => g?.evidence?.length);
+    if (!e.optional && givesProgress && !chipReach.has(e.id))
+      err(e.id, 'search_needs_typing', '진행에 필요한 색인 항목이 검색어 칩으로 닿지 않습니다.');
+  }
+
+  // 6.5 레코드
+  for (const r of content.records) {
+    const keys = new Set<string>();
+    for (const f of r.fields) {
+      if (keys.has(f.key)) err(r.id, 'duplicate_field', `필드 key 중복: ${f.key}`);
+      keys.add(f.key);
+    }
+  }
+
+  // 6.6 사료 구절: 검증된 사료의 원문 그대로
+  for (const p of content.phrases) {
+    ref(p.id, p.sourceId, 'sources');
+    const src = idx.sources[p.sourceId];
+    if (!src) continue;
+    if (src.provenance !== 'verified') err(p.id, 'phrase_unverified_source', '구절은 verified 사료에서만 고를 수 있습니다.');
+    if (!src.excerpt || !src.excerpt.includes(p.text))
+      err(p.id, 'phrase_not_in_excerpt', `구절이 사료 원문(excerpt)에 없습니다: ${p.text}`);
+    checkGrants(p.id, p.grants);
+  }
+
+  // 6.7 관측 타임라인
+  for (const tl of content.timelines) {
+    if (!(tl.start < tl.end) || tl.initial < tl.start || tl.initial > tl.end)
+      err(tl.id, 'bad_timeline', '타임라인 범위(start < end, start ≤ initial ≤ end)가 올바르지 않습니다.');
+    ref(tl.id, tl.observationId, 'observations');
+    if (tl.returnObservationId) ref(tl.id, tl.returnObservationId, 'observations');
+    const span: TimeWindow = { from: tl.start, to: tl.end + 1 };
+    const checkWindows = (owner: Id, ws?: TimeWindow[]) => {
+      for (const w of ws ?? []) {
+        if (!(w.from < w.to)) err(owner, 'bad_window', `시각 구간 [${w.from}, ${w.to}) 이 올바르지 않습니다.`);
+        else if (!windowsOverlap(w, span))
+          err(owner, 'window_outside_timeline', `시각 구간 [${w.from}, ${w.to}) 이 타임라인 밖입니다.`);
+      }
+    };
+    const ids = new Set<Id>();
+    for (const h of tl.hotspots) {
+      if (ids.has(h.id)) err(tl.id, 'duplicate_hotspot', `핫스팟 중복: ${h.id}`);
+      ids.add(h.id);
+      checkWindows(h.id, h.windows);
+      if (h.kind === 'object') {
+        const o = idx.worldObjects[h.targetId];
+        if (!o) err(h.id, 'missing_ref', `오브젝트가 없습니다: ${h.targetId}`);
+        else if (o.sceneId !== tl.sceneId) err(h.id, 'wrong_scene', `${o.id} 은(는) ${tl.sceneId} 씬에 없습니다.`);
+      } else {
+        const n = idx.npcs[h.targetId];
+        if (!n) {
+          err(h.id, 'missing_ref', `인물이 없습니다: ${h.targetId}`);
+          continue;
+        }
+        if (n.sceneId !== tl.sceneId) err(h.id, 'wrong_scene', `${n.id} 은(는) ${tl.sceneId} 씬에 없습니다.`);
+        for (const l of n.dialogue) checkWindows(`${n.id}#${l.id}`, l.at);
+      }
+    }
+    // 씬의 모든 사물·인물이 핫스팟이어야 한다(관측 경계 제외)
+    for (const o of content.worldObjects.filter((w) => w.sceneId === tl.sceneId && w.kind !== 'door' && w.kind !== 'observe'))
+      if (![...tl.hotspots].some((h) => h.targetId === o.id)) err(o.id, 'not_in_timeline', '관측 뷰어 핫스팟이 아닙니다.');
+    for (const n of content.npcs.filter((x) => x.sceneId === tl.sceneId))
+      if (![...tl.hotspots].some((h) => h.targetId === n.id)) err(n.id, 'not_in_timeline', '관측 뷰어 핫스팟이 아닙니다.');
+    for (const o of content.worldObjects) checkWindows(o.id, o.windows);
+    // 증거를 주는 사물은 구간 안 어딘가에서 열려 있어야 한다
+    for (const h of tl.hotspots.filter((x) => x.kind === 'object')) {
+      const o = idx.worldObjects[h.targetId];
+      if (o?.grants && h.windows?.length && !h.windows.some((w) => windowsOverlap(w, span)))
+        err(h.id, 'unreachable_hotspot', '핫스팟이 타임라인 안에서 한 번도 열리지 않습니다.');
+    }
+  }
+
+  // 6.8 메시지
+  for (const m of content.messages) {
+    checkGrants(m.id, m.grants);
+    const ch = new Set<Id>();
+    for (const c of m.choices ?? []) {
+      if (ch.has(c.id)) err(m.id, 'duplicate_choice', `선택지 id 중복: ${c.id}`);
+      ch.add(c.id);
+      for (const f of c.setsFlags ?? [])
+        if (puzzleFlags.has(f) || content.apps.some((a) => a.unlockWhen?.all?.includes(f)))
+          err(m.id, 'choice_solves_puzzle', `답장 선택지가 진행·퍼즐 플래그 '${f}'을(를) 세웁니다.`);
+    }
+  }
+
+  // 6.9 기록관·보정·메모
+  for (const x of content.exhibits) {
+    checkGrants(x.id, x.grants);
+    x.collectionIds?.forEach((id) => ref(x.id, id, 'collection'));
+  }
+  for (const e of content.corrections) {
+    checkGrants(e.id, e.grants);
+    for (const p of e.recordPatches) {
+      const r = idx.records[p.recordId];
+      if (!r) err(e.id, 'missing_ref', `레코드가 없습니다: ${p.recordId}`);
+      else if (r.provenance !== 'fictional') err(e.id, 'correction_touches_fact', '보정은 fictional 레코드만 바꿀 수 있습니다.');
+      else if (!r.fields.some((f) => f.key === p.key)) err(e.id, 'missing_ref', `레코드 필드가 없습니다: ${p.key}`);
+    }
+    for (const p of e.memoPatches) {
+      const m = idx.memos[p.memoId];
+      if (!m) err(e.id, 'missing_ref', `메모가 없습니다: ${p.memoId}`);
+      else if (m.provenance !== 'fictional') err(e.id, 'correction_touches_fact', '보정은 fictional 메모만 바꿀 수 있습니다.');
+    }
+  }
+
+  // 6.10 튜토리얼
+  for (const t of content.tutorial) {
+    if (t.coach.length > 45 || (t.coach.match(/[.?!。]/g) ?? []).length > 2)
+      warn(t.id, 'coach_too_long', '코치마크는 짧은 한 문장이어야 합니다.');
+    if (t.hints.some((h) => !h.trim())) err(t.id, 'empty_hint', '힌트 3단계가 모두 있어야 합니다.');
+  }
 }

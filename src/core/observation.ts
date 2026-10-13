@@ -93,7 +93,13 @@ export function hotspotStatus(h: Hotspot, minute: number, flags: Flags): Hotspot
 export function deriveHotspots(sceneId: Id, c: Pick<ContentBundle, 'worldObjects' | 'npcs'>): Hotspot[] {
   const objs: Hotspot[] = c.worldObjects
     .filter((o: Interactable) => o.sceneId === sceneId && o.kind !== 'door' && o.kind !== 'observe')
-    .map((o) => ({ id: `hs_${o.id}`, targetId: o.id, kind: 'object', ...(o.windows ? { windows: o.windows } : {}) }));
+    .map((o) => ({
+      id: `hs_${o.id}`,
+      targetId: o.id,
+      kind: 'object',
+      ...(o.windows ? { windows: o.windows } : {}),
+      ...(o.requires ? { visibleWhen: { all: [o.requires] } } : {}),
+    }));
   const people: Hotspot[] = c.npcs
     .filter((n) => n.sceneId === sceneId)
     .map((n) => ({ id: `hs_${n.id}`, targetId: n.id, kind: 'npc' }));
@@ -129,4 +135,41 @@ export function displaySpeaker(
   if (personName && (line.speaker.includes(personName) || (personHanja && line.speaker.includes(personHanja))))
     return npc.label;
   return line.speaker;
+}
+
+export interface ViewerFrame {
+  timelineId: Id;
+  minute: number;
+  clock: string;
+  glitch: number;
+  npcs: { id: Id; hotspotId: Id; spriteKey: string; label: string; pose: NpcPose }[];
+  hotspots: { id: Id; targetId: Id; kind: Hotspot['kind']; status: HotspotStatus; x: number; y: number }[];
+}
+
+/** 렌더러용 한 프레임: 그 시각의 NPC 자세와 핫스팟 상태(위치 포함). */
+export function viewerFrame(
+  tl: ObservationTimeline,
+  minute: number,
+  c: Pick<ContentBundle, 'worldObjects' | 'npcs'>,
+  flags: Flags,
+): ViewerFrame {
+  const m = clampMinute(tl, minute);
+  const npcById = new Map(c.npcs.map((n) => [n.id, n]));
+  const objById = new Map(c.worldObjects.map((o) => [o.id, o]));
+  const npcs: ViewerFrame['npcs'] = [];
+  const hotspots: ViewerFrame['hotspots'] = [];
+  for (const h of tl.hotspots) {
+    const status = hotspotStatus(h, m, flags);
+    if (h.kind === 'npc') {
+      const n = npcById.get(h.targetId);
+      const pose = n && npcPoseAt(n, m);
+      if (!n || !pose) continue;
+      npcs.push({ id: n.id, hotspotId: h.id, spriteKey: n.spriteKey, label: n.label, pose });
+      hotspots.push({ id: h.id, targetId: h.targetId, kind: h.kind, status, x: pose.x, y: pose.y });
+    } else {
+      const o = objById.get(h.targetId);
+      if (o) hotspots.push({ id: h.id, targetId: h.targetId, kind: h.kind, status, x: o.x, y: o.y });
+    }
+  }
+  return { timelineId: tl.id, minute: m, clock: formatClock(m), glitch: glitchAt(tl, m), npcs, hotspots };
 }

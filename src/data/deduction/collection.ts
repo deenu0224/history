@@ -1,5 +1,5 @@
 /**
- * 도감 항목(17). 단계: 1 발견 · 2 정체 식별 · 3 정보 검증 · 4 관련 기록 연결 · 5 도감 완성.
+ * 도감 항목(18). 단계: 1 발견 · 2 정체 식별 · 3 정보 검증 · 4 관련 기록 연결 · 5 도감 완성.
  * 필드 값은 docs/HISTORICAL_SOURCES.md 의 '확정' 사항만. 추정·이견은 값에 그렇게 밝힌다.
  */
 import type { CollectionEntry, CollectionField, CollectionStage } from '@/core/types';
@@ -149,6 +149,22 @@ export const collection: CollectionEntry[] = [
     ],
     sources: [REF.sillokMyoho, REF.myoho],
     links: ['col_src_seongjong_death', 'col_evt_seongjong_sillok'],
+  },
+  {
+    // 선택 수집(호기심 보상): 사료 뷰어의 '대행왕' 구절 → 검색으로만 닿는다.
+    id: 'col_src_daehaengwang',
+    provenance: V,
+    category: 'source',
+    refId: 'src_daehaengwang',
+    title: "'대행왕'이라는 호칭 (『연산군일기』)",
+    unidentifiedTitle: '이름 없는 왕의 기록',
+    fields: [
+      f('date', '날짜', '연산 즉위년(1494) 12월 29일, 음력', 2),
+      f('text', '국역', '승정원이 세조·예종·대행왕의 즉위 때 사령을 반포한 전례를 써서 아뢰니,', 3),
+      f('meaning', '의미', '묘호를 정하기 전에는 세상을 떠난 왕을 ‘대행왕’이라 불렀다', 4),
+    ],
+    sources: [REF.sillokDaehaengwang],
+    links: ['col_src_myoho', 'col_src_seongjong_death'],
   },
   {
     id: 'col_src_compile_order',

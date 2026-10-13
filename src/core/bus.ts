@@ -1,34 +1,44 @@
-import type { Id } from './types';
+import type { AppId, Id } from './types';
 
-/** Phaser ↔ React 이벤트 계약. 상태 변경은 스토어로, 버스는 '일어난 일' 알림에만 쓴다. */
-export type ModalKind =
-  | 'examine'
-  | 'dialogue'
-  | 'evidence'
-  | 'notebook'
-  | 'collection'
-  | 'deduction'
-  | 'archive'
-  | 'settings'
-  | 'save';
+/**
+ * 결록 단말 이벤트 계약. 상태 변경은 스토어로, 버스는 '일어난 일' 알림과 화면 간 요청에만 쓴다.
+ * 걷기 폐지로 interact / scene:* / world:* 이벤트는 제거되었다.
+ */
+export type ModalKind = 'evidence' | 'deduction' | 'collection' | 'settings' | 'save' | 'help' | 'sequence';
 
 export interface BusEvents {
-  /** Phaser: 플레이어가 대상과 상호작용(E/Space/탭) */
-  interact: { targetId: Id };
-  /** Phaser: 씬 진입 완료 */
-  'scene:enter': { sceneId: Id };
-  /** React → Phaser: 씬 전환 요청 */
-  'scene:goto': { sceneId: Id; spawn?: { x: number; y: number } };
-  /** 어느 쪽이든: 모달 열기/닫기 */
+  /** 아무 쪽 → 셸: 앱을 열거나 앱 안의 대상으로 이동(예: 검색 결과 → 사료 뷰어) */
+  'app:open': { app: AppId; target?: Id };
+  /** 관측 뷰어(Phaser) → React: 텍스처·씬 준비 완료 */
+  'viewer:ready': { timelineId: Id };
+  /** 관측 뷰어 → React: store.tapHotspot 을 호출한 뒤 결과 패널을 띄우라는 알림(결과는 store.lastTap) */
+  'viewer:tapped': { hotspotId: Id };
+  /** React → 관측 뷰어: 카메라를 대상(핫스팟 id 또는 타일 좌표)으로 이동 */
+  'viewer:focus': { hotspotId?: Id; x?: number; y?: number };
+  /** 셸 → 화면 불안정 연출(정합성 보정·관측 진입/종료). intensity 0~1 */
+  glitch: { intensity: number; ms: number };
+  /** 촉각 피드백 요청(소리·도장·진동). 코드표는 TERMINAL_DESIGN §촉감 */
+  feedback: { kind: FeedbackKind };
+  /** 토스트 알림 */
+  notify: { text: string; tone?: 'info' | 'discover' | 'success' | 'warning' };
   'ui:open': { modal: ModalKind; id?: Id };
   'ui:close': { modal?: ModalKind };
-  /** React → Phaser: 입력·시간 정지 */
-  'world:pause': { paused: boolean };
-  /** Phaser: 게임 내 시각(분) 변화 */
-  'world:time': { minute: number };
-  /** 어느 쪽이든: 획득 알림 토스트 */
-  notify: { text: string; tone?: 'info' | 'discover' | 'success' | 'warning' };
 }
+
+export type FeedbackKind =
+  | 'tap'
+  | 'search_hit'
+  | 'search_miss'
+  | 'evidence_new'
+  | 'evidence_level'
+  | 'phrase_stamp'
+  | 'phrase_miss'
+  | 'scrub_tick'
+  | 'verdict_confirmed'
+  | 'verdict_partial'
+  | 'verdict_wrong'
+  | 'message'
+  | 'exhibit';
 
 type Handler<T> = (payload: T) => void;
 

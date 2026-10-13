@@ -8,7 +8,10 @@
  *
  * 등장시키지 않는 것: 김일손 본인(1498년 소재 미확인), 유자광·어세겸(장면에 있었다는 근거 없음).
  * 이극돈 외의 관원은 신원을 정하지 않는다(personId 없음).
- * 대사 시각은 schedule 의 time(분)과 별개로 플래그로만 열린다(core/world.ts).
+ * 관측 뷰어: 대사는 at(시각 구간, 분)과 when(플래그) 둘 다 맞아야 들린다(core/observation.ts linesAt).
+ *   08:00 서리 → 10:00 곳간의 젊은 관원 → 12:00 이후 「조의제문」 → 14:00 대문의 전교 → 15:00 봉함 → 16:00 "아직 살아 있소".
+ *   진행 필수 증거는 둘 이상의 경로(다른 인물·사료 구절)로도 얻을 수 있다(재관측/대체 경로).
+ * grants.terms: 들은 표현 그대로 → 검색어 수첩(칩).
  */
 import type { NpcDef } from '@/core/types';
 import { REF } from '@/data/historical/refs';
@@ -38,6 +41,7 @@ export const npcs: NpcDef[] = [
         text: '(사초 한 장을 오래 들여다본다. 붓을 들었다가, 내려놓는다.)',
         provenance: R,
         sources: [REF.yiGeukdon],
+        at: [{ from: 480, to: 840 }],
         grants: {
           evidence: [{ id: 'ev_unknown_official' }],
           flags: ['f_met_official'],
@@ -50,14 +54,16 @@ export const npcs: NpcDef[] = [
         text: '…이 글은 그대로 넘길 수 없소.',
         provenance: R,
         sources: [REF.yiGeukdon, REF.muoSahwa],
-        when: { none: ['f_saw_order'] },
+        at: [{ from: 480, to: 840 }],
       },
       {
         id: 'r3',
-        text: '(전교가 닿은 뒤, 다른 당상들과 사초 묶음을 다시 펼친다.)',
+        text: '(전교가 닿은 뒤, 다른 당상들과 사초 묶음을 다시 펼친다. 여섯 조목을 가려 뽑아 봉한다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
+        at: [{ from: 900, to: 1141 }],
+        grants: { evidence: [{ id: 'ev_six_articles' }], flags: ['f_saw_sealing'] },
       },
     ],
   },
@@ -80,7 +86,7 @@ export const npcs: NpcDef[] = [
         text: '(문서를 정리하면서도 붉은 관복의 당상 쪽을 자주 살핀다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { none: ['f_saw_order'] },
+        at: [{ from: 480, to: 840 }],
       },
       {
         id: 'b2',
@@ -89,6 +95,7 @@ export const npcs: NpcDef[] = [
         provenance: V,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
+        at: [{ from: 840, to: 960 }],
       },
       {
         id: 'b3',
@@ -97,7 +104,9 @@ export const npcs: NpcDef[] = [
         provenance: V,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
+        at: [{ from: 840, to: 960 }],
         grants: {
+          terms: ['직필'],
           evidence: [{ id: 'ev_objection' }],
           notebook: [
             {
@@ -115,6 +124,7 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
+        at: [{ from: 900, to: 960 }],
         grants: { evidence: [{ id: 'ev_six_articles' }], flags: ['f_saw_sealing'] },
       },
       {
@@ -124,7 +134,8 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.muoSahwa],
         when: { all: ['f_saw_order'] },
-        grants: { evidence: [{ id: 'ev_author_alive' }] },
+        at: [{ from: 960, to: 1141 }],
+        grants: { evidence: [{ id: 'ev_author_alive' }], flags: ['f_heard_alive'] },
       },
     ],
   },
@@ -148,6 +159,7 @@ export const npcs: NpcDef[] = [
         text: '사초는 두 벌을 쓰오. 한 벌은 바치고, 한 벌은 집에 두지.',
         provenance: R,
         sources: [REF.geomyeol],
+        grants: { terms: ['사초'] },
       },
       {
         id: 'y2',
@@ -155,7 +167,8 @@ export const npcs: NpcDef[] = [
         text: '곳간의 꾸러미가 집에 두었던 것들이오. 실록을 엮을 때 모두 거두어 가니까.',
         provenance: R,
         sources: [REF.sagwan, REF.seongjongSillok],
-        grants: { evidence: [{ id: 'ev_gajang' }] },
+        at: [{ from: 600, to: 720 }],
+        grants: { evidence: [{ id: 'ev_gajang' }], terms: ['집에 둔 사초'] },
       },
       {
         id: 'y3',
@@ -164,7 +177,9 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.jouijemun, REF.muoSahwa, REF.yiGeukdon],
         when: { all: ['f_met_official'] },
+        at: [{ from: 720, to: 1020 }],
         grants: {
+          terms: ['조의제문', '점필재'],
           evidence: [{ id: 'ev_jouijemun' }, { id: 'ev_jongjik_dead' }],
           flags: ['f_heard_jouijemun'],
           collect: [{ entryId: 'col_src_jouijemun', stage: 1 }],
@@ -177,6 +192,8 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
+        at: [{ from: 1020, to: 1141 }],
+        grants: { terms: ['직필'] },
       },
     ],
   },
@@ -202,6 +219,7 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.sillokMyoho, REF.seongjongSillok],
         grants: {
+          terms: ['성종대왕', '성종대왕 실록'],
           evidence: [{ id: 'ev_myoho' }],
           flags: ['f_heard_myoho'],
           notebook: [
@@ -229,7 +247,9 @@ export const npcs: NpcDef[] = [
         provenance: R,
         sources: [REF.yiGeukdon],
         when: { all: ['f_met_official'] },
+        at: [{ from: 780, to: 1141 }],
         grants: {
+          terms: ['세조대왕 실록'],
           evidence: [{ id: 'ev_veteran' }],
           notebook: [
             {
@@ -261,7 +281,7 @@ export const npcs: NpcDef[] = [
         text: '(대문 안쪽에서 누군가를 기다리듯 서 있다. 손에 접은 종이.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
-        when: { none: ['f_met_official'] },
+        at: [{ from: 420, to: 840 }],
       },
       {
         id: 'm2',
@@ -269,8 +289,9 @@ export const npcs: NpcDef[] = [
         text: '“김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.”',
         provenance: V,
         sources: [REF.sillokSachoOrder],
-        when: { all: ['f_met_official'] },
+        at: [{ from: 840, to: 960 }],
         grants: {
+          terms: ['대내', '김일손의 사초'],
           evidence: [{ id: 'ev_royal_order' }],
           flags: ['f_saw_order'],
           notebook: [

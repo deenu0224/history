@@ -8,10 +8,10 @@ export const observations: Observation[] = [
     sceneId: 'obs001',
     title: '관측 #001',
     lines: [
-      '화면의 명도가 한 칸 내려앉는다.',
+      '뷰어의 명도가 한 칸 내려앉는다. 노이즈가 걷히자 기와 담장이 보인다.',
       '흙냄새. 먹 냄새. 어딘가에서 종이 넘기는 소리.',
       '관측 #001 — 시대: 미상 · 연도: 미상 · 장소: 미확인 · 인물: 미확인',
-      '이곳 사람들은 관측자를 보지 못한다. 보고, 듣고, 기록할 수만 있다.',
+      '이곳 사람들은 관측자를 보지 못한다. 시간을 앞뒤로 옮기며 보고, 듣고, 기록할 수만 있다.',
     ],
     grants: {
       flags: ['obs001_entered'],
@@ -30,12 +30,12 @@ export const observations: Observation[] = [
   {
     id: 'obs_001_return',
     provenance: 'fictional',
-    sceneId: 'archive',
-    title: '귀환',
+    sceneId: 'obs001',
+    title: '관측 종료',
     lines: [
-      '관청의 소리가 멀어지고, 기록관의 낮은 기계음이 돌아온다.',
-      '관측 노트는 그대로 남아 있다. 본 것과 들은 것, 한 글자도 빠짐없이.',
-      '이제 분석실의 단말로 들은 말과 본 것을 실제 사료와 대조할 수 있다.',
+      '관청의 소리가 멀어지고, 단말의 낮은 팬 소리가 돌아온다.',
+      '손 노트는 그대로 남아 있다. 본 것과 들은 것, 한 글자도 빠짐없이.',
+      '이제 들은 말과 본 것을 실제 사료와 대조할 수 있다.',
     ],
     grants: {
       flags: ['obs001_returned'],
@@ -43,7 +43,7 @@ export const observations: Observation[] = [
         {
           id: 'note_return_001',
           section: 'observed',
-          text: '관측 #001 에서 귀환. 들은 칭호, 본 문서, 사람들의 말을 사료와 대조할 것.',
+          text: '관측 #001 종료. 들은 칭호, 본 문서, 사람들의 말을 사료와 대조할 것.',
           provenance: 'fictional',
         },
       ],

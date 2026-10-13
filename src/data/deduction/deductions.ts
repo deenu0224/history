@@ -6,6 +6,7 @@
  *       함정: 묘호 '성종'을 듣고 성종 재위기(1469~1494)로 답하면 C1 과 모순.
  * 인물: 실록청 당상 + 『세조실록』 편찬 참여 → 이극돈.
  * 사건: 왕의 사초 반입 명 + 6조목을 뽑아 봉함 → 사초 문제(무오사화의 발단).
+ * 잠금(TERMINAL_DESIGN §레벨 디자인): 인물(f_met_official, 보드는 관측 종료 후) → 연도(app_reader) → 사건(ded_year_partial).
  */
 import type { Deduction } from '@/core/types';
 import { FACT } from '@/data/historical/facts';
@@ -32,7 +33,8 @@ export const deductions: Deduction[] = [
     target: { from: 1498, to: 1498 },
     maxPartialWidth: 5,
     relevantEvidence: YEAR_EVIDENCE,
-    requires: 'obs001_entered',
+    // 닌텐도식 램프: 연도(주 봉우리)는 사료 구절 등록을 익힌 뒤(사료 뷰어 개방)에 열린다.
+    requires: 'app_reader',
     sources: [REF.sillokMyoho, REF.seongjongSillok, REF.yiGeukdon, REF.sillokVerdict, REF.sillokSachoOrder],
     rewards: {
       partial: [
@@ -136,7 +138,8 @@ export const deductions: Deduction[] = [
     answer: 'st_crisis',
     requiredFacts: [FACT.claimOrderAllSacho, FACT.claimSixArticles],
     relevantEvidence: ['ev_royal_order', 'ev_objection', 'ev_six_articles', 'ev_gajang', 'ev_sillok_done', 'ev_jouijemun'],
-    requires: 'f_saw_order',
+    // 사건(결합)은 연도 추리를 한 번 넘긴 뒤(부분 확정 이상)에 열린다.
+    requires: 'ded_year_partial',
     sources: [REF.sillokSachoOrder, REF.seongjongSillok],
     rewards: {
       confirmed: [
