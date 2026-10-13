@@ -150,6 +150,8 @@ export interface NotebookGrant {
 
 export type Reward =
   | { type: 'evidence'; evidenceId: Id; level?: number }
+  | { type: 'term'; term: string }
+  | { type: 'source'; sourceId: Id }
   | { type: 'collection'; entryId: Id; stage: CollectionStage }
   | { type: 'notebook'; note: NotebookGrant }
   | { type: 'resolveQuestion'; noteId: Id }
@@ -161,6 +163,10 @@ export interface Grants {
   notebook?: NotebookGrant[];
   flags?: string[];
   observation?: Id;
+  /** 검색어 수첩에 추가되는 표현(보고 들은 그대로). 칩으로 검색할 수 있다. */
+  terms?: string[];
+  /** 사료 뷰어 서재에 들어가는 사료 id */
+  sources?: Id[];
 }
 
 /** 모든 플래그 조건은 truthy 검사. */
@@ -179,6 +185,12 @@ export interface Observation extends ContentBase {
 
 export type InteractableKind = 'object' | 'npc' | 'door' | 'observe';
 
+/** 관측 타임라인의 시각 구간(분). [from, to) */
+export interface TimeWindow {
+  from: number;
+  to: number;
+}
+
 export interface Interactable extends ContentBase {
   sceneId: Id;
   /** 타일 좌표 */
@@ -192,8 +204,12 @@ export interface Interactable extends ContentBase {
   grants?: Grants;
   /** 이 플래그가 truthy 일 때만 상호작용 가능 */
   requires?: string;
-  /** door: 이동할 씬 */
+  /** door: 이동할 씬 (터미널 전환 후 미사용) */
   targetSceneId?: Id;
+  /** 관측 뷰어: 이 시각 구간에만 살펴볼 수 있다(없으면 항상) */
+  windows?: TimeWindow[];
+  /** 구간 밖에서 탭했을 때 보여 줄 문구 */
+  hiddenText?: string;
 }
 
 export interface Waypoint {
@@ -212,6 +228,8 @@ export interface DialogueLine {
   provenance: Provenance;
   sources?: SourceRef[];
   when?: FlagCondition;
+  /** 관측 뷰어: 이 시각 구간에만 들리는 말/보이는 행동(없으면 항상) */
+  at?: TimeWindow[];
   grants?: Grants;
 }
 
@@ -351,6 +369,195 @@ export interface NoteEntry extends NotebookGrant {
 
 export type PlayerNotebook = Record<NotebookSection, NoteEntry[]>;
 
+// ── 결록 단말(터미널) ───────────────────────────────────────────
+export type AppId = 'messenger' | 'search' | 'viewer' | 'reader' | 'board' | 'archive' | 'notebook';
+
+/** 플레이 통계(상태 조건·튜토리얼 판정용). 오르기만 한다. */
+export interface PlayStats {
+  searches: number;
+  unknownSearches: number;
+  scrubs: number;
+  taps: number;
+  phrases: number;
+  phraseMisses: number;
+  deductionAttempts: number;
+  exhibits: number;
+}
+
+/**
+ * 플래그 조건의 확장. 모든 항목은 AND.
+ * all/none: 플래그 truthy 검사 · evidence: 보유 증거 · searched: 한 번 이상 맞힌 검색 항목
+ * read: 읽은 메시지 · appsOpened: 열어 본 앱 · phrases: 등록한 구절 · tapped: 탭한 핫스팟
+ * attempted: 한 번 이상 제출한 추리 · corrections: 적용된 보정 · minStats: 통계 하한
+ */
+export interface StateCondition extends FlagCondition {
+  evidence?: Id[];
+  searched?: Id[];
+  read?: Id[];
+  appsOpened?: AppId[];
+  phrases?: Id[];
+  tapped?: Id[];
+  attempted?: Id[];
+  corrections?: Id[];
+  minStats?: Partial<PlayStats>;
+}
+
+export interface AppDef extends ContentBase {
+  app: AppId;
+  title: string;
+  /** src/game/art 의 아이콘 키 */
+  iconKey: string;
+  order: number;
+  /** 없으면 처음부터 열림 */
+  unlockWhen?: StateCondition;
+}
+
+/** 검색 결과가 가리키는 콘텐츠 */
+export type SearchRefKind = 'person' | 'artifact' | 'source' | 'event' | 'place' | 'evidence' | 'record';
+export interface SearchResultRef {
+  kind: SearchRefKind;
+  id: Id;
+}
+
+/**
+ * 통합 DB 색인 항목. terms 는 정규화 전 표기(한글·한자 이형 포함). provenance 는 색인 자체(가상 DB)의 층위,
+ * 결과로 보이는 내용은 각 ref 콘텐츠의 provenance 를 따른다.
+ */
+export interface SearchEntry extends ContentBase {
+  terms: string[];
+  /** 이 조건이 아니면 색인에 없는 것처럼 동작 */
+  requires?: StateCondition;
+  results: SearchResultRef[];
+  /** 맞힐 때마다(최초 1회 효과) 주는 것 */
+  grants?: Grants;
+  /** 관측·사료로 뒷받침될 때만 주는 것(증거 단계 상승 등) */
+  conditional?: { when: StateCondition; grants: Grants; note?: string }[];
+  /** 칩 없이 직접 입력해야 닿는 선택 검색(호기심 보상). 진행 필수 항목에는 쓰지 않는다. */
+  optional?: boolean;
+}
+
+/** DB 메타데이터 레코드(가상). 정합성 보정의 대상이 될 수 있다. */
+export interface DbRecord extends ContentBase {
+  title: string;
+  fields: { key: string; label: string; value: string }[];
+  note?: string;
+}
+
+/** 사료 뷰어에서 고를 수 있는 구절. text 는 사료 excerpt 의 부분 문자열이어야 한다(검증기). */
+export interface SourcePhrase extends ContentBase {
+  sourceId: Id;
+  text: string;
+  /** 연결할 관측이 있어야 효과가 난다 */
+  when?: StateCondition;
+  grants?: Grants;
+  /** when 불충족 시 피드백 */
+  missText?: string;
+}
+
+export interface Hotspot {
+  id: Id;
+  /** worldObject 또는 npc id */
+  targetId: Id;
+  kind: 'object' | 'npc';
+  windows?: TimeWindow[];
+  visibleWhen?: FlagCondition;
+}
+
+/** 관측 뷰어의 하루. 분 단위 [start, end]. */
+export interface ObservationTimeline extends ContentBase {
+  sceneId: Id;
+  /** 뷰어 시작 시 완료 처리되는 관측 */
+  observationId: Id;
+  /** 관측 종료 시 완료 처리되는 관측 */
+  returnObservationId?: Id;
+  title: string;
+  start: number;
+  end: number;
+  initial: number;
+  /** 첫 진입 카메라 중심(타일). 첫 핫스팟이 화면 안에 있도록. */
+  camera: { x: number; y: number };
+  /** 메타데이터 패널(연도 '####' 등) */
+  meta: { label: string; value: string }[];
+  hotspots: Hotspot[];
+  /** 화면 불안정(노이즈) 구간. 0~1 */
+  glitches?: { from: number; to: number; intensity: number }[];
+}
+
+export type MessageThread = 'colleague' | 'device' | 'system' | 'mail';
+
+export interface MessageChoice {
+  id: Id;
+  text: string;
+  /** 분위기·후속 대사용 플래그만. 퍼즐 플래그 금지(검증기). */
+  setsFlags?: string[];
+}
+
+export interface Message extends ContentBase {
+  thread: MessageThread;
+  /** 표시 이름 */
+  from: string;
+  text: string;
+  /** 도착 조건. 없으면 시작부터. */
+  when?: StateCondition;
+  /** 같은 순간 도착 시 정렬 */
+  order: number;
+  /** 도착하는 순간 적용 */
+  grants?: Grants;
+  choices?: MessageChoice[];
+}
+
+export interface ArchiveExhibit extends ContentBase {
+  title: string;
+  slot: 'case' | 'shelf' | 'register' | 'timeline' | 'center';
+  spriteKey: string;
+  requires?: StateCondition;
+  lines: string[];
+  grants?: Grants;
+  /** 이 전시물이 보여 주는 도감 항목 */
+  collectionIds?: Id[];
+}
+
+/** 단말 메모(동기화됨). 손글씨 노트와 달리 정합성 보정의 대상이다. */
+export interface TerminalMemo extends ContentBase {
+  title: string;
+  text: string;
+  when?: StateCondition;
+}
+
+/** 정합성 보정(가상). 조건이 되면 조용히 레코드·메모를 고친다. verified 콘텐츠는 건드릴 수 없다. */
+export interface CorrectionEvent extends ContentBase {
+  trigger: StateCondition;
+  recordPatches: { recordId: Id; key: string; value: string }[];
+  memoPatches: { memoId: Id; text: string }[];
+  grants?: Grants;
+}
+
+/** 튜토리얼 단계: 앱 첫 사용 코치마크 + 막힘 시 3단 힌트(UI 조작만, 퍼즐 정답 금지) */
+export interface TutorialStep extends ContentBase {
+  id: Id;
+  app: AppId;
+  /** UI 요소 키(하이라이트 대상). 계약: TERMINAL_DESIGN §Contracts */
+  target: string;
+  /** 코치마크: 한 문장 이하 */
+  coach: string;
+  showWhen: StateCondition;
+  doneWhen: StateCondition;
+  /** [넛지, 방향, 근접] */
+  hints: [string, string, string];
+  /** 이 실패가 쌓이면 힌트 단계가 오른다 */
+  failOn?: ('unknown_search' | 'phrase_miss' | 'wrong_deduction' | 'empty_tap')[];
+  /** 기본 40초 */
+  idleSeconds?: number;
+  order: number;
+}
+
+export interface HelpCard extends ContentBase {
+  id: Id;
+  app: AppId;
+  title: string;
+  lines: string[];
+}
+
 // ── 콘텐츠 번들 ────────────────────────────────────────────────
 export interface ContentBundle {
   persons: HistoricalPerson[];
@@ -364,6 +571,18 @@ export interface ContentBundle {
   worldObjects: Interactable[];
   npcs: NpcDef[];
   collection: CollectionEntry[];
+  // ── 결록 단말(터미널) ──
+  apps: AppDef[];
+  searchEntries: SearchEntry[];
+  records: DbRecord[];
+  phrases: SourcePhrase[];
+  timelines: ObservationTimeline[];
+  messages: Message[];
+  exhibits: ArchiveExhibit[];
+  corrections: CorrectionEvent[];
+  memos: TerminalMemo[];
+  tutorial: TutorialStep[];
+  help: HelpCard[];
 }
 
 export type ContentKey = keyof ContentBundle;

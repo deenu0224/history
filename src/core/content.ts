@@ -24,6 +24,17 @@ export const CONTENT_KEYS: readonly ContentKey[] = [
   'worldObjects',
   'npcs',
   'collection',
+  'apps',
+  'searchEntries',
+  'records',
+  'phrases',
+  'timelines',
+  'messages',
+  'exhibits',
+  'corrections',
+  'memos',
+  'tutorial',
+  'help',
 ];
 
 export function emptyBundle(): ContentBundle {
@@ -39,6 +50,17 @@ export function emptyBundle(): ContentBundle {
     worldObjects: [],
     npcs: [],
     collection: [],
+    apps: [],
+    searchEntries: [],
+    records: [],
+    phrases: [],
+    timelines: [],
+    messages: [],
+    exhibits: [],
+    corrections: [],
+    memos: [],
+    tutorial: [],
+    help: [],
   };
 }
 
