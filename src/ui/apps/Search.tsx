@@ -1,7 +1,7 @@
 /** 통합 DB 검색(Her Story 식): 입력 또는 검색어 칩 → 결과 카드 → 결과 속 밑줄 말은 다시 검색. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DbRecord, Id, SearchResultRef } from '@/core/types';
-import { selectApps, selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
+import { selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
 import { Px } from '../lib/art';
 import { CONTENT, IDX } from '../lib/content';
 import { feedbackForRewards, describeRewards } from '../lib/rewards';
@@ -13,6 +13,7 @@ import { TermText } from '../lib/terms';
 const T = (p: { text: string }) => <TermText text={p.text} coachFirst />;
 import { useUi } from '../uiStore';
 import { Chip } from '../components/kit';
+import { SourceReader } from './SourceReader';
 
 const KIND_LABEL: Record<SearchResultRef['kind'], string> = {
   person: '인물',
@@ -32,7 +33,7 @@ interface ShownHit {
   results: SearchResultRef[];
 }
 
-export function Search() {
+function SearchPane({ onOpenSource }: { onOpenSource(id: Id): void }) {
   const terms = useGameStore((s) => s.terms);
   const searchLog = useGameStore((s) => s.searchLog);
   const search = useGameStore((s) => s.search);
@@ -183,7 +184,7 @@ export function Search() {
           </ul>
         )}
         {hits.map((h) => (
-          <HitGroup key={h.entryId} hit={h} />
+          <HitGroup key={h.entryId} hit={h} onOpenSource={onOpenSource} />
         ))}
         {history.length > 0 && (
           <section className="search-log">
@@ -218,7 +219,7 @@ export function Search() {
   );
 }
 
-function HitGroup({ hit }: { hit: ShownHit }) {
+function HitGroup({ hit, onOpenSource }: { hit: ShownHit; onOpenSource(id: Id): void }) {
   const entry = IDX.searchEntries[hit.entryId];
   return (
     <section className={`hit ${hit.isNew ? 'hit-new' : ''}`} data-testid={`hit-${hit.entryId}`}>
@@ -234,14 +235,14 @@ function HitGroup({ hit }: { hit: ShownHit }) {
       ))}
       <div className="hit-cards">
         {hit.results.map((r) => (
-          <ResultCard key={`${r.kind}:${r.id}`} r={r} />
+          <ResultCard key={`${r.kind}:${r.id}`} r={r} onOpenSource={onOpenSource} />
         ))}
       </div>
     </section>
   );
 }
 
-function ResultCard({ r }: { r: SearchResultRef; coach?: boolean }) {
+function ResultCard({ r, onOpenSource }: { r: SearchResultRef; onOpenSource(id: Id): void }) {
   switch (r.kind) {
     case 'record':
       return <RecordCard id={r.id} />;
@@ -300,7 +301,7 @@ function ResultCard({ r }: { r: SearchResultRef; coach?: boolean }) {
       );
     }
     case 'source':
-      return <SourceCard id={r.id} />;
+      return <SourceCard id={r.id} onOpen={onOpenSource} />;
     case 'event': {
       const e = IDX.events[r.id];
       if (!e) return null;
@@ -353,11 +354,9 @@ function ProvMark({ p }: { p: string }) {
   return <span className="prov-mark">{p === 'reconstructed' ? '재구성' : '가상'}</span>;
 }
 
-function SourceCard({ id }: { id: Id }) {
+function SourceCard({ id, onOpen }: { id: Id; onOpen(id: Id): void }) {
   const s = IDX.sources[id];
   const inLibrary = useGameStore((st) => st.sources.includes(id));
-  const readerOpen = useGameStore((st) => selectApps(st).includes('reader'));
-  const openSource = useGameStore((st) => st.openSource);
   if (!s) return null;
   return (
     <article className="rcard rcard-source">
@@ -370,14 +369,13 @@ function SourceCard({ id }: { id: Id }) {
       </p>
       {inLibrary && (
         <div className="rcard-actions">
-          {readerOpen ? (
-            <button
+          <button
               type="button"
               className="btn btn-small"
               data-testid={`open-source-${id}`}
               onClick={() => {
                 fx('tap');
-                openSource(id);
+                onOpen(id);
               }}
             >
               사료 뷰어에서 열기
