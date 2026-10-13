@@ -1,0 +1,55 @@
+import { createBus, type BusEvents } from '@/core/bus';
+import { availableLines, canInteract, checkCondition, npcWaypointAt } from '@/core/world';
+import { sampleContent } from './fixtures';
+
+describe('bus', () => {
+  it('delivers typed payloads, supports off/once/clear', () => {
+    const bus = createBus<BusEvents>();
+    const got: string[] = [];
+    const off = bus.on('interact', (p) => got.push(p.targetId));
+    bus.once('scene:enter', (p) => got.push(`enter:${p.sceneId}`));
+    bus.emit('interact', { targetId: 'a' });
+    bus.emit('scene:enter', { sceneId: 's' });
+    bus.emit('scene:enter', { sceneId: 's2' });
+    off();
+    bus.emit('interact', { targetId: 'b' });
+    expect(got).toEqual(['a', 'enter:s']);
+    bus.on('world:pause', () => got.push('p'));
+    bus.clear();
+    bus.emit('world:pause', { paused: true });
+    expect(got).toHaveLength(2);
+  });
+
+  it('allows unsubscribing during emit', () => {
+    const bus = createBus<BusEvents>();
+    const calls: number[] = [];
+    const off1 = bus.on('notify', () => {
+      calls.push(1);
+      off1();
+    });
+    bus.on('notify', () => calls.push(2));
+    bus.emit('notify', { text: 'x' });
+    bus.emit('notify', { text: 'y' });
+    expect(calls).toEqual([1, 2, 2]);
+  });
+});
+
+describe('world helpers', () => {
+  const c = sampleContent();
+  const npc = c.npcs[0]!;
+  it('flag conditions', () => {
+    expect(checkCondition({ a: true }, { all: ['a'], none: ['b'] })).toBe(true);
+    expect(checkCondition({ a: true, b: 1 }, { all: ['a'], none: ['b'] })).toBe(false);
+    expect(checkCondition({}, undefined)).toBe(true);
+    expect(canInteract(c.worldObjects[2]!, {})).toBe(false);
+  });
+  it('npc schedule wraps around the day', () => {
+    expect(npcWaypointAt(npc, 500)).toMatchObject({ x: 2, y: 2 });
+    expect(npcWaypointAt(npc, 800)).toMatchObject({ x: 9, y: 5 });
+    expect(npcWaypointAt(npc, 60)).toMatchObject({ x: 9, y: 5 });
+    expect(npcWaypointAt(npc, 1440 + 500)).toMatchObject({ x: 2, y: 2 });
+  });
+  it('dialogue availability', () => {
+    expect(availableLines(npc, {}).map((l) => l.id)).toEqual(['greet']);
+  });
+});
