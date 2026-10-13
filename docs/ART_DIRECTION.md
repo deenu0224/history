@@ -191,3 +191,24 @@ this.add.nineslice(x, y, UI_KEYS.uiPanelHanji, undefined, 160, 96, 12, 12, 12, 1
 - 여러 프레임 스프라이트는 가로 스트립 텍스처 하나로 등록되므로, `add.image/sprite` 에는 **프레임을 명시**한다(기본 프레임은 전체 스트립). 단일 프레임 타일은 키만으로 충분하다.
 - `validateSprite(sprite)` 가 행 길이·팔레트 글자·색 형식을 검사한다. `tests/unit/art.test.ts` 가 레지스트리 전체를 검증한다(캔버스 불필요).
 - 캔버스가 필요한 함수(`renderSpriteToCanvas`, `toDataURL`, `registerPhaserTextures`)만 DOM 을 요구한다.
+
+## 11. 결록 단말(OS) 아트 (`os_*.ts`)
+
+게임 전체가 근미래 연구자의 단말 OS 라는 전제의 UI 에셋. 전용 팔레트 `os_palette.ts`(`O`/`OSPAL`: 숯·남색·회색 `k0~kw`, 청록 `t0~t4`, 램프 호박 `a0~a4`, 종이 `p0~p4`, 흑연 `g`, 절제된 적 `r`, 목재 `w`, 피부 `f`, 머리 `h`, 반투명 `s*/l*/m*/q*`)를 스프라이트마다 담는다. 네온/홀로그램 금지, 따뜻한 색은 호박 램프와 종이/나무뿐. 코드 접근은 `OS_KEYS`(registry.ts).
+
+| 그룹 | 키 | 크기 |
+|---|---|---|
+| 앱 아이콘 | `app_db` `app_observe` `app_reader` `app_board` `app_messenger` `app_mail` `app_archive` `app_notebook` `app_settings` `app_timeline` (+`_sm`) | 32×32 / 16×16 |
+| 창/컨트롤(9-slice) | `os_window` `os_window_idle`(48², 6/6/20/6), `os_btn[_hover/_pressed]` `os_btn_primary[...]`(24², 6), `os_panel`, `os_field[_focus]`(24×20, 5), `os_tab[_idle]`(24×22), `os_scroll_thumb/_track`(8px, 3) | |
+| 컨트롤 소품 | `os_title_min/max/close[_hover]`(16²), `os_checkbox_off/on`(14²), `os_badge`(12²), `os_badge_dot`(8²) | |
+| 상태바 | `stat_signal` `stat_battery` `stat_clock` `stat_lock` `stat_sync` `stat_warning` | 12×12 |
+| 배경 | `os_wallpaper` 320×180, `os_wallpaper_portrait` 180×320 (정수 배율 최근접 확대) | |
+| 관측 오버레이 | `ov_scanline`(32², 타일링), `ov_noise`(64², 4프레임), `ov_viewfinder`(48² 9-slice 12), `ov_scrub_track/_fill`(24×8 9-slice 4/4/2/2), `ov_scrub_tick(_major)`, `ov_scrub_knob`(12×20), `ov_observing_dot`(16², 2프레임 맥동), `ov_observing_pill`(24×16 9-slice 8/8/6/6) | |
+| 노트/보드 | `note_paper_tile`(64², 타일링), `note_underline_a/b/c`, `note_check_pencil/red`, `note_circle_pencil/red`, `note_cross_red`, `board_pin_red/teal/amber`, `board_string_h`(16×3), `board_string_knot`, `board_card`(32×24, 6/6/8/6), `board_polaroid`(48×56, 8/8/8/16, 가운데 투명) | |
+| 초상 | `avatar_player`(성별 단서 없음) `avatar_colleague_a`(안경) `avatar_colleague_b`(기록관리) `avatar_system`(허구 기관의 추상 문장: 끊어진 고리+칸+점) | 32×32 |
+| 전시 | `exhibit_geomungo_TEMP` `exhibit_silrok_book_TEMP` `exhibit_sacho_bundle_TEMP` | 96×96 |
+
+- "관측 중" 문구는 픽셀 글자가 아니라 UI 텍스트로 `ov_observing_pill` 위에 얹는다(영문 REC 표기 없음).
+- `ov_*` 오버레이는 반투명이므로 뷰어 위에 `alpha` 그대로 합성한다. 주사선은 약해서 2~3배 확대에서도 거슬리지 않는다.
+- 탁영금 전시물(`exhibit_geomungo_TEMP`)은 검증된 특징만: 160:19:10 비례, 중앙 각자 칸(글자 없음), 학 그림, 용두, 운족. 괘/현/기타 문양 없음. **박물관 실물 사진 대조 전까지 temp**(`geomungo`). 서책(`bookbinding`)·사초(`sacho-form`)도 일반형 임시.
+- 9-slice 정의는 `NINE_SLICE`(ui.ts)에 합쳐져 테스트가 슬라이스 적합성을 검사한다.

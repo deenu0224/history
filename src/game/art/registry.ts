@@ -126,6 +126,21 @@ export const UI_KEYS = {
   iconQuestion: 'icon_question',
 } as const;
 
+/** 결록 단말(OS) 키 그룹 — 앱 아이콘/크롬/배경/관측 오버레이/노트·보드/초상/전시 */
+const keysOf = (sprites: Record<string, unknown>, prefixes: string[]) => Object.keys(sprites).filter((k) => prefixes.some((p) => k.startsWith(p)));
+export const OS_KEYS = {
+  /** 앱 아이콘 32×32 (+ `_sm` 16×16) */
+  apps: ['app_db', 'app_observe', 'app_reader', 'app_board', 'app_messenger', 'app_mail', 'app_archive', 'app_notebook', 'app_settings', 'app_timeline'],
+  appsSmall: ['app_db_sm', 'app_observe_sm', 'app_reader_sm', 'app_board_sm', 'app_messenger_sm', 'app_mail_sm', 'app_archive_sm', 'app_notebook_sm', 'app_settings_sm', 'app_timeline_sm'],
+  chrome: keysOf(OS_SPRITES, ['os_']),
+  statusIcons: ['stat_signal', 'stat_battery', 'stat_clock', 'stat_lock', 'stat_sync', 'stat_warning'],
+  wallpaper: { desktop: 'os_wallpaper', portrait: 'os_wallpaper_portrait' },
+  overlays: keysOf(OS_SPRITES, ['ov_']),
+  notebook: keysOf(OS_SPRITES, ['note_', 'board_']),
+  avatars: ['avatar_player', 'avatar_colleague_a', 'avatar_colleague_b', 'avatar_system'],
+  exhibits: ['exhibit_geomungo_TEMP', 'exhibit_silrok_book_TEMP', 'exhibit_sacho_bundle_TEMP'],
+} as const;
+
 /** 캐릭터 프레임 배치 (characters.ts 참고) */
 export { CHAR_FRAMES };
 
@@ -203,6 +218,9 @@ Object.assign(metaEntries, {
   tile_door_gate: temp('관아 대문 형태 임시.', ['gate-form']),
   tile_roof_ridge_l: temp('치미/용마루 장식 약식.', ['roof-ornament']),
   tile_roof_ridge_r: temp('치미/용마루 장식 약식.', ['roof-ornament']),
+  exhibit_geomungo_TEMP: temp('탁영금: 160:19:10 비례, 중앙 각자 칸(글자 없음), 학 그림, 용두, 운족만 표현. 박물관 실물 사진과 대조 전까지 임시(형태·색·학 그림 위치 미확인).', ['geomungo']),
+  exhibit_silrok_book_TEMP: temp('선장본 일반형(5공, 붉은 실, 빈 제첨). 실제 실록 판본의 규격·제본 확인 전.', ['bookbinding']),
+  exhibit_sacho_bundle_TEMP: temp('사초 묶음 일반형(접은 종이 더미 + 끈). 실제 사초 규격/묶음 확인 전.', ['sacho-form']),
 });
 
 /** 키 → 메타. 레지스트리의 모든 키에 대해 존재한다. */
