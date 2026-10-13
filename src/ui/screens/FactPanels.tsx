@@ -112,27 +112,22 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
 
 export function Reinterpretation({ d }: { d: EventDeduction }) {
   const notebook = useGameStore((s) => s.notebook);
-  const script: { title?: string; lines: string[] } | null = null;
   const ev = IDX.events[d.eventId];
-  const seen = [...notebook.observed, ...notebook.testimony].filter((n) => !n.id.startsWith('ui_')).slice(0, 4);
+  const seen = [...notebook.observed, ...notebook.testimony].filter((n) => !n.id.startsWith('ui_')).slice(-4);
+  const verified = notebook.verified.filter((n) => n.refIds?.includes(d.eventId)).map((n) => n.text);
   return (
     <section className="reinterp">
-      <h4>{script?.title ?? '다시 읽는 장면'}</h4>
-      {script ? (
-        script.lines.map((l, i) => <p key={i}>{l}</p>)
-      ) : (
+      <h4>다시 읽는 장면</h4>
+      {verified.map((t, i) => <p key={i}>{t}</p>)}
+      {verified.length === 0 && ev && <p>{ev.summary}</p>}
+      {seen.length > 0 && (
         <>
-          {ev && <p>{ev.summary}</p>}
-          {seen.length > 0 && (
-            <>
-              <p className="dim">앞서 적어 둔 기록이 새롭게 읽힌다.</p>
-              <ul>
-                {seen.map((n) => (
-                  <li key={n.id}>{n.text}</li>
-                ))}
-              </ul>
-            </>
-          )}
+          <p className="dim">앞서 적어 둔 기록이 새롭게 읽힌다.</p>
+          <ul>
+            {seen.map((n) => (
+              <li key={n.id}>{n.text}</li>
+            ))}
+          </ul>
         </>
       )}
     </section>
