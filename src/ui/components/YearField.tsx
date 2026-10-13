@@ -1,85 +1,136 @@
-import { useEffect, useRef, useState } from 'react';
-import { clampYear, parseYearInput, stepYear } from '../lib/timeline';
+/** 언제 칸의 시작·끝 해. 큰 ± 버튼(꾹 누르면 빨라진다)과 직접 입력. 해를 대신 채워 주지 않는다. */
+import { useEffect, useRef } from 'react';
+import { YEAR_START, clampYear, yearStepFor } from '../lib/text';
 
-/** 큰 ± 스텝퍼 + 직접 입력. 누르고 있으면 반복하다가 점점 빨라진다. */
-export function YearField({ label, value, onChange, id }: { label: string; value: number; onChange(v: number): void; id: string }) {
-  const [text, setText] = useState(String(value));
-  const valueRef = useRef(value);
-  valueRef.current = value;
-  useEffect(() => setText(String(value)), [value]);
-  const hold = useRef<{ t?: number; i?: number; n: number }>({ n: 0 });
+function Year({
+  label,
+  value,
+  onChange,
+  start,
+  id,
+  disabled,
+}: {
+  label: string;
+  value?: number;
+  onChange(v: number | undefined): void;
+  start: number;
+  id: 'year-from' | 'year-to';
+  disabled?: boolean;
+}) {
+  const timer = useRef<number>(0);
+  const cur = useRef(value);
+  cur.current = value;
   const stop = () => {
-    clearTimeout(hold.current.t);
-    clearInterval(hold.current.i);
+    window.clearTimeout(timer.current);
+    window.clearInterval(timer.current);
   };
   useEffect(() => stop, []);
-  const bump = (d: number) => {
-    const next = stepYear(valueRef.current, d);
-    valueRef.current = next;
-    onChange(next);
+
+  const press = (dir: 1 | -1) => (e: React.PointerEvent) => {
+    if (disabled) return;
+    e.preventDefault();
+    let ticks = 0;
+    const apply = () => {
+      const base = cur.current ?? start;
+      const next = clampYear(cur.current === undefined ? base : base + dir * yearStepFor(ticks));
+      cur.current = next;
+      onChange(next);
+      ticks++;
+    };
+    apply();
+    stop();
+    timer.current = window.setTimeout(() => {
+      timer.current = window.setInterval(apply, 90);
+    }, 380);
   };
-  const start = (d: number) => {
-    hold.current.n = 0;
-    bump(d);
-    hold.current.t = window.setTimeout(
-      () =>
-        (hold.current.i = window.setInterval(() => {
-          hold.current.n++;
-          bump(hold.current.n > 14 ? d * 10 : d);
-        }, 80)),
-      380,
-    );
-  };
-  const commit = () => {
-    const n = parseYearInput(text);
-    if (n === null) setText(String(value));
-    else onChange(clampYear(n));
-  };
-  const btn = (d: number, caption: string, cls: string, tid: string) => (
-    <button
-      type="button"
-      className={`step ${cls}`}
-      data-testid={`${id}-${tid}`}
-      aria-label={`${label} ${d > 0 ? '+' : ''}${d}`}
-      onPointerDown={(e) => {
-        e.preventDefault();
-        start(d);
-      }}
-      onPointerUp={stop}
-      onPointerLeave={stop}
-      onPointerCancel={stop}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          bump(d);
-        }
-      }}
-    >
-      {caption}
-    </button>
-  );
+
   return (
-    <div className="yfield">
-      <label>{label}</label>
-      <div className="yfield-row">
-        {btn(-10, '−10', 'step-sm', 'm10')}
-        {btn(-1, '−', 'step-lg', 'm1')}
-        <div className="yfield-input">
-          <input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            data-testid={`${id}-input`}
-            value={text}
-            aria-label={`${label} 연도`}
-            onChange={(e) => setText(e.target.value.replace(/[^\d]/g, '').slice(0, 4))}
-            onBlur={commit}
-            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), commit())}
-          />
-          <span>년</span>
-        </div>
-        {btn(1, '+', 'step-lg', 'p1')}
-        {btn(10, '+10', 'step-sm', 'p10')}
+    <div className="year">
+      <span className="year-label">{label}</span>
+      <div className="year-row">
+        <button
+          type="button"
+          className="step"
+          data-testid={`${id}-m`}
+          aria-label={`${label} 한 해 줄이기`}
+          disabled={disabled}
+          onPointerDown={press(-1)}
+          onPointerUp={stop}
+          onPointerLeave={stop}
+          onPointerCancel={stop}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && !e.repeat && (e.preventDefault(), onChange(clampYear((value ?? start) - 1)))}
+        >
+          −
+        </button>
+        <input
+          className="field year-input"
+          data-testid={id}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={4}
+          value={value === undefined ? '' : String(value)}
+          placeholder="----"
+          aria-label={label}
+          disabled={disabled}
+          onChange={(e) => {
+            const d = e.target.value.replace(/\D/g, '').slice(0, 4);
+            onChange(d === '' ? undefined : Number(d));
+          }}
+        />
+        <button
+          type="button"
+          className="step"
+          data-testid={`${id}-p`}
+          aria-label={`${label} 한 해 늘리기`}
+          disabled={disabled}
+          onPointerDown={press(1)}
+          onPointerUp={stop}
+          onPointerLeave={stop}
+          onPointerCancel={stop}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && !e.repeat && (e.preventDefault(), onChange(clampYear((value ?? start) + 1)))}
+        >
+          +
+        </button>
       </div>
+    </div>
+  );
+}
+
+export function YearField({
+  from,
+  to,
+  implied,
+  onChange,
+  disabled,
+}: {
+  from?: number;
+  to?: number;
+  implied?: { from?: number; to?: number };
+  onChange(from: number | undefined, to: number | undefined): void;
+  disabled?: boolean;
+}) {
+  const start = implied?.from ?? implied?.to ?? YEAR_START;
+  return (
+    <div className="yearfield" data-testid="yearfield">
+      <Year
+        id="year-from"
+        label="시작"
+        value={from}
+        start={start}
+        disabled={disabled}
+        onChange={(v) => onChange(v, to === undefined && v !== undefined ? v : to)}
+      />
+      <span className="year-dash" aria-hidden="true">
+        ~
+      </span>
+      <Year
+        id="year-to"
+        label="끝"
+        value={to}
+        start={implied?.to ?? start}
+        disabled={disabled}
+        onChange={(v) => onChange(from === undefined && v !== undefined ? v : from, v)}
+      />
     </div>
   );
 }

@@ -1,45 +1,8 @@
-/** 앱을 감싸는 틀: 데스크톱 <WindowFrame>(끌기·크기·최소화·닫기) / 모바일 <FullscreenFrame>(뒤로·도움말). */
-import { useRef, useState, type ReactNode } from 'react';
-import { canonicalApp } from '../apps/registry';
+/** 앱을 감싸는 틀: 데스크톱 <WindowFrame>(끌기·크기·최소화·닫기) / 모바일 <FullscreenFrame>(뒤로). */
+import { useRef, type ReactNode } from 'react';
 import { Px } from '../lib/art';
-import { CONTENT } from '../lib/content';
 import { fx } from '../lib/fx';
 import { useUi, type WinKey } from '../uiStore';
-
-export interface FrameProps {
-  winKey: WinKey;
-  title: string;
-  iconKey: string;
-  helpApp?: string;
-  children: ReactNode;
-}
-
-export function HelpSheet({ app, onClose }: { app: string; onClose(): void }) {
-  const cards = CONTENT.help.filter((h) => canonicalApp(h.app) === app);
-  return (
-    <div className="help-sheet" role="dialog" aria-label="도움말" data-testid="help-sheet" onPointerDown={(e) => e.stopPropagation()}>
-      <div className="help-card">
-        {cards.length ? (
-          cards.map((c) => (
-            <div key={c.id}>
-              <h3>{c.title}</h3>
-              <ul>
-                {c.lines.map((l, i) => (
-                  <li key={i}>{l}</li>
-                ))}
-              </ul>
-            </div>
-          ))
-        ) : (
-          <p className="dim">이 앱의 도움말이 없습니다.</p>
-        )}
-        <button className="btn" onClick={onClose}>
-          닫기
-        </button>
-      </div>
-    </div>
-  );
-}
 
 const MENU_H = 40;
 const DOCK_H = 84;
@@ -48,17 +11,24 @@ export function WindowFrame({
   winKey,
   title,
   iconKey,
-  helpApp,
   active,
   children,
   onClose,
   onFocus,
   viewport,
-}: FrameProps & { active: boolean; onClose(): void; onFocus(): void; viewport: { w: number; h: number } }) {
+}: {
+  winKey: WinKey;
+  title: string;
+  iconKey: string;
+  children: ReactNode;
+  active: boolean;
+  onClose(): void;
+  onFocus(): void;
+  viewport: { w: number; h: number };
+}) {
   const win = useUi((s) => s.windows[winKey]);
   const setWindow = useUi((s) => s.setWindow);
   const minimize = useUi((s) => s.minimizeWindow);
-  const [help, setHelp] = useState(false);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const size = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   if (!win) return null;
@@ -68,35 +38,6 @@ export function WindowFrame({
     y: Math.min(Math.max(y, MENU_H + 24), viewport.h - 80),
   });
 
-  const onTitleDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    onFocus();
-    drag.current = { dx: e.clientX - win.x, dy: e.clientY - win.y };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const onTitleMove = (e: React.PointerEvent) => {
-    if (!drag.current) return;
-    setWindow(winKey, clampPos(e.clientX - drag.current.dx, e.clientY - drag.current.dy, win.w));
-  };
-  const onTitleUp = () => {
-    drag.current = null;
-  };
-
-  const onGripDown = (e: React.PointerEvent) => {
-    onFocus();
-    size.current = { x: e.clientX, y: e.clientY, w: win.w, h: win.h };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.stopPropagation();
-  };
-  const onGripMove = (e: React.PointerEvent) => {
-    const s = size.current;
-    if (!s) return;
-    setWindow(winKey, {
-      w: Math.max(420, Math.min(viewport.w - win.x - 8, s.w + e.clientX - s.x)),
-      h: Math.max(320, Math.min(viewport.h - win.y - 8, s.h + e.clientY - s.y)),
-    });
-  };
-
   return (
     <section
       className={`win ${active ? 'win-active' : 'win-idle'} ${win.minimized ? 'win-min' : ''}`}
@@ -105,19 +46,26 @@ export function WindowFrame({
       aria-label={title}
       onPointerDownCapture={() => !active && onFocus()}
     >
-      <header className="win-title" onPointerDown={onTitleDown} onPointerMove={onTitleMove} onPointerUp={onTitleUp} onPointerCancel={onTitleUp}>
+      <header
+        className="win-title"
+        onPointerDown={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          onFocus();
+          drag.current = { dx: e.clientX - win.x, dy: e.clientY - win.y };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => drag.current && setWindow(winKey, clampPos(e.clientX - drag.current.dx, e.clientY - drag.current.dy, win.w))}
+        onPointerUp={() => (drag.current = null)}
+        onPointerCancel={() => (drag.current = null)}
+      >
         <Px k={iconKey} scale={2} className="win-icon" />
         <h2>{title}</h2>
         <span className="win-spacer" />
-        {helpApp && (
-          <button className="win-btn win-help" aria-label="도움말" data-testid={`help-${winKey}`} onClick={() => setHelp((v) => !v)}>
-            ?
-          </button>
-        )}
-        <button className="win-btn" aria-label="최소화" data-testid={`min-${winKey}`} onClick={() => minimize(winKey)}>
+        <button type="button" className="win-btn" aria-label="최소화" data-testid={`min-${winKey}`} onClick={() => minimize(winKey)}>
           <Px k="os_title_min" scale={2} />
         </button>
         <button
+          type="button"
           className="win-btn"
           aria-label="닫기"
           data-testid={`close-${winKey}`}
@@ -129,45 +77,41 @@ export function WindowFrame({
           <Px k="os_title_close" scale={2} />
         </button>
       </header>
-      <div className="win-body">
-        {children}
-        {help && helpApp && <HelpSheet app={helpApp} onClose={() => setHelp(false)} />}
-      </div>
-      <div className="win-grip" onPointerDown={onGripDown} onPointerMove={onGripMove} onPointerUp={() => (size.current = null)} aria-hidden="true" />
+      <div className="win-body">{children}</div>
+      <div
+        className="win-grip"
+        aria-hidden="true"
+        onPointerDown={(e) => {
+          onFocus();
+          size.current = { x: e.clientX, y: e.clientY, w: win.w, h: win.h };
+          e.currentTarget.setPointerCapture(e.pointerId);
+          e.stopPropagation();
+        }}
+        onPointerMove={(e) => {
+          const s = size.current;
+          if (s)
+            setWindow(winKey, {
+              w: Math.max(380, Math.min(viewport.w - win.x - 8, s.w + e.clientX - s.x)),
+              h: Math.max(320, Math.min(viewport.h - win.y - 8, s.h + e.clientY - s.y)),
+            });
+        }}
+        onPointerUp={() => (size.current = null)}
+      />
     </section>
   );
 }
 
-export function FullscreenFrame({
-  title,
-  iconKey,
-  helpApp,
-  children,
-  onBack,
-  hideBack,
-}: Omit<FrameProps, 'winKey'> & { onBack(): void; hideBack?: boolean }) {
-  const [help, setHelp] = useState(false);
+export function FullscreenFrame({ title, iconKey, children, onBack }: { title: string; iconKey: string; children: ReactNode; onBack(): void }) {
   return (
     <section className="fs" aria-label={title} data-testid="fs-app">
       <header className="fs-head">
-        {!hideBack && (
-          <button className="fs-back" aria-label="뒤로" data-testid="app-back" onClick={onBack}>
-            ←
-          </button>
-        )}
+        <button type="button" className="fs-back" aria-label="뒤로" data-testid="app-back" onClick={onBack}>
+          ←
+        </button>
         <Px k={iconKey} scale={2} className="fs-icon" />
         <h2>{title}</h2>
-        <span className="win-spacer" />
-        {helpApp && (
-          <button className="fs-help" aria-label="도움말" data-testid="app-help" onClick={() => setHelp((v) => !v)}>
-            ?
-          </button>
-        )}
       </header>
-      <div className="fs-body">
-        {children}
-        {help && helpApp && <HelpSheet app={helpApp} onClose={() => setHelp(false)} />}
-      </div>
+      <div className="fs-body">{children}</div>
     </section>
   );
 }

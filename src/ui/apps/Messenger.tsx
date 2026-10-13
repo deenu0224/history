@@ -1,290 +1,177 @@
-/** 메신저: 대화 목록 + 말풍선. 안 읽은 메시지는 닫힌 풍선을 탭해 읽는다(타이핑 표시 → 펼침). 밑줄 말은 바로 검색. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Message, MessageThread } from '@/core/types';
-import { selectInbox, useGameStore } from '@/store/gameStore';
+/**
+ * 메신저: 오 실장 · 한 선임 · 시스템 · 복원심의위원회. 힌트는 여기로만 온다.
+ * 복원 뒤 지난 대화가 그 자리에서 다시 쓰인다(스크램블 → 굳음). 바뀐 줄 옆의 작은 연필 표시는 나에게만 있다.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { selectInbox, selectRewrittenMessages, useGameStore, type InboxItem } from '@/store/gameStore';
+import { Scramble } from '../components/Scramble';
+import { useBackHandler, useWidth } from '../hooks';
 import { Px } from '../lib/art';
-import { CONTENT } from '../lib/content';
 import { fx } from '../lib/fx';
-import { useRewriteText } from '../lib/rewrites';
-import { TermText } from '../lib/terms';
-import { ObjectivePin } from '../os/Widgets';
-import { prefersReducedMotion, useBackHandler, useWidth } from '../hooks';
+import { THREAD_LABEL, THREAD_ORDER, threadOf, type ThreadKey } from '../lib/text';
+import { useUi } from '../uiStore';
 
-const THREADS: { id: MessageThread; name: string; avatar: string }[] = [
-  { id: 'colleague', name: '한 선임', avatar: 'avatar_colleague_a' },
-  { id: 'device', name: '관측 장치', avatar: 'avatar_colleague_b' },
-  { id: 'system', name: '결록 단말', avatar: 'avatar_system' },
-  { id: 'mail', name: '관측 기록', avatar: 'avatar_system' },
-];
-const ME = '나';
+const AVATAR: Record<ThreadKey, string> = {
+  chief: 'avatar_colleague_a',
+  senior: 'avatar_colleague_b',
+  system: 'avatar_system',
+  committee: 'avatar_system',
+  me: 'avatar_player',
+};
 
-function useInbox(thread?: MessageThread) {
-  const inbox = useGameStore((s) => s.inbox);
-  const read = useGameStore((s) => s.read);
-  const replies = useGameStore((s) => s.replies);
-  return useMemo(
-    () => selectInbox(useGameStore.getState(), CONTENT, thread),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [inbox, read, replies, thread],
-  );
-}
+export function MessengerApp() {
+  const st = useGameStore();
+  const revealed = useUi((s) => s.revealed);
+  const thread = useUi((s) => s.thread);
+  const openThread = useUi((s) => s.openThread);
+  const typing = useUi((s) => s.typing);
+  const box = useRef<HTMLDivElement>(null);
+  const w = useWidth(box, 390);
+  const wide = w >= 640;
 
-export function Messenger() {
-  const root = useRef<HTMLDivElement>(null);
-  const width = useWidth(root, 360);
-  const wide = width >= 620;
-  const [sel, setSel] = useState<MessageThread | null>(null);
-  const all = useInbox();
-  const threads = THREADS.filter((t) => all.some((i) => i.message.thread === t.id));
-
-  useBackHandler(!wide && sel !== null, () => {
-    setSel(null);
-    return true;
-  });
-
-  const target = useGameStore((s) => s.ui.appTarget);
-  useEffect(() => {
-    // 다른 곳에서 특정 메시지로 열었을 때
-    if (!target) return;
-    const m = CONTENT.messages.find((x) => x.id === target);
-    if (m) setSel(m.thread);
-  }, [target]);
+  const items = useMemo(() => selectInbox(st).filter((i) => revealed.includes(i.message.id)), [st.inbox, st.read, st.replies, st.shifts, revealed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const byThread = useMemo(() => {
+    const m = new Map<ThreadKey, InboxItem[]>();
+    for (const i of items) {
+      const k = threadOf(i.message);
+      m.set(k, [...(m.get(k) ?? []), i]);
+    }
+    return m;
+  }, [items]);
+  const keys = THREAD_ORDER.filter((k) => byThread.has(k) || typing?.thread === k);
+  const active: ThreadKey | null = thread && keys.includes(thread) ? thread : wide ? (keys[0] ?? null) : null;
+  useBackHandler(!wide && active !== null, () => (openThread(null), true));
 
   return (
-    <div className={`msgr ${wide ? 'msgr-wide' : ''}`} ref={root} data-testid="app-messenger">
-      {(wide || sel === null) && (
-        <aside className="msgr-list">
-          <ObjectivePin compact />
-          <ul>
-            {threads.map((t) => (
-              <ThreadRow key={t.id} thread={t.id} name={t.name} avatar={t.avatar} active={sel === t.id} onOpen={() => setSel(t.id)} />
-            ))}
-          </ul>
-        </aside>
+    <div className={`msgr ${wide ? 'msgr-wide' : ''}`} data-testid="app-messenger" ref={box}>
+      {(wide || active === null) && (
+        <ul className="threads" data-testid="threads">
+          {keys.map((k) => {
+            const list = byThread.get(k) ?? [];
+            const last = list[list.length - 1];
+            const unread = list.filter((i) => !i.read).length;
+            return (
+              <li key={k}>
+                <button
+                  type="button"
+                  className={`thread ${active === k ? 'on' : ''} ${unread ? 'blink' : ''}`}
+                  data-testid={`msg-thread-${k}`}
+                  onClick={() => (fx('tap'), openThread(k))}
+                >
+                  <Px k={AVATAR[k]} scale={2} className="thread-av" />
+                  <span className="thread-main">
+                    <b>{THREAD_LABEL[k]}</b>
+                    <span className="thread-last">{typing?.thread === k ? '입력 중…' : (last?.message.text ?? '')}</span>
+                  </span>
+                  {unread > 0 && <i className="thread-badge">{unread}</i>}
+                </button>
+              </li>
+            );
+          })}
+          {keys.length === 0 && <li className="quiet pad">받은 메시지가 없다.</li>}
+        </ul>
       )}
-      {(wide || sel !== null) && (
-        <section className="msgr-conv">
-          {sel ? (
-            <Conversation key={sel} thread={sel} onBack={wide ? undefined : () => setSel(null)} />
-          ) : (
-            <p className="empty">대화를 선택하세요.</p>
-          )}
-        </section>
+      {active !== null && (
+        <Chat
+          k={active}
+          list={byThread.get(active) ?? []}
+          back={wide ? undefined : () => openThread(null)}
+          typing={typing?.thread === active ? typing.from : null}
+        />
       )}
     </div>
   );
 }
 
-function ThreadRow({ thread, name, avatar, active, onOpen }: { thread: MessageThread; name: string; avatar: string; active: boolean; onOpen(): void }) {
-  const items = useInbox(thread);
-  const unread = items.filter((i) => !i.read).length;
-  const last = items[items.length - 1]?.message;
-  const preview = unread ? '새 메시지' : (last?.text ?? '');
-  return (
-    <li>
-      <button
-        type="button"
-        className={`thread ${active ? 'on' : ''} ${unread ? 'unread blink' : ''}`}
-        data-testid={`thread-${thread}`}
-        data-coach={unread ? 'messenger.unread' : undefined}
-        onClick={() => {
-          fx('tap');
-          onOpen();
-        }}
-      >
-        <Px k={avatar} scale={1} className="avatar" />
-        <span className="thread-main">
-          <b>{name}</b>
-          <span className="thread-preview">{preview}</span>
-        </span>
-        {unread > 0 && <span className="badge">{unread}</span>}
-      </button>
-    </li>
-  );
-}
-
-function Conversation({ thread, onBack }: { thread: MessageThread; onBack?: () => void }) {
-  const items = useInbox(thread);
-  const meta = THREADS.find((t) => t.id === thread)!;
-  const readMessage = useGameStore((s) => s.readMessage);
-  const [typing, setTyping] = useState<string | null>(null);
-  const chain = useRef(false);
-  const timer = useRef<number>(0);
+function Chat({ k, list, back, typing }: { k: ThreadKey; list: InboxItem[]; back?: () => void; typing: string | null }) {
+  const st = useGameStore();
   const scroller = useRef<HTMLDivElement>(null);
-  const fast = prefersReducedMotion();
+  const rewritten = selectRewrittenMessages(st);
+  const play = useUi((s) => s.rewritePlay);
+  const [orig, setOrig] = useState<Record<string, boolean>>({});
 
-  const firstUnread = items.find((i) => !i.read)?.message;
-
-  const reveal = useCallback(
-    (id: string) => {
-      setTyping(id);
-      timer.current = window.setTimeout(
-        () => {
-          setTyping(null);
-          const m = readMessage(id);
-          fx('message');
-          if (!chain.current || !m) return;
-          // 답장을 기다리는 선택지가 있으면 거기서 멈춘다
-          if (m.choices?.length) return;
-          const next = selectInbox(useGameStore.getState(), CONTENT, thread).find((i) => !i.read)?.message;
-          if (next) timer.current = window.setTimeout(() => reveal(next.id), fast ? 60 : 380);
-        },
-        fast ? 60 : 650,
-      );
-    },
-    [readMessage, thread, fast],
-  );
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  // 시스템·장치 대화는 열면 알아서 읽힌다(탭 동사는 동료 대화에서 익힌다)
+  // 열려 있는 동안 도착한 메시지는 읽은 것으로
   useEffect(() => {
-    if (thread === 'colleague') return;
-    const first = items.find((i) => !i.read)?.message;
-    if (first && !typing) {
-      chain.current = true;
-      reveal(first.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thread, items.length]);
-
+    for (const i of list) if (!i.read) useGameStore.getState().readMessage(i.message.id);
+  }, [list]);
   useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: fast ? 'auto' : 'smooth' });
-  }, [items.length, typing, items.filter((i) => i.read).length, fast]);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [list.length, typing, st.replies]);
 
-  const onOpenClosed = (m: Message) => {
-    if (typing) return;
-    chain.current = true;
-    fx('tap');
-    reveal(m.id);
-  };
+  const pending = [...list].reverse().find((i) => i.message.choices?.length && !i.reply);
 
   return (
-    <div className="conv" data-testid={`conv-${thread}`}>
-      <header className="conv-head">
-        {onBack && (
-          <button className="conv-back" aria-label="대화 목록" onClick={onBack}>
-            ‹
+    <section className="chat" data-testid={`msg-chat-${k}`} aria-label={THREAD_LABEL[k]}>
+      <header className="chat-head">
+        {back && (
+          <button type="button" className="chat-back" aria-label="대화 목록" data-testid="msg-back" onClick={back}>
+            ←
           </button>
         )}
-        <Px k={meta.avatar} scale={1} className="avatar" />
-        <b>{meta.name}</b>
+        <Px k={AVATAR[k]} scale={2} />
+        <h3>{THREAD_LABEL[k]}</h3>
       </header>
-      <div className="conv-scroll" ref={scroller}>
-        {items.map((it, i) => {
-          const m = it.message;
-          const prev = items[i - 1]?.message;
-          const showName = m.from !== ME && (!prev || prev.from !== m.from);
-          if (!it.read) {
-            if (m.id === firstUnread?.id) {
-              return typing === m.id ? (
-                <TypingBubble key={m.id} from={showName ? m.from : undefined} avatar={meta.avatar} />
-              ) : (
-                <ClosedBubble key={m.id} from={m.from} avatar={meta.avatar} onOpen={() => onOpenClosed(m)} />
-              );
-            }
-            return typing === m.id ? <TypingBubble key={m.id} avatar={meta.avatar} /> : null;
-          }
-          return <Bubble key={m.id} message={m} reply={it.reply} showName={showName} avatar={meta.avatar} />;
+      <div className="chat-log" ref={scroller} role="log" aria-live="polite">
+        {list.map(({ message: m, reply }) => {
+          const mine = m.from === '나' && k !== 'me';
+          const rw = rewritten[m.id];
+          const playing = !!play[`message:${m.id}`];
+          const inner = k === 'me';
+          return (
+            <div key={m.id} className="msg-wrap">
+              <div className={`bubble ${mine ? 'mine' : ''} ${inner ? 'inner' : ''} ${m.provenance === 'verified' ? 'quoted' : ''}`} data-testid={`msg-${m.id}`}>
+                {!mine && !inner && k !== 'chief' && k !== 'senior' && <small className="bubble-from">{m.from}</small>}
+                <span className="bubble-text">
+                  <Scramble text={m.text} playKey={`message:${m.id}`} rich />
+                </span>
+                {rw && !playing && (
+                  <button
+                    type="button"
+                    className={`pencil-mark ${orig[m.id] ? 'on' : ''}`}
+                    data-testid={`msg-pencil-${m.id}`}
+                    aria-label="내가 처음 본 문장"
+                    aria-pressed={!!orig[m.id]}
+                    onClick={() => (fx('tap'), setOrig((o) => ({ ...o, [m.id]: !o[m.id] })))}
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
+              {rw && orig[m.id] && !playing && (
+                <p className="orig" data-testid={`msg-orig-${m.id}`}>
+                  <small>내가 본 처음 문장</small>
+                  {rw.original}
+                </p>
+              )}
+              {m.clock && !inner && <span className={`bubble-clock ${mine ? 'r' : ''}`}>{m.clock}</span>}
+              {reply && (
+                <div className="bubble mine" data-testid={`reply-${m.id}`}>
+                  <span className="bubble-text">{m.choices?.find((c) => c.id === reply)?.text}</span>
+                </div>
+              )}
+            </div>
+          );
         })}
-        {items.length === 0 && <p className="empty">아직 대화가 없습니다.</p>}
+        {typing && (
+          <div className="bubble typing" data-testid="msg-typing" aria-label={`${typing} 입력 중`}>
+            <i />
+            <i />
+            <i />
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function ClosedBubble({ from, avatar, onOpen }: { from: string; avatar: string; onOpen(): void }) {
-  return (
-    <div className="row row-in">
-      <Px k={avatar} scale={1} className="avatar sm" />
-      <button type="button" className="bubble closed blink" data-testid="msg-closed" data-coach="messenger.unread" onClick={onOpen}>
-        <span className="closed-dot" aria-hidden="true" />
-        <span>{from}의 새 메시지</span>
-        <span className="closed-hint">탭하여 읽기</span>
-      </button>
-    </div>
-  );
-}
-
-function TypingBubble({ from, avatar }: { from?: string; avatar: string }) {
-  return (
-    <div className="row row-in">
-      <Px k={avatar} scale={1} className="avatar sm" />
-      <div className="bubble typing" aria-label={`${from ?? ''} 입력 중`} data-testid="msg-typing">
-        <i />
-        <i />
-        <i />
-      </div>
-    </div>
-  );
-}
-
-function Bubble({ message: m, reply, showName, avatar }: { message: Message; reply?: string; showName: boolean; avatar: string }) {
-  const mine = m.from === ME;
-  const answerChoice = reply ? m.choices?.find((c) => c.id === reply) : undefined;
-  const rw = useRewriteText('message', m.id, m.text);
-  const [src, setSrc] = useState(false);
-  const [old, setOld] = useState(false);
-  const log = useGameStore((st) => st.rewriteLog);
-  const original = log.find((r) => r.kind === 'message' && r.targetId === m.id)?.before;
-  const chooseReply = useGameStore((s) => s.chooseReply);
-  const showProv = useGameStore((s) => s.settings.showProvenance);
-  const extra = m.grants?.terms ?? [];
-  return (
-    <>
-      <div className={`row ${mine ? 'row-out' : 'row-in'}`} data-testid={`msg-${m.id}`}>
-        {!mine && <Px k={avatar} scale={1} className="avatar sm" />}
-        <div className={`bubble pop ${mine ? 'mine' : ''} ${m.provenance === 'verified' ? 'verified' : ''} ${rw.busy ? 'rewriting' : ''}`}>
-          {showName && <b className="from">{m.from}</b>}
-          <p>{rw.busy ? rw.text : <TermText text={m.text} extra={extra} />}</p>
-          {m.provenance === 'verified' && m.sources && m.sources.length > 0 && (
-            <button type="button" className="src-btn" aria-label="출처" aria-expanded={src} onClick={() => setSrc((v) => !v)}>
-              <Px k="icon_check" scale={1} /> 출처
-            </button>
-          )}
-          {showProv && m.provenance !== 'verified' && <span className="prov-mark">{m.provenance === 'reconstructed' ? '재구성' : '가상'}</span>}
-          {original !== undefined && !mine && (
-            <button
-              type="button"
-              className="pencil-mark"
-              aria-label="어제는 이렇게 말했었다"
-              aria-expanded={old}
-              data-testid={`pencil-${m.id}`}
-              onClick={() => setOld((v) => !v)}
-            >
-              ✎
-            </button>
-          )}
-          {old && original !== undefined && (
-            <p className="pencil-old hand" data-testid={`pencil-old-${m.id}`}>
-              어제는 이렇게 말했었다 — {original}
-            </p>
-          )}
-          {src && (
-            <ul className="src-list">
-              {m.sources?.map((s) => (
-                <li key={s.url}>
-                  <a href={s.url} target="_blank" rel="noopener noreferrer">
-                    {s.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      {m.choices && m.choices.length > 0 && !reply && (
-        <div className="choices" role="group" aria-label="답장">
-          {m.choices.map((c) => (
+      {pending && (
+        <div className="choices" data-testid="choices">
+          {pending.message.choices!.map((c) => (
             <button
               key={c.id}
               type="button"
-              className="choice"
+              className="btn choice"
               data-testid={`choice-${c.id}`}
               onClick={() => {
                 fx('tap');
-                if (chooseReply(m.id, c.id)) fx('message');
+                useGameStore.getState().chooseReply(pending.message.id, c.id);
               }}
             >
               {c.text}
@@ -292,13 +179,6 @@ function Bubble({ message: m, reply, showName, avatar }: { message: Message; rep
           ))}
         </div>
       )}
-      {answerChoice && (
-        <div className="row row-out" data-testid={`reply-${m.id}`}>
-          <div className="bubble mine pop">
-            <p>{answerChoice.text}</p>
-          </div>
-        </div>
-      )}
-    </>
+    </section>
   );
 }

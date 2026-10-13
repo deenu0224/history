@@ -1,79 +1,127 @@
-import { useEffect, useRef, useState } from 'react';
-import { bus } from '@/core/bus';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
+import { Px, appIconKey } from '../lib/art';
+import { CONTENT } from '../lib/content';
+import { fx } from '../lib/fx';
 import { useUi } from '../uiStore';
+import { useGameClock } from './StatusBar';
 
-export function Toasts() {
-  const toasts = useUi((s) => s.toasts);
-  const drop = useUi((s) => s.dropToast);
-  return (
-    <div className="toasts" aria-live="polite">
-      {toasts.map((t) => (
-        <ToastItem key={t.id} id={t.id} text={t.text} sub={t.sub} tone={t.tone} onDone={drop} />
-      ))}
-    </div>
-  );
-}
-
-function ToastItem({ id, text, sub, tone, onDone }: { id: number; text: string; sub?: string; tone: string; onDone(id: number): void }) {
+/** 위에서 잠깐 내려오는 알림. 탭하면 그 앱으로. */
+export function Banner() {
+  const banner = useUi((s) => s.banner);
+  const clear = useUi((s) => s.clearBanner);
+  const inApp = useGameStore((s) => s.ui.app !== null);
   useEffect(() => {
-    const t = setTimeout(() => onDone(id), 3000);
+    if (!banner) return;
+    const t = setTimeout(() => clear(banner.id), 6500);
     return () => clearTimeout(t);
-  }, [id, onDone]);
+  }, [banner, clear]);
+  // 홈 화면에서는 알림 카드가 이미 보인다
+  if (!banner || !inApp) return null;
   return (
-    <div className={`toast toast-${tone}`} onClick={() => onDone(id)}>
-      <b>{text}</b>
-      {sub && <small>{sub}</small>}
+    <button
+      type="button"
+      key={banner.id}
+      className="banner"
+      data-testid="banner"
+      onClick={() => {
+        fx('tap');
+        const ui = useUi.getState();
+        if (banner.thread) ui.openThread(banner.thread);
+        useGameStore.getState().closeModal();
+        useGameStore.getState().openApp(banner.app);
+        ui.dismissNotice(banner.id);
+      }}
+    >
+      <Px k={appIconKey(CONTENT.apps.find((a) => a.app === banner.app)?.iconKey ?? 'app_messenger', true)} scale={2} />
+      <span className="banner-text">
+        <b>{banner.text}</b>
+        {banner.sub && <small>{banner.sub}</small>}
+      </span>
+    </button>
+  );
+}
+
+/** 앱이 없을 때의 바탕 화면: 시계와 남은 알림. */
+export function Home({ mode }: { mode: 'desktop' | 'mobile' }) {
+  const notices = useUi((s) => s.notices);
+  const dismiss = useUi((s) => s.dismissNotice);
+  const clock = useGameClock();
+  return (
+    <div className={`home home-${mode}`} data-testid="home">
+      <p className="home-clock">{clock}</p>
+      <p className="home-sub">실록청 기록대조과 · 대조관 07</p>
+      <ul className="home-notes">
+        {notices.map((n) => (
+          <li key={n.id}>
+            <button
+              type="button"
+              className="note"
+              data-testid="notice"
+              onClick={() => {
+                fx('tap');
+                const ui = useUi.getState();
+                if (n.thread) ui.openThread(n.thread);
+                useGameStore.getState().openApp(n.app);
+                dismiss(n.id);
+              }}
+            >
+              <b>{n.text}</b>
+              {n.sub && <small>{n.sub}</small>}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-export type DipTone = 'erase' | 'restore';
-
-/**
- * 화면 전체 연출 층. 네온 없음.
- *  - dip(erase): 차갑게 조용히 한 칸 어두워지고 채도가 빠진다.
- *  - dip(restore): 따뜻한 잉크가 번지듯 밝아진다.
- *  - glitch(관측 진입/종료): 짧은 명도 흔들림.
- */
+/** 짧은 한 줄, 실록 용어 풀이, 복원의 먹 번짐. */
 export function Overlays() {
-  const dip = useUi((s) => s.dip);
-  const flicker = useGameStore((s) => s.settings.reduceFlicker);
-  const [tone, setTone] = useState<DipTone | null>(null);
-  const [glitch, setGlitch] = useState(0);
-  const first = useRef(true);
+  const flash = useUi((s) => s.flash);
+  const clearFlash = useUi((s) => s.clearFlash);
+  const gloss = useUi((s) => s.gloss);
+  const hideGloss = useUi((s) => s.hideGloss);
+  const bloom = useUi((s) => s.inkBloom);
+  const [bloomOn, setBloomOn] = useState(false);
+  // 먹 번짐은 한 번 번지고 사라진다(남아서 화면을 밀지 않도록 치운다)
+  useEffect(() => {
+    if (!bloom) return;
+    setBloomOn(true);
+    const t = setTimeout(() => setBloomOn(false), 2400);
+    return () => clearTimeout(t);
+  }, [bloom]);
 
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    if (!dip) return;
-    setTone(((window as unknown as { __DIP_TONE__?: DipTone }).__DIP_TONE__ ?? 'erase'));
-    const t = setTimeout(() => setTone(null), 1600);
+    if (!flash) return;
+    const t = setTimeout(clearFlash, 3200);
     return () => clearTimeout(t);
-  }, [dip]);
-
-  useEffect(
-    () =>
-      bus.on('glitch', ({ intensity, ms }) => {
-        if (flicker) return;
-        setGlitch(intensity);
-        setTimeout(() => setGlitch(0), ms);
-      }),
-    [flicker],
-  );
+  }, [flash, clearFlash]);
+  useEffect(() => {
+    if (!gloss) return;
+    const t = setTimeout(hideGloss, 5000);
+    const off = () => hideGloss();
+    const arm = setTimeout(() => window.addEventListener('pointerdown', off, { once: true }), 200);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(arm);
+      window.removeEventListener('pointerdown', off);
+    };
+  }, [gloss, hideGloss]);
 
   return (
     <>
-      {tone && <div className={`dip dip-${tone}`} aria-hidden="true" data-testid="dip" />}
-      {glitch > 0 && <div className="glitch" style={{ opacity: Math.min(0.5, glitch * 0.6) }} aria-hidden="true" />}
+      {flash && (
+        <p className="flash" key={flash.nonce} role="status" data-testid="flash">
+          {flash.text}
+        </p>
+      )}
+      {gloss && (
+        <p className="gloss-tip" key={gloss.nonce} role="status" data-testid="gloss-tip">
+          <b>{gloss.term}</b> {gloss.text}
+        </p>
+      )}
+      {bloomOn && <div className="bloom" key={bloom} aria-hidden="true" />}
     </>
   );
-}
-
-/** 현실 이동 등으로 화면을 한 번 흔든다. 기본은 차가운 erase, 복원은 따뜻한 restore. */
-export function pulseDip(tone: DipTone) {
-  (window as unknown as { __DIP_TONE__?: DipTone }).__DIP_TONE__ = tone;
-  useUi.getState().triggerDip();
 }

@@ -5,7 +5,7 @@ import type { Id, Interactable, NpcDef, ObservationTimeline } from '@/core/types
 import { content } from '@/data';
 import type { Flags } from '@/core/world';
 import { MAPS, type SceneId } from '@/data/world/maps';
-import { selectTutorial, selectViewerFrame, useGameStore } from '@/store/gameStore';
+import { selectViewerFrame, useGameStore } from '@/store/gameStore';
 import { OBJ_KEYS } from '../art';
 import { setAmbience } from '../audio';
 import { FX_KEYS } from '../fx/textures';
@@ -650,7 +650,6 @@ export class ObservationScene extends Phaser.Scene {
         s.flags !== prev.flags ||
         s.tapped !== prev.tapped ||
         s.settings !== prev.settings ||
-        s.tutorial !== prev.tutorial ||
         s.lastTap !== prev.lastTap ||
         s.ui !== prev.ui
       )
@@ -713,8 +712,7 @@ export class ObservationScene extends Phaser.Scene {
       }
     }
     this.firstId = best;
-    const tut = selectTutorial(st, content, 'viewer');
-    this.coachFirst = !!tut && tut.coach && tut.step.target === 'viewer.hotspot.first';
+    this.coachFirst = false; // v3: 코치마크 없음
 
     // 길 표시 대상
     const tapNpc = st.lastTap?.kind === 'npc' ? st.lastTap.targetId : null;

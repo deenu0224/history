@@ -5,25 +5,6 @@ import { SPRITES } from '@/game/art/registry';
 
 export const hasSprite = (key: string) => key in SPRITES;
 
-/** 존재하는 첫 키. 아트 트랙이 아직 안 만든 키를 대체 키로 받는다. */
-export function pickSprite(...keys: (string | undefined)[]): string | undefined {
-  return keys.find((k): k is string => !!k && hasSprite(k));
-}
-
-/** 전시물 스프라이트: 정식 키가 없으면 임시(TEMP) 도상, 그것도 없으면 기록관 아이콘. */
-const EXHIBIT_ALIAS: Record<string, string[]> = {
-  exhibit_takyeong: ['exhibit_geomungo_TEMP'],
-  exhibit_source_shelf: ['exhibit_silrok_book_TEMP'],
-  exhibit_center_record: ['exhibit_sacho_bundle_TEMP'],
-  exhibit_person_register: ['exhibit_silrok_book_TEMP'],
-  exhibit_timeline: ['exhibit_silrok_book_TEMP'],
-  exhibit_red_desk: ['exhibit_sacho_bundle_TEMP'],
-  exhibit_daehaengwang: ['exhibit_silrok_book_TEMP'],
-};
-export function exhibitSprite(key: string): string {
-  return pickSprite(key, ...(EXHIBIT_ALIAS[key] ?? []), 'app_archive') as string;
-}
-
 export function Px({
   k,
   scale = 1,
@@ -42,19 +23,16 @@ export function Px({
   const sp = SPRITES[k];
   if (!sp) return <span className={`px-missing ${className}`} style={{ width: 16 * scale, height: 16 * scale, ...style }} />;
   return (
-    <img
-      className={`px ${className}`}
-      src={toDataURL(k, frame)}
-      width={sp.w * scale}
-      height={sp.h * scale}
-      alt={alt}
-      draggable={false}
-      style={style}
-    />
+    <img className={`px ${className}`} src={toDataURL(k, frame)} width={sp.w * scale} height={sp.h * scale} alt={alt} draggable={false} style={style} />
   );
 }
 
-export const appIconKey = (iconKey: string, small = false) => (small && hasSprite(`${iconKey}_sm`) ? `${iconKey}_sm` : iconKey);
+/** 데이터가 가리키는 아이콘이 아직 없으면 같은 결의 기존 아이콘을 쓴다(업무 = 문서함). */
+const ICON_ALIAS: Record<string, string> = { app_work: 'app_archive' };
+export const appIconKey = (iconKey: string, small = false) => {
+  const k = ICON_ALIAS[iconKey] ?? iconKey;
+  return small && hasSprite(`${k}_sm`) ? `${k}_sm` : k;
+};
 
 const url = (k: string) => `url("${toDataURL(k)}")`;
 
@@ -72,11 +50,8 @@ export function osCssVars(): CSSProperties {
     '--u-panel': 'os_panel',
     '--u-field': 'os_field',
     '--u-field-focus': 'os_field_focus',
-    '--u-tab': 'os_tab',
-    '--u-tab-idle': 'os_tab_idle',
     '--u-pill': 'ov_observing_pill',
     '--u-scrub-track': 'ov_scrub_track',
-    '--u-scrub-fill': 'ov_scrub_fill',
     '--u-view': 'ov_viewfinder',
     '--u-card': 'board_card',
     '--u-polaroid': 'board_polaroid',
@@ -84,15 +59,8 @@ export function osCssVars(): CSSProperties {
     '--u-scan': 'ov_scanline',
     '--u-wall': 'os_wallpaper',
     '--u-wall-p': 'os_wallpaper_portrait',
-    '--u-chk-off': 'os_checkbox_off',
-    '--u-chk-on': 'os_checkbox_on',
     '--u-ul-a': 'note_underline_a',
-    '--u-ul-b': 'note_underline_b',
-    '--u-ul-c': 'note_underline_c',
     '--u-circle': 'note_circle_pencil',
-    '--u-check': 'note_check_pencil',
-    '--u-cross': 'note_cross_red',
-    '--u-dot0': 'ov_observing_dot',
   };
   const out: Record<string, string> = {};
   for (const [v, k] of Object.entries(keys)) if (hasSprite(k)) out[v] = url(k);

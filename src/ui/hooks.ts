@@ -45,6 +45,16 @@ export function prefersReducedMotion(): boolean {
   }
 }
 
+/** 테스트(?test=1)에서는 연출 지연을 없앤다. &slow=1 이면 그대로 둔다. */
+export function fastMode(): boolean {
+  try {
+    const p = new URLSearchParams(location.search);
+    return p.get('test') === '1' && p.get('slow') !== '1';
+  } catch {
+    return false;
+  }
+}
+
 /** 요소 너비(px). 창 안의 앱이 컨테이너 크기에 맞춰 배치를 바꾼다. */
 export function useWidth<T extends HTMLElement>(ref: RefObject<T | null>, fallback = 360): number {
   const [w, setW] = useState(fallback);
@@ -60,57 +70,28 @@ export function useWidth<T extends HTMLElement>(ref: RefObject<T | null>, fallba
   return w;
 }
 
-/** 글자 단위 타자기 효과. textSpeed: 설정값(1=기본, 4 이상=즉시). */
-export function useTypewriter(text: string, speedOverride?: number) {
-  const setting = useGameStore((s) => s.settings.textSpeed);
-  const speed = speedOverride ?? setting;
-  const instant = speed >= 4 || prefersReducedMotion();
+/** 글자 단위 타자기 효과. */
+export function useTypewriter(text: string, cps = 28) {
+  const instant = prefersReducedMotion() || fastMode();
   const [n, setN] = useState(instant ? text.length : 0);
-  const textRef = useRef(text);
-  textRef.current = text;
-
   useEffect(() => {
     if (instant) {
       setN(text.length);
       return;
     }
     setN(0);
-    const cps = 28 * Math.max(0.25, speed);
     const t0 = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const k = Math.min(textRef.current.length, Math.floor(((now - t0) / 1000) * cps));
+      const k = Math.min(text.length, Math.floor(((now - t0) / 1000) * cps));
       setN(k);
-      if (k < textRef.current.length) raf = requestAnimationFrame(tick);
+      if (k < text.length) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [text, instant, speed]);
-
-  return {
-    shown: text.slice(0, n),
-    done: n >= text.length,
-    finish: () => setN(text.length),
-  };
+  }, [text, instant, cps]);
+  return { shown: text.slice(0, n), done: n >= text.length, finish: () => setN(text.length) };
 }
-
-/** 입력 포커스 중이 아닐 때만 키를 받는다. */
-export function useKey(handler: (e: KeyboardEvent) => void, deps: unknown[] = [], enabled = true) {
-  const ref = useRef(handler);
-  ref.current = handler;
-  useEffect(() => {
-    if (!enabled) return;
-    const on = (e: KeyboardEvent) => ref.current(e);
-    window.addEventListener('keydown', on);
-    return () => window.removeEventListener('keydown', on);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, ...deps]);
-}
-
-export const isTyping = (e: KeyboardEvent) => {
-  const t = e.target as HTMLElement | null;
-  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-};
 
 // ── 뒤로 가기(모바일): 앱 안쪽 화면부터 닫고, 없으면 앱을 닫는다 ──────────────
 const backStack: (() => boolean)[] = [];
@@ -130,7 +111,6 @@ export function useBackHandler(active: boolean, handler: () => boolean) {
   }, [active]);
 }
 
-/** 셸의 뒤로 가기 버튼/제스처가 호출. 안쪽에서 처리하면 true. */
 export function runBack(): boolean {
   for (let i = backStack.length - 1; i >= 0; i--) if (backStack[i]!()) return true;
   return false;
@@ -142,3 +122,20 @@ export const touchInput = () => {
   lastInputAt = performance.now();
 };
 export const idleSeconds = () => (performance.now() - lastInputAt) / 1000;
+
+/** 방치 시간을 5초마다 스토어에 알린다(힌트는 메신저로만 온다). */
+export function useIdleHints() {
+  useEffect(() => {
+    const on = () => touchInput();
+    const evs = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const;
+    for (const e of evs) window.addEventListener(e, on, { passive: true });
+    const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      useGameStore.getState().tickIdle(idleSeconds());
+    }, 5000);
+    return () => {
+      for (const e of evs) window.removeEventListener(e, on);
+      clearInterval(t);
+    };
+  }, []);
+}
