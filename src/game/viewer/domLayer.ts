@@ -37,8 +37,8 @@ const CSS = `
 .vw-bubble:after{content:"";position:absolute;left:calc(50% + var(--tail,0px));bottom:-7px;width:6px;height:6px;margin-left:-3px;
  background:#25211e;border-right:2px solid #6b6048;border-bottom:2px solid #6b6048;transform:rotate(45deg) translateY(-1px);transform-origin:center}
 .vw-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.vw-mumble{position:absolute;left:0;bottom:0;transform:translate(-50%,0);font:700 15px/1 monospace;color:#dccfae;letter-spacing:1px;
- text-shadow:0 1px 0 #0b0d12,1px 0 0 #0b0d12,-1px 0 0 #0b0d12;opacity:0;transition:opacity .3s ease}
+.vw-mumble{position:absolute;left:0;bottom:0;transform:translate(-50%,0);padding:1px 6px 3px;background:#25211eE0;border:1px solid #6b6048;
+ font:700 14px/1 'Noto Sans KR',monospace;color:#dccfae;letter-spacing:1px;opacity:0;transition:opacity .3s ease}
 .vw-mumble.on{opacity:.8;animation:vw-pulse 1.4s steps(4) infinite}
 @keyframes vw-pulse{0%,100%{opacity:.35}50%{opacity:.85}}
 .vw-flash{position:absolute;inset:0;background:#f4f1e6;opacity:0;pointer-events:none;z-index:9}
@@ -234,6 +234,7 @@ export class DomLayer {
     for (const b of this.bands) {
       c.clearRect(0, b.y, w, b.h);
       c.drawImage(this.small, 0, b.y, w, b.h, b.dx, b.y, w, b.h);
+      c.drawImage(this.small, 0, b.y, w, b.h, b.dx + (b.dx > 0 ? -w : w), b.y, w, b.h);
     }
     // 어두운 가장자리
     const g = c.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.75);
