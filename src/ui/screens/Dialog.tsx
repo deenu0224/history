@@ -51,7 +51,7 @@ function LinesDialog() {
   const speaker = line.speaker ?? (dialog?.type === 'lines' ? dialog.title : undefined);
   const last = idx + 1 >= lines.length;
   return (
-    <div className="dialog panel" role="dialog" aria-live="polite" onPointerDown={advance}>
+    <div className="dialog panel" role="dialog" aria-live="polite" onClick={advance}>
       {speaker && <div className="dialog-name">{speaker}</div>}
       <p className="dialog-text">
         {tw.shown}

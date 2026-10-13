@@ -22,7 +22,28 @@ type Game = {
   cameraInfo(): { zoom: number; scrollX: number; scrollY: number; w: number; h: number; mapW: number; mapH: number };
 };
 
-const isMobile = (info: TestInfo) => info.project.name === 'mobile';
+const isMobile = (info: TestInfo) => info.project.name.startsWith('mobile');
+
+/** 데스크톱은 클릭, 모바일은 실제 터치 탭 */
+let cur: TestInfo;
+async function press(l: Locator, info: TestInfo) {
+  if (isMobile(info)) await l.tap();
+  else await l.click();
+}
+
+/** 모바일 레이아웃 점검: 가로 스크롤 없음, 터치 타깃 ≥44px, 본문 글자 ≥14px */
+async function checkLayout(page: Page, info: TestInfo, selectors: string[] = []) {
+  const noScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1);
+  expect(noScroll, 'no horizontal page scroll').toBe(true);
+  if (!isMobile(info)) return;
+  for (const sel of selectors) {
+    for (const el of await page.locator(sel).all()) {
+      if (!(await el.isVisible())) continue;
+      const b = (await el.boundingBox())!;
+      expect(Math.min(b.width, b.height), `touch target ${sel}`).toBeGreaterThanOrEqual(43.5);
+    }
+  }
+}
 
 async function shot(page: Page, info: TestInfo, name: string) {
   fs.mkdirSync(SHOT_DIR, { recursive: true });
@@ -61,7 +82,7 @@ async function advanceAll(page: Page, info: TestInfo, opts: { maxSteps?: number 
     } else {
       await page.keyboard.press('e');
     }
-    await page.waitForTimeout(270);
+    await page.waitForTimeout(240);
   }
   throw new Error('dialog never ended');
 }
@@ -116,24 +137,25 @@ async function interactAndRead(page: Page, info: TestInfo, id: string, real = fa
 }
 
 async function openPanel(page: Page, info: TestInfo, label: string) {
-  if (isMobile(info)) await page.locator('.tabbar').getByRole('button', { name: label }).click();
-  else await page.locator('.hud-buttons').getByRole('button', { name: label }).click();
+  const nav = page.locator('.tabbar, .hud-buttons').getByRole('button', { name: label });
+  await expect(nav.first()).toBeVisible();
+  await press(nav.first(), info);
 }
 
 async function closeModal(page: Page) {
-  await page.locator('.modal-close').first().click();
+  await press(page.locator('.modal-close').first(), cur);
   await expect(page.locator('.modal')).toHaveCount(0);
 }
 
 async function clickCard(page: Page, id: string) {
-  const c = page.getByTestId(`ev-${id}`).first();
+  const c = page.locator('.picker').getByTestId(`ev-${id}`);
   await c.scrollIntoViewIfNeeded();
-  await c.click();
+  await press(c, cur);
   await expect(c).toHaveAttribute('aria-pressed', 'true');
 }
 
 async function setYear(page: Page, label: string, v: number) {
-  const input = page.getByLabel(`${label} 연도`);
+  const input = page.getByLabel(`${label} 연도 연도`, { exact: true });
   await input.fill(String(v));
   await input.blur();
   await expect(input).toHaveValue(String(v));
@@ -142,7 +164,7 @@ async function setYear(page: Page, label: string, v: number) {
 async function submit(page: Page) {
   const b = page.getByTestId('submit-deduction');
   await b.scrollIntoViewIfNeeded();
-  await b.click();
+  await press(b, cur);
   const v = page.getByTestId('verdict');
   await expect(v).toBeVisible();
   await v.scrollIntoViewIfNeeded();
@@ -150,11 +172,12 @@ async function submit(page: Page) {
 }
 
 async function pickTab(page: Page, name: string) {
-  await page.getByRole('tab', { name }).click();
+  await press(page.getByRole('tab', { name }), cur);
 }
 
 test('episode 1 is playable start to finish', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
+  cur = info;
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => {
@@ -166,7 +189,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   await page.goto('/?test=1');
   await expect(page.getByRole('button', { name: '새로 시작' })).toBeVisible();
   await expect(page.getByRole('button', { name: '이어하기' })).toHaveCount(0);
-  await page.getByRole('button', { name: '새로 시작' }).click();
+  await press(page.getByRole('button', { name: '새로 시작' }), info);
 
   // ── 프롤로그 ──────────────────────────────────────────────
   await expect(page.locator('.seq')).toBeVisible();
@@ -186,10 +209,14 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
     await page.getByLabel('검색').fill(name);
     const row = page.locator('.db-row', { hasText: name }).first();
     await expect(row, `DB entry ${name}`).toBeVisible();
-    await row.click();
+    await press(row, info);
+    await expect(page.getByRole('heading', { name: new RegExp(name) })).toBeVisible();
+    // 모바일은 상세가 목록을 대체한다 → 목록으로
+    const back = page.getByRole('button', { name: /목록/ });
+    if (await back.isVisible().catch(() => false)) await press(back, info);
   }
   await page.getByLabel('검색').fill('');
-  await page.locator('.modal-db .modal-close').click();
+  await press(page.locator('.modal-db .modal-close'), info);
   await expect(page.locator('.modal-db')).toHaveCount(0);
   expect(await S.flag('prologue_anomaly')).toBe(true);
 
@@ -200,7 +227,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   expect(await S.flag('research_takyeong')).toBe(true);
   await interactAndRead(page, info, 'lab_person_terminal'); // DB 화면이 뜬다
   await expect(page.locator('.modal-db')).toBeVisible();
-  await page.locator('.modal-db .modal-close').click();
+  await press(page.locator('.modal-db .modal-close'), info);
   expect(await S.flag('research_kim_ilson')).toBe(true);
 
   // 현재 목표 표시
@@ -210,7 +237,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   await hookInteract(page, 'lab_observe_chair');
   await expect(page.locator('.dialog-confirm')).toBeVisible();
   await shot(page, info, '04-observe-confirm');
-  await page.locator('.dialog-confirm').getByRole('button', { name: '관측을 시작한다' }).click();
+  await press(page.locator('.dialog-confirm').getByRole('button', { name: '관측을 시작한다' }), info);
   await waitScene(page, 'obs001');
   expect(await S.flag('obs001_entered')).toBe(true);
 
@@ -221,11 +248,31 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   expect(await visibleText()).not.toMatch(/(?<!\d)1[3-9]\d\d(?!\d)/);
   await page.waitForTimeout(600);
   await shot(page, info, '05-obs001-arrival');
+  await checkLayout(page, info, ['.tabbar-btn']);
+  if (isMobile(info)) {
+    // 휴대폰: 캐릭터가 충분히 크게 보인다(가로 ~8~10타일 세로 / 가로 모드는 더 넓게), 기기 픽셀 정수 배율
+    const cam = await page.evaluate(() => (window as any).__GAME__.cameraInfo());
+    const portrait = page.viewportSize()!.height > page.viewportSize()!.width;
+    const tilesAcross = cam.w / cam.zoom / 32;
+    if (portrait) expect(tilesAcross).toBeGreaterThanOrEqual(7.5), expect(tilesAcross).toBeLessThanOrEqual(10.5);
+    else expect(tilesAcross).toBeLessThanOrEqual(15);
+    expect(Number.isInteger(cam.zoom)).toBe(true);
+    // 탭 이동: 바닥을 탭하면 그 타일로 걸어간다
+    const from = await page.evaluate(() => (window as any).__GAME__.getPlayerTile());
+    const target = { x: from.x, y: from.y - 3 };
+    const sp = await tileToScreen(page, target.x, target.y);
+    await page.touchscreen.tap(sp.x, sp.y);
+    await expect
+      .poll(async () => (await page.evaluate(() => (window as any).__GAME__.getPlayerTile())).y, { timeout: 8000 })
+      .toBeLessThan(from.y - 1);
+  }
 
   // ── 관청 탐색: 증거 수집 ──────────────────────────────────
   await interactAndRead(page, info, 'obs_gate_signboard');
-  await interactAndRead(page, info, 'npc_clerk', true); // 진짜 입력으로 NPC 와 대화
-  await shot(page, info, '06-npc-dialogue-after');
+  await realInteract(page, info, 'npc_clerk'); // 진짜 입력으로 NPC 와 대화
+  await page.waitForTimeout(900);
+  await shot(page, info, '06-npc-dialogue');
+  await advanceAll(page, info);
   expect(await S.flag('f_heard_myoho')).toBe(true);
   await interactAndRead(page, info, 'obs_store_sacho');
   expect(await S.flag('f_saw_bundles')).toBe(true);
@@ -253,7 +300,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   // ── 귀환 ──────────────────────────────────────────────────
   await hookInteract(page, 'obs_return_point');
   await expect(page.locator('.dialog-confirm')).toBeVisible();
-  await page.locator('.dialog-confirm').getByRole('button', { name: '귀환한다' }).click();
+  await press(page.locator('.dialog-confirm').getByRole('button', { name: '귀환한다' }), info);
   await waitScene(page, 'archive'); // 귀환 지점은 개인 기록관
   expect(await S.flag('obs001_returned')).toBe(true);
   // 귀환 직후 독백
@@ -276,6 +323,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   // ── 연도 추리 ─────────────────────────────────────────────
   await openPanel(page, info, '추론');
   await expect(page.getByRole('tab', { name: /연대 추론/ })).toBeVisible();
+  await checkLayout(page, info, ['.step']);
   // 1) 성종 재위만 주장: 확정이 아니며 정답을 알려 주지 않는다
   await setYear(page, '시작', 1469);
   await setYear(page, '종료', 1494);
@@ -284,18 +332,18 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   expect(wrong).not.toBe('confirmed');
   expect(wrong).toBe('wrong');
   await shot(page, info, '08-year-wrong');
-  const modalText = await page.locator('.modal').innerText();
-  expect(modalText).not.toMatch(/1498/);
+  // 판정 패널은 정답을 알려 주지 않는다(증거 카드의 자기 연구 내용과 구분)
+  expect(await page.getByTestId('verdict').innerText()).not.toMatch(/1498|1495/);
   await page.getByTestId('verdict').scrollIntoViewIfNeeded();
 
   // 2) 스테퍼(탭)가 실제로 동작하는지
   await setYear(page, '시작', 1495);
-  await page.getByRole('button', { name: '시작 +1', exact: true }).click();
-  await expect(page.getByLabel('시작 연도')).toHaveValue('1496');
-  await page.getByRole('button', { name: '시작 -1', exact: true }).click();
-  await expect(page.getByLabel('시작 연도')).toHaveValue('1495');
-  await page.getByRole('button', { name: '종료 +10', exact: true }).click();
-  await page.getByRole('button', { name: '종료 -10', exact: true }).click();
+  await press(page.getByRole('button', { name: '시작 연도 +1', exact: true }), info);
+  await expect(page.getByLabel('시작 연도 연도')).toHaveValue('1496');
+  await press(page.getByRole('button', { name: '시작 연도 -1', exact: true }), info);
+  await expect(page.getByLabel('시작 연도 연도')).toHaveValue('1495');
+  await press(page.getByRole('button', { name: '종료 연도 +10', exact: true }), info);
+  await press(page.getByRole('button', { name: '종료 연도 -10', exact: true }), info);
 
   // 3) 부분 확정: 묘호·실록청·살아 있는 작성자 → 1495~1498
   await setYear(page, '종료', 1498);
@@ -315,7 +363,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
 
   // ── 인물 추리 ─────────────────────────────────────────────
   await pickTab(page, '인물 추리');
-  await page.getByTestId('cand-per_yi_geukdon').click();
+  await press(page.getByTestId('cand-per_yi_geukdon'), info);
   await clickCard(page, 'ev_unknown_official');
   // 근거가 부족하면 판정 보류(정답 후보도 오답 후보와 같은 취급)
   expect(await submit(page)).toBe('undetermined');
@@ -326,14 +374,21 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
 
   // ── 사건 추리 ─────────────────────────────────────────────
   await pickTab(page, '사건 해결');
-  await page.getByTestId('stmt-st_routine').click();
+  await press(page.getByTestId('stmt-st_routine'), info);
   for (const id of ['ev_royal_order', 'ev_six_articles']) await clickCard(page, id);
   expect(await submit(page)).toBe('wrong');
-  await page.getByTestId('stmt-st_crisis').click();
+  await press(page.getByTestId('stmt-st_crisis'), info);
   expect(await submit(page)).toBe('confirmed');
   expect(await S.flag('ded_event_confirmed')).toBe(true);
   await shot(page, info, '11-event-confirmed');
   await closeModal(page);
+
+  // ── 에필로그(세 추리 확정 직후, 연구실에서) ───────────────────
+  await expect(page.locator('.seq-epilogue')).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(1000);
+  await shot(page, info, '13-epilogue');
+  await advanceAll(page, info);
+  await expect(page.locator('.seq')).toHaveCount(0);
 
   // ── 기록관 ────────────────────────────────────────────────
   await page.evaluate(() => (window as any).__GAME__.interactWith('lab_door_archive'));
@@ -343,16 +398,36 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   await interactAndRead(page, info, 'arc_person_register');
   await interactAndRead(page, info, 'arc_timeline');
   await interactAndRead(page, info, 'arc_shelf_sources');
+  // 사료 열람(전체 화면 리더)
+  await openPanel(page, info, '도감');
+  await press(page.getByRole('tab', { name: /사료/ }), info);
+  let opened = false;
+  for (const tile of await page.locator('.codex-list .tile').all()) {
+    await press(tile, info);
+    const btn = page.getByRole('button', { name: '사료 열람' });
+    if (await btn.isVisible().catch(() => false)) {
+      await press(btn, info);
+      opened = true;
+      break;
+    }
+  }
+  expect(opened, 'a readable source exists').toBe(true);
+  await page.waitForTimeout(500);
+  await shot(page, info, '12a-reader');
+  await checkLayout(page, info);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  if (await page.locator('.modal').count()) await closeModal(page);
+  await expect(page.locator('.modal')).toHaveCount(0);
   await realInteract(page, info, 'arc_center_case');
+  await expect.poll(() => page.evaluate(() => (window as any).__GAME__.objectTexture('arc_center_case'))).toBe('obj_case_filled');
+  await page.waitForTimeout(700);
+  await shot(page, info, '12-archive-after-return'); // 진열대가 채워진 모습(대화 중)
   await advanceAll(page, info);
   expect(await S.flag('archive_center_seen')).toBe(true);
   await expect.poll(() => page.evaluate(() => (window as any).__GAME__.objectTexture('arc_center_case'))).toBe('obj_case_filled');
-  await shot(page, info, '12-archive-after-return');
 
-  // ── 에필로그 → 티저 ───────────────────────────────────────
-  await expect(page.locator('.seq-epilogue')).toBeVisible({ timeout: 10_000 });
-  await shot(page, info, '13-epilogue');
-  await advanceAll(page, info);
+  // ── 티저 ──────────────────────────────────────────────────
   await expect(page.locator('.seq-teaser')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(800);
   await shot(page, info, '14-teaser');
@@ -364,7 +439,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
 
   // ── 저장 → 새로고침 → 이어하기 ─────────────────────────────
   await openPanel(page, info, '설정');
-  await page.getByRole('button', { name: '저장', exact: true }).click();
+  await press(page.getByRole('button', { name: '저장', exact: true }), info);
   await expect(page.getByText('저장했다.')).toBeVisible();
   await closeModal(page);
   await page.waitForTimeout(800); // 자동 저장 디바운스
@@ -373,7 +448,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   await page.reload();
   await page.waitForFunction(() => Boolean((window as any).__STORE__));
   await expect(page.getByRole('button', { name: '이어하기' })).toBeVisible();
-  await page.getByRole('button', { name: '이어하기' }).click();
+  await press(page.getByRole('button', { name: '이어하기' }), info);
   await waitScene(page, 'archive');
   expect(await S.evidence()).toEqual(before.ev);
   expect(await S.solved()).toEqual(before.solved);

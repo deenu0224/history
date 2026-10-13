@@ -97,6 +97,18 @@ button {
   inset: 0;
   background: #0f141c;
 }
+.game-layer,
+.game-layer canvas {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+.game-layer canvas {
+  image-rendering: pixelated;
+}
 .game-layer > * {
   width: 100%;
   height: 100%;
@@ -2630,4 +2642,42 @@ button.hud-objective {
 }
 .app[data-layout='portrait'] .toast-stamp {
   font-size: 11px;
+}
+
+/* ── 터치 기기: 최소 터치 타깃 44px, 글자 14px 이상 ───────────── */
+@media (pointer: coarse) {
+  .btn,
+  .btn-small,
+  .btn-icon,
+  .modal-close,
+  .pill,
+  .tab,
+  .db-row,
+  .cand,
+  .tabbar-btn,
+  .hud-objective {
+    min-height: 44px;
+  }
+  .btn-icon,
+  .modal-close {
+    min-width: 44px;
+  }
+  .btn-small,
+  .pill,
+  .tab,
+  .tabbar-btn {
+    font-size: 14px;
+  }
+  .step-sm {
+    width: 48px;
+  }
+  .scroll,
+  .modal-body {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.verdict > .btn {
+  margin-top: 14px;
 }

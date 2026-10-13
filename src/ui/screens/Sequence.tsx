@@ -37,7 +37,7 @@ function Pages({ kind, pages, title, onEnd }: { kind: keyof typeof TITLES; pages
     }
   });
   return (
-    <div className={`seq seq-${kind}`} onPointerDown={next}>
+    <div className={`seq seq-${kind}`} onClick={next}>
       <div className="seq-title">{title}</div>
       <div className="seq-page">
         {page.speaker && <div className="seq-speaker">{page.speaker}</div>}

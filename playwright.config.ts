@@ -5,6 +5,7 @@ export default defineConfig({
   timeout: 90_000,
   use: {
     baseURL: 'http://localhost:4173',
+    actionTimeout: 15_000,
   },
   webServer: { command: 'npx vite build && npx vite preview --port 4173', port: 4173, reuseExistingServer: true, timeout: 120_000 },
   projects: [
