@@ -15,7 +15,6 @@ export const artifacts: HistoricalArtifact[] = [
       '김일손이 쓰던 거문고. 보물 「김일손 거문고」(1988년 6월 16일 지정). 길이 160㎝, 너비 19㎝, 높이 10㎝. ' +
       '중앙부에 「濯纓琴」 세 글자가 음각되어 있고 학 그림이 있다. 용두와 운족은 원형 그대로다. ' +
       '제작 시기는 1490년경으로 추정된다.',
-    sourceIds: [],
     relatedIds: ['per_kim_ilson', 'plc_daegu_museum'],
     sources: [REF.takyeongKhs, REF.takyeongEncy],
     authorNote:
