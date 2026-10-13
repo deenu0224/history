@@ -1,6 +1,7 @@
 /** 위 띠: 근무 시계·시간 예산 · 처리 n/목표 · 경고 ●○○ · 규정집 · 메신저(읽지 않음) · 메뉴(업무·관측·DB·설정). */
 import { useEffect, useRef, useState } from 'react';
-import { selectApps, selectDesk, selectReplay, useGameStore } from '@/store/gameStore';
+import { clockText, dutyClock } from '@/core/duty';
+import { selectApps, selectDesk, selectReplay, selectShiftReport, useGameStore } from '@/store/gameStore';
 import { Px } from '../lib/art';
 import { CONTENT } from '../lib/content';
 import { fmtSpan } from '../lib/desk';
@@ -24,10 +25,19 @@ export function TopStrip({ onSlips }: { onSlips(): void }) {
   const panel = useUi((s) => s.panel);
   const reportSeen = useUi((s) => s.reportSeen);
   const unread = useUnread();
-  const live = desk.slips.filter((w) => !w.cleared && !w.voided).length;
+  const liveNow = desk.slips.filter((w) => !w.cleared && !w.voided).length;
   const newRules = desk.rules.some((r) => r.isNew);
-  const length = desk.shift?.length ?? 420;
-  const spent = desk.shift ? length - desk.minutesLeft : 0;
+  // 근무 보고가 떠 있는 동안에는 근무가 해제돼 있다 — 방금 끝낸 근무의 마지막 값을 보여 준다(없으면 흐리게)
+  const reportFor = useUi((s) => s.shiftReportFor);
+  const ended = !desk.shift && reportFor ? CONTENT.workShifts.find((w) => w.id === reportFor) : undefined;
+  const endedRep = ended ? selectShiftReport(st, ended.id) : null;
+  const idle = !desk.shift && !endedRep;
+  const length = desk.shift?.length ?? ended?.length ?? 420;
+  const spent = desk.shift ? length - desk.minutesLeft : ended ? Math.min(length, dutyClock(st.duty, ended.id)) : 0;
+  const clockShown = desk.clock ?? (ended ? clockText(ended, dutyClock(st.duty, ended.id)) : '--:--');
+  const processedShown = endedRep ? endedRep.processed : desk.processed;
+  const goalShown = endedRep ? endedRep.goal : desk.goal;
+  const live = endedRep ? endedRep.warnings - endedRep.voided : liveNow;
   const [spend, setSpend] = useState<{ n: number; d: number } | null>(null);
   const prev = useRef(spent);
 
@@ -56,10 +66,10 @@ export function TopStrip({ onSlips }: { onSlips(): void }) {
   };
 
   return (
-    <header className="strip" data-testid="top-strip">
+    <header className={`strip ${idle ? 'strip-idle' : ''} ${ended ? 'strip-ended' : ''}`} data-testid="top-strip">
       <div className="strip-clock" data-testid="clock">
         <b className="clock-time" data-testid="clock-time">
-          {desk.clock ?? '--:--'}
+          {clockShown}
         </b>
         <span className="budget" role="progressbar" aria-label="근무 시간" aria-valuemin={0} aria-valuemax={length} aria-valuenow={spent} data-testid="budget" title={desk.shift ? `남은 ${fmtSpan(desk.minutesLeft)}` : undefined}>
           <i style={{ width: `${Math.min(100, (spent / length) * 100)}%` }} />
@@ -71,10 +81,10 @@ export function TopStrip({ onSlips }: { onSlips(): void }) {
           </span>
         )}
       </div>
-      <button type="button" className="strip-count" data-testid="processed" aria-label={`처리 ${desk.processed} / 목표 ${desk.goal}`} onClick={onSlips}>
+      <button type="button" className="strip-count" data-testid="processed" aria-label={`처리 ${processedShown} / 목표 ${goalShown}`} onClick={onSlips}>
         <small>처리</small>
-        <b>{desk.processed}</b>
-        <span>/{desk.goal || '-'}</span>
+        <b>{processedShown}</b>
+        <span>/{goalShown || '-'}</span>
       </button>
       <button type="button" className={`strip-warn warn-${live}`} data-testid="warnings" data-live={live} aria-label={`경고 ${live} / 3`} onClick={onSlips}>
         <small>경고</small>

@@ -2855,3 +2855,184 @@
     min-height: 100px;
   }
 }
+
+/* ═══ 2차 다듬기 ═══════════════════════════════════════════ */
+
+/* 세로: 관측 중에는 관측 창이 최소 33vh 를 보장받고(나머지는 1fr 로 더 가져간다), 카드는 안에서 스크롤한다.
+   트랙 크기가 콘텐츠가 아니라 뷰포트에서 정해지므로 캔버스 크기와 되먹임(resize loop)하지 않는다. */
+@media (max-aspect-ratio: 999/1000) {
+  .desk:not(.obs-off) {
+    grid-template-rows: auto minmax(0, max-content) minmax(max(172px, 33vh), 1fr) auto;
+  }
+  .desk:not(.obs-off) .zone-card {
+    max-height: 26vh;
+  }
+  .desk:not(.obs-off) .obsw {
+    min-height: 0;
+  }
+  .desk:not(.obs-off) .obsw .obsv-screen {
+    min-height: 0;
+  }
+  /* 관측이 꺼지면 카드가 남는 책상을 채운다(종이가 늘어난다) — 도장 레일은 맨 아래 */
+  .desk.obs-off {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'bar' 'card' 'obs' 'rail';
+  }
+  .desk.obs-off .zone-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .desk.obs-off .dc-wrap {
+    flex: 1 0 auto;
+  }
+  .desk.obs-off .dc-face {
+    display: flex;
+    flex-direction: column;
+  }
+  .desk.obs-off .dc-face > .dcard {
+    flex: 1 0 auto;
+  }
+  .desk.obs-off .obsw .heard {
+    max-height: 26vh;
+  }
+}
+
+/* 장면이 작을 때 ⛶ 가 한 번 맥박친다 */
+.obsw.scene-small [data-testid='obs-expand'] {
+  border-color: #ffd98a;
+  color: #ffd98a;
+  box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.55);
+  animation: d-expand-hint 0.9s ease-out 2;
+}
+@keyframes d-expand-hint {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.22);
+    box-shadow: 0 0 0 8px rgba(255, 217, 138, 0.25);
+  }
+}
+
+/* 위 띠: 근무 밖(로그인) · 방금 끝난 근무 */
+.strip-idle .strip-count,
+.strip-idle .strip-warn {
+  opacity: 0.4;
+}
+.strip-ended .clock-time {
+  color: var(--k7);
+}
+.strip-ended .budget i {
+  background: var(--k6);
+}
+
+/* 키보드 초점 */
+.desk-root :focus-visible {
+  outline: 3px solid #ffd98a;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.desk-root .stamp:focus-visible,
+.desk-root .printer:focus-visible,
+.desk-root .drawer-btn:focus-visible {
+  outline-offset: 0;
+}
+.desk-root .dseg:focus-visible {
+  outline-color: #1b3a6b;
+  background: rgba(255, 217, 138, 0.35);
+}
+
+/* 큰 화면: 책상을 가운데 정렬된 한 장면으로 — 종이가 화면 끝까지 늘어나지 않게 */
+@media (min-width: 1200px) and (min-aspect-ratio: 1/1) {
+  .desk {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+  }
+  .strip {
+    padding-inline: max(16px, calc((100vw - 1280px) / 2 + 18px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsw.scene-small [data-testid='obs-expand'],
+  .pulse-soft,
+  .pulse-hard,
+  .glow {
+    animation: none !important;
+  }
+}
+
+/* ═══ 낮은 가로 화면(≤520px 높이) 밀도 ═══ */
+@media (max-height: 520px) {
+  /* 번호판: 축소된 만큼 레이아웃 높이도 줄인다(변형은 자리를 줄이지 않는다) */
+  .plaque {
+    margin-block: -14px;
+  }
+  .plaque-bar {
+    min-height: 40px;
+  }
+  .desk {
+    gap: 4px;
+    padding-block: 4px;
+  }
+  .stamp {
+    min-height: 76px;
+  }
+  .stamp-art {
+    width: 36px;
+    height: 54px;
+  }
+  /* 근무 보고: 두 칸 — 왼쪽에 제목·오 실장 한 줄, 오른쪽에 수치와 「퇴근한다」가 한 번에 보인다 */
+  .report-paper {
+    width: min(780px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 22px;
+    align-content: center;
+    padding: 12px 18px;
+  }
+  .report-paper > * {
+    grid-column: 1;
+  }
+  .report-paper .rp-rows {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    margin: 0;
+    align-self: center;
+  }
+  .report-paper footer {
+    grid-column: 2;
+    grid-row: 5;
+  }
+  .report-paper h2 {
+    font-size: 1.25rem;
+  }
+  .rp-rows > div {
+    padding: 4px 0;
+  }
+  .rp-line {
+    margin: 6px 0;
+  }
+}
+
+/* 낮은 가로 화면: 보고서 네 칸(언제·어디서·누가·무엇)을 2×2 로 — 한 칸씩 길게 내려가지 않게 */
+@media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+  .desk-root .report {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    align-items: start;
+  }
+  .desk-root .report > :not(.blank) {
+    grid-column: 1 / -1;
+  }
+  .desk-root .report .blank {
+    margin: 0;
+    padding: 8px 10px;
+  }
+  .desk-root .report .blank-prompt {
+    margin: 2px 0 4px;
+  }
+}

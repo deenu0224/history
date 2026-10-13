@@ -1,4 +1,5 @@
 /** 책상의 관측 창: 책상 위 건의 짧은 장면(뷰어) + 시간 막대 + 들은 말 칩. 눌러서 전체 화면으로 키울 수 있다. 도장을 찍으면 화면이 꺼진다. */
+import { useEffect, useRef, useState } from 'react';
 import { selectDesk, useGameStore, type CaseCardView } from '@/store/gameStore';
 import { useUi } from '../uiStore';
 import { HeardStrip } from './HeardStrip';
@@ -10,6 +11,30 @@ export function ObsWindow({ card }: { card: CaseCardView | null }) {
   const expanded = useUi((s) => s.obsExpanded);
   const setExpanded = useUi((s) => s.setObsExpanded);
   const panel = useUi((s) => s.panel);
+  const ref = useRef<HTMLElement>(null);
+  const [small, setSmall] = useState(false);
+  const live = !!card && !!card.timelineId && !card.done && panel !== 'log';
+
+  // 장면이 180px 보다 낮으면 ⛶ 를 눈에 띄게(한 번 맥박). 불리언이 바뀔 때만 상태를 바꾸므로 캔버스 크기와 되먹임하지 않는다.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !live || expanded || typeof ResizeObserver === 'undefined') return setSmall(false);
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const h = el.querySelector('.obsv-screen')?.clientHeight ?? 999;
+      setSmall(h > 0 && h < 180);
+    };
+    const ro = new ResizeObserver(() => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    });
+    ro.observe(el);
+    measure();
+    return () => {
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [live, expanded, card?.timelineId]);
 
   let body;
   if (!card) body = <Dead text="신호 없음" sub="다음 건을 올리면 관측 창이 켜진다." />;
@@ -39,7 +64,7 @@ export function ObsWindow({ card }: { card: CaseCardView | null }) {
     );
 
   return (
-    <section className={`obsw ${expanded && card && !card.done ? 'expanded' : ''}`} data-testid="obs-window" data-state={!card ? 'idle' : card.done ? 'off' : 'on'}>
+    <section ref={ref} className={`obsw ${expanded && card && !card.done ? 'expanded' : ''} ${small ? 'scene-small' : ''}`} data-testid="obs-window" data-state={!card ? 'idle' : card.done ? 'off' : 'on'}>
       {body}
       {card && <HeardStrip card={card} />}
     </section>

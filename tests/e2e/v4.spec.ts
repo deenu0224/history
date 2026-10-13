@@ -410,6 +410,13 @@ test('결록 v4: 근무 3밤 — 처음부터 끝까지 실제 입력만으로',
   await tap(T('duty-end'));
   await expect(T('shift-report')).toBeVisible();
   await expect(T('rp-warnings')).toContainText('2');
+  // 근무 보고 중에도 위 띠는 끝낸 근무의 마지막 값(초기화된 --:-- · 0/- 아님)
+  await expect(T('clock-time')).not.toHaveText('--:--');
+  await expect(T('processed')).toContainText('5');
+  await expect(T('processed')).not.toContainText('/-');
+  // 도장·프린터에 이름이 있다
+  await expect(T('stamp-confirm')).toHaveAttribute('aria-label', /도장/);
+  await expect(T('printer')).toHaveAttribute('aria-label', /프린터/);
   await shot('s1-shift-report');
   await tap(T('shift-next'));
   await expect(T('duty-login')).toBeVisible();
