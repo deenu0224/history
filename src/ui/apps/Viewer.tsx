@@ -1,14 +1,14 @@
 /** 관측 뷰어: 메타데이터(연도 ####) · 디오라마(<ObservationViewer/>) · 시간 스크러버 · 탭 결과 · 보이는 것 목록. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bus } from '@/core/bus';
-import { formatClock, timelineMarks } from '@/core/observation';
-import { selectViewerFrame, useGameStore, type TapResult } from '@/store/gameStore';
+import { formatClock } from '@/core/observation';
+import { selectTimelineTicks, selectViewerFrame, useGameStore, type TapResult } from '@/store/gameStore';
 import { ObservationViewer, type ViewerHandle } from '@/game/ObservationViewer';
 import { playSfx } from '@/game/audio';
 import { Px } from '../lib/art';
 import { CONTENT, IDX } from '../lib/content';
 import { fx } from '../lib/fx';
-import { describeRewards, feedbackForRewards } from '../lib/rewards';
+import { describeRewards } from '../lib/rewards';
 import { prefersReducedMotion, useLayout, useWidth } from '../hooks';
 
 const TL_ID = 'tl_obs001';
@@ -73,8 +73,6 @@ function Observing({ timelineId }: { timelineId: string }) {
   const prevTap = useRef<TapResult | null>(lastTap);
   useEffect(() => {
     if (lastTap && lastTap !== prevTap.current) {
-      if (lastTap.gained.length) feedbackForRewards(lastTap.gained);
-      else fx('tap');
       if (lastTap.kind === 'npc') setRouteNpc(lastTap.targetId);
     }
     prevTap.current = lastTap;
@@ -157,7 +155,9 @@ function Scrubber({ tlId }: { tlId: string }) {
   const track = useRef<HTMLDivElement>(null);
   const bucket = useRef(Math.floor(minute / 15));
   const [playing, setPlaying] = useState(false);
-  const marks = useMemo(() => timelineMarks(tl, CONTENT.npcs), [tl]);
+  const flags = useGameStore((s) => s.flags);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ticks = useMemo(() => selectTimelineTicks(useGameStore.getState(), CONTENT, tlId), [flags, tlId]);
   const span = tl.end - tl.start;
 
   const set = useCallback(
@@ -246,12 +246,12 @@ function Scrubber({ tlId }: { tlId: string }) {
           <div className="scrub-rail">
             <div className="scrub-fill" style={{ width: `${pct}%` }} />
           </div>
-          {marks.map((m) => (
-            <i key={m} className="scrub-tick" style={{ left: `${((m - tl.start) / span) * 100}%` }} />
+          {ticks.map((t) => (
+            <i key={`${t.kind}${t.minute}`} className={`scrub-tick tick-${t.kind}`} data-kind={t.kind} style={{ left: `${((t.minute - tl.start) / span) * 100}%` }} />
           ))}
           {hours.map((m) => (
             <i key={`h${m}`} className="scrub-hour" style={{ left: `${((m - tl.start) / span) * 100}%` }}>
-              <b>{m / 60}</b>
+              {(m / 60) % 2 === 0 && <b>{m / 60}</b>}
             </i>
           ))}
           <div className="scrub-knob" style={{ left: `${pct}%` }}>

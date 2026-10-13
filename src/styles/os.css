@@ -2267,6 +2267,16 @@ p {
   background: var(--a2);
   pointer-events: none;
 }
+.scrub-tick.tick-speech {
+  background: var(--t3);
+  height: 22px;
+  top: 15px;
+}
+.scrub-tick.tick-object {
+  background: var(--k8);
+  height: 16px;
+  top: 21px;
+}
 .scrub-hour {
   position: absolute;
   bottom: 0;

@@ -122,7 +122,7 @@ export function SourceReader({ initial }: { initial?: Id }) {
                       type="button"
                       className={`phrase ${registered.includes(sg.phrase.id) ? 'stamped' : ''} ${res?.id === sg.phrase.id && res.r.status === 'no_link' ? 'shrug' : ''}`}
                       data-testid={`phrase-${sg.phrase.id}`}
-                      data-coach={i === segs.findIndex((x) => x.phrase) ? 'reader.phrase' : undefined}
+                      data-coach={i === segs.findIndex((x) => x.phrase) ? 'search.source.phrase' : undefined}
                       onClick={() => pick(sg.phrase!)}
                     >
                       {sg.text}

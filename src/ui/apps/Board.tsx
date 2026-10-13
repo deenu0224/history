@@ -28,11 +28,11 @@ export function Board() {
   };
 
   const tabs: { id: Tab; label: string; list?: Deduction[]; coach?: string; hide?: boolean }[] = [
-    { id: 'combine', label: '겹치기', hide: CONTENT.links.length === 0 },
-    { id: 'chain', label: '인과', list: chains, hide: chains.length === 0 },
+    { id: 'combine', label: '겹치기', coach: 'board.link', hide: CONTENT.links.length === 0 },
+    { id: 'chain', label: '인과', list: chains, coach: 'board.deduction.cause', hide: chains.length === 0 },
     { id: 'person', label: '누구인가', list: of('person'), coach: 'board.deduction.person' },
     { id: 'year', label: '언제인가', list: of('year'), coach: 'board.deduction.year' },
-    { id: 'event', label: '무슨 일인가', list: of('event'), coach: 'board.deduction.event' },
+    { id: 'event', label: '무슨 일인가', list: of('event'), coach: 'board.deduction.event', hide: of('event').length === 0 },
     { id: 'graph', label: '관계도' },
     { id: 'timeline', label: '연대표' },
   ];

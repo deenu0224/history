@@ -52,7 +52,7 @@ export function Notebook() {
     { id: 'hand', label: '손 노트', show: true },
     { id: 'diff', label: '고쳐 쓴 줄', show: hasDiff },
     { id: 'memo', label: '단말 메모', show: true, coach: 'notebook.tab.memo' },
-    { id: 'archive', label: '기록관', show: true },
+    { id: 'archive', label: '기록관', show: true, coach: 'notebook.tab.archive' },
   ];
 
   return (
@@ -285,7 +285,7 @@ export function RecordTrace({ act }: { act: RecordAct }) {
 
   let w = -1;
   return (
-    <section className={`record ${finished ? 'record-done' : ''}`} data-testid="record-trace">
+    <section className={`record ${finished ? 'record-done' : ''}`} data-testid="record-trace" data-coach="notebook.record">
       <p className="record-title hand">{act.title}</p>
       <p className="record-help">점선을 따라 손가락으로 훑어 적으세요.</p>
       <div
