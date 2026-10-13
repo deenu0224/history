@@ -421,6 +421,16 @@ export const sample: ContentModule = {
       when: { searched: ['sample_se_record'] },
       choices: [{ id: 'yes', text: '응', setsFlags: ['sample_reply_yes'] }],
     },
+    {
+      id: 'sample_m3',
+      provenance: F,
+      thread: 'system',
+      from: '단말',
+      text: '서안 열람 권한.',
+      order: 2,
+      when: { searched: ['sample_se_record'], minStats: { searches: 3 } },
+      grants: { flags: ['sample_flag_desk_open'] },
+    },
   ],
   memos: [{ id: 'sample_memo', provenance: F, title: '메모', text: '0.9', when: {} }],
   corrections: [

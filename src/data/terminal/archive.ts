@@ -15,7 +15,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.takyeongKhs, REF.takyeongEncy],
     title: '첫 번째 진열장 — 탁영금',
     slot: 'case',
-    spriteKey: 'art_takyeong',
+    spriteKey: 'exhibit_takyeong',
     requires: { all: ['obs001_returned'] },
     lines: [
       '픽셀로 다시 그린 탁영금이 놓였다. 길이와 너비의 비, 160 대 19.',
@@ -36,7 +36,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.sillokSachoOrder, REF.sagwan],
     title: '사료 서가',
     slot: 'shelf',
-    spriteKey: 'obj_lab_shelf',
+    spriteKey: 'exhibit_source_shelf',
     requires: { all: ['obs001_returned'] },
     lines: [
       '확인한 사료가 한 칸씩 꽂힌다.',
@@ -50,7 +50,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.yiGeukdon, REF.kimIlson, REF.muoSahwa],
     title: '인물 기록부',
     slot: 'register',
-    spriteKey: 'obj_lab_desk',
+    spriteKey: 'exhibit_person_register',
     requires: { all: ['ded_person_confirmed'] },
     lines: [
       '이극돈 — 실록청 당상. 김일손 — 사초를 쓴 사관.',
@@ -75,7 +75,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.sillokSeongjongDeath, REF.sillokMyoho, REF.sillokCompileOrder, REF.seongjongSillok],
     title: '연대표',
     slot: 'timeline',
-    spriteKey: 'obj_lab_shelf',
+    spriteKey: 'exhibit_timeline',
     requires: { all: ['ded_year_confirmed'] },
     lines: [
       '1494년(음력 12월 24일) 성종 승하.',
@@ -100,7 +100,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.muoSahwa, REF.sillokSachoOrder, REF.sillokVerdict, REF.seongjongSillok],
     title: '중앙 진열대 — 관측 #001',
     slot: 'center',
-    spriteKey: 'obj_display_case',
+    spriteKey: 'exhibit_center_record',
     requires: { all: ['ded_event_confirmed'] },
     lines: [
       '관측 #001 기록이 중앙에 놓인다.',
@@ -136,7 +136,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.yiGeukdon],
     title: '작은 액자 — 같은 장을 넘긴 자국',
     slot: 'shelf',
-    spriteKey: 'obj_desk_writing',
+    spriteKey: 'exhibit_red_desk',
     requires: { all: ['f_saw_red_desk'] },
     lines: [
       '당상이 자리를 비운 짧은 틈에 본 서안.',
@@ -149,7 +149,7 @@ export const exhibits: ArchiveExhibit[] = [
     sources: [REF.sillokDaehaengwang, REF.sillokMyoho],
     title: '작은 서첩 — 이름 없는 왕',
     slot: 'shelf',
-    spriteKey: 'obj_books_stack',
+    spriteKey: 'exhibit_daehaengwang',
     requires: { searched: ['se_daehaengwang'] },
     lines: [
       '묘호를 정하기 전, 세상을 떠난 왕은 ‘대행왕’이라 불렸다.',
