@@ -122,6 +122,59 @@ describe('validateContent', () => {
     expect(validateContent(c).warnings.some((w) => w.code === 'unobtainable_evidence' && w.message.includes('sample_ev_zither'))).toBe(true);
   });
 
+  it('terminal: search refs, chip terms, phrases, timelines, replies, corrections, flags', () => {
+    const ok = sampleContent();
+    expect(codes(ok)).toEqual([]);
+
+    let c = sampleContent();
+    c.searchEntries[0]!.results.push({ kind: 'person', id: 'ghost' });
+    expect(codes(c)).toContain('missing_ref');
+
+    c = sampleContent();
+    c.messages[0]!.grants = { terms: ['아무도 색인하지 않은 말'] };
+    expect(codes(c)).toContain('term_unindexed');
+
+    c = sampleContent();
+    c.phrases[0]!.text = '원문에 없는 문장';
+    expect(codes(c)).toContain('phrase_not_in_excerpt');
+
+    c = sampleContent();
+    c.timelines[0]!.hotspots[1]!.windows = [{ from: 2000, to: 2100 }];
+    expect(codes(c)).toContain('window_outside_timeline');
+
+    c = sampleContent();
+    c.timelines[0]!.hotspots = c.timelines[0]!.hotspots.filter((h) => h.targetId !== 'sample_npc_scribe');
+    expect(codes(c)).toContain('not_in_timeline');
+
+    c = sampleContent();
+    c.messages[1]!.choices![0]!.setsFlags = ['sample_year_partial'];
+    expect(codes(c)).toContain('choice_solves_puzzle');
+
+    c = sampleContent();
+    c.records[0]!.provenance = 'verified';
+    c.records[0]!.sources = [{ title: 'x', url: 'https://example.org' }];
+    expect(codes(c)).toContain('correction_touches_fact');
+
+    c = sampleContent();
+    c.apps[3]!.unlockWhen = { all: ['nobody_sets_this'] };
+    expect(codes(c)).toContain('unreachable_flag');
+
+    c = sampleContent();
+    c.searchEntries[0]!.optional = true;
+    c.searchEntries[0]!.conditional![0]!.grants = { evidence: [{ id: 'sample_ev_book' }] };
+    expect(codes(c)).toContain('optional_progress');
+
+    c = sampleContent();
+    c.searchEntries.push({
+      id: 'sample_se_hidden',
+      provenance: 'fictional',
+      terms: ['칩이 없는 말'],
+      results: [{ kind: 'record', id: 'sample_rec_meta' }],
+      grants: { evidence: [{ id: 'sample_ev_book' }] },
+    });
+    expect(codes(c)).toContain('search_needs_typing');
+  });
+
   it('mergeModules keeps every kind', () => {
     expect(mergeModules({ persons: [] }, {}).collection).toEqual([]);
   });

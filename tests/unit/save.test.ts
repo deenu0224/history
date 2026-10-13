@@ -34,6 +34,42 @@ describe('save/load', () => {
     expect(() => migrate(null)).toThrow(SaveError);
   });
 
+  it('migrates a v1 (walking) save to v2 (terminal)', () => {
+    const v1 = {
+      schema: SAVE_SCHEMA,
+      version: 1,
+      savedAt: 'x',
+      slot: 'manual',
+      data: {
+        flags: { obs001_entered: true },
+        evidence: { ev_myoho: 0 },
+        collection: {},
+        notebook: { observed: [], testimony: [], verified: [], hypothesis: [], question: [] },
+        solved: {},
+        attempts: { ded_year_001: 2 },
+        observations: ['obs_001'],
+        examined: ['obs_store_sacho'],
+        currentScene: 'obs001',
+        settings: { textSpeed: 1, volume: 0.5, showInteractHints: true, showProvenance: false },
+      },
+    };
+    const out = migrate(v1);
+    expect(out.version).toBe(2);
+    expect(out.data).not.toHaveProperty('currentScene');
+    expect(out.data).not.toHaveProperty('examined');
+    expect(out.data).toMatchObject({
+      flags: { obs001_entered: true },
+      evidence: { ev_myoho: 0 },
+      tapped: ['hs_obs_store_sacho'],
+      terms: [],
+      inbox: [],
+      stats: { deductionAttempts: 2, searches: 0 },
+      tutorial: { done: [], dismissed: [], fails: {}, idleTier: {} },
+      settings: { volume: 0.5, hintLevel: 'normal', haptics: true, reduceFlicker: false },
+    });
+    expect(Object.keys(out.data).sort()).toEqual(Object.keys(initialPersisted()).sort());
+  });
+
   it('applies migrations step by step', () => {
     const table = {
       1: (d: Record<string, unknown>) => ({ ...d, renamed: d.old, old: undefined }),

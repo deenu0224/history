@@ -422,7 +422,8 @@ function validateTerminal(
     ref(p.id, p.sourceId, 'sources');
     const src = idx.sources[p.sourceId];
     if (!src) continue;
-    if (src.provenance !== 'verified') err(p.id, 'phrase_unverified_source', '구절은 verified 사료에서만 고를 수 있습니다.');
+    if (src.provenance === 'reconstructed' || (p.provenance === 'verified' && src.provenance !== 'verified'))
+      err(p.id, 'phrase_unverified_source', '구절은 verified 사료(샘플은 fictional)에서만 고를 수 있습니다.');
     if (!src.excerpt || !src.excerpt.includes(p.text))
       err(p.id, 'phrase_not_in_excerpt', `구절이 사료 원문(excerpt)에 없습니다: ${p.text}`);
     checkGrants(p.id, p.grants);

@@ -6,17 +6,17 @@ describe('bus', () => {
   it('delivers typed payloads, supports off/once/clear', () => {
     const bus = createBus<BusEvents>();
     const got: string[] = [];
-    const off = bus.on('interact', (p) => got.push(p.targetId));
-    bus.once('scene:enter', (p) => got.push(`enter:${p.sceneId}`));
-    bus.emit('interact', { targetId: 'a' });
-    bus.emit('scene:enter', { sceneId: 's' });
-    bus.emit('scene:enter', { sceneId: 's2' });
+    const off = bus.on('viewer:tapped', (p) => got.push(p.hotspotId));
+    bus.once('app:open', (p) => got.push(`open:${p.app}`));
+    bus.emit('viewer:tapped', { hotspotId: 'a' });
+    bus.emit('app:open', { app: 'search' });
+    bus.emit('app:open', { app: 'reader', target: 'src' });
     off();
-    bus.emit('interact', { targetId: 'b' });
-    expect(got).toEqual(['a', 'enter:s']);
-    bus.on('world:pause', () => got.push('p'));
+    bus.emit('viewer:tapped', { hotspotId: 'b' });
+    expect(got).toEqual(['a', 'open:search']);
+    bus.on('glitch', () => got.push('g'));
     bus.clear();
-    bus.emit('world:pause', { paused: true });
+    bus.emit('glitch', { intensity: 1, ms: 100 });
     expect(got).toHaveLength(2);
   });
 

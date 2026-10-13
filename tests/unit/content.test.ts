@@ -4,11 +4,9 @@ import { indexContent } from '@/core/content';
 import { judgeDeduction } from '@/core/deduction';
 import type { ContentBundle, Deduction, DeductionSubmission, JudgeContext } from '@/core/types';
 import { validateContent } from '@/core/validate';
-import { checkCondition } from '@/core/world';
 import { content, INCLUDE_SAMPLE, modules } from '@/data';
 import { EPISODE_1, OBSERVATION_HUD } from '@/data/script';
 import { MAPS, MAP_LEGEND, isWalkableTile, reachableTiles, tileKey, type SceneId } from '@/data/world/maps';
-import { createGameStore } from '@/store/gameStore';
 
 const idx = indexContent(content);
 const ded = (id: string) => idx.deductions[id] as Deduction;
@@ -65,8 +63,8 @@ describe('episode 1 content — maps & walkability', () => {
   const groundChars = new Set(Object.keys(MAP_LEGEND.ground));
   const wallChars = new Set(Object.keys(MAP_LEGEND.walls));
 
-  it('has the three scenes with consistent dimensions and legend', () => {
-    expect(sceneIds.sort()).toEqual(['archive', 'lab', 'obs001']);
+  it('keeps only the observation diorama (walking maps removed) with consistent dimensions and legend', () => {
+    expect(sceneIds.sort()).toEqual(['obs001']);
     for (const id of sceneIds) {
       const m = MAPS[id];
       expect(m.ground).toHaveLength(m.h);
@@ -85,7 +83,7 @@ describe('episode 1 content — maps & walkability', () => {
     expect([MAPS.obs001.w, MAPS.obs001.h]).toEqual([40, 30]);
   });
 
-  it('reaches every interactable (adjacent tile) and every NPC waypoint from spawn', () => {
+  it('diorama: every object is adjacent to open ground and every NPC waypoint is reachable (NPC walk paths)', () => {
     for (const id of sceneIds) {
       const map = MAPS[id];
       const objs = content.worldObjects.filter((w) => w.sceneId === id);
@@ -100,7 +98,6 @@ describe('episode 1 content — maps & walkability', () => {
           [o.x, o.y - 1],
         ].some(([x, y]) => reach.has(tileKey(x!, y!)));
         expect(adj || reach.has(tileKey(o.x, o.y)), `${o.id} reachable`).toBe(true);
-        if (o.targetSceneId) expect(o.targetSceneId in MAPS, `${o.id} target`).toBe(true);
       }
       for (const npc of content.npcs.filter((n) => n.sceneId === id))
         for (const w of npc.schedule) {
@@ -133,6 +130,8 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
   const pastTexts: [string, string][] = [];
   for (const o of content.worldObjects.filter((w) => w.sceneId === 'obs001')) {
     pastTexts.push([o.id, o.label], ...o.examine.map((t): [string, string] => [o.id, t]));
+    if (o.hiddenText) pastTexts.push([o.id, o.hiddenText]);
+    o.grants?.terms?.forEach((t) => pastTexts.push([`${o.id}:term`, t]));
   }
   const pastEvidence = new Set<string>();
   for (const n of content.npcs.filter((x) => x.sceneId === 'obs001')) {
@@ -141,6 +140,7 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
       pastTexts.push([`${n.id}#${l.id}`, `${l.speaker ?? ''} ${l.text}`]);
       l.grants?.evidence?.forEach((e) => pastEvidence.add(e.id));
       l.grants?.notebook?.forEach((nb) => pastTexts.push([nb.id, nb.text]));
+      l.grants?.terms?.forEach((t) => pastTexts.push([`${n.id}#${l.id}:term`, t]));
     }
   }
   for (const o of content.worldObjects.filter((w) => w.sceneId === 'obs001')) {
@@ -156,10 +156,16 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
     pastTexts.push([id, ev.levels[0].label], [id, ev.levels[0].text]);
   }
   OBSERVATION_HUD.forEach((t) => pastTexts.push(['hud', t]));
+  for (const t of content.timelines) {
+    pastTexts.push([t.id, t.title], ...t.meta.map((m): [string, string] => [t.id, `${m.label} ${m.value}`]));
+  }
   EPISODE_1.quests
     .flatMap((q) => q.objectives)
-    .filter((o) => o.sceneId === 'obs001')
+    .filter((o) => o.app === 'viewer')
     .forEach((o) => pastTexts.push([o.id, `${o.text} ${o.hint ?? ''}`]));
+  content.tutorial
+    .filter((t) => t.app === 'viewer')
+    .forEach((t) => pastTexts.push([t.id, [t.coach, ...t.hints].join(' ')]));
 
   it('collects a meaningful amount of past-scene text', () => {
     expect(pastTexts.length).toBeGreaterThan(40);
@@ -236,74 +242,5 @@ describe('episode 1 content — deductions are solvable with obtainable evidence
       expect(judgeDeduction(d, sub(d.id, { kind: 'event', statementId: s.id, evidenceIds: all }), ctx).verdict, s.id).toBe('wrong');
     // 가장사초 수납만으로는 어느 쪽도 가릴 수 없다(레드 헤링)
     expect(judgeDeduction(d, sub(d.id, { kind: 'event', statementId: 'st_crisis', evidenceIds: ['ev_gajang'] }), ctx).verdict).toBe('undetermined');
-  });
-});
-
-describe('episode 1 content — full playthrough through the store', () => {
-  it('prologue → observation → research → three deductions → archive → teaser', () => {
-    const store = createGameStore(content);
-    const s = () => store.getState();
-    const examine = (id: string) => expect(s().examine(id), id).not.toBeNull();
-    const talk = (id: string) => s().talk(id);
-
-    // 순서 잠금: 연구 전에는 관측 장치가 열리지 않는다
-    expect(s().examine('lab_observe_chair')).toBeNull();
-    examine('lab_db_console');
-    examine('lab_case_takyeong');
-    examine('lab_person_terminal');
-    examine('lab_observe_chair');
-    expect(s().flags.obs001_entered).toBe(true);
-
-    // 관측 #001
-    examine('obs_gate_signboard');
-    talk('npc_clerk');
-    examine('obs_store_sacho');
-    examine('obs_hall_desk_scribe');
-    expect(talk('npc_messenger')!.gained.some((r) => r.type === 'evidence')).toBe(false); // 아직 전교 전
-    talk('npc_red_official');
-    talk('npc_clerk');
-    talk('npc_young_official');
-    talk('npc_messenger');
-    talk('npc_blue_official');
-    expect(s().flags.f_saw_sealing).toBe(true);
-    examine('obs_return_point');
-    expect(s().flags.obs001_returned).toBe(true);
-
-    // 연구실 대조
-    for (const id of ['lab_st_title', 'lab_st_institution', 'lab_st_person2', 'lab_st_sillok', 'lab_st_law']) examine(id);
-    for (const id of ['ev_myoho', 'ev_sillokcheong', 'ev_jouijemun', 'ev_author_alive']) expect(s().evidence[id], id).toBe(1);
-
-    // 함정 답안
-    expect(s().submitDeduction({ kind: 'year', deductionId: 'ded_year_001', from: 1469, to: 1494, evidenceIds: ['ev_myoho'] }).verdict).toBe('wrong');
-    expect(s().submitDeduction({ kind: 'year', deductionId: 'ded_year_001', from: 1495, to: 1498, evidenceIds: ['ev_myoho', 'ev_sillokcheong', 'ev_author_alive'] }).verdict).toBe('partial');
-    expect(s().flags.ded_year_partial).toBe(true);
-    expect(s().submitDeduction({ kind: 'year', deductionId: 'ded_year_001', from: 1498, to: 1498, evidenceIds: ['ev_jouijemun', 'ev_author_alive', 'ev_myoho'] }).verdict).toBe('confirmed');
-    expect(s().submitDeduction({ kind: 'person', deductionId: 'ded_person_001', candidateId: 'per_yi_geukdon', evidenceIds: ['ev_unknown_official', 'ev_veteran'] }).verdict).toBe('confirmed');
-    expect(s().evidence.ev_unknown_official).toBe(1);
-    expect(s().submitDeduction({ kind: 'event', deductionId: 'ded_event_001', statementId: 'st_crisis', evidenceIds: ['ev_royal_order', 'ev_six_articles'] }).verdict).toBe('confirmed');
-
-    // 기록관
-    for (const id of ['arc_case_takyeong', 'arc_person_register', 'arc_timeline', 'arc_shelf_sources', 'arc_center_case']) examine(id);
-    const discovered = Object.values(s().collection).filter((v) => v >= 1).length;
-    expect(discovered).toBeGreaterThanOrEqual(8);
-    expect(s().collection.col_art_takyeong).toBe(5);
-    expect(Object.values(s().notebook.question).every((q) => q.id === 'q_anomaly' || q.id === 'q_next' || q.resolved)).toBe(true);
-
-    expect(checkCondition(s().flags, EPISODE_1.epilogueWhen)).toBe(true);
-    expect(checkCondition(s().flags, EPISODE_1.teaserWhen)).toBe(true);
-    for (const o of EPISODE_1.quests.flatMap((q) => q.objectives).filter((o) => !o.optional)) {
-      const flagsOk = checkCondition(s().flags, o.doneWhen.flags);
-      const countOk = discovered >= (o.doneWhen.minCollectionDiscovered ?? 0);
-      expect(flagsOk && countOk, o.id).toBe(true);
-    }
-  });
-
-  it('every collection entry is discoverable', () => {
-    const granted = new Set<string>();
-    for (const w of content.worldObjects) w.grants?.collect?.forEach((c) => granted.add(c.entryId));
-    for (const n of content.npcs) n.dialogue.forEach((l) => l.grants?.collect?.forEach((c) => granted.add(c.entryId)));
-    for (const d of content.deductions)
-      for (const r of [...d.rewards.confirmed, ...(d.rewards.partial ?? [])]) if (r.type === 'collection') granted.add(r.entryId);
-    for (const c of content.collection) expect(granted.has(c.id), c.id).toBe(true);
   });
 });

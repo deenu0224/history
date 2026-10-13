@@ -48,7 +48,15 @@ export const sample: ContentModule = {
       sourceIds: ['sample_source_record'],
     },
   ],
-  sources: [{ id: 'sample_source_record', provenance: F, title: '샘플 기록', summary: '테스트용 가상 사료.' }],
+  sources: [
+    {
+      id: 'sample_source_record',
+      provenance: F,
+      title: '샘플 기록',
+      summary: '테스트용 가상 사료.',
+      excerpt: '왕이 명하여 게시문을 붙이게 하였다. 청원은 없었다.',
+    },
+  ],
   events: [
     {
       id: 'sample_event_a',
@@ -336,4 +344,121 @@ export const sample: ContentModule = {
       fields: [],
     },
   ],
+  // ── 단말(샘플) ──
+  apps: [
+    { id: 'sample_app_messenger', provenance: F, app: 'messenger', title: '메신저', iconKey: 'icon', order: 0 },
+    { id: 'sample_app_search', provenance: F, app: 'search', title: '검색', iconKey: 'icon', order: 1 },
+    { id: 'sample_app_viewer', provenance: F, app: 'viewer', title: '뷰어', iconKey: 'icon', order: 2 },
+    {
+      id: 'sample_app_reader',
+      provenance: F,
+      app: 'reader',
+      title: '사료',
+      iconKey: 'icon',
+      order: 3,
+      unlockWhen: { all: ['sample_desk_searched'] },
+    },
+    { id: 'sample_app_board', provenance: F, app: 'board', title: '보드', iconKey: 'icon', order: 4 },
+  ],
+  searchEntries: [
+    {
+      id: 'sample_se_record',
+      provenance: F,
+      terms: ['샘플 기록', '樣本'],
+      results: [{ kind: 'source', id: 'sample_source_record' }],
+      grants: { collect: [{ entryId: 'sample_col_source', stage: 1 }] },
+      conditional: [
+        { when: { all: ['sample_desk_searched'] }, grants: { flags: ['sample_record_linked'] }, note: '서안의 문서와 같다.' },
+      ],
+    },
+  ],
+  records: [
+    { id: 'sample_rec_meta', provenance: F, title: '샘플 메타', fields: [{ key: 'xref', label: '밀도', value: '0.9' }] },
+  ],
+  phrases: [
+    {
+      id: 'sample_ph_order',
+      provenance: F,
+      sourceId: 'sample_source_record',
+      text: '왕이 명하여',
+      when: { evidence: ['sample_ev_order_record'] },
+      grants: { flags: ['sample_phrase_ok'] },
+    },
+  ],
+  timelines: [
+    {
+      id: 'sample_tl',
+      provenance: F,
+      sceneId: SAMPLE_SCENE,
+      observationId: 'sample_obs_courtyard',
+      title: '샘플 관측',
+      start: 480,
+      end: 900,
+      initial: 480,
+      camera: { x: 4, y: 3 },
+      meta: [{ label: '연도', value: '####' }],
+      hotspots: [
+        { id: 'hs_sample_npc_scribe', targetId: 'sample_npc_scribe', kind: 'npc' },
+        { id: 'hs_sample_obj_zither', targetId: 'sample_obj_zither', kind: 'object', windows: [{ from: 600, to: 700 }] },
+        {
+          id: 'hs_sample_obj_desk',
+          targetId: 'sample_obj_desk',
+          kind: 'object',
+          visibleWhen: { all: ['sample_flag_desk_open'] },
+        },
+      ],
+    },
+  ],
+  messages: [
+    { id: 'sample_m1', provenance: F, thread: 'colleague', from: '샘플', text: '안녕.', order: 0, grants: { terms: ['샘플 기록'] } },
+    {
+      id: 'sample_m2',
+      provenance: F,
+      thread: 'colleague',
+      from: '샘플',
+      text: '찾았어?',
+      order: 1,
+      when: { searched: ['sample_se_record'] },
+      choices: [{ id: 'yes', text: '응', setsFlags: ['sample_reply_yes'] }],
+    },
+  ],
+  memos: [{ id: 'sample_memo', provenance: F, title: '메모', text: '0.9', when: {} }],
+  corrections: [
+    {
+      id: 'sample_corr',
+      provenance: F,
+      trigger: { all: ['sample_reply_yes'] },
+      recordPatches: [{ recordId: 'sample_rec_meta', key: 'xref', value: '0.5' }],
+      memoPatches: [{ memoId: 'sample_memo', text: '0.5' }],
+      grants: { flags: ['sample_corrected'] },
+    },
+  ],
+  exhibits: [
+    {
+      id: 'sample_ex',
+      provenance: F,
+      title: '샘플 전시',
+      slot: 'case',
+      spriteKey: 'sample_zither',
+      requires: { evidence: ['sample_ev_zither'] },
+      lines: ['거문고가 놓였다.'],
+      grants: { collect: [{ entryId: 'sample_col_zither', stage: 3 }] },
+    },
+  ],
+  tutorial: [
+    {
+      id: 'sample_tut_search',
+      provenance: F,
+      order: 0,
+      app: 'search',
+      target: 'search.chip',
+      coach: '검색해 보세요.',
+      showWhen: {},
+      doneWhen: { searched: ['sample_se_record'] },
+      failOn: ['unknown_search'],
+      hints: ['넛지', '방향', '근접'],
+      idleSeconds: 40,
+    },
+  ],
+  help: [{ id: 'sample_help', provenance: F, app: 'search', title: '검색', lines: ['검색합니다.'] }],
 };
