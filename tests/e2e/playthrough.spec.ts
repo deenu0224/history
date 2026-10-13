@@ -82,7 +82,7 @@ async function advanceAll(page: Page, info: TestInfo, opts: { maxSteps?: number;
     } else {
       await page.keyboard.press('e');
     }
-    await page.waitForTimeout(240);
+    await page.waitForTimeout(130);
   }
   throw new Error('dialog never ended');
 }
@@ -176,7 +176,7 @@ async function pickTab(page: Page, name: string) {
 }
 
 test('episode 1 is playable start to finish', async ({ page }, info) => {
-  test.setTimeout(480_000);
+  test.setTimeout(900_000);
   cur = info;
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));

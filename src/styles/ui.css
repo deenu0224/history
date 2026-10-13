@@ -2681,3 +2681,16 @@ button.hud-objective {
 .verdict > .btn {
   margin-top: 14px;
 }
+
+/* 가로 휴대폰: 모달 머리글·탭을 압축해 본문 영역을 넓힌다 */
+.app[data-layout='landscape'] .modal-head {
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: 2px;
+}
+.app[data-layout='landscape'] .modal-head h2 {
+  font-size: 16px;
+}
+.app[data-layout='landscape'] .tabs {
+  margin-bottom: 4px;
+}

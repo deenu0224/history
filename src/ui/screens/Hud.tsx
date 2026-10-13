@@ -75,7 +75,7 @@ export function Hud({ layout }: { layout: Layout }) {
         {layout !== 'portrait' && (
           <nav className="hud-buttons" aria-label="메뉴">
             {BUTTONS.map((b) => (
-              <button key={b.kind} className="btn btn-hud" onClick={() => open(b.kind)}>
+              <button key={b.kind} className="btn btn-hud" aria-label={b.label} onClick={() => open(b.kind)}>
                 <PixelIcon sprite={b.icon} size={20} />
                 <span>{b.label}</span>
               </button>
