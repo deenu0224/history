@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { BootScene } from '../scenes/BootScene';
 import { ObservationScene } from '../scenes/ObservationScene';
-import type { TestApi, ViewerCamera, ViewerHandle, ViewerHost } from './types';
+import type { TestApi, ViewerCamera, ViewerHandle, ViewerHost, ViewerSnapshot } from './types';
+import { DomLayer } from './domLayer';
+import { playSfx } from '../audio';
 
 const MAX_DPR = 3;
 
@@ -23,7 +25,17 @@ function testHooksEnabled(): boolean {
   }
 }
 
+const EMPTY_SNAPSHOT: ViewerSnapshot = {
+  minute: -1,
+  centerTile: { x: 0, y: 0 },
+  zoom: 1,
+  visibleHotspotIds: [],
+  heardLineIds: [],
+  thumbDataUrl: '',
+};
+
 export interface ViewerController extends ViewerHandle {
+  setDegraded(spans: { from: number; to: number }[] | undefined): void;
   destroy(): void;
 }
 
@@ -44,9 +56,12 @@ export function createViewer(parent: HTMLElement, host: ViewerHost): ViewerContr
     input: { mouse: false, touch: false, keyboard: false, gamepad: false },
     disableContextMenu: true,
     banner: false,
+    render: { preserveDrawingBuffer: true },
     scene: [BootScene, ObservationScene],
   });
+  const dom = new DomLayer(parent);
   game.registry.set('host', host);
+  game.registry.set('dom', dom);
 
   const fit = () => {
     const m = measure(parent);
@@ -84,7 +99,17 @@ export function createViewer(parent: HTMLElement, host: ViewerHost): ViewerContr
     zoomStep: (d) => run((s) => s.zoomStep(d)),
     setRouteNpc: (id) => run((s) => s.setExplicitRoute(id)),
     playShift: (k) => run((s) => s.playShift(k)),
+    focusTarget: (id) => run((s) => s.focusTarget(id)),
+    snapshot: (): ViewerSnapshot => scene()?.snapshot() ?? EMPTY_SNAPSHOT,
+    flashShutter: () => {
+      dom.doFlash();
+      playSfx('shutter');
+    },
+    setDegraded: (spans) => {
+      host.degraded = spans;
+    },
     destroy: () => {
+      dom.destroy();
       ro.disconnect();
       window.removeEventListener('orientationchange', fit);
       if (window.__VIEWER__ === api) delete window.__VIEWER__;
@@ -97,6 +122,10 @@ export function createViewer(parent: HTMLElement, host: ViewerHost): ViewerContr
     tap: (id) => scene()?.tapHotspot(id) ?? false,
     getMinute: () => scene()?.getMinute() ?? -1,
     getCamera: () => scene()?.getCameraInfo() ?? null,
+    snapshot: () => scene()?.snapshot() ?? EMPTY_SNAPSHOT,
+    listHeard: () => scene()?.listHeard() ?? [],
+    setZoom: (z) => scene()?.setRelativeZoom(z),
+    centerOn: (id) => scene()?.centerOn(id) ?? false,
   };
   if (testHooksEnabled()) window.__VIEWER__ = api;
   return ctl;

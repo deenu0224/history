@@ -1,5 +1,5 @@
 // Contract shared by world and UI. Implementation: world track (WebAudio synthesis, no asset files).
-export type SfxName = 'discover' | 'success' | 'partial' | 'fail' | 'page' | 'step' | 'open' | 'close' | 'observe' | 'return' | 'select';
+export type SfxName = 'discover' | 'success' | 'partial' | 'fail' | 'page' | 'step' | 'open' | 'close' | 'observe' | 'return' | 'select' | 'shutter';
 export type Ambience = 'past' | 'modern' | 'none';
 
 const MASTER_SCALE = 0.55;
@@ -130,6 +130,11 @@ export function playSfx(name: SfxName): void {
       break;
     case 'select':
       tone(c, bus, 880, t, { type: 'sine', peak: 0.07, attack: 0.004, decay: 0.07 });
+      break;
+    case 'shutter':
+      burst(c, bus, t, { type: 'highpass', freq: 2600, peak: 0.07, attack: 0.002, decay: 0.03 });
+      tone(c, bus, 420, t + 0.035, { type: 'square', peak: 0.025, attack: 0.002, decay: 0.04, glideTo: 240 });
+      burst(c, bus, t + 0.05, { type: 'bandpass', freq: 1800, q: 1.2, peak: 0.05, attack: 0.002, decay: 0.05 });
       break;
     case 'discover': {
       const f = PENTA[Math.floor(Math.random() * PENTA.length)];

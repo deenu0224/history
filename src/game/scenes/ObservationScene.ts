@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { bus } from '@/core/bus';
-import { formatClock, viewerFrame, type HotspotStatus, type ViewerFrame } from '@/core/observation';
+import { formatClock, linesAt, npcPoseAt, viewerFrame, type HotspotStatus, type ViewerFrame } from '@/core/observation';
 import type { Id, Interactable, NpcDef, ObservationTimeline } from '@/core/types';
 import { content } from '@/data';
+import type { Flags } from '@/core/world';
 import { MAPS, type SceneId } from '@/data/world/maps';
 import { selectTutorial, selectViewerFrame, useGameStore } from '@/store/gameStore';
 import { OBJ_KEYS } from '../art';
@@ -32,10 +33,13 @@ import { rgbToHex, type RGB } from '../logic/clock';
 import { Gesture } from '../logic/gesture';
 import { buildSolidGrid } from '../logic/grid';
 import { pickHotspot, type HitTarget } from '../logic/hit';
+import { inDegraded, mostlyVisible } from '../logic/capture';
+import { HearingTracker, inHearRange, requiredZoom, type HearNpcIn, type HearSpec } from '../logic/hearing';
+import type { DomLayer } from '../viewer/domLayer';
 import { walkRoute } from '../logic/route';
 import { viewerTint } from '../logic/tint';
 import { TILE, type MapData } from '../logic/types';
-import type { AnchorRect, ViewerCamera, ViewerHost, ViewerHotspotInfo } from '../viewer/types';
+import type { AnchorRect, ViewerCamera, ViewerHost, ViewerHotspotInfo, ViewerSnapshot } from '../viewer/types';
 import { NpcActor, tileToFeet } from './NpcActor';
 
 interface LightDef {
@@ -122,7 +126,7 @@ export class ObservationScene extends Phaser.Scene {
   private zoomAnchor = { x: 0, y: 0 };
   private wheelIdleAt = 0;
   private vel = { x: 0, y: 0 };
-  private focusTarget: { x: number; y: number } | null = null;
+  private focusGoal: { x: number; y: number } | null = null;
   private gesture!: Gesture;
   private jitter = { x: 0, y: 0 };
   private jitterAt = 0;
@@ -142,6 +146,15 @@ export class ObservationScene extends Phaser.Scene {
   private applied = false;
   private cleanups: (() => void)[] = [];
 
+  // 엿듣기·훼손
+  private dom: DomLayer | null = null;
+  private tracker = new HearingTracker();
+  private npcDefs = new Map<Id, NpcDef>();
+  private flags: Flags = {};
+  private inRangeIds: string[] = [];
+  private degradedNow = false;
+  private degLevel = 0;
+
   constructor() {
     super('Observation');
   }
@@ -150,6 +163,7 @@ export class ObservationScene extends Phaser.Scene {
 
   create(): void {
     this.host = this.registry.get('host') as ViewerHost;
+    this.dom = (this.registry.get('dom') as DomLayer | undefined) ?? null;
     const tl = content.timelines.find((t) => t.id === this.host.timelineId);
     if (!tl) {
       this.add.text(8, 8, `timeline not found: ${this.host.timelineId}`, { color: '#dccfae', fontSize: '12px' });
@@ -168,6 +182,8 @@ export class ObservationScene extends Phaser.Scene {
     this.createObjects();
     this.createWindows();
     this.createNpcs();
+    for (const n of content.npcs) this.npcDefs.set(n.id, n);
+    this.tracker.reset();
     this.createHotspots();
     this.createAtmosphere();
     this.createOverlays();
@@ -182,6 +198,9 @@ export class ObservationScene extends Phaser.Scene {
     this.host.onReady?.();
     bus.emit('viewer:ready', { timelineId: tl.id });
 
+    const onPost = () => this.postRender();
+    this.game.events.on(Phaser.Core.Events.POST_RENDER, onPost);
+    this.cleanups.push(() => this.game.events.off(Phaser.Core.Events.POST_RENDER, onPost));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     this.events.once(Phaser.Scenes.Events.DESTROY, () => this.cleanup());
 
@@ -419,11 +438,11 @@ export class ObservationScene extends Phaser.Scene {
       this.cam = zoomAt(this.cam, this.zoomTarget, this.view, this.zoomAnchor.x, this.zoomAnchor.y);
     }
     // 포커스 이동
-    if (this.focusTarget) {
+    if (this.focusGoal) {
       const k = smoothK(dt, 9);
-      this.cam.x += (this.focusTarget.x - this.cam.x) * k;
-      this.cam.y += (this.focusTarget.y - this.cam.y) * k;
-      if (Math.hypot(this.focusTarget.x - this.cam.x, this.focusTarget.y - this.cam.y) < 0.3) this.focusTarget = null;
+      this.cam.x += (this.focusGoal.x - this.cam.x) * k;
+      this.cam.y += (this.focusGoal.y - this.cam.y) * k;
+      if (Math.hypot(this.focusGoal.x - this.cam.x, this.focusGoal.y - this.cam.y) < 0.3) this.focusGoal = null;
     }
     this.clampCam();
     this.updateJitter(now);
@@ -433,7 +452,7 @@ export class ObservationScene extends Phaser.Scene {
   /** 카메라 목표를 즉시 정리: 관성·포커스 취소 */
   private haltMotion(): void {
     this.vel = { x: 0, y: 0 };
-    this.focusTarget = null;
+    this.focusGoal = null;
   }
 
   // ───────────────────────── 입력 ─────────────────────────
@@ -556,7 +575,7 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   private screenBox(h: Hs): HitTarget | null {
-    if (h.status === 'hidden') return null;
+    if (h.status === 'hidden' || this.degradedNow) return null;
     const b = this.worldBox(h);
     if (!b) return null;
     const d = this.dpr;
@@ -579,6 +598,7 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   private onTap(x: number, y: number): void {
+    if (this.degradedNow) return;
     const id = this.hitAt(x, y);
     if (id) {
       this.tapHotspot(id);
@@ -594,14 +614,15 @@ export class ObservationScene extends Phaser.Scene {
     this.zoomTarget = nextZoomLevel(this.cam.zoom, this.range);
     // 더블탭한 점이 화면 가운데 쪽으로 오도록 약간 끌어당긴다
     const w = screenToWorld(this.cam, this.view, x * d, y * d);
-    this.focusTarget = { x: w.x, y: w.y };
+    this.focusGoal = { x: w.x, y: w.y };
   }
 
   /** 탭 처리(실제 탭·테스트 훅 공통) */
   tapHotspot(id: Id): boolean {
     const h = this.hs.find((x) => x.id === id);
-    if (!h) return false;
+    if (!h || this.degradedNow) return false;
     const r = useGameStore.getState().tapHotspot(id);
+    this.host.onTapHotspot?.(id);
     this.ripple(h);
     if (r) {
       bus.emit('feedback', { kind: 'tap' });
@@ -665,6 +686,8 @@ export class ObservationScene extends Phaser.Scene {
     this.reduceFlicker = !!st.settings.reduceFlicker;
     this.detailedHints = st.settings.hintLevel === 'detailed';
     this.tapped = new Set(st.tapped);
+    this.flags = st.flags;
+    this.degradedNow = inDegraded(this.minute, this.host.degraded);
 
     const status = new Map(frame.hotspots.map((h) => [h.id, h.status]));
     for (const f of frame.npcs) this.actors.get(f.id)?.setPose(f.pose, snap || first);
@@ -721,15 +744,7 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   focusHotspot(id: Id): void {
-    const h = this.findHs(id);
-    const b = h && this.worldBox(h);
-    if (!b) {
-      // 숨은 인물이라도 대상 위치로: 오브젝트 정의 좌표
-      const o = content.worldObjects.find((x) => x.id === id || `hs_${x.id}` === id);
-      if (o) this.focusTile(o.x, o.y);
-      return;
-    }
-    this.focusPoint(b.cx, b.cy);
+    this.focusTarget(id);
   }
 
   focusTile(x: number, y: number): void {
@@ -738,7 +753,7 @@ export class ObservationScene extends Phaser.Scene {
 
   private focusPoint(wx: number, wy: number): void {
     this.vel = { x: 0, y: 0 };
-    this.focusTarget = { x: wx, y: wy };
+    this.focusGoal = { x: wx, y: wy };
     if (this.cam.zoom < this.range.base) {
       this.zoomAnchor = { x: this.view.w / 2, y: this.view.h / 2 };
       this.zoomTarget = this.range.base;
@@ -983,7 +998,7 @@ export class ObservationScene extends Phaser.Scene {
       this.finder.setSize((W - inset * 2) / u, (H - inset * 2) / u);
     }
     this.finder.setScale(u / z);
-    const g = this.effectiveGlitch(now);
+    const g = Math.max(this.effectiveGlitch(now), this.degLevel * 0.62);
     const frame = this.reduceFlicker ? 0 : Math.floor(now / 90) % 4;
     this.noise.forEach((n, i) => {
       n.setVisible(i === frame);
@@ -1037,7 +1052,7 @@ export class ObservationScene extends Phaser.Scene {
     const pg = this.pulseGfx;
     pg.clear();
     for (const h of this.hs) {
-      const show = h.status === 'available';
+      const show = h.status === 'available' && !this.degradedNow;
       const b = show ? this.worldBox(h) : null;
       if (!b) {
         h.marker.setVisible(false);
@@ -1094,6 +1109,13 @@ export class ObservationScene extends Phaser.Scene {
     if (!this.ready) return;
     const dt = Math.min(delta / 1000, 0.05);
     const now = this.time.now;
+    const deg = inDegraded(this.minute, this.host.degraded);
+    if (deg !== this.degradedNow) {
+      this.degradedNow = deg;
+      this.host.onDegradedChange?.(deg);
+    }
+    this.degLevel += ((deg ? 1 : 0) - this.degLevel) * smoothK(dt, 7);
+    if (Math.abs((deg ? 1 : 0) - this.degLevel) < 0.01) this.degLevel = deg ? 1 : 0;
     this.stepCamera(dt);
     for (const a of this.actors.values()) a.update(dt);
     this.updateAtmosphere(dt);
@@ -1101,5 +1123,148 @@ export class ObservationScene extends Phaser.Scene {
     this.updateMarkers(now);
     this.drawRoute();
     this.updateAnchor();
+    this.hearTick(now);
+  }
+
+  // ───────────────────────── 엿듣기 ─────────────────────────
+
+  private hearSpec(l: unknown): HearSpec | undefined {
+    return (l as { hear?: HearSpec }).hear;
+  }
+
+  /** 매 프레임: 범위 계산 → 풍선 상태기계 → DOM 풍선/웅얼거림 + onHear */
+  private hearTick(now: number): void {
+    const input: HearNpcIn[] = [];
+    const meta = new Map<Id, { x: number; y: number; weight: number }>();
+    if (!this.degradedNow) {
+      const d = this.dpr;
+      const cx = this.view.w / 2;
+      const cy = this.view.h / 2;
+      const reach = 0.6 * Math.min(this.view.w, this.view.h);
+      for (const h of this.hs) {
+        if (!h.actor || h.status !== 'available' || !h.actor.shown) continue;
+        const def = this.npcDefs.get(h.targetId);
+        if (!def) continue;
+        const lines = linesAt(def, this.minute, this.flags);
+        if (!lines.length) continue;
+        const b = this.worldBox(h);
+        if (!b) continue;
+        const center = { x: this.cam.x, y: this.cam.y };
+        input.push({
+          id: def.id,
+          lines: lines.map((l) => ({
+            id: l.id,
+            text: l.text,
+            inRange: inHearRange({ zoom: this.cam.zoom, baseZoom: this.range.base, npc: { x: b.cx, y: b.cy }, center }, this.hearSpec(l)),
+          })),
+        });
+        const s = worldToScreen(this.cam, this.view, b.cx, b.cy - b.hh - 2);
+        const near = Math.max(0, 1 - Math.hypot(s.x - cx, s.y - cy) / reach);
+        meta.set(def.id, { x: s.x / d, y: s.y / d, weight: near });
+      }
+    }
+    const step = this.tracker.step(now, input);
+    this.inRangeIds = step.inRangeIds;
+    for (const n of step.newlyHeard) this.host.onHear?.(n.lineId, n.npcId);
+    if (!this.dom) return;
+    const W = this.view.w / this.dpr;
+    const H = this.view.h / this.dpr;
+    this.dom.setBubbles(
+      step.npcs
+        .filter((n) => {
+          const m = meta.get(n.id)!;
+          return m.x > -20 && m.x < W + 20 && m.y > -20 && m.y < H + 40;
+        })
+        .map((n) => {
+          const m = meta.get(n.id)!;
+          return { npcId: n.id, x: m.x, y: m.y, text: n.current?.text ?? null, lineId: n.current?.id ?? null, mumble: n.mumble, weight: m.weight };
+        }),
+    );
+  }
+
+  listHeard(): string[] {
+    return this.tracker.heardLineIds();
+  }
+
+  /** 렌더 직후: 훼손 모자이크를 그린다(WebGL 캔버스도 이때 읽힌다) */
+  private postRender(): void {
+    if (!this.dom || !this.ready) return;
+    this.dom.renderCorrupt(this.game.canvas, this.degLevel, this.time.now, this.reduceFlicker);
+  }
+
+  // ───────────────────────── 캡처 ─────────────────────────
+
+  snapshot(): ViewerSnapshot {
+    const d = this.dpr;
+    const W = this.view.w / d;
+    const H = this.view.h / d;
+    const visible: string[] = [];
+    for (const h of this.hs) {
+      if (h.status !== 'available') continue;
+      const t = this.screenBox(h);
+      if (t && mostlyVisible(t, W, H)) visible.push(h.id);
+    }
+    return {
+      minute: this.minute,
+      centerTile: { x: Math.floor(this.cam.x / TILE), y: Math.floor(this.cam.y / TILE) },
+      zoom: Math.round((this.cam.zoom / this.range.base) * 100) / 100,
+      visibleHotspotIds: visible,
+      heardLineIds: [...this.inRangeIds],
+      thumbDataUrl: this.dom ? this.dom.thumb(this.game.canvas) : '',
+    };
+  }
+
+  /** 테스트 훅: 기준 배율의 z 배로 즉시 */
+  setRelativeZoom(z: number): void {
+    const nz = Math.min(this.range.max, Math.max(this.range.min, this.range.base * z));
+    this.cam = { ...this.cam, zoom: nz };
+    this.zoomTarget = nz;
+    this.wheelIdleAt = 0;
+    this.clampCam();
+    this.applyCamera();
+  }
+
+  /** 대상의 월드 중심(숨은 인물은 그 시각 일정 위치) */
+  private targetPoint(id: Id): { x: number; y: number; npc: boolean } | null {
+    const h = this.findHs(id);
+    const b = h && this.worldBox(h);
+    if (b) return { x: b.cx, y: b.cy, npc: h!.kind === 'npc' };
+    const def = this.npcDefs.get(h?.targetId ?? id) ?? this.npcDefs.get(id.replace(/^hs_/, ''));
+    if (def) {
+      const pose = npcPoseAt(def, this.minute);
+      if (pose) {
+        const f = tileToFeet({ x: pose.x, y: pose.y });
+        return { x: f.x, y: f.y - 17, npc: true };
+      }
+    }
+    const o = content.worldObjects.find((x) => x.id === id || `hs_${x.id}` === id);
+    return o ? { x: o.x * TILE + TILE / 2, y: o.y * TILE + TILE / 2, npc: false } : null;
+  }
+
+  centerOn(id: Id): boolean {
+    const p = this.targetPoint(id);
+    if (!p) return false;
+    this.haltMotion();
+    this.cam = { ...this.cam, x: p.x, y: p.y };
+    this.clampCam();
+    this.applyCamera();
+    return true;
+  }
+
+  /** 체크리스트 포커스: 인물이면 엿들을 수 있는 배율까지 확대해서 가운데로 */
+  focusTarget(id: Id): void {
+    const p = this.targetPoint(id);
+    if (!p) return;
+    this.focusPoint(p.x, p.y);
+    if (!p.npc) return;
+    const h = this.findHs(id);
+    const def = this.npcDefs.get(h?.targetId ?? id);
+    const specs = def ? linesAt(def, this.minute, this.flags).map((l) => this.hearSpec(l)) : [];
+    const need = Math.max(requiredZoom(this.range.base, undefined), ...specs.map((sp) => requiredZoom(this.range.base, sp)));
+    const lv = zoomLevels(this.range);
+    const target = lv.find((l) => l + 0.01 >= need) ?? this.range.max;
+    this.zoomAnchor = { x: this.view.w / 2, y: this.view.h / 2 };
+    this.zoomTarget = Math.max(this.zoomTarget, target);
+    this.wheelIdleAt = 0;
   }
 }
