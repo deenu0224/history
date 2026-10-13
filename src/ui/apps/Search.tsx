@@ -1,7 +1,8 @@
 /** 통합 DB 검색(Her Story 식): 입력 또는 검색어 칩 → 결과 카드 → 결과 속 밑줄 말은 다시 검색. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NO_ARTICLE_TEXT } from '@/core/search';
 import type { DbRecord, Id, SearchResultRef } from '@/core/types';
-import { selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
+import { SOURCE_ACCESS_FLAG, selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
 import { Px } from '../lib/art';
 import { CONTENT, IDX } from '../lib/content';
 import { feedbackForRewards, describeRewards } from '../lib/rewards';
@@ -31,6 +32,7 @@ interface ShownHit {
   isNew: boolean;
   linked: string[];
   results: SearchResultRef[];
+  noArticle: boolean;
 }
 
 function SearchPane({ onOpenSource }: { onOpenSource(id: Id): void }) {
@@ -59,10 +61,11 @@ function SearchPane({ onOpenSource }: { onOpenSource(id: Id): void }) {
           isNew: !prev.includes(h.entryId),
           linked: h.linked,
           results: h.results,
+          noArticle: h.noArticle,
         })),
       );
-      if (out.status === 'ok') {
-        fx('search_hit');
+      if (out.status === 'ok' || out.status === 'no_article') {
+        fx(out.status === 'ok' ? 'search_hit' : 'search_miss');
         feedbackForRewards(out.gained);
       } else if (out.status !== 'empty') {
         fx('search_miss');
@@ -87,7 +90,7 @@ function SearchPane({ onOpenSource }: { onOpenSource(id: Id): void }) {
     if (last && !outcome) {
       setOutcome(last);
       setQ(last.query);
-      setHits(last.hits.map((h) => ({ entryId: h.entryId, term: h.term, isNew: false, linked: h.linked, results: h.results })));
+      setHits(last.hits.map((h) => ({ entryId: h.entryId, term: h.term, isNew: false, linked: h.linked, results: h.results, noArticle: h.noArticle })));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -117,7 +120,7 @@ function SearchPane({ onOpenSource }: { onOpenSource(id: Id): void }) {
   const gained = outcome ? describeRewards(outcome.gained) : [];
 
   return (
-    <div className="search" data-testid="app-search">
+    <div className="search" data-testid="app-db">
       <form className="search-bar" onSubmit={submit} role="search">
         <input
           ref={input}
@@ -233,6 +236,11 @@ function HitGroup({ hit, onOpenSource }: { hit: ShownHit; onOpenSource(id: Id): 
           <span aria-hidden="true">✓</span> {n}
         </p>
       ))}
+      {hit.noArticle && hit.results.length === 0 && (
+        <p className="no-article" data-testid="no-article">
+          {entry?.noArticleText ?? NO_ARTICLE_TEXT}
+        </p>
+      )}
       <div className="hit-cards">
         {hit.results.map((r) => (
           <ResultCard key={`${r.kind}:${r.id}`} r={r} onOpenSource={onOpenSource} />
@@ -357,6 +365,7 @@ function ProvMark({ p }: { p: string }) {
 function SourceCard({ id, onOpen }: { id: Id; onOpen(id: Id): void }) {
   const s = IDX.sources[id];
   const inLibrary = useGameStore((st) => st.sources.includes(id));
+  const access = useGameStore((st) => !!st.flags[SOURCE_ACCESS_FLAG]);
   if (!s) return null;
   return (
     <article className="rcard rcard-source">
@@ -367,22 +376,20 @@ function SourceCard({ id, onOpen }: { id: Id; onOpen(id: Id): void }) {
       <p>
         <T text={s.summary} />
       </p>
-      {inLibrary && (
+      {inLibrary && !access && <p className="dim small">사료 서재에 보관되었다.</p>}
+      {inLibrary && access && (
         <div className="rcard-actions">
           <button
-              type="button"
-              className="btn btn-small"
-              data-testid={`open-source-${id}`}
-              onClick={() => {
-                fx('tap');
-                onOpen(id);
-              }}
-            >
-              사료 뷰어에서 열기
-            </button>
-          ) : (
-            <span className="dim small">사료 서재에 보관되었다.</span>
-          )}
+            type="button"
+            className="btn btn-small"
+            data-testid={`open-source-${id}`}
+            onClick={() => {
+              fx('tap');
+              onOpen(id);
+            }}
+          >
+            사료 열람
+          </button>
         </div>
       )}
     </article>
@@ -438,3 +445,47 @@ function RecordRow({ rec, fieldKey, label, value }: { rec: DbRecord; fieldKey: s
   );
 }
 
+
+/** 통합 DB 검색 + 사료 서재(사료 뷰어)를 한 앱에 담는다. */
+export function Search() {
+  const [tab, setTab] = useState<'db' | 'lib'>('db');
+  const [src, setSrc] = useState<Id | undefined>();
+  const target = useGameStore((s) => s.ui.appTarget);
+  const front = useGameStore((s) => s.ui.app);
+  const libCount = useGameStore((s) => s.sources.length);
+  const access = useGameStore((s) => !!s.flags[SOURCE_ACCESS_FLAG]);
+  const prefill = useUi((s) => s.searchPrefill);
+
+  // 다른 곳에서 사료로 열었을 때(openSource → reader/target)
+  useEffect(() => {
+    if (target && IDX.sources[target] && useGameStore.getState().flags[SOURCE_ACCESS_FLAG]) {
+      setSrc(target);
+      setTab('lib');
+    }
+  }, [target, front]);
+  useEffect(() => {
+    if (prefill) setTab('db');
+  }, [prefill]);
+
+  return (
+    <div className="search-app" data-testid="app-search">
+      <div className="subtabs" role="tablist" hidden={!access}>
+        <button role="tab" aria-selected={tab === 'db'} className={tab === 'db' ? 'on' : ''} data-testid="tab-db" onClick={() => setTab('db')}>
+          검색
+        </button>
+        {access && <button role="tab" aria-selected={tab === 'lib'} className={tab === 'lib' ? 'on' : ''} data-testid="tab-library" onClick={() => setTab('lib')}>
+          사료 서재 {libCount > 0 && <em>{libCount}</em>}
+        </button>}
+      </div>
+      <div className="search-host" hidden={tab !== 'db'}>
+        <SearchPane
+          onOpenSource={(id) => {
+            setSrc(id);
+            setTab('lib');
+          }}
+        />
+      </div>
+      {tab === 'lib' && access && <SourceReader initial={src} />}
+    </div>
+  );
+}

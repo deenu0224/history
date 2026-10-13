@@ -24,7 +24,7 @@ export const events: HistoricalEvent[] = [
     year: 1498,
     personIds: ['per_kim_ilson', 'per_yi_geukdon', 'per_yu_jagwang', 'per_kim_jongjik', 'per_eo_segyeom'],
     placeId: 'plc_chunchugwan',
-    sourceIds: ['src_sacho_order', 'src_house_search', 'src_verdict', 'src_jouijemun'],
+    sourceIds: ['src_sacho_order', 'src_house_search', 'src_verdict', 'src_proclaim', 'src_jouijemun'],
     summary:
       '『성종실록』 편찬 중 실록청 당상 이극돈이 김일손의 사초에 실린 김종직의 「조의제문」을 문제 삼아 유자광에게 알렸고, ' +
       '유자광이 이를 왕에게 고하면서 시작되었다. 7월 11일 왕이 사초를 대내로 들이게 했고, 7월 12일부터 26일까지 신문한 끝에 ' +

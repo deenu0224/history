@@ -225,6 +225,9 @@ function Bubble({ message: m, reply, showName, avatar }: { message: Message; rep
   const answerChoice = reply ? m.choices?.find((c) => c.id === reply) : undefined;
   const rw = useRewriteText('message', m.id, m.text);
   const [src, setSrc] = useState(false);
+  const [old, setOld] = useState(false);
+  const log = useGameStore((st) => st.rewriteLog);
+  const original = log.find((r) => r.kind === 'message' && r.targetId === m.id)?.before;
   const chooseReply = useGameStore((s) => s.chooseReply);
   const showProv = useGameStore((s) => s.settings.showProvenance);
   const extra = m.grants?.terms ?? [];
@@ -241,6 +244,23 @@ function Bubble({ message: m, reply, showName, avatar }: { message: Message; rep
             </button>
           )}
           {showProv && m.provenance !== 'verified' && <span className="prov-mark">{m.provenance === 'reconstructed' ? '재구성' : '가상'}</span>}
+          {original !== undefined && !mine && (
+            <button
+              type="button"
+              className="pencil-mark"
+              aria-label="어제는 이렇게 말했었다"
+              aria-expanded={old}
+              data-testid={`pencil-${m.id}`}
+              onClick={() => setOld((v) => !v)}
+            >
+              ✎
+            </button>
+          )}
+          {old && original !== undefined && (
+            <p className="pencil-old hand" data-testid={`pencil-old-${m.id}`}>
+              어제는 이렇게 말했었다 — {original}
+            </p>
+          )}
           {src && (
             <ul className="src-list">
               {m.sources?.map((s) => (

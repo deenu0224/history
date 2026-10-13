@@ -21,6 +21,8 @@ const SFX: Record<string, SfxName> = {
   soft_thud: 'fail',
   message: 'select',
   case_open: 'open',
+  brush: 'page',
+  ink_bloom: 'discover',
 };
 
 export const sfxFor = (name: string): SfxName | undefined => SFX[name];

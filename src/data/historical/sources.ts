@@ -77,9 +77,20 @@ export const sources: HistoricalSource[] = [
     provenance: V,
     title: '『연산군일기』 연산 4년 7월 26일 기사',
     summary: '사초 사건 관련자들의 죄목을 논해 김일손·권오복·권경유를 능지처사하기로 한 기사.',
-    excerpt: '김일손(金馹孫)·권오복(權五福)·권경유(權景𥙿)는 대역(大逆)의 죄에 해당하니 능지 처사(凌遲處死)하고',
-    sources: [REF.sillokVerdict, REF.sillokProclaim],
-    relatedIds: ['per_kim_ilson', 'evt_muo_sahwa'],
+    excerpt:
+      '김일손(金馹孫)·권오복(權五福)·권경유(權景𥙿)는 대역(大逆)의 죄에 해당하니 능지 처사(凌遲處死)하고 … ' +
+      '일손 등을 벨 적에는 백관(百官)으로 하여금 가 보게 하라.',
+    sources: [REF.sillokVerdict],
+    relatedIds: ['per_kim_ilson', 'evt_muo_sahwa', 'src_proclaim'],
+  },
+  {
+    id: 'src_proclaim',
+    provenance: V,
+    title: '『연산군일기』 연산 4년 7월 27일 기사',
+    summary: '김일손 등을 벤 것을 종묘 사직에 고하고 중외에 사령을 반포한 기사. 이미 세상을 떠난 김종직은 대역으로 논단되어 부관참시되었다.',
+    excerpt: '김일손 등을 벤 것을 종묘 사직에 고유하고, … 대역(大逆)으로써 논단하여 부관 참시(剖棺斬屍)를 하였고',
+    sources: [REF.sillokProclaim, REF.kimJongjik],
+    relatedIds: ['per_kim_ilson', 'per_kim_jongjik', 'evt_muo_sahwa', 'src_verdict'],
   },
   {
     id: 'src_gyeongguk',
@@ -99,10 +110,9 @@ export const sources: HistoricalSource[] = [
     hanja: '弔義帝文',
     compiled: 1457,
     author: '김종직',
-    summary:
-      '김종직이 1457년에 지은 글. 꿈에 초나라 의제를 만난 일을 적으며, 의제를 죽인 항우에 세조를 빗댄 것으로 읽혔다. ' +
-      '제자 김일손이 사관으로 있을 때 사초에 실었고, 『성종실록』 편찬 중 문제가 되어 무오사화의 발단이 되었다.',
-    sources: [REF.jouijemun, REF.muoSahwa],
+    // 두 현실 모두에서 참인 서술만(사초 수록·사화의 발단은 복원 뒤 도감 필드로)
+    summary: '김종직이 1457년에 지은 글. 꿈에 초나라 의제를 만난 일을 적었다. 의제를 죽인 항우에 세조를 빗댄 글로 해석된다.',
+    sources: [REF.jouijemun],
     relatedIds: ['per_kim_jongjik', 'per_kim_ilson', 'evt_muo_sahwa'],
   },
 ];

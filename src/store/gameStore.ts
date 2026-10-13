@@ -1,48 +1,65 @@
 /**
  * 결록 단말 스토어(Zustand). 진행 상태 + 액션. core 를 호출해 상태를 바꾼다.
- * 걷기 폐지: examine/talk/setScene 은 제거되고 search · 관측 뷰어(start/scrub/tap/end) · 사료 구절 · 메시지 · 기록관으로 대체.
- * 상태가 바뀔 때마다 syncState() 가 메시지 도착, 정합성 보정, 튜토리얼 완료를 반영한다(순수 함수).
+ * 앱 5개: 메신저 · 검색(원문 보기 포함) · 관측 뷰어 · 증거 보드(카드 겹치기 포함) · 손 노트(기록관 탭 포함).
+ * 상태가 바뀔 때마다 syncState() 가 메시지 도착, 정합성 보정(말소), 현실 이동(복원), 튜토리얼 완료를 반영한다(순수 함수).
+ * 복원은 자동이 아니다: 추리 확정 → 손 노트에 기록하기(recordFact) → 그 기록을 조건으로 가진 RealityShift 적용.
  */
 import { create } from 'zustand';
 import type { ModalKind } from '@/core/bus';
 import { advanceStage, completion, countAtLeast, toStage } from '@/core/collection';
-import { indexContent, maxLevel, type ContentIndex } from '@/core/content';
+import { evidenceView, indexContent, maxLevel, type ContentIndex } from '@/core/content';
 import { resolveDeduction } from '@/core/deduction';
 import { addNote, emptyNotebook, openQuestions, resolveNote } from '@/core/notebook';
+import { impliedRange } from '@/core/chronology';
 import {
   clampMinute,
   displaySpeaker,
   hotspotStatus,
   linesAt,
+  npcRoute,
+  timelineTicks,
   viewerFrame,
   type HotspotStatus,
+  type NpcRoute,
+  type TimelineTick,
   type ViewerFrame,
 } from '@/core/observation';
 import { loadGame, saveGame, type PersistedState, type SaveFile, type SaveSlot, type Settings } from '@/core/save';
-import { searchIndex, searchMessage, type MatchKind, type SearchStatus } from '@/core/search';
+import { NO_ARTICLE_TEXT, searchIndex, searchMessage, type MatchKind, type SearchStatus } from '@/core/search';
 import {
   activeSteps,
   checkState,
   coachVisible,
   dueCorrections,
   dueMessages,
+  dueShifts,
   emptyStats,
   emptyTutorial,
+  findLink,
   hintText,
   hintTier,
   isAppUnlocked,
   memoView,
+  messageText,
+  messageView,
   newlyDone,
   recordView,
+  searchResultsView,
   tierFromIdle,
   unlockedApps,
+  type RealityLayers,
 } from '@/core/terminal';
 import type {
   AppId,
   ArchiveExhibit,
+  CollectionField,
   CollectionStage,
   ContentBundle,
   DbRecord,
+  EvidenceLink,
+  RecordAct,
+  RewriteEntry,
+  TimeConstraint,
   DeductionSubmission,
   FlagValue,
   Grants,
@@ -79,6 +96,8 @@ export interface SearchHit {
   match: MatchKind;
   term: string;
   results: SearchResultRef[];
+  /** 말소된 기사: 결과 없음('해당 기사 없음'). 복원 뒤에는 false(표식 없음). */
+  noArticle: boolean;
   /** 관측·사료와 연결되어 열린 조건부 보상의 메모 */
   linked: string[];
 }
@@ -118,6 +137,23 @@ export interface PhraseResult {
   gained: Reward[];
 }
 
+export type LinkStatus = 'linked' | 'already' | 'no_link' | 'not_ready' | 'not_owned';
+export interface LinkResult {
+  status: LinkStatus;
+  message: string;
+  link?: EvidenceLink;
+  gained: Reward[];
+}
+
+export type RecordStatus = 'recorded' | 'already' | 'not_ready' | 'unknown';
+export interface RecordResult {
+  status: RecordStatus;
+  act?: RecordAct;
+  /** 이 기록으로 적용된 현실 이동 */
+  shiftId?: Id;
+  rewrites: RewriteEntry[];
+}
+
 export interface ExhibitResult {
   exhibit: ArchiveExhibit;
   lines: string[];
@@ -145,6 +181,14 @@ export interface GameActions {
   readMessage(id: Id): Message | null;
   chooseReply(messageId: Id, choiceId: Id): boolean;
   inspectExhibit(id: Id): ExhibitResult | null;
+  /** 증거 보드: 카드 겹치기. 정확히 맞는 조합이면 추론 카드가 생긴다. */
+  linkEvidence(ids: Id[]): LinkResult;
+  /** 손 노트에 기록하기(사관의 직필) → 복원(RealityShift) */
+  recordFact(actId: Id): RecordResult;
+  /** UI 가 다시 쓰기 연출을 마쳤음을 알림(recentRewrites 비움) */
+  ackRewrites(): void;
+  /** UI 가 자동으로 연 손 노트의 이전/이후 쪽을 닫음 */
+  ackDiffPage(): void;
   // ── 튜토리얼 ──
   dismissCoach(stepId: Id): void;
   tickIdle(seconds: number): TutorialView | null;
@@ -175,6 +219,10 @@ export interface GameState extends PersistedState, GameActions {
   lastSearch: SearchOutcome | null;
   lastTap: TapResult | null;
   lastSavedAt: string | null;
+  /** 방금 일어난 다시 쓰기(말소·복원). UI 가 깜빡임/번짐 연출 뒤 ackRewrites(). 저장되지 않음. */
+  recentRewrites: RewriteEntry[];
+  /** 방금 복원이 일어났다: UI 가 손 노트의 이 현실 이동(shift id) 이전/이후 쪽을 자동으로 연다. 저장되지 않음. */
+  pendingDiffPageId: Id | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -188,6 +236,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const DEFAULT_TIMELINE = 'tl_obs001';
+/** 원문 대조(구절 등록) 권한. 정합성 보정 뒤 동료가 열어 준다(검색 앱의 원문 보기 안). */
+export const SOURCE_ACCESS_FLAG = 'source_access';
 const SEARCH_LOG_MAX = 200;
 
 export function initialPersisted(): PersistedState {
@@ -208,6 +258,10 @@ export function initialPersisted(): PersistedState {
     read: [],
     replies: {},
     corrections: [],
+    shifts: [],
+    rewriteLog: [],
+    links: [],
+    recorded: [],
     tapped: [],
     exhibitsSeen: [],
     obsMinute: {},
@@ -291,26 +345,119 @@ export function reduceRewards(s: PersistedState, rewards: readonly Reward[], idx
   return { state, gained };
 }
 
+const layersOf = (c: ContentBundle): RealityLayers => ({ corrections: c.corrections, shifts: c.shifts });
+
+/** 레코드를 다시 쓰기 기록용 한 덩어리 글로. */
+export const recordSummary = (r: DbRecord) => r.fields.map((f) => `${f.label}: ${f.value}`).join('\n');
+
+/** 보정(말소) 하나를 적용하고 다시 쓰기 기록을 남긴다. */
+function applyCorrection(s: PersistedState, id: Id, c: ContentBundle, idx: ContentIndex): { state: PersistedState; log: RewriteEntry[] } {
+  const e = idx.corrections[id]!;
+  const layers = layersOf(c);
+  const log: RewriteEntry[] = [];
+  const after: PersistedState = { ...s, corrections: [...s.corrections, id] };
+  const entry = (kind: RewriteEntry['kind'], targetId: Id, before: string, aft: string): RewriteEntry => ({
+    seq: s.rewriteLog.length + log.length,
+    sourceId: id,
+    tone: 'erase',
+    kind,
+    targetId,
+    before,
+    after: aft,
+  });
+  for (const p of e.memoPatches) {
+    const memo = idx.memos[p.memoId];
+    if (!memo || !checkState(s, memo.when)) continue;
+    const b = memoView(memo, layers, s);
+    const a = memoView(memo, layers, after);
+    if (b && b.text !== (a?.text ?? '')) log.push(entry('memo', memo.id, b.text, a?.text ?? ''));
+  }
+  for (const rid of new Set(e.recordPatches.map((p) => p.recordId))) {
+    const rec = idx.records[rid];
+    if (!rec) continue;
+    const b = recordSummary(recordView(rec, layers, s));
+    const a = recordSummary(recordView(rec, layers, after));
+    if (a !== b) log.push(entry('record', rid, b, a));
+  }
+  let state = reduceRewards(after, grantsToRewards(e.grants), idx).state;
+  state = { ...state, rewriteLog: [...state.rewriteLog, ...log] };
+  return { state, log };
+}
+
+/** 현실 이동(복원) 하나를 적용: 다시 쓰기 기록(이미 도착한 메시지만), 복원 보상, 손 노트 이전/이후. */
+function applyShift(s: PersistedState, id: Id, c: ContentBundle, idx: ContentIndex): { state: PersistedState; log: RewriteEntry[] } {
+  const sh = idx.shifts[id]!;
+  const layers = layersOf(c);
+  const after: PersistedState = { ...s, shifts: [...s.shifts, id] };
+  const log: RewriteEntry[] = [];
+  const entry = (kind: RewriteEntry['kind'], targetId: Id, before: string, aft: string): RewriteEntry => ({
+    seq: s.rewriteLog.length + log.length,
+    sourceId: id,
+    tone: 'restore',
+    kind,
+    targetId,
+    before,
+    after: aft,
+  });
+  for (const r of sh.messageRewrites) {
+    const m = idx.messages[r.messageId];
+    if (!m || !s.inbox.includes(m.id)) continue; // 아직 오지 않은 메시지는 처음부터 새 현실로 도착한다
+    const b = messageText(m, layers, s);
+    if (b !== r.newText) log.push(entry('message', m.id, b, r.newText));
+  }
+  for (const r of sh.recordRewrites) {
+    const rec = idx.records[r.recordId];
+    if (!rec) continue;
+    const b = recordSummary(recordView(rec, layers, s));
+    const a = recordSummary(recordView(rec, layers, after));
+    if (a !== b) log.push(entry('record', rec.id, b, a));
+  }
+  for (const r of sh.searchRewrites ?? [])
+    if (s.searched.includes(r.entryId)) {
+      const e = idx.searchEntries[r.entryId];
+      if (!e) continue;
+      const b = searchResultsView(e, layers, s);
+      log.push(entry('search', e.id, b.noArticle ? (e.noArticleText ?? NO_ARTICLE_TEXT) : `${b.results.length}건`, `${r.results.length}건`));
+    }
+  const diffNotes: Reward[] = sh.notebookDiff.map((d) => ({
+    type: 'notebook',
+    note: { id: d.id, section: 'verified', text: d.after, before: d.before, refIds: [sh.id], provenance: d.provenance ?? 'verified' },
+  }));
+  let state = reduceRewards(after, [...grantsToRewards(sh.unlocks), ...diffNotes], idx).state;
+  state = { ...state, rewriteLog: [...state.rewriteLog, ...log] };
+  return { state, log };
+}
+
 /**
- * 조건으로 생기는 일을 반영(순수): 메시지 도착(도착 시 grants), 정합성 보정, 튜토리얼 완료.
+ * 조건으로 생기는 일을 반영(순수): 메시지 도착(도착 시 grants), 정합성 보정(말소), 현실 이동(복원), 튜토리얼 완료.
  * 연쇄(도착 → 플래그 → 다음 도착)를 위해 변화가 없을 때까지 반복한다.
  */
 export function syncState(s0: PersistedState, c: ContentBundle, idx: ContentIndex) {
   let s = s0;
   const arrived: Id[] = [];
   const corrected: Id[] = [];
-  for (let guard = 0; guard < 16; guard++) {
+  const shifted: Id[] = [];
+  const rewrites: RewriteEntry[] = [];
+  for (let guard = 0; guard < 24; guard++) {
     let changed = false;
+    for (const e of dueCorrections(c.corrections, s)) {
+      const r = applyCorrection(s, e.id, c, idx);
+      s = r.state;
+      rewrites.push(...r.log);
+      corrected.push(e.id);
+      changed = true;
+    }
+    for (const sh of dueShifts(c.shifts, s)) {
+      const r = applyShift(s, sh.id, c, idx);
+      s = r.state;
+      rewrites.push(...r.log);
+      shifted.push(sh.id);
+      changed = true;
+    }
     for (const m of dueMessages(c.messages, s, new Set(s.inbox))) {
       s = { ...s, inbox: [...s.inbox, m.id] };
       s = reduceRewards(s, grantsToRewards(m.grants), idx).state;
       arrived.push(m.id);
-      changed = true;
-    }
-    for (const e of dueCorrections(c.corrections, s)) {
-      s = { ...s, corrections: [...s.corrections, e.id] };
-      s = reduceRewards(s, grantsToRewards(e.grants), idx).state;
-      corrected.push(e.id);
       changed = true;
     }
     const done = newlyDone(c.tutorial, s, s.tutorial);
@@ -320,7 +467,7 @@ export function syncState(s0: PersistedState, c: ContentBundle, idx: ContentInde
     }
     if (!changed) break;
   }
-  return { state: s, arrived, corrected };
+  return { state: s, arrived, corrected, shifted, rewrites };
 }
 
 /** v1 저장 등으로 검색어 수첩이 비었을 때: 이미 얻은 플래그를 주는 획득처의 검색어를 채운다. */
@@ -336,8 +483,17 @@ export function backfillTerms(s: PersistedState, c: ContentBundle): PersistedSta
 }
 
 const freshUi = (): UiState => ({ modal: null, paused: false, app: null, observation: null });
+const freshTransient = () => ({
+  ui: freshUi(),
+  lastResult: null,
+  lastSearch: null,
+  lastTap: null,
+  recentRewrites: [] as RewriteEntry[],
+  pendingDiffPageId: null as Id | null,
+});
 
 const NO_LINES_TEXT = '(지금은 별다른 말이나 움직임이 없다.)';
+const LINK_MISS_TEXT = '이 카드들은 아직 하나로 이어지지 않는다.';
 const HIDDEN_DEFAULT = '지금은 잘 보이지 않는다.';
 const PHRASE_MISS_DEFAULT = '이 구절과 맞춰 볼 관측 기록이 아직 없다.';
 
@@ -352,8 +508,12 @@ export function createGameStore(content: ContentBundle = defaultContent) {
     const persisted = () => pickPersisted(get());
     /** 영속 상태를 바꾸고 동기화 */
     const apply = (next: PersistedState) => {
-      const synced = syncState(next, content, idx).state;
-      set(synced);
+      const r = syncState(next, content, idx);
+      const extra: Partial<GameState> = {};
+      if (r.rewrites.length) extra.recentRewrites = [...get().recentRewrites, ...r.rewrites];
+      if (r.shifted.length) extra.pendingDiffPageId = r.shifted[r.shifted.length - 1]!;
+      set({ ...r.state, ...extra });
+      return r;
     };
     const commit = (rewards: readonly Reward[]) => {
       const { state, gained } = reduceRewards(get(), rewards, idx);
@@ -388,21 +548,25 @@ export function createGameStore(content: ContentBundle = defaultContent) {
         const res = searchIndex(content.searchEntries, query, (e) => checkState(s0, e.requires));
         const rewards: Reward[] = [];
         const hits: SearchHit[] = res.matches.map(({ entry, match, term }) => {
+          const view = searchResultsView(entry, layersOf(content), s0);
           rewards.push(...grantsToRewards(entry.grants));
-          for (const r of entry.results) if (r.kind === 'source') rewards.push({ type: 'source', sourceId: r.id });
+          for (const r of view.results) if (r.kind === 'source') rewards.push({ type: 'source', sourceId: r.id });
           const linked: string[] = [];
           for (const c of entry.conditional ?? [])
             if (checkState(s0, c.when)) {
               rewards.push(...grantsToRewards(c.grants));
               if (c.note) linked.push(c.note);
             }
-          return { entryId: entry.id, match, term, results: entry.results, linked };
+          return { entryId: entry.id, match, term, results: view.results, noArticle: view.noArticle, linked };
         });
+        const top = hits[0];
+        const status: SearchStatus = top?.noArticle ? 'no_article' : res.status;
+        const topEntry = top && idx.searchEntries[top.entryId];
         const newIds = res.matches.map((m) => m.entry.id).filter((id) => !s0.searched.includes(id));
         const miss = res.status === 'unknown' || res.status === 'too_short';
         const log = [
           ...s0.searchLog,
-          { seq: s0.stats.searches, query, normalized: res.normalized, status: res.status, entryIds: res.matches.map((m) => m.entry.id) },
+          { seq: s0.stats.searches, query, normalized: res.normalized, status, entryIds: res.matches.map((m) => m.entry.id) },
         ].slice(-SEARCH_LOG_MAX);
         if (res.status !== 'empty')
           bumpStats(
@@ -414,10 +578,13 @@ export function createGameStore(content: ContentBundle = defaultContent) {
         const outcome: SearchOutcome = {
           query,
           normalized: res.normalized,
-          status: res.status,
+          status,
           hits,
           gained,
-          message: searchMessage(res.status, query, hits.length, newIds.length),
+          message:
+            status === 'no_article'
+              ? searchMessage(status, query, hits.filter((h) => !h.noArticle).length, 0, topEntry?.noArticleText)
+              : searchMessage(status, query, hits.length, newIds.length),
         };
         set({ lastSearch: outcome });
         return outcome;
@@ -508,13 +675,15 @@ export function createGameStore(content: ContentBundle = defaultContent) {
       // ── 사료 뷰어 ──
       openSource(sourceId) {
         if (!get().sources.includes(sourceId)) return false;
-        return actions.openApp('reader', sourceId);
+        return actions.openApp('search', sourceId);
       },
       registerPhrase(sourceId, phraseId) {
         const ph = idx.phrases[phraseId];
         const s0 = get();
         if (!ph || ph.sourceId !== sourceId || !s0.sources.includes(sourceId))
           return { status: 'unavailable', message: '이 사료에서 고를 수 없는 구절입니다.', gained: [] };
+        if (!s0.flags[SOURCE_ACCESS_FLAG])
+          return { status: 'unavailable', message: '원문 대조 권한이 아직 없습니다.', gained: [] };
         if (s0.phrases.includes(phraseId)) return { status: 'already', message: '이미 등록한 구절입니다.', gained: [] };
         if (!checkState(s0, ph.when)) {
           bumpStats({ phraseMisses: 1 });
@@ -551,6 +720,46 @@ export function createGameStore(content: ContentBundle = defaultContent) {
         if (!s.exhibitsSeen.includes(id)) bumpStats({ exhibits: 1 }, { exhibitsSeen: [...s.exhibitsSeen, id] });
         return { exhibit: ex, lines: ex.lines, gained: commit(grantsToRewards(ex.grants)) };
       },
+
+      // ── 증거 보드: 카드 겹치기 ──
+      linkEvidence(ids) {
+        const s0 = get();
+        const uniq = [...new Set(ids)];
+        if (uniq.length < 2) return { status: 'no_link', message: '카드를 두 장 이상 겹쳐 보세요.', gained: [] };
+        if (uniq.some((id) => s0.evidence[id] === undefined))
+          return { status: 'not_owned', message: '아직 확보하지 않은 카드는 겹칠 수 없습니다.', gained: [] };
+        const link = findLink(content.links, uniq);
+        if (!link) {
+          bumpStats({ linkMisses: 1 });
+          actions.reportFail('link_miss');
+          return { status: 'no_link', message: LINK_MISS_TEXT, gained: [] };
+        }
+        if (s0.links.includes(link.id)) return { status: 'already', message: '이미 이어 둔 카드들입니다.', link, gained: [] };
+        if (!checkState(s0, link.requires)) {
+          bumpStats({ linkMisses: 1 });
+          actions.reportFail('link_miss');
+          return { status: 'not_ready', message: link.missText ?? LINK_MISS_TEXT, link, gained: [] };
+        }
+        bumpStats({ links: 1 }, { links: [...s0.links, link.id] });
+        const gained = commit([
+          { type: 'evidence', evidenceId: link.result.id, level: link.result.level },
+          ...grantsToRewards(link.grants),
+        ]);
+        return { status: 'linked', message: link.text, link, gained };
+      },
+
+      // ── 손 노트: 기록하기 ──
+      recordFact(actId) {
+        const act = idx.acts[actId];
+        const s0 = get();
+        if (!act) return { status: 'unknown', rewrites: [] };
+        if (s0.recorded.includes(actId)) return { status: 'already', act, rewrites: [] };
+        if (!checkState(s0, act.requires)) return { status: 'not_ready', act, rewrites: [] };
+        const r = apply({ ...s0, recorded: [...s0.recorded, actId] });
+        return { status: 'recorded', act, shiftId: r.shifted.includes(act.restores) ? act.restores : undefined, rewrites: r.rewrites };
+      },
+      ackRewrites: () => set({ recentRewrites: [] }),
+      ackDiffPage: () => set({ pendingDiffPageId: null }),
 
       // ── 튜토리얼 ──
       dismissCoach(stepId) {
@@ -642,11 +851,10 @@ export function createGameStore(content: ContentBundle = defaultContent) {
           tutorial: { ...base.tutorial, ...file.data.tutorial },
         };
         const synced = backfillTerms(syncState(merged, content, idx).state, content);
-        set({ ...synced, ui: freshUi(), lastResult: null, lastSearch: null, lastTap: null, lastSavedAt: file.savedAt });
+        set({ ...synced, ...freshTransient(), lastSavedAt: file.savedAt });
         return true;
       },
-      reset: () =>
-        set({ ...initial, ui: freshUi(), lastResult: null, lastSearch: null, lastTap: null, lastSavedAt: null }),
+      reset: () => set({ ...structuredClone(initial), ...freshTransient(), lastSavedAt: null }),
     };
 
     function completeObservation(id: Id): Reward[] {
@@ -658,10 +866,7 @@ export function createGameStore(content: ContentBundle = defaultContent) {
 
     return {
       ...structuredClone(initial),
-      ui: freshUi(),
-      lastResult: null,
-      lastSearch: null,
-      lastTap: null,
+      ...freshTransient(),
       lastSavedAt: null,
       ...actions,
     };
@@ -681,25 +886,227 @@ export interface InboxItem {
   reply?: Id;
 }
 
-/** 도착 순서대로. thread 를 주면 그 대화만. */
+/** 도착 순서대로, 지금 현실의 본문으로. thread 를 주면 그 대화만. 다시 쓰인 표식은 없다(selectRewrittenMessages 참고). */
 export function selectInbox(s: PersistedState, c: ContentBundle = defaultContent, thread?: Message['thread']): InboxItem[] {
   const byId = new Map(c.messages.map((m) => [m.id, m]));
+  const layers = layersOf(c);
   return s.inbox
     .map((id) => byId.get(id))
     .filter((m): m is Message => !!m && (!thread || m.thread === thread))
-    .map((message) => ({ message, read: s.read.includes(message.id), reply: s.replies[message.id] }));
+    .map((m) => ({ message: messageView(m, layers, s), read: s.read.includes(m.id), reply: s.replies[m.id] }));
+}
+
+export interface RewrittenMessage {
+  messageId: Id;
+  /** 플레이어가 처음 본 본문(연필 표시 '어제는 이렇게 말했었다') */
+  original: string;
+  /** 지금 본문 */
+  current: string;
+  /** 다시 쓰기들(오래된 순) */
+  history: RewriteEntry[];
+}
+
+/** 플레이어만 아는 것: 다시 쓰인 메시지와 원래 본문(메신저의 연필 표시용). 플레이어가 본 적 있는 것만. */
+export function selectRewrittenMessages(s: PersistedState): Record<Id, RewrittenMessage> {
+  const out: Record<Id, RewrittenMessage> = {};
+  for (const e of s.rewriteLog)
+    if (e.kind === 'message') {
+      const cur = out[e.targetId];
+      if (cur) {
+        cur.current = e.after;
+        cur.history.push(e);
+      } else out[e.targetId] = { messageId: e.targetId, original: e.before, current: e.after, history: [e] };
+    }
+  return out;
 }
 
 export const selectUnread = (s: PersistedState) => s.inbox.filter((id) => !s.read.includes(id)).length;
 
+/** 지금 현실의 DB 레코드(보정·복원 반영, 표식 없음). */
 export function selectRecord(s: PersistedState, id: Id, c: ContentBundle = defaultContent): DbRecord | undefined {
   const rec = c.records.find((r) => r.id === id);
-  return rec && recordView(rec, c.corrections, s.corrections);
+  return rec && recordView(rec, layersOf(c), s);
 }
 
-/** 단말 메모(보정 반영). 손글씨 노트는 s.notebook 그대로. */
+/** 단말 메모(보정 반영 — 지워진 메모는 없다). 손글씨 노트는 s.notebook 그대로. */
 export function selectMemos(s: PersistedState, c: ContentBundle = defaultContent): TerminalMemo[] {
-  return c.memos.filter((m) => checkState(s, m.when)).map((m) => memoView(m, c.corrections, s.corrections));
+  return c.memos
+    .filter((m) => checkState(s, m.when))
+    .map((m) => memoView(m, layersOf(c), s))
+    .filter((m): m is TerminalMemo => !!m);
+}
+
+// ── 복원·기록하기 ──────────────────────────────────────────────
+/** 지금 기록할 수 있는 사실(추리 확정 뒤 손 노트의 '기록하기'). 이미 기록한 것은 recorded: true. */
+export function selectRecordActs(s: PersistedState, c: ContentBundle = defaultContent) {
+  return [...c.acts]
+    .sort((a, b) => a.order - b.order)
+    .map((act) => ({ act, available: checkState(s, act.requires), recorded: s.recorded.includes(act.id) }))
+    .filter((x) => x.available || x.recorded);
+}
+
+export interface NotebookDiffPage {
+  shiftId: Id;
+  title: string;
+  tone: 'restore';
+  /** 손 노트의 이전(취소선) / 이후(새 글씨) */
+  rows: { id: Id; before: string; after: string }[];
+}
+
+/** 손 노트의 '복원' 쪽들(이전/이후 나란히). 적용 순. pendingDiffPageId 와 shiftId 로 맞춘다. */
+export function selectNotebookDiffs(s: PersistedState, c: ContentBundle = defaultContent): NotebookDiffPage[] {
+  return s.shifts
+    .map((id) => c.shifts.find((x) => x.id === id))
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .map((sh) => ({
+      shiftId: sh.id,
+      title: sh.title,
+      tone: 'restore' as const,
+      rows: sh.notebookDiff.map((d) => ({ id: d.id, before: d.before, after: d.after })),
+    }));
+}
+
+export interface Restoration {
+  shiftId: Id;
+  title: string;
+  /** '복원' 도장은 여기(개인 기록관 = 손 노트의 기록관 탭)에만 */
+  stamp: '복원';
+  items: { kind: 'source' | 'event' | 'record'; id: Id; title: string; provenance: Provenance; sources?: SourceRef[] }[];
+}
+
+/** 개인 기록관의 복원 목록(적용 순). */
+export function selectRestorations(s: PersistedState, c: ContentBundle = defaultContent): Restoration[] {
+  const idx = indexContent(c);
+  return s.shifts
+    .map((id) => idx.shifts[id])
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .map((sh) => ({
+      shiftId: sh.id,
+      title: sh.title,
+      stamp: '복원' as const,
+      items: sh.restores.map((r) => {
+        if (r.kind === 'source') {
+          const x = idx.sources[r.id]!;
+          return { ...r, title: x.title, provenance: x.provenance, sources: x.sources };
+        }
+        if (r.kind === 'event') {
+          const x = idx.events[r.id]!;
+          return { ...r, title: x.name, provenance: x.provenance, sources: x.sources };
+        }
+        const x = recordView(idx.records[r.id]!, layersOf(c), s);
+        return { ...r, title: x.title, provenance: x.provenance, sources: x.sources };
+      }),
+    }));
+}
+
+export type ProvenanceBadge = '검증' | '재구성' | '가상' | '변조';
+export const provenanceBadge = (p: Provenance, altered = false): ProvenanceBadge =>
+  altered ? '변조' : p === 'verified' ? '검증' : p === 'reconstructed' ? '재구성' : '가상';
+
+/**
+ * 엔딩 뒤 기록 열람 모드: 모든 DB 레코드의 지금 상태와 원래 상태. 변조된 레코드(altered)의 원래 상태는 '변조'.
+ * 변조 상태는 절대 실제 역사로 표시하지 않는다.
+ */
+export function selectRecordLedger(s: PersistedState, c: ContentBundle = defaultContent) {
+  return c.records.map((rec) => {
+    const current = recordView(rec, layersOf(c), s);
+    return {
+      id: rec.id,
+      current,
+      currentBadge: provenanceBadge(current.provenance, !!rec.altered && current.provenance !== 'verified'),
+      original: rec,
+      originalBadge: provenanceBadge(rec.provenance, !!rec.altered),
+      restored: !!rec.altered && current.provenance === 'verified',
+    };
+  });
+}
+
+/** 도감 항목에서 지금 보이는 필드(단계 + 말소 여부). */
+export function selectCodexFields(s: PersistedState, entryId: Id, c: ContentBundle = defaultContent): CollectionField[] {
+  const e = c.collection.find((x) => x.id === entryId);
+  const stage = s.collection[entryId] ?? 0;
+  if (!e) return [];
+  return e.fields.filter((f) => f.unlockStage <= stage && (!f.restoredBy || s.shifts.includes(f.restoredBy)));
+}
+
+// ── 연도 추리: 카드를 연표에 끌어다 놓는 UI 용 ───────────────────────
+export interface YearCard {
+  id: Id;
+  label: string;
+  text: string;
+  level: number;
+  /** 사료로 검증된 단계인가(단계 1 이상) */
+  verified: boolean;
+  /** 지금 공개된 연대 제약(없으면 연표에 올려도 경계를 만들지 않는다) */
+  time?: TimeConstraint;
+  /** 연표 위 모양: 이후(하한) / 이전(상한) / 둘 다 / 없음 */
+  shape: 'lower' | 'upper' | 'both' | 'none';
+  /** 카드 고유 피드백 한 줄(정답 없음) */
+  feedback?: string;
+}
+
+/** 보유한 연도 관련 카드(관련 증거 + 연대 제약이 있는 보유 카드). */
+export function selectYearCards(s: PersistedState, deductionId = 'ded_year_001', c: ContentBundle = defaultContent): YearCard[] {
+  const d = c.deductions.find((x) => x.id === deductionId);
+  const ids = new Set<Id>(d?.relevantEvidence ?? []);
+  for (const ev of c.evidence) if (s.evidence[ev.id] !== undefined && ev.levels.some((l) => l.time)) ids.add(ev.id);
+  const out: YearCard[] = [];
+  for (const ev of c.evidence) {
+    const level = s.evidence[ev.id];
+    if (!ids.has(ev.id) || level === undefined) continue;
+    const v = evidenceView(ev, level);
+    const t = v.time;
+    const shape: YearCard['shape'] = !t
+      ? 'none'
+      : t.notBefore !== undefined && t.notAfter !== undefined
+        ? 'both'
+        : t.notBefore !== undefined
+          ? 'lower'
+          : 'upper';
+    out.push({ id: v.id, label: v.label, text: v.text, level: v.level, verified: v.level > 0, time: t, shape, feedback: t?.feedback });
+  }
+  return out;
+}
+
+/** 연표에 올린 카드들이 함의하는 범위(플레이어 자신의 증거로 계산 — 공개 가능). weak 는 경계를 만들지 않는다. */
+export function selectYearPreview(s: PersistedState, cardIds: readonly Id[], deductionId = 'ded_year_001', c: ContentBundle = defaultContent) {
+  const d = c.deductions.find((x) => x.id === deductionId);
+  const views = cardIds
+    .map((id) => {
+      const ev = c.evidence.find((e) => e.id === id);
+      const lv = s.evidence[id];
+      return ev && lv !== undefined ? evidenceView(ev, lv) : undefined;
+    })
+    .filter((v): v is NonNullable<typeof v> => !!v);
+  const ctx = d?.kind === 'year' ? d.context : undefined;
+  const all = impliedRange(views, ctx, true);
+  const decisive = impliedRange(views, ctx, false);
+  const conflict = all.from !== undefined && all.to !== undefined && all.from > all.to;
+  return { all, decisive, conflict };
+}
+
+// ── 관측 뷰어 보조 ─────────────────────────────────────────────
+/** 스크럽 막대 눈금(이동·대사 시작·사물 열림). 지금 플래그로 들릴 수 있는 대사만. */
+export function selectTimelineTicks(
+  s: PersistedState,
+  c: ContentBundle = defaultContent,
+  timelineId: Id = DEFAULT_TIMELINE,
+): TimelineTick[] {
+  const tl = c.timelines.find((t) => t.id === timelineId);
+  return tl ? timelineTicks(tl, c, s.flags) : [];
+}
+
+/** 인물 하나의 하루 동선(경로 하이라이트). */
+export function selectNpcRoute(
+  s: PersistedState,
+  npcId: Id,
+  c: ContentBundle = defaultContent,
+  timelineId: Id = DEFAULT_TIMELINE,
+): NpcRoute | null {
+  const tl = c.timelines.find((t) => t.id === timelineId);
+  const npc = c.npcs.find((n) => n.id === npcId);
+  if (!tl || !npc) return null;
+  return npcRoute(tl, npc, s.obsMinute[tl.id] ?? tl.initial);
 }
 
 export function selectExhibits(s: PersistedState, c: ContentBundle = defaultContent) {

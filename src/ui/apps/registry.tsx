@@ -1,4 +1,4 @@
-/** 단말의 앱 5개. 옛 reader(사료 뷰어)는 검색 앱 안으로, archive(기록관)는 손 노트의 탭으로 합쳐졌다. */
+/** 단말의 앱 5개. 사료 뷰어는 검색 앱 안으로, 기록관은 손 노트의 탭으로 합쳐졌다(옛 저장의 reader/archive 는 여기서 옮긴다). */
 import type { ComponentType } from 'react';
 import type { AppId } from '@/core/types';
 import { Messenger } from './Messenger';

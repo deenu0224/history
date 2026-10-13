@@ -10,7 +10,7 @@ describe('bus', () => {
     bus.once('app:open', (p) => got.push(`open:${p.app}`));
     bus.emit('viewer:tapped', { hotspotId: 'a' });
     bus.emit('app:open', { app: 'search' });
-    bus.emit('app:open', { app: 'reader', target: 'src' });
+    bus.emit('app:open', { app: 'board', target: 'src' });
     off();
     bus.emit('viewer:tapped', { hotspotId: 'b' });
     expect(got).toEqual(['a', 'open:search']);

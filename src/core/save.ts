@@ -1,8 +1,8 @@
 import { del, get, set } from 'idb-keyval';
-import type { AppId, CollectionStage, FlagValue, Id, PlayerNotebook, PlayStats, Verdict } from './types';
+import type { AppId, CollectionStage, FlagValue, Id, PlayerNotebook, PlayStats, RewriteEntry, Verdict } from './types';
 import type { HintLevel, TutorialState } from './terminal';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const SAVE_SCHEMA = 'gyeollok-save';
 export type SaveSlot = 'auto' | 'manual';
 
@@ -30,7 +30,7 @@ export interface SearchLogEntry {
   seq: number;
   query: string;
   normalized: string;
-  status: 'ok' | 'unknown' | 'too_short' | 'empty';
+  status: 'ok' | 'unknown' | 'too_short' | 'empty' | 'no_article';
   /** 맞은 색인 항목 */
   entryIds: Id[];
 }
@@ -38,6 +38,7 @@ export interface SearchLogEntry {
 /**
  * 저장되는 게임 상태(v2: 결록 단말). 구조를 바꾸면 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
  * v1 → v2: currentScene·examined 제거(걷기 폐지), 단말 상태 추가.
+ * v2 → v3: 현실 이동(shifts·rewriteLog), 카드 겹치기(links), 기록하기(recorded) 추가. 앱 7 → 5(reader→search, archive→notebook).
  */
 export interface PersistedState {
   flags: Record<string, FlagValue>;
@@ -66,6 +67,14 @@ export interface PersistedState {
   replies: Record<Id, Id>;
   /** 적용된 정합성 보정 */
   corrections: Id[];
+  /** 적용된 현실 이동(적용 순) */
+  shifts: Id[];
+  /** 합의된 현실의 다시 쓰기 기록(말소·복원). 플레이어 쪽 화면만 읽는다. */
+  rewriteLog: RewriteEntry[];
+  /** 만든 카드 겹치기(EvidenceLink) */
+  links: Id[];
+  /** 손 노트에 기록한 사실(RecordAct) */
+  recorded: Id[];
   /** 탭한 핫스팟 */
   tapped: Id[];
   /** 살펴본 기록관 전시물 */
@@ -120,6 +129,20 @@ export const migrations: Record<number, Migration> = {
       },
       tutorial: { done: [], dismissed: [], fails: {}, idleTier: {} },
       settings: { hintLevel: 'normal', haptics: true, reduceFlicker: false, ...settings },
+    };
+  },
+  2: (d) => {
+    const APP_MAP: Record<string, string> = { reader: 'search', archive: 'notebook' };
+    const opened = Array.isArray(d.appsOpened) ? (d.appsOpened as string[]).map((a) => APP_MAP[a] ?? a) : [];
+    const stats = (d.stats ?? {}) as Record<string, number>;
+    return {
+      ...d,
+      shifts: [],
+      rewriteLog: [],
+      links: [],
+      recorded: [],
+      appsOpened: [...new Set(opened)],
+      stats: { links: 0, linkMisses: 0, ...stats },
     };
   },
 };

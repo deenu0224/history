@@ -26,7 +26,7 @@ export function EvidencePicker({
   }, [owned, sort]);
   if (list.length === 0) return <Empty>인용할 수 있는 증거가 없다. 먼저 단서를 모으자.</Empty>;
   return (
-    <div className="picker">
+    <div className="picker" data-coach="board.evidence">
       <div className="picker-head">
         <h4>근거 증거 선택</h4>
         <span>{selected.length}개 인용</span>

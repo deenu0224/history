@@ -1,6 +1,6 @@
 /** 앱을 감싸는 틀: 데스크톱 <WindowFrame>(끌기·크기·최소화·닫기) / 모바일 <FullscreenFrame>(뒤로·도움말). */
 import { useRef, useState, type ReactNode } from 'react';
-import type { AppId } from '@/core/types';
+import { canonicalApp } from '../apps/registry';
 import { Px } from '../lib/art';
 import { CONTENT } from '../lib/content';
 import { fx } from '../lib/fx';
@@ -10,22 +10,26 @@ export interface FrameProps {
   winKey: WinKey;
   title: string;
   iconKey: string;
-  helpApp?: AppId;
+  helpApp?: string;
   children: ReactNode;
 }
 
-export function HelpSheet({ app, onClose }: { app: AppId; onClose(): void }) {
-  const card = CONTENT.help.find((h) => h.app === app);
+export function HelpSheet({ app, onClose }: { app: string; onClose(): void }) {
+  const cards = CONTENT.help.filter((h) => canonicalApp(h.app) === app);
   return (
     <div className="help-sheet" role="dialog" aria-label="도움말" data-testid="help-sheet" onPointerDown={(e) => e.stopPropagation()}>
       <div className="help-card">
-        <h3>{card?.title ?? '도움말'}</h3>
-        {card ? (
-          <ul>
-            {card.lines.map((l, i) => (
-              <li key={i}>{l}</li>
-            ))}
-          </ul>
+        {cards.length ? (
+          cards.map((c) => (
+            <div key={c.id}>
+              <h3>{c.title}</h3>
+              <ul>
+                {c.lines.map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ul>
+            </div>
+          ))
         ) : (
           <p className="dim">이 앱의 도움말이 없습니다.</p>
         )}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { evidenceView, factText } from '@/core/content';
 import { entryView, stageOf } from '@/core/collection';
 import { useGameStore } from '@/store/gameStore';
@@ -6,7 +6,7 @@ import { Chip, Empty } from '../components/kit';
 import { CONTENT, IDX } from '../lib/content';
 import { buildGraph, type GNode } from '../lib/graph';
 import { STRENGTH_LABEL, timeText } from '../lib/format';
-import { useLayout } from '../hooks';
+import { useWidth } from '../hooks';
 
 const COL_X = { evidence: 0, entry: 1, deduction: 2 } as const;
 const COL_TITLE = { evidence: '증거', entry: '인물 · 사건 · 유물', deduction: '추리' } as const;
@@ -16,7 +16,8 @@ const GAPY = 14;
 const GAPX = 62;
 
 export function GraphView() {
-  const layout = useLayout();
+  const box = useRef<HTMLDivElement>(null);
+  const width = useWidth(box, 600);
   const evidence = useGameStore((s) => s.evidence);
   const collection = useGameStore((s) => s.collection);
   const solved = useGameStore((s) => s.solved);
@@ -24,7 +25,12 @@ export function GraphView() {
   const [sel, setSel] = useState<string | null>(null);
   const { nodes, edges } = useMemo(() => buildGraph(CONTENT, { evidence, collection, solved, notebook }), [evidence, collection, solved, notebook]);
 
-  if (nodes.length === 0) return <Empty>연결할 증거가 아직 없다. 단서를 모으면 이곳에 관계가 그려진다.</Empty>;
+  if (nodes.length === 0)
+    return (
+      <div ref={box}>
+        <Empty>연결할 증거가 아직 없다. 단서를 모으면 이곳에 관계가 그려진다.</Empty>
+      </div>
+    );
 
   const cols: Record<GNode['kind'], GNode[]> = { evidence: [], entry: [], deduction: [] };
   nodes.forEach((n) => cols[n.kind].push(n));
@@ -38,9 +44,9 @@ export function GraphView() {
   const linked = new Set<string>();
   if (sel) for (const e of edges) { if (e.a === sel) linked.add(e.b); if (e.b === sel) linked.add(e.a); }
 
-  const list = layout === 'portrait';
+  const list = width < 640;
   return (
-    <div className="graph">
+    <div className="graph" ref={box}>
       {list ? (
         <div className="graph-list">
           {(['evidence', 'entry', 'deduction'] as const).map((k) => (

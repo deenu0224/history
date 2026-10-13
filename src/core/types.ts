@@ -680,6 +680,22 @@ export interface RealityShift extends ContentBase {
 export type RewriteTone = 'erase' | 'restore';
 
 /**
+ * 합의된 현실이 다시 쓰인 기록(저장됨). 말소(보정)와 복원(현실 이동) 모두 남는다 — 단말 화면에는 표식이 없고,
+ * 플레이어 쪽(손 노트·메신저의 연필 표시 '어제는 이렇게 말했었다')만 이것을 읽는다.
+ * before/after: 메시지·메모는 본문, 레코드는 '라벨: 값' 줄들, 검색은 결과 수 요약.
+ */
+export interface RewriteEntry {
+  seq: number;
+  /** CorrectionEvent 또는 RealityShift id */
+  sourceId: Id;
+  tone: RewriteTone;
+  kind: 'message' | 'record' | 'memo' | 'search';
+  targetId: Id;
+  before: string;
+  after: string;
+}
+
+/**
  * '기록하기'(사관의 직필): 추리를 확정한 뒤 플레이어가 손 노트에 핵심 문장을 직접 적으면(UI: 따라 쓰기/도장)
  * 그 사실이 복원된다. store.recordFact(actId) → 상태 recorded 에 들어가고 → when 에 recorded 를 가진 RealityShift 가 적용.
  */

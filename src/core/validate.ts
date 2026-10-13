@@ -182,6 +182,8 @@ export function allGrants(c: ContentBundle): { owner: Id; grants: Grants }[] {
   c.messages.forEach((m) => push(m.id, m.grants));
   c.exhibits.forEach((x) => push(x.id, x.grants));
   c.corrections.forEach((x) => push(x.id, x.grants));
+  c.shifts.forEach((x) => push(x.id, x.unlocks));
+  c.links.forEach((x) => push(x.id, { ...x.grants, evidence: [...(x.grants?.evidence ?? []), x.result] }));
   return out;
 }
 
@@ -247,6 +249,31 @@ function validateDeduction(
   }
 
   const provable = provableFacts(d, idx);
+  if (d.kind === 'causal') {
+    const nodes = new Set<Id>();
+    for (const n of d.nodes) {
+      if (nodes.has(n.id)) err(d.id, 'duplicate_node', `마디 id 중복: ${n.id}`);
+      if (!n.text.trim()) err(d.id, 'empty_node', `마디 ${n.id} 의 문장이 비었습니다.`);
+      nodes.add(n.id);
+    }
+    if (d.chain.length < 2) err(d.id, 'bad_chain', '정답 고리는 마디 2개 이상이어야 합니다.');
+    d.chain.forEach((id) => !nodes.has(id) && err(d.id, 'missing_ref', `고리의 마디가 없습니다: ${id}`));
+    const pairs = d.chain.slice(1).map((to, i) => `${d.chain[i]}>${to}`);
+    const rules = d.links.map((l) => `${l.from}>${l.to}`);
+    if (pairs.length !== rules.length || pairs.some((p) => !rules.includes(p)))
+      err(d.id, 'chain_links_mismatch', '정답 연결(links)은 고리(chain)의 연속한 쌍과 정확히 같아야 합니다.');
+    for (const l of d.links) {
+      if (!l.requires.length) err(d.id, 'unsupported_link', `연결 ${l.from}→${l.to} 에 필요한 사실이 없습니다.`);
+      for (const f of l.requires)
+        if (!hasFact(provable, f)) err(d.id, 'unprovable_fact', `연결 ${l.from}→${l.to} 의 사실 '${factText(f)}'을(를) 입증하는 관련 증거가 없습니다.`);
+    }
+    for (const w of d.wrongLinks ?? []) {
+      if (!nodes.has(w.from) || !nodes.has(w.to)) err(d.id, 'missing_ref', `오답 연결의 마디가 없습니다: ${w.from}→${w.to}`);
+      if (rules.includes(`${w.from}>${w.to}`)) err(d.id, 'wrong_link_is_answer', `오답 연결 ${w.from}→${w.to} 이 정답에 있습니다.`);
+    }
+    if (d.nodes.length <= d.chain.length) warn(d.id, 'no_distractor', '인과 추리에 헷갈릴 만한 마디(오답)가 없습니다.');
+    return;
+  }
   for (const f of d.requiredFacts)
     if (!hasFact(provable, f)) err(d.id, 'unprovable_fact', `필수 사실 '${factText(f)}'을(를) 입증하는 관련 증거가 없습니다.`);
 
@@ -307,6 +334,9 @@ function stateConds(c: ContentBundle): { owner: Id; cond: StateCondition }[] {
   c.exhibits.forEach((x) => push(x.id, x.requires));
   c.memos.forEach((m) => push(m.id, m.when));
   c.corrections.forEach((x) => push(x.id, x.trigger));
+  c.shifts.forEach((x) => push(x.id, x.when));
+  c.links.forEach((x) => push(x.id, x.requires));
+  c.acts.forEach((x) => push(x.id, x.requires));
   c.tutorial.forEach((t) => {
     push(t.id, t.showWhen);
     push(t.id, t.doneWhen);
@@ -357,6 +387,9 @@ function validateTerminal(
       c.phrases?.forEach((id) => ref(owner, id, 'phrases'));
       c.attempted?.forEach((id) => ref(owner, id, 'deductions'));
       c.corrections?.forEach((id) => ref(owner, id, 'corrections'));
+      c.shifts?.forEach((id) => ref(owner, id, 'shifts'));
+      c.links?.forEach((id) => ref(owner, id, 'links'));
+      c.recorded?.forEach((id) => ref(owner, id, 'acts'));
       c.tapped?.forEach((id) => {
         if (!hotspotIds.has(id)) err(owner, 'missing_ref', `핫스팟이 없습니다: ${id}`);
       });
@@ -378,7 +411,10 @@ function validateTerminal(
       if (!n) err(e.id, 'bad_term', `색인어 '${t}'이(가) 정규화 후 비었습니다.`);
       else if (n.length < 2) warn(e.id, 'short_term', `색인어 '${t}'은(는) 한 글자라 정확히 일치할 때만 맞습니다.`);
     }
-    if (!e.results.length) err(e.id, 'empty_results', '결과가 없는 색인 항목입니다.');
+    if (!e.results.length && !e.noArticle) err(e.id, 'empty_results', '결과가 없는 색인 항목입니다.');
+    if (e.noArticle && e.results.length) err(e.id, 'no_article_with_results', '말소된 기사(noArticle)는 결과를 두지 않습니다(복원이 채운다).');
+    if (e.noArticle && !content.shifts.some((sh) => sh.searchRewrites?.some((r) => r.entryId === e.id)))
+      err(e.id, 'no_article_unrestorable', '말소된 기사를 복원하는 현실 이동이 없습니다.');
     for (const r of e.results) ref(e.id, r.id, SEARCH_REF_KEY[r.kind]);
     checkGrants(e.id, e.grants);
     (e.conditional ?? []).forEach((x) => checkGrants(e.id, x.grants));
@@ -410,6 +446,8 @@ function validateTerminal(
 
   // 6.5 레코드
   for (const r of content.records) {
+    if (r.altered && r.provenance !== 'fictional')
+      err(r.id, 'altered_not_fictional', '변조된 레코드(altered)는 fictional 이어야 합니다(실제 역사로 표시 금지).');
     const keys = new Set<string>();
     for (const f of r.fields) {
       if (keys.has(f.key)) err(r.id, 'duplicate_field', `필드 key 중복: ${f.key}`);
@@ -506,13 +544,102 @@ function validateTerminal(
       const m = idx.memos[p.memoId];
       if (!m) err(e.id, 'missing_ref', `메모가 없습니다: ${p.memoId}`);
       else if (m.provenance !== 'fictional') err(e.id, 'correction_touches_fact', '보정은 fictional 메모만 바꿀 수 있습니다.');
+      if (p.text === undefined && !p.remove) err(e.id, 'empty_patch', `메모 보정 ${p.memoId} 에 text 도 remove 도 없습니다.`);
     }
   }
+
+  // 6.9b 현실 이동(복원) · 기록하기 · 카드 겹치기
+  validateReality(content, idx, err, ref, checkGrants, produced);
 
   // 6.10 튜토리얼
   for (const t of content.tutorial) {
     if (t.coach.length > 45 || (t.coach.match(/[.?!。]/g) ?? []).length > 2)
       warn(t.id, 'coach_too_long', '코치마크는 짧은 한 문장이어야 합니다.');
     if (t.hints.some((h) => !h.trim())) err(t.id, 'empty_hint', '힌트 3단계가 모두 있어야 합니다.');
+  }
+}
+
+const isUrl = (u?: string) => !!u && URL_RE.test(u);
+
+function validateReality(
+  content: ContentBundle,
+  idx: ContentIndex,
+  err: Report,
+  ref: (owner: Id, id: Id, key?: ContentKey) => void,
+  checkGrants: (owner: Id, g?: Grants) => void,
+  produced: Set<string>,
+) {
+  const restoredIds = new Set<Id>();
+  for (const sh of content.shifts) {
+    checkGrants(sh.id, sh.unlocks);
+    if (!sh.messageRewrites.length && !sh.recordRewrites.length)
+      err(sh.id, 'shift_rewrites_nothing', '현실 이동은 메시지나 레코드를 하나 이상 다시 써야 합니다.');
+    for (const r of sh.messageRewrites) {
+      ref(sh.id, r.messageId, 'messages');
+      if (!r.newText.trim()) err(sh.id, 'empty_rewrite', `메시지 ${r.messageId} 의 새 본문이 비었습니다.`);
+    }
+    for (const r of sh.recordRewrites) {
+      const rec = idx.records[r.recordId];
+      if (!rec) {
+        err(sh.id, 'missing_ref', `레코드가 없습니다: ${r.recordId}`);
+        continue;
+      }
+      if (!rec.altered) err(sh.id, 'shift_touches_unaltered', `변조되지 않은 레코드 ${rec.id} 는 복원 대상이 아닙니다.`);
+      const prov = r.provenance ?? rec.provenance;
+      if (prov === 'verified' && !(r.sources ?? rec.sources ?? []).some((x) => isUrl(x.url)))
+        err(sh.id, 'verified_without_source', `복원된 레코드 ${rec.id} 에 url 출처가 없습니다.`);
+    }
+    for (const r of sh.searchRewrites ?? []) {
+      ref(sh.id, r.entryId, 'searchEntries');
+      for (const x of r.results) ref(sh.id, x.id, SEARCH_REF_KEY[x.kind]);
+    }
+    if (!sh.restores.length) err(sh.id, 'shift_restores_nothing', '복원 목록(restores)이 비었습니다.');
+    for (const r of sh.restores) {
+      const key: ContentKey = r.kind === 'source' ? 'sources' : r.kind === 'event' ? 'events' : 'records';
+      ref(sh.id, r.id, key);
+      const item = idx[key][r.id] as ContentBase | undefined;
+      if (item && r.kind !== 'record' && item.provenance !== 'verified')
+        err(sh.id, 'restored_unverified', `복원되는 ${r.id} 는 verified 여야 합니다.`);
+      if (r.kind === 'record' && item && !sh.recordRewrites.some((x) => x.recordId === r.id && (x.provenance ?? item.provenance) === 'verified'))
+        err(sh.id, 'restored_unverified', `복원되는 레코드 ${r.id} 는 verified 로 다시 쓰여야 합니다.`);
+      if (r.kind !== 'record') restoredIds.add(r.id);
+    }
+    if (!sh.notebookDiff.length) err(sh.id, 'no_notebook_diff', '손 노트의 이전/이후가 없습니다.');
+    for (const d of sh.notebookDiff) if (!d.before.trim() || !d.after.trim()) err(sh.id, 'empty_diff', `손 노트 diff ${d.id} 가 비었습니다.`);
+    // 도달 가능: 기록하기가 이 이동을 일으키거나, when 이 생산 가능한 조건이어야
+    const byAct = content.acts.some((a) => a.restores === sh.id);
+    const recorded = sh.when.recorded ?? [];
+    if (!byAct && !(sh.when.all ?? []).length) err(sh.id, 'shift_unreachable', '이 현실 이동을 일으키는 기록하기가 없습니다.');
+    for (const a of recorded) if (idx.acts[a] && idx.acts[a]!.restores !== sh.id) err(sh.id, 'act_mismatch', `기록 ${a} 는 다른 현실 이동을 가리킵니다.`);
+  }
+
+  // 말소된 사료·사건은 복원 전에 닿을 수 없어야 한다
+  for (const e of content.searchEntries)
+    for (const r of e.results) if (restoredIds.has(r.id)) err(e.id, 'erased_reachable', `복원 전 검색 결과에 말소된 ${r.id} 가 있습니다.`);
+  for (const { owner, grants } of allGrants(content)) {
+    if (idx.shifts[owner]) continue;
+    for (const id of grants.sources ?? []) if (restoredIds.has(id)) err(owner, 'erased_reachable', `복원 전에 말소된 사료 ${id} 를 줍니다.`);
+  }
+
+  for (const a of content.acts) {
+    ref(a.id, a.restores, 'shifts');
+    if (a.provenance !== 'verified') err(a.id, 'act_unverified', '기록하기 문장은 verified 여야 합니다(검증된 문장만 직필).');
+    if (!a.sentence.trim()) err(a.id, 'empty_sentence', '기록할 문장이 비었습니다.');
+    const sh = idx.shifts[a.restores];
+    if (sh && !(sh.when.recorded ?? []).includes(a.id))
+      err(a.id, 'act_mismatch', `현실 이동 ${sh.id} 의 when 에 recorded: ['${a.id}'] 가 없습니다.`);
+    for (const f of a.requires.all ?? []) if (!produced.has(f)) err(a.id, 'unreachable_flag', `플래그 '${f}'을(를) 세우는 곳이 없습니다.`);
+  }
+
+  const sets = new Set<string>();
+  for (const l of content.links) {
+    if (l.inputs.length < 2) err(l.id, 'bad_link', '카드 겹치기는 2장 이상이어야 합니다.');
+    l.inputs.forEach((id) => ref(l.id, id, 'evidence'));
+    ref(l.id, l.result.id, 'evidence');
+    if (l.inputs.includes(l.result.id)) err(l.id, 'bad_link', '결과 카드가 입력에 들어 있습니다.');
+    const key = [...l.inputs].sort().join('+');
+    if (sets.has(key)) err(l.id, 'duplicate_link', '같은 카드 조합의 겹치기가 둘 있습니다.');
+    sets.add(key);
+    checkGrants(l.id, l.grants);
   }
 }

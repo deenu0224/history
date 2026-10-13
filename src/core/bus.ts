@@ -38,7 +38,13 @@ export type FeedbackKind =
   | 'verdict_partial'
   | 'verdict_wrong'
   | 'message'
-  | 'exhibit';
+  | 'exhibit'
+  | 'link'
+  | 'link_miss'
+  | 'record_fact'
+  /** 합의된 현실의 다시 쓰기: 복원(따뜻한 먹 번짐) / 말소(차갑게, 무음, 명도 한 칸) */
+  | 'restore'
+  | 'erase';
 
 type Handler<T> = (payload: T) => void;
 

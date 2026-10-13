@@ -32,7 +32,8 @@ export function matchTerm(q: string, term: string): MatchKind | null {
   return null;
 }
 
-export type SearchStatus = 'ok' | 'unknown' | 'too_short' | 'empty';
+/** no_article: 맨 위 결과가 말소된 기사(SearchEntry.noArticle) — '해당 기사 없음'(스토어가 판단). */
+export type SearchStatus = 'ok' | 'unknown' | 'too_short' | 'empty' | 'no_article';
 
 export interface SearchMatch {
   entry: SearchEntry;
@@ -82,9 +83,19 @@ export function searchIndex(
 }
 
 /** 플레이어에게 보이는 피드백(정답 누설 없음, 장난스럽되 정보가 있게). */
-export function searchMessage(status: SearchStatus, raw: string, hitCount = 0, newCount = 0): string {
+export const NO_ARTICLE_TEXT = '해당 기사 없음.';
+
+export function searchMessage(
+  status: SearchStatus,
+  raw: string,
+  hitCount = 0,
+  newCount = 0,
+  noArticleText = NO_ARTICLE_TEXT,
+): string {
   const q = raw.trim();
   switch (status) {
+    case 'no_article':
+      return hitCount > 0 ? `${noArticleText} 관련 기록 ${hitCount}건.` : noArticleText;
     case 'empty':
       return '검색어를 입력하세요.';
     case 'too_short':

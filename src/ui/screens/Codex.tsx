@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { UI_KEYS } from '@/game/art';
 import { completion, entryView, stageOf, STAGE_LABELS } from '@/core/collection';
 import type { CollectionCategory, CollectionEntry } from '@/core/types';
 import { useGameStore } from '@/store/gameStore';
-import { Chip, CATEGORY_ICON, entrySprite, Modal, PixelIcon, Pips, Tabs } from '../components/kit';
+import { Chip, CATEGORY_ICON, entrySprite, PixelIcon, Pips, Tabs } from '../components/kit';
 import { CATEGORY_LABEL, CATEGORY_ORDER, CONTENT, IDX, entriesOf } from '../lib/content';
 import { pct } from '../lib/format';
 import { useUi } from '../uiStore';
 
 export function CodexScreen() {
-  const close = useGameStore((s) => s.closeModal);
-  const open = useGameStore((s) => s.openModal);
-  const modalId = useGameStore((s) => s.ui.modal?.id);
+  const modalId = undefined as string | undefined;
   const collection = useGameStore((s) => s.collection);
   const initial = modalId ? IDX.collection[modalId] : undefined;
   const [cat, setCat] = useState<CollectionCategory>(initial?.category ?? 'artifact');
@@ -34,17 +31,7 @@ export function CodexScreen() {
   };
 
   return (
-    <Modal
-      title="도감"
-      icon={UI_KEYS.iconCodex}
-      onClose={close}
-      wide
-      toolbar={
-        <button className="btn btn-small" onClick={() => open('archive')}>
-          <PixelIcon sprite={UI_KEYS.iconArchive} size={16} /> 기록관
-        </button>
-      }
-    >
+    <div className="codex-wrap" data-testid="codex">
       <Tabs
         tabs={tabs}
         value={cat}
@@ -80,7 +67,7 @@ export function CodexScreen() {
           )}
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -115,7 +102,8 @@ function EntryDetail({ entry, onBack }: { entry: CollectionEntry; onBack(): void
   const stage = useGameStore((s) => stageOf(s.collection, entry.id));
   const showProv = useGameStore((s) => s.settings.showProvenance);
   const collection = useGameStore((s) => s.collection);
-  const setOverlay = useUi((s) => s.setOverlay);
+  const openSource = useGameStore((s) => s.openSource);
+  const inLibrary = useGameStore((s) => s.sources.includes(entry.refId));
   const v = entryView(entry, stage);
   const locked = stage === 0;
   const linked = (entry.links ?? []).map((id) => IDX.collection[id]).filter((e): e is CollectionEntry => !!e && stageOf(collection, e.id) >= 1);
@@ -152,8 +140,8 @@ function EntryDetail({ entry, onBack }: { entry: CollectionEntry; onBack(): void
           {v.fields.length === 0 && <p className="empty">더 조사하면 정보가 채워진다.</p>}
         </dl>
       )}
-      {!locked && entry.category === 'source' && stage >= 2 && (
-        <button className="btn btn-primary" onClick={() => setOverlay({ kind: 'reader', entryId: entry.id })}>
+      {!locked && entry.category === 'source' && inLibrary && (
+        <button className="btn btn-primary" onClick={() => openSource(entry.refId)}>
           사료 열람
         </button>
       )}

@@ -9,7 +9,7 @@ import { Px } from '../lib/art';
 import { CONTENT, IDX } from '../lib/content';
 import { fx } from '../lib/fx';
 import { describeRewards, feedbackForRewards } from '../lib/rewards';
-import { prefersReducedMotion, useWidth } from '../hooks';
+import { prefersReducedMotion, useLayout, useWidth } from '../hooks';
 
 const TL_ID = 'tl_obs001';
 
@@ -61,7 +61,9 @@ function Observing({ timelineId }: { timelineId: string }) {
   const tl = IDX.timelines[timelineId]!;
   const root = useRef<HTMLDivElement>(null);
   const width = useWidth(root, 360);
-  const wide = width >= 720;
+  const { short } = useLayout();
+  const wide = width >= 720 || short;
+  const scrubUnder = wide && !short;
   const viewer = useRef<ViewerHandle>(null);
   const end = useGameStore((s) => s.endObservation);
   const lastTap = useGameStore((s) => s.lastTap);
@@ -120,9 +122,10 @@ function Observing({ timelineId }: { timelineId: string }) {
             </button>
           </div>
         </div>
+        {scrubUnder && <Scrubber tlId={tl.id} />}
       </div>
       <div className="viewer-side">
-        <Scrubber tlId={tl.id} />
+        {!scrubUnder && <Scrubber tlId={tl.id} />}
         <TapPanel tap={lastTap} />
         <HotspotList onPick={(id) => viewer.current?.focusHotspot(id)} open={wide} />
       </div>

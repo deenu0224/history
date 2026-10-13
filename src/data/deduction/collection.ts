@@ -6,13 +6,18 @@ import type { CollectionEntry, CollectionField, CollectionStage } from '@/core/t
 import { REF } from '@/data/historical/refs';
 
 const V = 'verified' as const;
-const f = (key: string, label: string, value: string, unlockStage: CollectionStage): CollectionField => ({
+const f = (key: string, label: string, value: string, unlockStage: CollectionStage, restoredBy?: string): CollectionField => ({
   key,
   label,
   value,
   unlockStage,
   provenance: V,
+  ...(restoredBy ? { restoredBy } : {}),
 });
+// 말소된 사실(무오사화 관련)은 복원(restoredBy: RealityShift id) 전에는 단계와 상관없이 보이지 않는다.
+const ORDER = 'shift_order';
+const PERSON = 'shift_person';
+const CAUSE = 'shift_cause';
 
 export const collection: CollectionEntry[] = [
   // ── 유물 ────────────────────────────────────────────────
@@ -50,8 +55,8 @@ export const collection: CollectionEntry[] = [
       f('names', '본관·자·호', '김해 · 계운 · 탁영(소미산인)', 2),
       f('career', '관직', '1486년 문과 급제. 승문원 정자로 춘추관 기사관을 겸함', 2),
       f('teacher', '스승', '김종직(점필재)의 문하', 3),
-      f('sacho', '사초', '스승의 「조의제문」과 이극돈의 비행을 사초에 적음', 4),
-      f('death', '최후', '1498년 음력 7월 능지처사. 중종반정 뒤 복관', 4),
+      f('sacho', '사초', '스승의 「조의제문」과 이극돈의 비행을 사초에 적음', 3, PERSON),
+      f('death', '최후', '1498년 음력 7월 능지처사. 중종반정 뒤 복관', 4, CAUSE),
     ],
     sources: [REF.kimIlson, REF.muoSahwa, REF.sillokVerdict],
     links: ['col_art_takyeong', 'col_per_kim_jongjik', 'col_evt_muo_sahwa'],
@@ -68,7 +73,7 @@ export const collection: CollectionEntry[] = [
       f('names', '본관·자', '광주(廣州) · 사고', 2),
       f('sejo', '편찬 이력', '『세조실록』 편수관으로 참여', 3),
       f('sillok', '실록청', '1495년 지관사로 『성종실록』 편찬. 실록청 당상으로 사초를 정리', 3),
-      f('sahwa', '사화', '김일손 사초의 「조의제문」을 문제 삼음. 사화 뒤 파면', 4),
+      f('sahwa', '사화', '김일손 사초의 「조의제문」을 문제 삼음. 사화 뒤 파면', 3, PERSON),
     ],
     sources: [REF.yiGeukdon, REF.muoSahwa, REF.sillokCompileOrder],
     links: ['col_per_kim_ilson', 'col_evt_muo_sahwa', 'col_evt_seongjong_sillok'],
@@ -84,7 +89,7 @@ export const collection: CollectionEntry[] = [
       f('life', '생몰', '1431 ~ 1492', 2),
       f('names', '본관·호', '선산 · 점필재', 2),
       f('work', '글', '1457년 「조의제문」을 지음', 3),
-      f('after', '사후', '무오사화 때 부관참시', 4),
+      f('after', '사후', '무오사화 때 부관참시', 3, CAUSE),
     ],
     sources: [REF.kimJongjik, REF.sillokProclaim],
     links: ['col_per_kim_ilson', 'col_src_jouijemun'],
@@ -100,7 +105,7 @@ export const collection: CollectionEntry[] = [
       f('life', '생몰', '1439 ~ 1512', 2),
       f('names', '본관·출신', '영광 · 서얼 출신', 2),
       f('grudge', '원한', '함양에서 김종직이 그의 시 현판을 철거해 불태운 일로 원한을 품음', 3),
-      f('sahwa', '사화', '「조의제문」에 주석을 달아 왕에게 고함', 3),
+      f('sahwa', '사화', '「조의제문」에 주석을 달아 왕에게 고함', 3, CAUSE),
     ],
     sources: [REF.yuJagwang, REF.muoSahwa],
     links: ['col_evt_muo_sahwa'],
@@ -114,7 +119,7 @@ export const collection: CollectionEntry[] = [
     unidentifiedTitle: '편찬 명단의 이름',
     fields: [
       f('order', '편찬', '1495년 이극돈 등과 함께 『성종실록』 편찬의 명을 받음', 2),
-      f('after', '사화 뒤', '문제의 사초를 보고도 고하지 않은 죄로 파면', 3),
+      f('after', '사화 뒤', '문제의 사초를 보고도 고하지 않은 죄로 파면', 2, PERSON),
     ],
     sources: [REF.sillokCompileOrder, REF.muoSahwa],
     links: ['col_src_compile_order'],
@@ -189,7 +194,7 @@ export const collection: CollectionEntry[] = [
     title: '사초를 들이라 (『연산군일기』)',
     unidentifiedTitle: '어느 전교',
     fields: [
-      f('date', '날짜', '연산 4년(1498) 7월 11일, 음력', 2),
+      f('date', '날짜', '연산 4년(1498) 7월 11일, 음력', 2, ORDER),
       f('order', '전교', '“김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.”', 3),
       f('objection', '간언', '“임금이 만약 사초를 보면 후세에 직필(直筆)이 없기 때문입니다.”', 3),
       f('six', '결과', '극돈 등이 일손의 사초에서 6조목을 절취하여 봉해 올림', 4),
@@ -221,9 +226,10 @@ export const collection: CollectionEntry[] = [
     fields: [
       f('date', '날짜', '연산 4년(1498) 7월 26일, 음력', 2),
       f('text', '국역', '김일손·권오복·권경유는 대역의 죄에 해당하니 능지 처사하고', 3),
+      f('proclaim', '이튿날(7월 27일)', '김일손 등을 벤 것을 종묘 사직에 고유. 김종직은 대역으로 논단되어 부관참시', 3),
     ],
     sources: [REF.sillokVerdict, REF.sillokProclaim],
-    links: ['col_evt_muo_sahwa', 'col_per_kim_ilson'],
+    links: ['col_evt_muo_sahwa', 'col_per_kim_ilson', 'col_per_kim_jongjik'],
   },
   {
     id: 'col_src_gyeongguk',
@@ -249,7 +255,7 @@ export const collection: CollectionEntry[] = [
     fields: [
       f('author', '지은이', '김종직, 1457년', 2),
       f('content', '내용', '꿈에 초나라 의제를 만난 일을 적은 글. 의제를 죽인 항우에 세조를 빗댄 것으로 읽혔다', 3),
-      f('sacho', '사초', '제자 김일손이 사관으로 있을 때 사초에 실음', 3),
+      f('sacho', '사초', '제자 김일손이 사관으로 있을 때 사초에 실음', 3, PERSON),
     ],
     sources: [REF.jouijemun],
     links: ['col_per_kim_jongjik', 'col_per_kim_ilson'],
@@ -279,11 +285,11 @@ export const collection: CollectionEntry[] = [
     title: '무오사화(戊午士禍)',
     unidentifiedTitle: '알 수 없는 사건',
     fields: [
-      f('when', '때', '1498년 음력 7월', 2),
-      f('cause', '발단', '김일손 사초 속 「조의제문」을 이극돈이 문제 삼아 유자광에게 알림', 3),
-      f('course', '경과', '7월 11일 사초 반입 명 → 12일부터 26일까지 신문', 4),
-      f('result', '결과', '김일손 등 처형, 김종직 부관참시, 여럿이 유배·파면', 4),
-      f('compile', '편찬', '실록 편찬은 계속되어 이듬해 완성', 5),
+      f('when', '때', '1498년 음력 7월', 2, CAUSE),
+      f('cause', '발단', '김일손 사초 속 「조의제문」을 이극돈이 문제 삼아 유자광에게 알림', 3, CAUSE),
+      f('course', '경과', '7월 11일 사초 반입 명 → 12일부터 26일까지 신문', 4, CAUSE),
+      f('result', '결과', '김일손 등 처형, 김종직 부관참시, 여럿이 유배·파면', 4, CAUSE),
+      f('compile', '편찬', '실록 편찬은 계속되어 이듬해 완성', 5, CAUSE),
     ],
     sources: [REF.muoSahwa, REF.seongjongSillok, REF.sillokSachoOrder],
     links: ['col_src_sacho_order', 'col_per_kim_ilson', 'col_per_yi_geukdon', 'col_per_yu_jagwang'],

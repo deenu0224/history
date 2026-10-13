@@ -350,10 +350,10 @@ export const sample: ContentModule = {
     { id: 'sample_app_search', provenance: F, app: 'search', title: '검색', iconKey: 'icon', order: 1 },
     { id: 'sample_app_viewer', provenance: F, app: 'viewer', title: '뷰어', iconKey: 'icon', order: 2 },
     {
-      id: 'sample_app_reader',
+      id: 'sample_app_notebook',
       provenance: F,
-      app: 'reader',
-      title: '사료',
+      app: 'notebook',
+      title: '노트',
       iconKey: 'icon',
       order: 3,
       unlockWhen: { all: ['sample_desk_searched'] },

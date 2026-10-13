@@ -62,6 +62,10 @@ interface UiLocal {
   settingsTab: SettingsTab;
   setSettingsTab(t: SettingsTab): void;
 
+  // 손 노트 탭 요청(현실 이동 뒤 '고쳐 쓴 줄' 자동 열기 등)
+  notebookTab: string | null;
+  setNotebookTab(t: string | null): void;
+
   // 토스트
   toasts: Toast[];
   pushToast(t: Omit<Toast, 'id'>): void;
@@ -156,6 +160,9 @@ export const useUi = create<UiLocal>()((set, get) => ({
 
   settingsTab: 'main',
   setSettingsTab: (settingsTab) => set({ settingsTab }),
+
+  notebookTab: null,
+  setNotebookTab: (notebookTab) => set({ notebookTab }),
 
   toasts: [],
   pushToast(t) {

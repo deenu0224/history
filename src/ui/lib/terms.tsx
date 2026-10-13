@@ -46,6 +46,7 @@ export function TermText({
   text,
   extra = [],
   coachFirst = false,
+  coachKey = 'search.result.term',
   onTerm,
 }: {
   text: string;
@@ -53,6 +54,8 @@ export function TermText({
   extra?: readonly string[];
   /** 첫 밑줄에 코치마크 키(search.result.term)를 단다 */
   coachFirst?: boolean;
+  /** coachFirst 일 때 첫 밑줄에 달 코치마크 키 */
+  coachKey?: string;
   onTerm?: (t: string) => void;
 }) {
   const known = useGameStore((s) => s.terms);
@@ -62,7 +65,7 @@ export function TermText({
     <>
       {segs.map((sg, i) => {
         if (!sg.term) return <Fragment key={i}>{sg.text}</Fragment>;
-        const coach = coachFirst && first ? 'search.result.term' : undefined;
+        const coach = coachFirst && first ? coachKey : undefined;
         first = false;
         return (
           <button

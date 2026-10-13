@@ -1,40 +1,30 @@
 import { useEffect, useMemo } from 'react';
-import { bus } from '@/core/bus';
-import { UI_KEYS, toDataURL } from '@/game/art';
-import { unlockAudio } from '@/game/audio';
-import { GameCanvas } from '@/game/GameCanvas';
-import { enableAutosave, useGameStore } from '@/store/gameStore';
-import { installGlue } from './glue';
-import { isTyping, useKey, useLayout } from './hooks';
-import { isPastScene } from './lib/scene';
-import { ArchiveScreen } from './screens/Archive';
-import { CodexScreen } from './screens/Codex';
-import { DatabaseScreen } from './screens/Database';
-import { DeductionScreen } from './screens/Deduction';
-import { DialogPanel } from './screens/Dialog';
-import { Hud, TabBar } from './screens/Hud';
-import { MainMenu } from './screens/MainMenu';
-import { NotebookScreen } from './screens/Notebook';
-import { ReaderOverlay } from './screens/Reader';
-import { SequenceScreen } from './screens/Sequence';
-import { SettingsScreen } from './screens/Settings';
-import { Toasts } from './screens/Toasts';
+import { selectApps, enableAutosave, useGameStore } from '@/store/gameStore';
+import { setVolume, unlockAudio } from '@/game/audio';
+import type { AppId } from '@/core/types';
+import { Boot } from './os/Boot';
+import { Shell } from './os/Shell';
+import { osCssVars } from './lib/art';
+import { installFeedback } from './lib/fx';
 import { useUi } from './uiStore';
 
+const params = () => new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
+
+/** 로그인(Boot) 직후: 이미 열려 있는 앱은 연출 없이 독에 둔다(이후 생기는 앱만 '설치' 연출). */
+function initShown() {
+  const g = useGameStore.getState();
+  const ui = useUi.getState();
+  for (const a of selectApps(g) as AppId[]) ui.markShown(a);
+  if (g.inbox.includes('m_sys_boot') && !g.read.includes('m_sys_boot')) g.readMessage('m_sys_boot');
+}
+
 export function App() {
-  const layout = useLayout();
   const phase = useUi((s) => s.phase);
-  const sequence = useUi((s) => s.sequence);
-  const overlay = useUi((s) => s.overlay);
-  const dialog = useUi((s) => s.dialog);
-  const modal = useGameStore((s) => s.ui.modal);
-  const scene = useGameStore((s) => s.currentScene);
-  const open = useGameStore((s) => s.openModal);
-  const theme = phase === 'play' && isPastScene(scene) ? 'past' : 'modern';
+  const scale = useUi((s) => s.textScale);
+  const volume = useGameStore((s) => s.settings.volume);
+  const vars = useMemo(() => osCssVars(), []);
 
-  useEffect(() => installGlue(), []);
-
-  // 첫 제스처에서 오디오 잠금 해제
+  useEffect(() => installFeedback(), []);
   useEffect(() => {
     const on = () => unlockAudio();
     window.addEventListener('pointerdown', on, { once: true });
@@ -44,61 +34,30 @@ export function App() {
       window.removeEventListener('keydown', on);
     };
   }, []);
-
-  // 플레이 중에만 자동 저장(메뉴에서 빈 상태가 기존 자동 저장을 덮어쓰지 않게)
+  useEffect(() => setVolume(volume), [volume]);
   useEffect(() => {
-    if (phase !== 'play') return;
+    document.documentElement.style.fontSize = `${16 * scale}px`;
+  }, [scale]);
+
+  // 테스트: ?test=1 이면 부트를 건너뛴다(?boot=1 로 부트 화면을 볼 수 있다)
+  useEffect(() => {
+    const p = params();
+    if (p.get('test') === '1' && p.get('boot') !== '1') {
+      initShown();
+      if (p.get('all') === '1') for (const a of selectApps(useGameStore.getState()) as AppId[]) useUi.getState().markShown(a);
+      useUi.getState().setPhase('os');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'os') return;
+    initShown();
     return enableAutosave(useGameStore);
   }, [phase]);
 
-  // 패널/모달이 열려 있는 동안 월드를 멈춘다.
-  const paused = phase !== 'play' || !!modal || !!dialog || !!overlay || !!sequence;
-  useEffect(() => {
-    useGameStore.getState().setPaused(paused);
-    bus.emit('world:pause', { paused });
-  }, [paused]);
-
-  useKey(
-    (e) => {
-      if (isTyping(e) || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (phase !== 'play' || modal || dialog || overlay || sequence) return;
-      const k = e.key.toLowerCase();
-      if (k === 'n') open('notebook');
-      else if (k === 'c') open('collection');
-      else if (k === 'r') open('deduction');
-    },
-    [phase, modal, dialog, overlay, sequence],
-  );
-
-  const panelUrl = useMemo(() => {
-    const hanji = toDataURL(UI_KEYS.uiPanelHanji);
-    const modern = toDataURL(UI_KEYS.uiPanelModern);
-    return { hanji, modern };
-  }, []);
-  const style = {
-    ['--panel-url' as string]: `url("${theme === 'past' ? panelUrl.hanji : panelUrl.modern}")`,
-  } as React.CSSProperties;
-
   return (
-    <div className="app" data-theme={theme} data-layout={layout} data-phase={phase} style={style}>
-      <div className="game-layer">
-        <GameCanvas />
-      </div>
-      <div className="ui-root">
-        {phase === 'play' && <Hud layout={layout} />}
-        <Toasts />
-        {phase === 'play' && <DialogPanel />}
-        {phase === 'play' && layout === 'portrait' && <TabBar />}
-        {phase === 'menu' && <MainMenu />}
-        {modal?.kind === 'notebook' && <NotebookScreen />}
-        {modal?.kind === 'collection' && <CodexScreen />}
-        {(modal?.kind === 'deduction' || modal?.kind === 'evidence') && <DeductionScreen key={modal.kind + (modal.id ?? '')} />}
-        {modal?.kind === 'archive' && <ArchiveScreen />}
-        {(modal?.kind === 'settings' || modal?.kind === 'save') && <SettingsScreen />}
-        {overlay?.kind === 'database' && <DatabaseScreen />}
-        {overlay?.kind === 'reader' && <ReaderOverlay entryId={overlay.entryId} />}
-        <SequenceScreen />
-      </div>
+    <div className="os-root" style={vars}>
+      {phase === 'boot' ? <Boot /> : <Shell />}
     </div>
   );
 }

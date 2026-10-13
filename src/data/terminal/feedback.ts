@@ -26,4 +26,10 @@ export const FEEDBACK: Record<FeedbackKind, FeedbackSpec> = {
   verdict_wrong: { sfx: 'soft_thud', anim: 'card-nudge' },
   message: { sfx: 'message', anim: 'bubble-pop', haptic: [10] },
   exhibit: { sfx: 'case_open', anim: 'exhibit-light', haptic: [15, 30, 15] },
+  link: { sfx: 'stamp', stamp: 'stamp_new', anim: 'cards-merge', haptic: [18, 30, 18] },
+  link_miss: { sfx: 'paper', anim: 'cards-slide-apart' },
+  record_fact: { sfx: 'brush', stamp: 'stamp_ink', anim: 'pencil-trace', haptic: [12, 20, 12, 20, 30] },
+  // 복원: 따뜻한 먹 번짐 + 글자 깜빡여 바뀜. 말소: 무음, 명도 한 칸, 진동 없음.
+  restore: { sfx: 'ink_bloom', stamp: 'stamp_restored', anim: 'ink-spread-rewrite', haptic: [30, 60, 30] },
+  erase: { sfx: 'none', anim: 'dim-one-step' },
 };

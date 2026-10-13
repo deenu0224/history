@@ -9,7 +9,7 @@
  * 등장시키지 않는 것: 김일손 본인(1498년 소재 미확인), 유자광·어세겸(장면에 있었다는 근거 없음).
  * 이극돈 외의 관원은 신원을 정하지 않는다(personId 없음).
  * 관측 뷰어: 대사는 at(시각 구간, 분)과 when(플래그) 둘 다 맞아야 들린다(core/observation.ts linesAt).
- *   08:00 서리 → 10:00 곳간의 젊은 관원 → 12:00 이후 「조의제문」 → 14:00 대문의 전교 → 15:00 봉함 → 16:00 "아직 살아 있소".
+ *   08:00 서리 → 10:00 안쪽 방의 젊은 관원 → 12:00 이후 「조의제문」 → 14:00 대문의 전교 → 15:00 봉함 → 16:00 "아직 살아 있소".
  *   진행 필수 증거는 둘 이상의 경로(다른 인물·사료 구절)로도 얻을 수 있다(재관측/대체 경로).
  * grants.terms: 들은 표현 그대로 → 검색어 수첩(칩).
  */
@@ -120,7 +120,7 @@ export const npcs: NpcDef[] = [
       },
       {
         id: 'b4',
-        text: '(간언은 받아들여지지 않은 듯하다. 붉은 관복의 당상이 앞장서, 사초에서 여섯 조목을 가려 뽑아 봉한다.)',
+        text: '(간언은 받아들여지지 않은 듯하다. 당상들이 사초에서 여섯 조목을 가려 뽑아 봉한다. 붉은 관복의 당상도 그 자리에 있다.)',
         provenance: R,
         sources: [REF.sillokSachoOrder],
         when: { all: ['f_saw_order'] },
@@ -156,15 +156,15 @@ export const npcs: NpcDef[] = [
       {
         id: 'y1',
         speaker: '젊은 관원',
-        text: '사초는 두 벌을 쓰오. 한 벌은 바치고, 한 벌은 집에 두지.',
+        text: '사관은 집에도 사초를 따로 적어 두오. 실록을 엮을 땐 그것까지 거두어 가지.',
         provenance: R,
-        sources: [REF.geomyeol],
+        sources: [REF.geomyeol, REF.sagwan],
         grants: { terms: ['사초'] },
       },
       {
         id: 'y2',
         speaker: '젊은 관원',
-        text: '곳간의 꾸러미가 집에 두었던 것들이오. 실록을 엮을 때 모두 거두어 가니까.',
+        text: '안쪽 방의 꾸러미가 다 집에 둔 사초요. 이름표마다 주인이 다르지.',
         provenance: R,
         sources: [REF.sagwan, REF.seongjongSillok],
         at: [{ from: 600, to: 720 }],

@@ -1,24 +1,78 @@
 /**
- * DB 레코드. fictional = 가상 DB 메타데이터(정합성 보정 대상 가능). verified = 출처 있는 제도 설명.
- * 수치(교차 참조 밀도 등)는 가상 DB 의 값이며 실제 실록에 대한 주장이 아니다.
+ * DB 레코드.
+ *  - altered(변조된 상태, fictional): 말소된 세계의 DB. 원인 없는 결과만 담는다(사인 없는 졸년, 사유 없는 파직,
+ *    내용 없는 사후 처분). 날짜·이름은 검증된 사실에서 가져오되, '사인 기록 없음' 같은 빈칸이 곧 변조다.
+ *    복원(RealityShift.recordRewrites)으로만 실제 역사(verified + 출처)가 되며, 엔딩 뒤 열람 모드에서 원래 상태는 '변조'로 표시된다.
+ *  - 권오복·권경유는 실록 kja_10407026_004 의 이름과 처분 외에는 검증하지 않았다 → 변조 상태도 최소(이름 + 같은 달 졸 + 사인 없음).
+ *  - fictional(일반): 단말 시스템 레코드. verified: 출처 있는 제도 설명.
  */
 import type { DbRecord } from '@/core/types';
 import { REF } from '@/data/historical/refs';
 
 const F = 'fictional' as const;
+const OK = { key: 'status', label: '상태', value: '정상 · 오류 0건 · 원본 대조 통과' };
 
 export const records: DbRecord[] = [
   {
-    id: 'rec_meta_kim_ilson',
+    id: 'rec_alt_kim_ilson',
     provenance: F,
-    title: '메타데이터 — 김일손 관련 기록',
+    altered: true,
+    title: '인물 기록 — 김일손(金馹孫)',
     fields: [
-      { key: 'xref', label: '교차 참조 밀도', value: '0.998 (상위 0.1%)' },
-      { key: 'errors', label: '오류 보고', value: '0건' },
-      { key: 'origin', label: '원본 대조', value: '통과' },
-      { key: 'status', label: '상태', value: '정상' },
+      { key: 'life', label: '생몰', value: '1464 ~ 1498' },
+      { key: 'career', label: '관직', value: '승문원 정자 겸 춘추관 기사관 외' },
+      { key: 'death', label: '졸', value: '1498년 7월' },
+      { key: 'cause', label: '사인', value: '기록 없음' },
+      OK,
     ],
-    note: '통합 DB 정합성 모델 기준.',
+    note: '통합 역사 DB 인물 색인.',
+  },
+  {
+    id: 'rec_alt_kwon_obok',
+    provenance: F,
+    altered: true,
+    title: '인물 기록 — 권오복(權五福)',
+    fields: [
+      { key: 'death', label: '졸', value: '1498년 7월' },
+      { key: 'cause', label: '사인', value: '기록 없음' },
+      OK,
+    ],
+  },
+  {
+    id: 'rec_alt_kwon_gyeongyu',
+    provenance: F,
+    altered: true,
+    title: '인물 기록 — 권경유(權景裕)',
+    fields: [
+      { key: 'death', label: '졸', value: '1498년 7월' },
+      { key: 'cause', label: '사인', value: '기록 없음' },
+      OK,
+    ],
+  },
+  {
+    id: 'rec_alt_yi_geukdon',
+    provenance: F,
+    altered: true,
+    title: '인물 기록 — 이극돈(李克墩)',
+    fields: [
+      { key: 'life', label: '생몰', value: '1435 ~ 1503' },
+      { key: 'office', label: '관직', value: '지관사 · 『성종실록』 실록청 당상' },
+      { key: 'dismissed', label: '파직', value: '1498년' },
+      { key: 'reason', label: '파직 사유', value: '기록 없음' },
+      OK,
+    ],
+  },
+  {
+    id: 'rec_alt_kim_jongjik',
+    provenance: F,
+    altered: true,
+    title: '인물 기록 — 김종직(金宗直)',
+    fields: [
+      { key: 'life', label: '생몰', value: '1431 ~ 1492' },
+      { key: 'after', label: '사후 처분', value: '1498년, 1건' },
+      { key: 'content', label: '처분 내용', value: '기록 없음' },
+      OK,
+    ],
   },
   {
     id: 'rec_db_overview',
@@ -47,8 +101,7 @@ export const records: DbRecord[] = [
       { key: 'sagwan', label: '사관', value: '좁은 뜻의 사관은 춘추관 기사관을 겸한 예문관 봉교·대교·검열이다.' },
       { key: 'gajang', label: '가장사초', value: '사초를 2부 작성해 1부는 춘추관에 내고, 1부는 사관의 집에 보관했다.' },
       { key: 'collect', label: '실록청', value: '실록청이 서면 집에 둔 사초(가장사초)를 거두어 편찬에 썼다.' },
-      { key: 'private', label: '원칙', value: '왕은 사초를 보지 않는 것이 관례였다.' },
     ],
-    sources: [REF.sagwan, REF.geomyeol, REF.sillokSachoOrder],
+    sources: [REF.sagwan, REF.geomyeol],
   },
 ];

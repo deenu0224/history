@@ -1,4 +1,6 @@
 // 실존 인물. 사실(facts)은 docs/HISTORICAL_SOURCES.md 1장에서 '확정'인 것만.
+// summary 는 '두 현실 모두에서 참'인 검증된 사실만 둔다(말소된 세계에서도 보이므로 무오사화 관련 서술을 넣지 않는다).
+// 무오사화 관련 사실은 복원된 사료·사건·도감 필드(restoredBy)·복원 레코드로만 보인다.
 import type { HistoricalPerson } from '@/core/types';
 import { FACT } from './facts';
 import { REF } from './refs';
@@ -15,7 +17,7 @@ export const persons: HistoricalPerson[] = [
     died: 1498,
     summary:
       '조선 전기의 문신·사관. 본관 김해, 자 계운, 호 탁영. 1486년 문과에 급제해 승문원 정자로 춘추관 기사관을 겸했다. ' +
-      '김종직의 문하에서 배웠고, 스승의 「조의제문」을 사초에 실은 일로 1498년 무오사화 때 처형되었다. 중종반정 뒤 복관되었다.',
+      '김종직의 문하에서 평생 스승으로 모셨다.',
     facts: [
       FACT.nameKimIlson,
       { kind: 'courtesyName', value: '계운' },
@@ -47,8 +49,7 @@ export const persons: HistoricalPerson[] = [
     died: 1503,
     summary:
       '조선 전기의 문신. 본관 광주(廣州), 자 사고. 1457년 문과 급제. 『세조실록』 편찬에 편수관으로 참여했고, ' +
-      '1495년 지관사로서 『성종실록』 편찬을 맡았다. 실록청 당상으로 사초를 정리하다 김일손의 사초에서 「조의제문」을 문제 삼았으며, ' +
-      '사화 뒤에는 문제의 사초를 보고도 고하지 않은 죄로 파면되었다.',
+      '1495년 지관사로서 『성종실록』 편찬을 맡아 실록청 당상으로 사초를 정리했다.',
     facts: [
       FACT.nameYiGeukdon,
       { kind: 'courtesyName', value: '사고' },
@@ -70,8 +71,7 @@ export const persons: HistoricalPerson[] = [
     born: 1431,
     died: 1492,
     summary:
-      '조선 전기의 문신·학자. 본관 선산, 호 점필재. 1459년 문과 급제. 1457년에 「조의제문」을 지었다. ' +
-      '김일손의 스승이며, 세상을 떠난 뒤 무오사화 때 「조의제문」과 관련되어 부관참시를 당했다.',
+      '조선 전기의 문신·학자. 본관 선산, 호 점필재. 1459년 문과 급제. 1457년에 「조의제문」을 지었다. 김일손의 스승.',
     facts: [
       { kind: 'name', value: '김종직' },
       { kind: 'penName', value: '점필재' },
@@ -90,7 +90,7 @@ export const persons: HistoricalPerson[] = [
     died: 1512,
     summary:
       '조선 전기의 무신·문신. 본관 영광, 서얼 출신. 1467년 이시애의 난에 종군했고 1468년 남이 옥사로 익대공신이 되었다. ' +
-      '김종직에게 원한을 품었으며, 「조의제문」에 주석을 달아 연산군에게 고해 무오사화를 일으켰다.',
+      '함양에서 김종직이 그의 시 현판을 철거해 불태운 일로 원한을 품었다.',
     facts: [
       { kind: 'name', value: '유자광' },
       { kind: 'clan', value: '영광' },
@@ -107,8 +107,7 @@ export const persons: HistoricalPerson[] = [
     name: '어세겸',
     hanja: '魚世謙',
     summary:
-      '조선 전기의 문신. 1495년 이극돈 등과 함께 『성종실록』 편찬의 명을 받았다. ' +
-      '무오사화 뒤 수사관으로서 문제의 사초를 보고도 고하지 않은 죄로 파면되었다.',
+      '조선 전기의 문신. 1495년 이극돈 등과 함께 『성종실록』 편찬의 명을 받았다.',
     facts: [
       { kind: 'name', value: '어세겸' },
       { kind: 'trait', value: '『성종실록』 편찬의 명을 받음' },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { bus } from '@/core/bus';
 import type { AppId } from '@/core/types';
@@ -12,7 +12,8 @@ import { useUi, type WinKey } from '../uiStore';
 import { Coach } from './Coach';
 import { Dock } from './Dock';
 import { FullscreenFrame, WORK_AREA, WindowFrame } from './Frames';
-import { Overlays, Toasts } from './Overlays';
+import { Overlays, Toasts, pulseDip } from './Overlays';
+import { fx } from '../lib/fx';
 import { StatusBar } from './StatusBar';
 import { ObjectivePin } from './Widgets';
 
@@ -23,23 +24,13 @@ function appDefIcon(k: UiApp) {
   return d ? `${d.iconKey}_sm` : 'app_db_sm';
 }
 
-/** 검색 앱은 첫 메시지를 읽은 뒤(또는 90초 뒤) 생긴다: 처음 90초는 메신저만 보인다. */
+/** 앱은 데이터의 잠금 조건대로 한 번에 하나씩 '설치'된다(독에 생기는 연출). */
 function useVisibleApps(): UiApp[] {
   const unlocked = useGameStore(useShallow((s) => selectApps(s).map((a) => canonicalApp(a)).filter((a): a is UiApp => !!a)));
-  const readFirst = useGameStore((s) => s.read.includes('m_c_01') || s.stats.searches > 0);
   const shown = useUi((s) => s.shown);
   const markShown = useUi((s) => s.markShown);
-  const [t0] = useState(() => Date.now());
-  const [, force] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => force((n) => n + 1), 5000);
-    return () => clearInterval(t);
-  }, []);
-  const gateOpen = readFirst || Date.now() - t0 > 90_000;
-  const want = [...new Set(unlocked)].filter((a) => a !== 'search' || gateOpen);
-  const pending = want.filter((a) => !shown.includes(a as AppId));
-  const first = pending[0];
-  // 한 번에 하나씩 설치 연출
+  const want = [...new Set(unlocked)];
+  const first = want.find((a) => !shown.includes(a as AppId));
   useEffect(() => {
     if (!first) return;
     const t = setTimeout(() => {
@@ -84,6 +75,28 @@ export function Shell() {
     window.addEventListener('popstate', on);
     return () => window.removeEventListener('popstate', on);
   }, [mode]);
+
+  // 다시 쓰기(말소·복원) 연출: 말소는 차갑게 조용히, 복원은 따뜻한 번짐. 끝나면 스토어에 알린다.
+  const recent = useGameStore((s) => s.recentRewrites);
+  useEffect(() => {
+    if (!recent.length) return;
+    const tone = recent.some((r) => r.tone === 'restore') ? 'restore' : 'erase';
+    fx(tone);
+    pulseDip(tone);
+    const t = setTimeout(() => useGameStore.getState().ackRewrites(), 1500);
+    return () => clearTimeout(t);
+  }, [recent]);
+
+  // 복원 직후 손 노트의 '고쳐 쓴 줄' 쪽을 자동으로 연다
+  const pendingDiff = useGameStore((s) => s.pendingDiffPageId);
+  useEffect(() => {
+    if (!pendingDiff) return;
+    const t = setTimeout(() => {
+      useUi.getState().setNotebookTab('diff');
+      useGameStore.getState().openApp('notebook');
+    }, 1400);
+    return () => clearTimeout(t);
+  }, [pendingDiff]);
 
   // 버스 → 스토어
   useEffect(() => {
@@ -158,10 +171,7 @@ export function Shell() {
         return;
       }
     }
-    if (!useGameStore.getState().openApp(app as AppId)) {
-      // 합쳐진 앱(구 id)
-      useGameStore.getState().openApp(app === 'search' ? 'reader' : app === 'notebook' ? 'archive' : (app as AppId));
-    }
+    useGameStore.getState().openApp(app as AppId);
   };
   const closeKey = (k: WinKey) => {
     closeWindow(k);

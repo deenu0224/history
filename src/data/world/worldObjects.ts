@@ -61,7 +61,7 @@ const obs001: Interactable[] = [
         {
           id: 'note_bundles',
           section: 'observed',
-          text: '곳간에 여러 사람의 이름이 붙은 종이 꾸러미가 쌓여 있다.',
+          text: '안쪽 방에 여러 사람의 이름이 붙은 종이 꾸러미가 쌓여 있다.',
           provenance: R,
         },
       ],

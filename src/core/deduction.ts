@@ -1,6 +1,8 @@
 import { judgeYear } from './chronology';
 import { FACT_LABELS, citeEvidence, factText, hasFact, sameFact } from './content';
 import type {
+  CausalDeduction,
+  CausalSubmissionLink,
   Deduction,
   DeductionSubmission,
   EventDeduction,
@@ -121,6 +123,74 @@ export function judgeEvent(
   return res('confirmed', feedback);
 }
 
+/**
+ * 인과 추리(주 봉우리). 화살표마다 판정한다:
+ *  1. 입력 오류(없는 마디, 자기 자신, 같은 화살표 중복, 화살표 0개)          → undetermined
+ *  2. 화살표에 인용 사실이 없음                                              → 그 화살표 link_unsupported
+ *     (근거 없이 화살표만 바꿔 보며 정답을 캐낼 수 없게, 틀린 화살표 판정보다 먼저)
+ *  3. 정답 고리에 없는 화살표: 알려진 오답이면 그 고유 문구, 방향이 뒤집혔으면 link_reversed, 아니면 link_wrong
+ *  4. 정답 화살표인데 필요한 사실이 인용되지 않음                             → link_unsupported(사실 '종류'만)
+ *  판정: 3 이 하나라도 → wrong / 2·4 가 하나라도 → undetermined / 정답 화살표가 빠짐 → undetermined(chain_incomplete)
+ *        / 그 외 → confirmed. 정답 마디·순서는 피드백에 나오지 않는다(틀린 화살표의 마디는 플레이어가 고른 것).
+ */
+export function judgeCausal(d: CausalDeduction, sub: { links: readonly CausalSubmissionLink[] }, ctx: JudgeContext): JudgeResult {
+  const res = (verdict: Verdict, feedback: Feedback[]): JudgeResult => ({ deductionId: d.id, verdict, feedback });
+  const node = new Map(d.nodes.map((n) => [n.id, n]));
+  const key = (a: string, b: string) => `${a}>${b}`;
+  const seen = new Set<string>();
+  if (!sub.links.length) return res('undetermined', [{ code: 'invalid_input', message: '화살표를 하나 이상 이어 주세요.' }]);
+  for (const l of sub.links) {
+    if (!node.has(l.from) || !node.has(l.to) || l.from === l.to || seen.has(key(l.from, l.to)))
+      return res('undetermined', [{ code: 'invalid_input', message: '잇는 방식이 올바르지 않습니다(같은 카드끼리, 또는 같은 화살표 두 번).' }]);
+    seen.add(key(l.from, l.to));
+  }
+  const rule = new Map(d.links.map((r) => [key(r.from, r.to), r]));
+  const wrongMsg = new Map((d.wrongLinks ?? []).map((w) => [key(w.from, w.to), w.message]));
+  const feedback: Feedback[] = [];
+  let wrong = false;
+  let unsupported = false;
+  for (const l of sub.links) {
+    const link = { from: l.from, to: l.to };
+    const name = `「${node.get(l.from)!.text}」 → 「${node.get(l.to)!.text}」`;
+    const cited = citedFacts(l.evidenceIds, ctx);
+    feedback.push(...cited.feedback.filter((f) => f.code !== 'no_facts').map((f) => ({ ...f, link })));
+    if (cited.facts.length === 0) {
+      unsupported = true;
+      feedback.push({ code: 'link_unsupported', link, message: `${name}: 이 화살표를 받쳐 줄 카드가 없습니다.` });
+      continue;
+    }
+    const r = rule.get(key(l.from, l.to));
+    if (!r) {
+      wrong = true;
+      const known = wrongMsg.get(key(l.from, l.to));
+      if (known) feedback.push({ code: 'link_wrong', link, message: known });
+      else if (rule.has(key(l.to, l.from)))
+        feedback.push({ code: 'link_reversed', link, message: `${name}: 무엇이 먼저였는지 다시 보세요. 화살표의 방향이 어긋납니다.` });
+      else feedback.push({ code: 'link_wrong', link, message: `${name}: 인용한 카드들은 앞의 일이 뒤의 일을 낳았다고 말해 주지 않습니다.` });
+      continue;
+    }
+    const kinds = new Set(r.requires.filter((f) => !hasFact(cited.facts, f)).map((f) => f.kind));
+    if (kinds.size) {
+      unsupported = true;
+      for (const kind of kinds)
+        feedback.push({
+          code: 'link_unsupported',
+          link,
+          message: `${name}: 아직 ${FACT_LABELS[kind]}을(를) 입증하는 카드가 이 화살표에 없습니다.`,
+        });
+    }
+  }
+  if (wrong) return res('wrong', feedback);
+  if (unsupported) return res('undetermined', feedback);
+  const missing = d.links.filter((r) => !seen.has(key(r.from, r.to))).length;
+  if (missing)
+    return res('undetermined', [
+      ...feedback,
+      { code: 'chain_incomplete', message: `이은 화살표는 모두 맞지만, 끝까지 이어지지 않았습니다. 빠진 고리가 ${missing}개 있습니다.` },
+    ]);
+  return res('confirmed', feedback);
+}
+
 export function judgeDeduction(d: Deduction, sub: DeductionSubmission, ctx: JudgeContext): JudgeResult {
   if (sub.deductionId !== d.id || sub.kind !== d.kind)
     return {
@@ -135,6 +205,8 @@ export function judgeDeduction(d: Deduction, sub: DeductionSubmission, ctx: Judg
       return judgePerson(d, sub as Extract<DeductionSubmission, { kind: 'person' }>, ctx);
     case 'event':
       return judgeEvent(d, sub as Extract<DeductionSubmission, { kind: 'event' }>, ctx);
+    case 'causal':
+      return judgeCausal(d, sub as Extract<DeductionSubmission, { kind: 'causal' }>, ctx);
   }
 }
 

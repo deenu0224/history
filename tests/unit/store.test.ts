@@ -68,12 +68,12 @@ describe('gameStore — terminal', () => {
 
   it('apps unlock by condition and openApp records first opens', () => {
     expect(selectApps(s(), content)).toEqual(['messenger', 'search', 'viewer', 'board']);
-    expect(s().openApp('reader')).toBe(false);
+    expect(s().openApp('notebook')).toBe(false);
     expect(s().openApp('search')).toBe(true);
     expect(s().ui.app).toBe('search');
     expect(s().appsOpened).toEqual(['search']);
     s().setFlag('sample_desk_searched');
-    expect(s().openApp('reader', 'sample_source_record')).toBe(true);
+    expect(s().openApp('notebook', 'sample_source_record')).toBe(true);
     expect(s().ui.appTarget).toBe('sample_source_record');
     s().closeApp();
     expect(s().ui.app).toBeNull();
@@ -127,6 +127,8 @@ describe('gameStore — terminal', () => {
 
   it('phrases: no_link is free, registered applies grants once', () => {
     s().search('샘플 기록');
+    expect(s().registerPhrase('sample_source_record', 'sample_ph_order').status).toBe('unavailable'); // 원문 대조 권한 전
+    s().setFlag('source_access');
     const miss = s().registerPhrase('sample_source_record', 'sample_ph_order');
     expect(miss.status).toBe('no_link');
     expect(s().stats.phraseMisses).toBe(1);

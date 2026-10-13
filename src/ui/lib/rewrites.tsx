@@ -12,60 +12,30 @@ import { useGameStore } from '@/store/gameStore';
 import { prefersReducedMotion } from '../hooks';
 import { useUi } from '../uiStore';
 
-export type RewriteKind = 'message' | 'record' | 'memo' | 'notebook' | string;
+export type { RewriteEntry } from '@/core/types';
+import type { RewriteEntry } from '@/core/types';
+import { CONTENT } from './content';
 
-export interface RewriteEntry {
-  /** 고유 키 */
-  id: string;
-  kind: RewriteKind;
-  /** 바뀐 대상 id(메시지 id / 레코드 id / 메모 id) */
-  targetId: Id;
-  /** 레코드 필드 키(있으면) */
-  field?: string;
-  before: string;
-  after: string;
-  /** 어느 사실의 복원으로 바뀌었나(있으면) */
-  factId?: Id;
-  seq: number;
+export type RewriteKind = RewriteEntry['kind'] | '*';
+
+/** 스토어 상태의 재기록 로그(말소·복원). 단말 화면에는 표식이 없고, 플레이어 쪽(손 노트·연필 표시)만 읽는다. */
+export function readRewrites(state: unknown): RewriteEntry[] {
+  const raw = (state as { rewriteLog?: unknown })?.rewriteLog;
+  return Array.isArray(raw) ? (raw as RewriteEntry[]) : [];
 }
 
-/** 스토어 상태에서 재기록 목록을 읽는다(없으면 빈 배열). */
-export function readRewrites(state: unknown): RewriteEntry[] {
-  const raw = (state as { rewrites?: unknown })?.rewrites;
-  if (!Array.isArray(raw)) return [];
-  const out: RewriteEntry[] = [];
-  raw.forEach((r, i) => {
-    if (!r || typeof r !== 'object') return;
-    const o = r as Record<string, unknown>;
-    const before = typeof o.before === 'string' ? o.before : typeof o.from === 'string' ? o.from : undefined;
-    const after = typeof o.after === 'string' ? o.after : typeof o.to === 'string' ? o.to : undefined;
-    const targetId = (o.targetId ?? o.messageId ?? o.recordId ?? o.target ?? o.id) as string | undefined;
-    if (before === undefined || after === undefined || typeof targetId !== 'string') return;
-    out.push({
-      id: String(o.id ?? `${targetId}:${i}`),
-      kind: String(o.kind ?? o.type ?? 'message'),
-      targetId,
-      field: typeof o.field === 'string' ? o.field : typeof o.key === 'string' ? o.key : undefined,
-      before,
-      after,
-      factId: typeof o.factId === 'string' ? o.factId : undefined,
-      seq: typeof o.seq === 'number' ? o.seq : i,
-    });
-  });
+export const rewriteKey = (r: RewriteEntry) => `${r.sourceId}:${r.kind}:${r.targetId}:${r.seq}`;
+
+/** 복원된(적용된 현실 이동의 restores) 항목 id 목록 — 기록관 '복원' 도장, 사료 '복원' 표식 */
+export function readRestored(state: unknown): Id[] {
+  const applied = (state as { shifts?: Id[] })?.shifts ?? [];
+  const out: Id[] = [];
+  for (const sh of CONTENT.shifts) if (applied.includes(sh.id)) for (const r of sh.restores) out.push(r.id);
   return out;
 }
 
-/** 스토어 상태에서 '복원'된 항목 id(전시물·사실)를 읽는다. */
-export function readRestored(state: unknown): Id[] {
-  const raw = (state as { restored?: unknown })?.restored;
-  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === 'string');
-  if (raw && typeof raw === 'object') return Object.keys(raw as object).filter((k) => (raw as Record<string, unknown>)[k]);
-  return [];
-}
-
 export function useRewrites(): RewriteEntry[] {
-  const raw = useGameStore((s) => (s as unknown as { rewrites?: unknown }).rewrites);
-  return Array.isArray(raw) ? readRewrites({ rewrites: raw }) : [];
+  return useGameStore((s) => s.rewriteLog) ?? [];
 }
 
 const GLYPHS = '가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허고노도로모보소오조초코토포호구누두루무부수우주';
@@ -89,7 +59,7 @@ export function scrambleFrame(before: string, after: string, t: number, rnd: () 
  * 표시용 문장. text 가 마운트된 채로 바뀌면(복원) 흔들리다 가라앉는다.
  * 이미 바뀐 뒤 처음 열었다면 재기록 목록의 before 에서 시작한다(한 번만).
  */
-export function useRewriteText(kind: RewriteKind, targetId: Id, text: string, field?: string): { text: string; busy: boolean } {
+export function useRewriteText(kind: RewriteKind, targetId: Id, text: string, _field?: string): { text: string; busy: boolean } {
   const rewrites = useRewrites();
   const seen = useUi((s) => s.seenRewrites);
   const mark = useUi((s) => s.markRewriteSeen);
@@ -121,7 +91,7 @@ export function useRewriteText(kind: RewriteKind, targetId: Id, text: string, fi
 
   const findHit = (to: string) =>
     rewrites.find(
-      (r) => r.targetId === targetId && (r.kind === kind || kind === '*') && (!field || !r.field || r.field === field) && r.after === to,
+      (r) => r.targetId === targetId && (r.kind === kind || kind === '*') && (r.after === to || (r.kind === 'record' && r.after.includes(to))),
     );
 
   // 마운트된 채로 문장이 바뀜
@@ -131,8 +101,8 @@ export function useRewriteText(kind: RewriteKind, targetId: Id, text: string, fi
       prev.current = text;
       const hit = findHit(text);
       if (hit) {
-        startedFor.current = hit.id;
-        mark(hit.id);
+        startedFor.current = rewriteKey(hit);
+        mark(rewriteKey(hit));
       }
       run(from, text);
     }
@@ -143,10 +113,11 @@ export function useRewriteText(kind: RewriteKind, targetId: Id, text: string, fi
   useEffect(() => {
     const hit = findHit(text);
     if (!hit) return;
-    if (seen[hit.id] || startedFor.current === hit.id) return;
-    startedFor.current = hit.id;
-    mark(hit.id);
-    run(hit.before, text);
+    const key = rewriteKey(hit);
+    if (seen[key] || startedFor.current === key) return;
+    startedFor.current = key;
+    mark(key);
+    run(hit.kind === 'record' ? hit.before.split('\n').find((l) => l.includes(text.slice(0, 2))) ?? text : hit.before, text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rewrites.length, text, targetId]);
 

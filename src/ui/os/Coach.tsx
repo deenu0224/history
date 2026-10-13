@@ -1,5 +1,6 @@
 /** 코치마크(한 줄 + 대상 하이라이트 링)와 3단 힌트(디에게틱 → 명시). 방치 시간은 tickIdle 로 스토어에 알린다. */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { selectTutorial, useGameStore } from '@/store/gameStore';
 import { CONTENT } from '../lib/content';
 import { idleSeconds, touchInput } from '../hooks';
@@ -18,15 +19,24 @@ function visible(el: Element): boolean {
   return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
 }
 
+/** 다른 창에 가려진 대상은 건너뛴다 */
+function exposed(el: Element): boolean {
+  const r = el.getBoundingClientRect();
+  const top = document.elementFromPoint(r.x + r.width / 2, r.y + Math.min(r.height / 2, 24));
+  if (!top) return true;
+  const mine = el.closest('.win, .fs');
+  return !mine || mine === top.closest('.win, .fs');
+}
+
 function findTarget(key: string, app: string): Element | null {
   const sel = `[data-coach="${key}"]`;
-  const scoped = [...document.querySelectorAll(`[data-app="${app}"] ${sel}`)].filter(visible);
-  const any = [...document.querySelectorAll(sel)].filter(visible);
+  const scoped = [...document.querySelectorAll(`[data-app="${app}"] ${sel}`)].filter((e) => visible(e) && exposed(e));
+  const any = [...document.querySelectorAll(sel)].filter((e) => visible(e) && exposed(e));
   return scoped[0] ?? any[0] ?? null;
 }
 
 export function Coach({ frontApp }: { frontApp: UiApp | null }) {
-  const view = useGameStore((s) => selectTutorial(s, CONTENT, s.ui.app ?? undefined));
+  const view = useGameStore(useShallow((s) => selectTutorial(s, CONTENT, s.ui.app ?? undefined)));
   const hintLevel = useGameStore((s) => s.settings.hintLevel);
   const dismiss = useGameStore((s) => s.dismissCoach);
   const hintHidden = useUi((s) => s.hintHidden);

@@ -61,7 +61,7 @@ function evidenceFeedback(v: EvidenceView, from: Year, to: Year): Feedback[] {
   const conflict = !overlaps(from, to, t);
   if (t.strength === 'weak') {
     const why = t.weakReason ?? '사용·복제 시기가 불확실함';
-    out.push({ code: 'weak', evidenceId, message: `${name}은(는) 연대를 확정하기에 약합니다(${why}).` });
+    out.push({ code: 'weak', evidenceId, message: t.feedback ?? `${name}은(는) 연대를 확정하기에 약합니다(${why}).` });
     if (conflict)
       out.push({
         code: 'weak_conflict',
@@ -70,11 +70,13 @@ function evidenceFeedback(v: EvidenceView, from: Year, to: Year): Feedback[] {
       });
     return out;
   }
+  // 카드 고유 문구가 있으면 그것을, 없으면 일반 문구(코드는 같다)
+  const say = (generic: string) => t.feedback ?? `${name}은(는) ${generic}`;
   if (t.notBefore !== undefined && t.notAfter !== undefined)
-    out.push({ code: 'bounds_both', evidenceId, message: `${name}은(는) 하한과 상한을 모두 제한합니다.` });
+    out.push({ code: 'bounds_both', evidenceId, message: say('하한과 상한을 모두 제한합니다.') });
   else if (t.notBefore !== undefined)
-    out.push({ code: 'bounds_lower', evidenceId, message: `${name}은(는) 하한만 제한합니다.` });
-  else out.push({ code: 'bounds_upper', evidenceId, message: `${name}은(는) 상한만 제한합니다.` });
+    out.push({ code: 'bounds_lower', evidenceId, message: say('하한만 제한합니다.') });
+  else out.push({ code: 'bounds_upper', evidenceId, message: say('상한만 제한합니다.') });
   if (conflict) out.push({ code: 'contradiction', evidenceId, message: `제출한 범위가 ${name}와(과) 모순됩니다.` });
   return out;
 }

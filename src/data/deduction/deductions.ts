@@ -1,12 +1,13 @@
 /**
  * 에피소드 1 추리 세 개. 정답은 증거의 연대 제약·사실에서만 도출된다(UI 하드코딩 금지).
  *
- * 연도: C1 묘호 [1495,) ∩ C2 실록청 [1495,1499] ∩ C3 이극돈 당상 [1495,1498] ∩ C4 김일손 생존 (,1498]
- *       → 1495~1498 (부분 확정). C6 「조의제문」 문제 [1498,) 를 더하면 → 1498 (확정).
- *       함정: 묘호 '성종'을 듣고 성종 재위기(1469~1494)로 답하면 C1 과 모순.
- * 인물: 실록청 당상 + 『세조실록』 편찬 참여 → 이극돈.
- * 사건: 왕의 사초 반입 명 + 6조목을 뽑아 봉함 → 사초 문제(무오사화의 발단).
- * 잠금(TERMINAL_DESIGN §레벨 디자인): 인물(f_met_official, 보드는 관측 종료 후) → 연도(app_reader) → 사건(ded_year_partial).
+ * 인물(쉬운 起): 실록청 당상 + 『세조실록』 편찬 참여 → 이극돈.
+ * 연도(짧은 중간 퍼즐 — DB 에 졸년이 보이므로 봉우리가 아니다):
+ *   C1 묘호 [1495,) ∩ C2 실록청 [1495,1499] ∩ C3 이극돈 당상 [1495,1498] ∩ C4 김일손 생존 (,1498] → 1495~1498(부분 확정).
+ *   보드의 카드 겹치기로 만든 '사초와 세 죽음' [1498,) 을 더하면 → 1498(확정). 轉: 묘호를 듣고 성종 재위기로 답하면 C1 과 모순.
+ * 인과(주 봉우리): 「같은 달 세 사람은 왜 죽었나?」 「조의제문」이 실린 사초 → 왕의 전교 → 같은 달의 죽음.
+ *   화살표마다 증거로 뒷받침(core/deduction judgeCausal). 확정하면 손 노트에 '기록하기'가 열리고, 기록이 무오사화를 복원한다.
+ * 잠금: 인물(f_met_official) → 연도(source_access) → 인과(ded_year_partial).
  */
 import type { Deduction } from '@/core/types';
 import { FACT } from '@/data/historical/facts';
@@ -21,6 +22,7 @@ export const YEAR_EVIDENCE = [
   'ev_jouijemun',
   'ev_lawbook',
   'ev_takyeong_record',
+  'ev_same_month',
 ];
 
 export const deductions: Deduction[] = [
@@ -33,9 +35,9 @@ export const deductions: Deduction[] = [
     target: { from: 1498, to: 1498 },
     maxPartialWidth: 5,
     relevantEvidence: YEAR_EVIDENCE,
-    // 닌텐도식 램프: 연도(주 봉우리)는 사료 구절 등록을 익힌 뒤(사료 뷰어 개방)에 열린다.
-    requires: 'app_reader',
-    sources: [REF.sillokMyoho, REF.seongjongSillok, REF.yiGeukdon, REF.sillokVerdict, REF.sillokSachoOrder],
+    // 닌텐도식 램프: 연도는 구절 등록(원문 대조 권한)을 익힌 뒤에 열린다.
+    requires: 'source_access',
+    sources: [REF.sillokMyoho, REF.seongjongSillok, REF.yiGeukdon, REF.kimIlson, REF.sillokSachoOrder, REF.sillokVerdict],
     rewards: {
       partial: [
         { type: 'flag', flag: 'ded_year_partial' },
@@ -103,61 +105,80 @@ export const deductions: Deduction[] = [
     },
   },
   {
-    id: 'ded_event_001',
-    kind: 'event',
+    id: 'ded_cause_001',
+    kind: 'causal',
     provenance: 'verified',
-    title: '관측 #001 — 무슨 일이 벌어지는가',
-    prompt: '관청에서 지금 벌어지는 일을 가장 잘 설명하는 진술은?',
-    eventId: 'evt_muo_sahwa',
-    statements: [
+    title: '같은 달, 세 사람 — 왜 죽었나',
+    prompt: '사인 없는 세 죽음. 카드들을 화살표로 이어, 무엇이 무엇을 낳았는지 보여라. 화살표마다 근거 카드를 붙인다.',
+    nodes: [
+      { id: 'n_jouijemun', text: '한 사초에 실린 「조의제문」이 문제가 되었다' },
+      { id: 'n_order', text: '왕이 그 사관의 사초를 모두 대내로 들이라 명했다' },
+      { id: 'n_deaths', text: '같은 달, 사초의 주인과 두 사람이 사인 없이 죽었다' },
+      { id: 'n_routine', text: '실록청이 평소처럼 사관들의 집에서 사초를 거두었다' },
+      { id: 'n_plague', text: '그해 역병과 흉년이 돌았다' },
+      { id: 'n_halted', text: '실록 편찬이 멈추었다' },
+    ],
+    chain: ['n_jouijemun', 'n_order', 'n_deaths'],
+    links: [
+      { from: 'n_jouijemun', to: 'n_order', requires: [FACT.claimJouijemunInSacho, FACT.claimOrderAllSacho] },
+      { from: 'n_order', to: 'n_deaths', requires: [FACT.claimOrderThenDeaths] },
+    ],
+    wrongLinks: [
       {
-        id: 'st_routine',
-        text: '평소처럼 거둔 사초로 선왕의 실록을 엮고 있을 뿐이다.',
-        refutedBy: [FACT.claimOrderAllSacho, FACT.claimSachoCustom],
+        from: 'n_routine',
+        to: 'n_deaths',
+        message: '집에 둔 사초를 거두는 일은 실록을 엮을 때마다 있던 절차다. 그것만으로 사람이 죽지는 않는다.',
       },
       {
-        id: 'st_crisis',
-        text: '한 사관의 사초에 실린 글이 문제가 되어, 왕이 그 사초를 직접 보려 한다.',
+        from: 'n_routine',
+        to: 'n_order',
+        message: '거두는 일은 늘 있었다. 왕이 한 사람의 사초를 콕 집어 들이라 한 데에는 다른 까닭이 있다.',
       },
       {
-        id: 'st_custom',
-        text: '왕이 사초를 들여다보는 것은 늘 있던 일이다.',
-        refutedBy: [FACT.claimSachoCustom],
+        from: 'n_plague',
+        to: 'n_deaths',
+        message: '돌림병이라면 같은 사초 곁의 사람들만 같은 달에 골라 데려가지는 않는다. 이 화살표를 받칠 카드는 없다.',
       },
       {
-        id: 'st_blocked',
-        text: '당상들의 반대로 사초는 한 장도 왕에게 들어가지 않았다.',
-        refutedBy: [FACT.claimSixArticles],
+        from: 'n_order',
+        to: 'n_halted',
+        message: '편찬은 멈추지 않았다. 완성되어 사고에 봉안된 기록이 있다.',
       },
       {
-        id: 'st_halted',
-        text: '이 일로 실록 편찬은 끝내 중단되었다.',
-        refutedBy: [FACT.claimSillokCompleted],
+        from: 'n_halted',
+        to: 'n_deaths',
+        message: '편찬은 멈추지 않았다. 멈추지 않은 일이 죽음을 낳을 수는 없다.',
+      },
+      {
+        from: 'n_jouijemun',
+        to: 'n_deaths',
+        message: '글 한 편이 곧장 사람을 죽이지는 않는다. 그 사이에 누군가의 명이 있었다.',
       },
     ],
-    answer: 'st_crisis',
-    requiredFacts: [FACT.claimOrderAllSacho, FACT.claimSixArticles],
-    relevantEvidence: ['ev_royal_order', 'ev_objection', 'ev_six_articles', 'ev_gajang', 'ev_sillok_done', 'ev_jouijemun'],
-    // 사건(결합)은 연도 추리를 한 번 넘긴 뒤(부분 확정 이상)에 열린다.
+    relevantEvidence: [
+      'ev_jouijemun',
+      'ev_royal_order',
+      'ev_same_month',
+      'ev_db_deaths',
+      'ev_gajang',
+      'ev_objection',
+      'ev_six_articles',
+      'ev_sillok_done',
+      'ev_author_alive',
+    ],
+    // 인과(봉우리)는 연도를 한 번 넘긴 뒤(부분 확정 이상)에 열린다.
     requires: 'ded_year_partial',
-    sources: [REF.sillokSachoOrder, REF.seongjongSillok],
+    sources: [REF.sillokSachoOrder, REF.sillokVerdict, REF.jouijemun, REF.muoSahwa],
     rewards: {
       confirmed: [
-        { type: 'flag', flag: 'ded_event_confirmed' },
-        { type: 'collection', entryId: 'col_evt_muo_sahwa', stage: 4 },
-        { type: 'collection', entryId: 'col_src_sacho_order', stage: 4 },
-        { type: 'collection', entryId: 'col_src_house_search', stage: 2 },
-        { type: 'collection', entryId: 'col_src_verdict', stage: 2 },
+        { type: 'flag', flag: 'ded_cause_confirmed' },
         {
           type: 'notebook',
           note: {
-            id: 'note_event_confirmed',
-            section: 'verified',
-            text:
-              '관측한 날은 왕이 김일손의 사초를 대내로 들이라 명한 날(음력 7월 11일)이다. 이튿날부터 신문이 시작되었고, ' +
-              '그달 김일손은 처형되었다. 무오사화.',
-            refIds: ['evt_muo_sahwa', 'src_sacho_order'],
-            provenance: 'verified',
+            id: 'note_cause_confirmed',
+            section: 'hypothesis',
+            text: '세 사람은 사초 때문에 죽었다. 「조의제문」이 실린 사초 → 왕의 전교 → 같은 달의 죽음. DB 에는 없다. 손으로 적어 둘 것.',
+            provenance: 'fictional',
           },
         },
         { type: 'resolveQuestion', noteId: 'q_what' },

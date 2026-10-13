@@ -173,3 +173,73 @@ export function viewerFrame(
   }
   return { timelineId: tl.id, minute: m, clock: formatClock(m), glitch: glitchAt(tl, m), npcs, hotspots };
 }
+
+// ── 스크럽 막대 눈금·인물 동선(UI 표시용 데이터) ─────────────────────
+export type TickKind = 'move' | 'speech' | 'object';
+
+export interface TimelineTick {
+  minute: number;
+  kind: TickKind;
+  /** 그 시각에 무언가가 시작되는 대상(NPC·사물 id) */
+  targetIds: Id[];
+}
+
+/**
+ * 하루 중 '무언가가 시작되는' 시각들. move = 자리 옮김, speech = 새 대사 구간 시작(지금 플래그로 들릴 수 있는 것만),
+ * object = 사물이 열리는 구간 시작. 내용은 주지 않는다(발견의 몫) — 어디쯤 볼 만한지만 알려 준다.
+ */
+export function timelineTicks(
+  tl: ObservationTimeline,
+  c: Pick<ContentBundle, 'worldObjects' | 'npcs'>,
+  flags: Flags = {},
+): TimelineTick[] {
+  const map = new Map<string, TimelineTick>();
+  const add = (minute: number, kind: TickKind, id: Id) => {
+    if (minute <= tl.start || minute >= tl.end) return;
+    const k = `${kind}@${minute}`;
+    const t = map.get(k) ?? { minute, kind, targetIds: [] };
+    if (!t.targetIds.includes(id)) t.targetIds.push(id);
+    map.set(k, t);
+  };
+  for (const h of tl.hotspots) {
+    if (h.kind === 'npc') {
+      const n = c.npcs.find((x) => x.id === h.targetId);
+      if (!n) continue;
+      for (const w of n.schedule) add(w.time, 'move', n.id);
+      for (const l of n.dialogue) if (checkCondition(flags, l.when)) for (const w of l.at ?? []) add(w.from, 'speech', n.id);
+    } else for (const w of h.windows ?? []) add(w.from, 'object', h.targetId);
+  }
+  const order: Record<TickKind, number> = { move: 0, speech: 1, object: 2 };
+  return [...map.values()].sort((a, b) => a.minute - b.minute || order[a.kind] - order[b.kind]);
+}
+
+export interface RoutePoint {
+  minute: number;
+  x: number;
+  y: number;
+  action?: string;
+}
+
+export interface NpcRoute {
+  npcId: Id;
+  label: string;
+  /** 타임라인 안의 머무는 지점(시작 시각 순). 첫 점은 타임라인 시작 때의 자리. */
+  points: RoutePoint[];
+  /** minute 에 해당하는 points 인덱스 */
+  current: number;
+}
+
+/** 한 인물의 하루 동선(인물 탭 → 경로 하이라이트용). */
+export function npcRoute(tl: ObservationTimeline, npc: NpcDef, minute: number): NpcRoute {
+  const sorted = [...npc.schedule].sort((a, b) => a.time - b.time);
+  const startPose = npcPoseAt(npc, tl.start);
+  const points: RoutePoint[] = [];
+  if (startPose) points.push({ minute: tl.start, x: startPose.to.x, y: startPose.to.y, action: startPose.waypoint.action });
+  for (const w of sorted)
+    if (w.time > tl.start && w.time <= tl.end) points.push({ minute: w.time, x: w.x, y: w.y, action: w.action });
+  let current = 0;
+  points.forEach((p, i) => {
+    if (p.minute <= minute) current = i;
+  });
+  return { npcId: npc.id, label: npc.label, points, current };
+}

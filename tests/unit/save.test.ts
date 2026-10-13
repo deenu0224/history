@@ -34,7 +34,7 @@ describe('save/load', () => {
     expect(() => migrate(null)).toThrow(SaveError);
   });
 
-  it('migrates a v1 (walking) save to v2 (terminal)', () => {
+  it('migrates a v1 (walking) save through v2 (terminal) to v3 (reality shifts)', () => {
     const v1 = {
       schema: SAVE_SCHEMA,
       version: 1,
@@ -54,7 +54,7 @@ describe('save/load', () => {
       },
     };
     const out = migrate(v1);
-    expect(out.version).toBe(2);
+    expect(out.version).toBe(SAVE_VERSION);
     expect(out.data).not.toHaveProperty('currentScene');
     expect(out.data).not.toHaveProperty('examined');
     expect(out.data).toMatchObject({
@@ -63,11 +63,22 @@ describe('save/load', () => {
       tapped: ['hs_obs_store_sacho'],
       terms: [],
       inbox: [],
-      stats: { deductionAttempts: 2, searches: 0 },
+      stats: { deductionAttempts: 2, searches: 0, links: 0 },
+      shifts: [],
+      rewriteLog: [],
+      recorded: [],
       tutorial: { done: [], dismissed: [], fails: {}, idleTier: {} },
       settings: { volume: 0.5, hintLevel: 'normal', haptics: true, reduceFlicker: false },
     });
     expect(Object.keys(out.data).sort()).toEqual(Object.keys(initialPersisted()).sort());
+  });
+
+  it('v2 → v3 maps merged apps (reader → search, archive → notebook)', () => {
+    const v2 = { schema: SAVE_SCHEMA, version: 2, savedAt: 'x', slot: 'auto', data: { appsOpened: ['messenger', 'reader', 'archive', 'notebook'], stats: { searches: 3 } } };
+    const out = migrate(v2);
+    expect(out.data.appsOpened).toEqual(['messenger', 'search', 'notebook']);
+    expect(out.data.stats).toMatchObject({ searches: 3, links: 0, linkMisses: 0 });
+    expect(out.data.shifts).toEqual([]);
   });
 
   it('applies migrations step by step', () => {

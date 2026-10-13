@@ -40,7 +40,7 @@ describe('episode 1 content — registry', () => {
     expect(content.collection.length).toBeGreaterThanOrEqual(8);
     const cats = new Set(content.collection.map((c) => c.category));
     expect([...cats].sort()).toEqual(['artifact', 'event', 'person', 'place', 'source']);
-    expect(content.deductions.map((d) => d.kind).sort()).toEqual(['event', 'person', 'year']);
+    expect(content.deductions.map((d) => d.kind).sort()).toEqual(['causal', 'person', 'year']);
   });
 
   it('keeps every verified quote line traceable to HISTORICAL_SOURCES.md', () => {
@@ -184,10 +184,18 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
 describe('episode 1 content — deductions are solvable with obtainable evidence', () => {
   const sub = (d: string, rest: object) => ({ deductionId: d, ...rest }) as DeductionSubmission;
 
-  it('year: decisive C6 + C4 confirm 1498; C1~C4 give partial 1495~1498', () => {
+  it('year: linked card(사초와 세 죽음) + C4 confirm 1498; C1~C4 give partial 1495~1498', () => {
     const ctx = ctxAll(content);
     const d = ded('ded_year_001');
-    expect(judgeDeduction(d, sub(d.id, { kind: 'year', from: 1498, to: 1498, evidenceIds: ['ev_jouijemun', 'ev_author_alive'] }), ctx).verdict).toBe('confirmed');
+    expect(judgeDeduction(d, sub(d.id, { kind: 'year', from: 1498, to: 1498, evidenceIds: ['ev_same_month', 'ev_author_alive'] }), ctx).verdict).toBe('confirmed');
+    // 「조의제문」은 말소된 세계에서 해를 좁히지 못한다(보조 하한 1457)
+    expect(judgeDeduction(d, sub(d.id, { kind: 'year', from: 1498, to: 1498, evidenceIds: ['ev_jouijemun', 'ev_author_alive'] }), ctx).verdict).toBe('undetermined');
+    // 카드마다 고유한 피드백(같은 문구 반복 없음, 정답 연도 없음)
+    const fb = judgeDeduction(d, sub(d.id, { kind: 'year', from: 1495, to: 1498, evidenceIds: d.relevantEvidence }), ctx).feedback
+      .filter((f) => f.code.startsWith('bounds_') || f.code === 'weak')
+      .map((f) => f.message);
+    expect(new Set(fb).size).toBe(fb.length);
+    for (const m of fb) expect(m).not.toMatch(/\d{4}|하한만 제한합니다/);
     const partial = judgeDeduction(
       d,
       sub(d.id, { kind: 'year', from: 1495, to: 1498, evidenceIds: ['ev_myoho', 'ev_sillokcheong', 'ev_unknown_official', 'ev_author_alive'] }),
@@ -232,15 +240,36 @@ describe('episode 1 content — deductions are solvable with obtainable evidence
     expect(thin.verdict).toBe('undetermined');
   });
 
-  it('event: 사초 문제 is confirmed; every other statement is refutable', () => {
-    const d = ded('ded_event_001');
-    if (d.kind !== 'event') throw new Error();
+  it('causal(봉우리): 조의제문 → 전교 → 같은 달의 죽음, 화살표마다 근거', () => {
+    const d = ded('ded_cause_001');
+    if (d.kind !== 'causal') throw new Error();
     const ctx = ctxAll(content);
-    const all = ['ev_royal_order', 'ev_objection', 'ev_six_articles', 'ev_sillok_done', 'ev_gajang'];
-    expect(judgeDeduction(d, sub(d.id, { kind: 'event', statementId: 'st_crisis', evidenceIds: all }), ctx).verdict).toBe('confirmed');
-    for (const s of d.statements.filter((x) => x.id !== d.answer))
-      expect(judgeDeduction(d, sub(d.id, { kind: 'event', statementId: s.id, evidenceIds: all }), ctx).verdict, s.id).toBe('wrong');
-    // 가장사초 수납만으로는 어느 쪽도 가릴 수 없다(레드 헤링)
-    expect(judgeDeduction(d, sub(d.id, { kind: 'event', statementId: 'st_crisis', evidenceIds: ['ev_gajang'] }), ctx).verdict).toBe('undetermined');
+    const C = (links: { from: string; to: string; evidenceIds: string[] }[]) =>
+      judgeDeduction(d, { kind: 'causal', deductionId: d.id, links }, ctx);
+    const L1 = { from: 'n_jouijemun', to: 'n_order', evidenceIds: ['ev_jouijemun', 'ev_royal_order'] };
+    const L2 = { from: 'n_order', to: 'n_deaths', evidenceIds: ['ev_same_month'] };
+    expect(C([L1, L2]).verdict).toBe('confirmed');
+    // 빠진 고리
+    const half = C([L1]);
+    expect(half.verdict).toBe('undetermined');
+    expect(half.feedback.some((f) => f.code === 'chain_incomplete')).toBe(true);
+    // 근거 없는 화살표는 맞든 틀리든 '받칠 카드 없음'(정답 캐내기 방지)
+    expect(C([{ ...L1, evidenceIds: [] }, L2]).feedback.some((f) => f.code === 'link_unsupported')).toBe(true);
+    expect(C([{ from: 'n_plague', to: 'n_deaths', evidenceIds: [] }]).verdict).toBe('undetermined');
+    // 정답 화살표 + 모자란 사실 → 사실 '종류'만
+    const thin = C([{ ...L2, evidenceIds: ['ev_db_deaths'] }, L1]);
+    expect(thin.verdict).toBe('undetermined');
+    expect(thin.feedback.find((f) => f.code === 'link_unsupported')!.message).not.toContain('사초를 거둔 날 그 주인은');
+    // 틀린 화살표: 고유 문구 / 뒤집힌 방향
+    const routine = C([{ from: 'n_routine', to: 'n_deaths', evidenceIds: ['ev_gajang'] }]);
+    expect(routine.verdict).toBe('wrong');
+    expect(routine.feedback.find((f) => f.code === 'link_wrong')!.message).toContain('절차');
+    const rev = C([{ from: 'n_order', to: 'n_jouijemun', evidenceIds: ['ev_jouijemun', 'ev_royal_order'] }]);
+    expect(rev.feedback.some((f) => f.code === 'link_reversed')).toBe(true);
+    // 피드백에 정답 고리 순서·연도가 나오지 않는다
+    for (const f of [...half.feedback, ...routine.feedback, ...rev.feedback]) expect(f.message).not.toMatch(/\d{4}/);
+    // 잘못된 입력
+    expect(C([]).verdict).toBe('undetermined');
+    expect(C([{ from: 'n_order', to: 'n_order', evidenceIds: ['ev_royal_order'] }]).feedback[0]!.code).toBe('invalid_input');
   });
 });

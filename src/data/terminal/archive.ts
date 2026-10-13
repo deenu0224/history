@@ -1,5 +1,6 @@
 /**
- * 개인 기록관 전시물(옛 기록관 맵 오브젝트 arc_* 를 옮김) + 정합성 보정 사건 + 단말 메모.
+ * 개인 기록관 전시물(손 노트의 '기록관' 탭) + 정합성 보정(말소) 사건 + 단말 메모.
+ * 복원 전시물(restoredBy)에는 기록관에서만 '복원' 도장이 찍힌다. 단말 어디에도 복원 표식은 없다.
  */
 import type { ArchiveExhibit, CorrectionEvent, TerminalMemo } from '@/core/types';
 import { REF } from '@/data/historical/refs';
@@ -31,40 +32,42 @@ export const exhibits: ArchiveExhibit[] = [
     collectionIds: ['col_art_takyeong', 'col_plc_daegu_museum'],
   },
   {
+    // 첫 복원 전시물
     id: 'ex_shelf_sources',
     provenance: V,
-    sources: [REF.sillokSachoOrder, REF.sagwan],
-    title: '사료 서가',
+    sources: [REF.sillokSachoOrder, REF.sillokHouseSearch],
+    title: '사료 서가 — 7월 11일·12일',
     slot: 'shelf',
     spriteKey: 'exhibit_source_shelf',
-    requires: { all: ['obs001_returned'] },
+    requires: { all: ['restored_order'] },
+    restoredBy: 'shift_order',
     lines: [
-      '확인한 사료가 한 칸씩 꽂힌다.',
-      '“임금이 만약 사초를 보면 후세에 직필(直筆)이 없기 때문입니다.”',
-      '사초는 왕도 보지 않는다는 원칙. 그날, 그 원칙이 시험받았다.',
+      '“김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.”',
+      '“예로부터 사초(史草)는 임금이 스스로 보지 않습니다.”',
+      '이튿날, 그의 집에서 문서를 수색했다.',
     ],
   },
   {
     id: 'ex_person_register',
     provenance: V,
-    sources: [REF.yiGeukdon, REF.kimIlson, REF.muoSahwa],
+    sources: [REF.yiGeukdon, REF.kimIlson],
     title: '인물 기록부',
     slot: 'register',
     spriteKey: 'exhibit_person_register',
     requires: { all: ['ded_person_confirmed'] },
     lines: [
-      '이극돈 — 실록청 당상. 김일손 — 사초를 쓴 사관.',
-      '김일손은 사초에 이극돈의 비행을 적었고, 두 사람은 사이가 벌어져 있었다.',
-      '기록하는 사람과 기록되는 사람이 한 관청 안에서 마주쳤다.',
+      '이극돈 — 실록청 당상. 『세조실록』 편수에도 참여했다.',
+      '김일손 — 사초를 쓴 사관. 김종직의 문인.',
+      '기록하는 사람과, 기록을 엮는 사람이 한 관청 안에 있었다.',
     ],
     grants: {
       collect: [
-        { entryId: 'col_per_yi_geukdon', stage: 5 },
-        { entryId: 'col_per_kim_ilson', stage: 4 },
+        { entryId: 'col_per_yi_geukdon', stage: 3 },
+        { entryId: 'col_per_kim_ilson', stage: 3 },
         { entryId: 'col_art_takyeong', stage: 4 },
         { entryId: 'col_per_kim_jongjik', stage: 3 },
-        { entryId: 'col_per_eo_segyeom', stage: 3 },
-        { entryId: 'col_per_yu_jagwang', stage: 3 },
+        { entryId: 'col_per_eo_segyeom', stage: 2 },
+        { entryId: 'col_per_yu_jagwang', stage: 2 },
       ],
     },
     collectionIds: ['col_per_yi_geukdon', 'col_per_kim_ilson', 'col_per_kim_jongjik', 'col_per_eo_segyeom', 'col_per_yu_jagwang'],
@@ -97,15 +100,16 @@ export const exhibits: ArchiveExhibit[] = [
   {
     id: 'ex_center',
     provenance: V,
-    sources: [REF.muoSahwa, REF.sillokSachoOrder, REF.sillokVerdict, REF.seongjongSillok],
+    sources: [REF.muoSahwa, REF.sillokSachoOrder, REF.sillokVerdict, REF.sillokProclaim, REF.seongjongSillok],
     title: '중앙 진열대 — 관측 #001',
     slot: 'center',
     spriteKey: 'exhibit_center_record',
-    requires: { all: ['ded_event_confirmed'] },
+    requires: { all: ['restored_event'] },
+    restoredBy: 'shift_cause',
     lines: [
       '관측 #001 기록이 중앙에 놓인다.',
-      '7월 11일, 사초를 대내로 들이라는 전교. 이튿날부터 신문.',
-      '7월 26일 처분. 김일손 능지처사. 스승 김종직 부관참시.',
+      '7월 11일, 사초를 대내로 들이라는 전교. 이튿날 그의 집을 수색.',
+      '7월 26일, “김일손·권오복·권경유는 대역의 죄에 해당하니 능지 처사하고.” 이튿날 종묘 사직에 고유. 김종직 부관참시.',
       '실록 편찬은 멈추지 않았다. 이듬해 『성종실록』이 완성되었다.',
     ],
     grants: {
@@ -114,6 +118,9 @@ export const exhibits: ArchiveExhibit[] = [
         { entryId: 'col_src_sacho_order', stage: 5 },
         { entryId: 'col_per_kim_ilson', stage: 5 },
         { entryId: 'col_art_takyeong', stage: 5 },
+        { entryId: 'col_per_yi_geukdon', stage: 5 },
+        { entryId: 'col_per_kim_jongjik', stage: 4 },
+        { entryId: 'col_per_yu_jagwang', stage: 3 },
         { entryId: 'col_src_verdict', stage: 3 },
         { entryId: 'col_src_house_search', stage: 3 },
       ],
@@ -122,12 +129,27 @@ export const exhibits: ArchiveExhibit[] = [
         {
           id: 'q_next',
           section: 'question',
-          text: '같은 "매끄러움"이 다른 시대의 사관 주변에서도 감지된다. 무엇이 이어져 있는가?',
+          text: '다른 시대, 다른 사관의 기록에서도 원인 없는 결과가 보인다. 무엇이 이어져 있는가?',
           provenance: F,
         },
       ],
     },
     collectionIds: ['col_evt_muo_sahwa', 'col_src_sacho_order', 'col_src_verdict', 'col_src_house_search'],
+  },
+  {
+    id: 'ex_register_restored',
+    provenance: V,
+    sources: [REF.muoSahwa, REF.yiGeukdon],
+    title: '인물 기록부 — 고치지 않은 한 줄',
+    slot: 'register',
+    spriteKey: 'exhibit_person_register',
+    requires: { all: ['restored_person'] },
+    restoredBy: 'shift_person',
+    lines: [
+      '이극돈의 칸에 한 줄이 더해진다.',
+      '수사관으로서 문제의 사초를 보고도 고하지 않은 죄로 파면.',
+    ],
+    collectionIds: ['col_per_yi_geukdon', 'col_per_eo_segyeom'],
   },
   // ── 선택 전시물(호기심 보상) ─────────────────────────────
   {
@@ -160,45 +182,47 @@ export const exhibits: ArchiveExhibit[] = [
   },
 ];
 
-/** 단말 메모(동기화). 손 노트(PlayerNotebook)와 나란히 보이며, 이쪽만 보정된다. */
+/** 단말 메모(동기화). 손 노트(PlayerNotebook)와 나란히 보이며, 이쪽만 보정(말소)된다. */
 export const memos: TerminalMemo[] = [
   {
     id: 'memo_anomaly',
     provenance: F,
     title: '메모 — 김일손 관련 기록',
-    text: '교차 참조 밀도 0.998(상위 0.1%). 오류 0건. 너무 고르다. 다시 볼 것.',
+    text: '김일손 1498년 7월 졸, 사인 기록 없음. 같은 달 권오복·권경유. 오류 0건. 다시 볼 것.',
     when: { all: ['prologue_anomaly'] },
   },
   {
-    id: 'memo_obs001',
+    id: 'memo_order',
     provenance: F,
     title: '메모 — 관측 #001',
-    text: '관측 #001 종료. 연도 미상. 들은 말을 사료와 대조할 것.',
-    when: { all: ['obs001_returned'] },
+    text: '관측 #001: 왕이 한 사관의 사초를 모두 대내로 들이라 명함. 실록 검색: 해당 기사 없음.',
+    when: { searched: ['se_sacho_order'], all: ['f_saw_order'] },
   },
 ];
 
 /**
- * 정합성 보정 #001 (가상, 복선). 관측에서 돌아와 처음 추리를 시도한 밤(또는 검색을 충분히 한 뒤), 단말이 조용히
- * 메타데이터와 단말 메모를 고친다. 손 노트는 오프라인이라 그대로다. 흑막·원리는 말하지 않는다.
+ * 정합성 보정 #001 (가상, 말소의 거울). 관측 뒤 그 전교 이야기를 동료와 나눈 밤, 단말이 조용히 '본 것'에 관한
+ * 단말 메모를 지운다. 동료는 그 대화를 기억하지 못한다. 손 노트는 오프라인이라 그대로다. 흑막·원리는 말하지 않는다.
+ * 연출 톤: erase(차갑게, 무음, 명도 한 칸).
  */
 export const corrections: CorrectionEvent[] = [
   {
     id: 'corr_001',
     provenance: F,
     trigger: {
-      all: ['obs001_returned'],
-      any: [{ minStats: { deductionAttempts: 1 } }, { minStats: { searches: 8 } }],
+      all: ['obs001_returned', 'talked_order'],
+      // 보통은 귀환 뒤 첫 판정을 낸 밤. 막힘 방지: 검색을 충분히 한 뒤.
+      any: [{ minStats: { deductionAttempts: 1 } }, { minStats: { searches: 14 } }],
     },
-    recordPatches: [{ recordId: 'rec_meta_kim_ilson', key: 'xref', value: '0.712 (정상 범위)' }],
-    memoPatches: [{ memoId: 'memo_anomaly', text: '교차 참조 밀도 0.712(정상 범위). 특이사항 없음.' }],
+    recordPatches: [],
+    memoPatches: [{ memoId: 'memo_order', remove: true }],
     grants: {
       flags: ['corr_001_done'],
       notebook: [
         {
           id: 'q_correction',
           section: 'question',
-          text: '단말 메모의 숫자가 바뀌었다(0.998 → 0.712). 손으로 적은 이 노트에는 그대로다. 무엇이 고쳤나?',
+          text: '전교를 들었다는 단말 메모가 사라졌다. 선임은 어제 대화를 기억하지 못한다. 이 노트에는 그대로다. 무엇이 지웠나?',
           provenance: F,
         },
       ],

@@ -26,6 +26,12 @@ export const FACT = {
   /** 「조의제문」 E0052503, 「무오사화」 E0019174 */
   claimJouijemunInSacho: { kind: 'claim', value: '사초에 「조의제문」이 실림' },
 
+  // 인과 추리(주 봉우리) — 말소된 세계의 DB 상태(가상)와, 관측+DB 를 겹쳐 얻는 추론
+  /** 변조된 DB 상태(fictional): 김일손·권오복·권경유가 같은 달 졸, 사인 기록 없음 */
+  claimSameMonthDeaths: { kind: 'claim', value: '같은 달, 사초의 주인과 두 사람이 사인 없이 죽음' },
+  /** 관측(전교·생존) + DB(같은 달의 졸년)를 겹친 추론 카드 */
+  claimOrderThenDeaths: { kind: 'claim', value: '사초를 거둔 날 그 주인은 살아 있었고, 같은 달 세 사람이 죽음' },
+
   // 기타 인물 사실
   nameKimIlson: { kind: 'name', value: '김일손' },
   nameYiGeukdon: { kind: 'name', value: '이극돈' },

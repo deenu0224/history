@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { stageOf } from '@/core/collection';
 import { evidenceView } from '@/core/content';
 import type { EventDeduction, Id, JudgeResult, PersonDeduction } from '@/core/types';
-import { playSfx } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { EvidenceCard } from '../components/EvidenceCard';
 import { EvidencePicker } from '../components/EvidencePicker';
@@ -10,20 +9,19 @@ import { Empty } from '../components/kit';
 import { VerdictPanel } from '../components/Verdict';
 import { useTypewriter } from '../hooks';
 import { IDX, entryForRef } from '../lib/content';
-import { DB_NOTE_PREFIX, SOLVED_NOTE_PREFIX, verdictSfx } from '../lib/format';
+import { SOLVED_NOTE_PREFIX } from '../lib/format';
+import { fx } from '../lib/fx';
 
 /** 후보로 보여줄 인물: 도감에서 정체가 식별됐거나 역사 데이터베이스에서 열람한 인물만. */
 export function useKnownPersons() {
   const collection = useGameStore((s) => s.collection);
-  const verified = useGameStore((s) => s.notebook.verified);
-  return useMemo(() => {
-    const dbSeen = new Set(verified.filter((n) => n.id.startsWith(DB_NOTE_PREFIX)).map((n) => n.id.slice(DB_NOTE_PREFIX.length)));
-    return (personId: Id) => {
+  return useMemo(
+    () => (personId: Id) => {
       const e = entryForRef('person', personId);
-      if (!e) return false;
-      return stageOf(collection, e.id) >= 2 || dbSeen.has(e.id);
-    };
-  }, [collection, verified]);
+      return !!e && stageOf(collection, e.id) >= 1;
+    },
+    [collection],
+  );
 }
 
 function NameFill({ from, to }: { from: string; to: string }) {
@@ -55,7 +53,7 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
     if (!cand) return;
     const before = subLevel !== undefined ? label(subLevel) : '';
     const r = submit({ kind: 'person', deductionId: d.id, candidateId: cand, evidenceIds: picked });
-    playSfx(verdictSfx(r.verdict));
+    fx(r.verdict === 'confirmed' ? 'verdict_confirmed' : r.verdict === 'partial' ? 'verdict_partial' : 'verdict_wrong');
     const after = useGameStore.getState().evidence[d.subjectEvidenceId];
     setRes({ r, seq: Date.now(), before, after: after !== undefined ? label(after) : before });
     if (r.verdict === 'confirmed')
@@ -71,7 +69,7 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
           {subject && subLevel !== undefined ? <EvidenceCard ev={subject} level={subLevel} /> : <Empty>이 인물 카드를 아직 확보하지 못했다.</Empty>}
           <h4>후보 인물</h4>
           {candidates.length === 0 ? (
-            <Empty>비교할 인물 정보가 없다. 연구실의 역사 데이터베이스에서 인물을 조사하자.</Empty>
+            <Empty>비교할 인물 정보가 없다. 통합 DB 에서 인물을 검색해 보자.</Empty>
           ) : (
             <div className="cands" role="radiogroup" aria-label="후보 인물">
               {candidates.map((id) => {
@@ -146,7 +144,7 @@ export function EventPanel({ d }: { d: EventDeduction }) {
   const doSubmit = () => {
     if (!stmt) return;
     const r = submit({ kind: 'event', deductionId: d.id, statementId: stmt, evidenceIds: picked });
-    playSfx(verdictSfx(r.verdict));
+    fx(r.verdict === 'confirmed' ? 'verdict_confirmed' : r.verdict === 'partial' ? 'verdict_partial' : 'verdict_wrong');
     setRes({ r, seq: Date.now() });
     if (r.verdict === 'confirmed') {
       const text = d.statements.find((s) => s.id === stmt)?.text ?? '';

@@ -19,7 +19,6 @@ export function Dock({
 }) {
   const unread = useGameStore((s) => selectUnread(s));
   const installing = useUi((s) => s.installing);
-  const clear = useUi((s) => s.clearInstalling);
   return (
     <nav className={`dock dock-${orientation}`} aria-label="앱" data-testid="dock">
       {apps.map((app) => {
@@ -37,9 +36,6 @@ export function Dock({
             aria-label={def.title}
             title={def.title}
             onClick={() => onPick(app)}
-            onAnimationEnd={(e) => {
-              if (isInstalling && e.animationName === 'install-done') clear(app);
-            }}
           >
             <Px k={appIconKey(def.iconKey, true)} scale={3} />
             {badge > 0 && (
