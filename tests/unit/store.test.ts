@@ -69,7 +69,8 @@ describe('v3 — first ten minutes', () => {
     expect(selectApps(s())).toEqual(['work', 'messenger']);
     expect(inbox()).toEqual(['m_sys_login', 'm_sys_assign', 'm_chief_01']);
     const a = selectAssignment(s(), 'as_c2217')!;
-    expect(a.header.map((h) => h.value)).toEqual(['3건', '####', '미확인(참조: 실록청)']);
+    expect(a.header.map((h) => h.value)).toEqual(['####', '미확인(참조: 「『성종실록』 편찬 실록청」)']);
+    expect(a.assignment.detection).toContain('이 지점을 가리키는 기록 3건에서 자동 탐지');
     expect(a.assignment.code).toBe('#C-2217');
     expect(s().openApp('viewer')).toBe(false);
     expect(s().openApp('db')).toBe(false);
@@ -161,7 +162,7 @@ describe('v3 — first ten minutes', () => {
     expect(list[1]).toMatchObject({ code: '#C-2217', when: '1년 전', officer: '대조관 07', classification: '관측 오류 · 종결' });
     expect(list[1]!.note).toContain('같은 달 사망한 세 사람');
     expect(inbox()).toContain('m_chief_04');
-    expect(selectInbox(s()).at(-1)!.message.text).toBe('아직 있어? 내일 아침 6시에 정합성 보정 돌아. 그 전에 퇴근해.');
+    expect(selectInbox(s()).at(-1)!.message.text).toBe('아직 있어? 새벽 6시에 좌표 재계산 돌아. 그 전에 끝내.');
     expect(selectFrames(s()).left).toBe(2); // 필름 두 장 남음
     expect(s().corrections).toEqual([]); // 아직 보정 전
   });
@@ -174,17 +175,18 @@ describe('v3 — after ten minutes: correction, report, stamp, restoration', () 
     shoot(800, ['c3'], [RED, 'hs_npc_clerk']);
     expect(s().corrections).toEqual([]);
     shoot(1000, ['b5'], ['hs_npc_blue_official']);
-    // ── 새벽 정합성 보정 ──
+    // ── 새벽 6시 좌표 재계산: 소실이 진행되어 오후가 흐려진다. 종결 보고서(관측기 로그)는 그대로 ──
     expect(s().corrections).toEqual(['corr_dawn']);
     const cl = selectAssignment(s(), 'as_c2217')!.closure!;
-    expect(cl).toMatchObject({ verdict: 'mismatch', shownVerdict: 'match', note: '' });
-    expect(s().recentRewrites.map((r) => [r.kind, r.tone])).toEqual([['closure', 'erase']]);
+    expect(cl).toMatchObject({ verdict: 'mismatch', shownVerdict: 'mismatch' });
+    expect(s().recentRewrites.map((r) => [r.kind, r.tone])).toEqual([['observation', 'erase']]);
     expect(s().degraded).toEqual([
       { from: 780, to: 900 },
       { from: 840, to: 960 },
       { from: 960, to: 1020 },
     ]);
     expect(inbox()).toEqual(expect.arrayContaining(['m_sys_corr', 'm_chief_05', 'm_senior_03']));
+    expect(selectInbox(s()).find((i) => i.message.id === 'm_chief_05')!.message.text).toBe('소실이 진행됐네. 그 구간은 이제 흐려.');
     // 프레임은 남는다. 썩은 구간의 유일한 핵심 프레임은 버릴 수 없다
     expect(s().frames).toHaveLength(6);
     expect(s().captureFrame(snap(500, [])).status).toBe('full');
@@ -201,6 +203,7 @@ describe('v3 — after ten minutes: correction, report, stamp, restoration', () 
     s().openRecord('rec_alt_yi_geukdon');
     s().search('실록청');
     s().openRecord('rec_seongjong_sillok');
+    expect(inbox()).toContain('m_me_name'); // "우리 기관 이름이 여기서 왔구나"
     s().search('어세겸');
     s().openRecord('rec_eo_segyeom');
     const order = { kind: 'frame' as const, id: frameWith('cl_order').id };
@@ -260,7 +263,9 @@ describe('v3 — after ten minutes: correction, report, stamp, restoration', () 
     expect(s().stampReport().status).toBe('already');
     expect(selectAssignment(s(), 'as_c2217')!.header.find((h) => h.key === 'when')!.value).toBe('연산군 4년 7월 11일');
     const kinds = new Set(s().recentRewrites.map((x) => x.kind));
-    expect([...kinds].sort()).toEqual(['assignment', 'closed', 'closure', 'message', 'record', 'search']);
+    expect([...kinds].sort()).toEqual(['assignment', 'message', 'observation', 'record', 'search']);
+    expect(s().degraded).toEqual([]); // 주소가 돌아오자 흐린 구간도 걷힌다
+    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_committee', 'm_sys_obslog']));
     expect(s().recentRewrites.every((x) => x.tone === 'restore')).toBe(true);
     // 나만 기억한다: 메시지는 지금 현실로, 원래 본문은 플레이어 쪽 기록에만
     const rw = selectRewrittenMessages(s());
@@ -277,10 +282,10 @@ describe('v3 — after ten minutes: correction, report, stamp, restoration', () 
     const again = s().search('대내로 들여오라');
     expect(again.status).toBe('ok');
     expect(again.hits[0]!.results.map((x) => x.id)).toEqual(['src_sacho_order', 'src_house_search']);
-    // 종결함: 이번 건·작년 건이 '정상'으로, 그리고 내 이름의 관측 오류가 더 있다
+    // 종결함은 관측기 로그: 바뀌지 않는다(부재의 증거). 그리고 내 이름의 관측 오류가 더 있다
     const list = selectClosedReports(s());
-    expect(list[0]!.classification).toBe('정상 종결 · 기사 대조 일치');
-    expect(list[1]!.classification).toBe('정상 종결');
+    expect(list[0]!.classification).toBe('자동 분류: 관측 오류(장비 노이즈) · 종결');
+    expect(list[1]!.note).toContain('해당 기사 없음');
     expect(list.slice(2).map((x) => [x.code, x.classification])).toEqual([
       ['#C-0408', '관측 오류 · 종결'],
       ['#C-3391', '관측 오류 · 종결'],

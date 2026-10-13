@@ -345,8 +345,10 @@ export interface Assignment extends ContentBase {
   title: string;
   officer: string;
   priority: string;
+  /** 탐지 한 줄(배정 카드에 한 번만): '좌표 #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건에서 자동 탐지'. 남은 참조 수 같은 계기판은 두지 않는다. */
+  detection: string;
   header: { key: string; label: string; value: string }[];
-  /** 참조 수렴 기록(종결 뒤 탭하면 DB 기록) */
+  /** 이 지점을 가리키는 기록(종결 뒤 탭하면 DB 기록) */
   refs: { title: string; recordId?: Id; searchEntryId?: Id }[];
   timelineId: Id;
   checklist: ChecklistItem[];
@@ -569,12 +571,15 @@ export interface HintLadder extends ContentBase {
   order: number;
 }
 
-/** 새벽 정합성 보정(가상). */
+/**
+ * 새벽 좌표 재계산(가상). 소실이 진행되어 관측기가 그 순간을 붙잡게 해 주던 간접 기록이 깎이고, 하루의 일부가 흐려진다.
+ * 관측기·관측 데이터·시스템 로그(프레임, 종결 보고서)는 소실의 영향을 받지 않는다.
+ */
 export interface CorrectionEvent extends ContentBase {
   trigger: StateCondition;
-  /** 훼손 구간. clue 가 있으면 그 단서를 프레임으로 가진 경우에만(실패 없음) */
+  /** 흐려지는 구간. clue 가 있으면 그 단서를 프레임으로 이미 가진 경우에만(실패 없음) */
   degrade: { from: number; to: number; clue?: Id }[];
-  /** 이번 배정 종결의 판정 표시를 바꾸고 소견을 지운다 */
+  /** @deprecated v3 세계 규칙: 종결 보고서는 관측기 로그라 바뀌지 않는다. 쓰지 않는다. */
   closure?: { assignmentId: Id; verdictShown: Stamp; clearNote: boolean };
   clock?: string;
   grants?: Grants;
@@ -616,6 +621,8 @@ export interface RealityShift extends ContentBase {
   /** 이번 배정 종결의 분류 다시 쓰기 */
   closureRewrite?: { assignmentId: Id; classification: string; verdictShown?: Stamp };
   restores: RestoredItem[];
+  /** 주소가 돌아오면 흐려졌던 구간도 다시 선명해진다 */
+  clearDegraded?: boolean;
   unlocks?: Grants;
 }
 
@@ -626,7 +633,7 @@ export interface RewriteEntry {
   seq: number;
   sourceId: Id;
   tone: RewriteTone;
-  kind: 'message' | 'record' | 'search' | 'assignment' | 'closed' | 'closure';
+  kind: 'message' | 'record' | 'search' | 'assignment' | 'closed' | 'closure' | 'observation';
   targetId: Id;
   before: string;
   after: string;

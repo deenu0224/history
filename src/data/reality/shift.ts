@@ -1,6 +1,6 @@
 /**
  * 현실 이동(복원) — 가상 설정. 역사 사실 자체는 복원되는 verified 사료·사건·레코드뿐이다. DESIGN_V3 §8.
- * 보고서 도장(filed: rep_c2217) → 주소가 돌아온다: 일시 #### → 연산군 4년 7월 11일, 기록·메시지가 다시 쓰인다.
+ * 보고서 도장(filed: rep_c2217) → 복원심의위원회 승인 → 주소가 돌아온다: 일시 #### → 연산군 4년 7월 11일, 기록·메시지가 다시 쓰인다.
  * 단말에는 표식이 없다. 이전을 기억하는 건 그것을 눈앞에서 본 나뿐(rewriteLog 는 플레이어 쪽 화면만 읽는다).
  *
  * 복원되는 것: 『연산군일기』 7월 11일(사초 반입)·12일(집 수색)·26일(처분)·27일(고유·부관참시), 「무오사화」 사건,
@@ -40,15 +40,8 @@ export const shifts: RealityShift[] = [
         ],
       },
     ],
-    closureRewrite: { assignmentId: 'as_c2217', classification: '정상 종결 · 기사 대조 일치', verdictShown: 'match' },
-    closedRewrites: [
-      {
-        reportId: 'cr_c2217_prev',
-        verdict: '일치',
-        classification: '정상 종결',
-        note: '14시경 대문에서 전교 전달 확인. 『연산군일기』 7월 11일 기사와 일치.',
-      },
-    ],
+    // 종결 보고서는 관측기 시스템 로그라 소실·복원의 영향을 받지 않는다 — 그대로 '관측 오류 · 해당 기사 없음'이 남는다(부재의 증거).
+    clearDegraded: true,
     searchRewrites: [
       { entryId: 'se_order', results: [{ kind: 'source', id: 'src_sacho_order' }, { kind: 'source', id: 'src_house_search' }] },
       { entryId: 'se_jikpil', results: [{ kind: 'source', id: 'src_sacho_order' }] },
@@ -81,10 +74,9 @@ export const shifts: RealityShift[] = [
       },
     ],
     messageRewrites: [
-      { messageId: 'm_sys_closed', newText: '#C-2217 — 분류: 정상 · 기사 대조 일치.' },
       { messageId: 'm_chief_02', newText: '07, 그거 무오사화 7월 11일 좌표잖아. 교과서 건이야. 깔끔하게 했더라.' },
       { messageId: 'm_chief_02n', newText: '07, 그거 무오사화 7월 11일 좌표잖아. 교과서 건이야. 깔끔하게 했더라.' },
-      { messageId: 'm_chief_05', newText: '보정 로그 깨끗하더라. 변경 0건. 수고했어.' },
+      { messageId: 'm_chief_05', newText: '재계산 로그 깨끗하더라. 흐린 구간 없음. 수고했어.' },
       { messageId: 'm_senior_01', newText: '07, 밤샜어? 무오사화 좌표 대조라며. 그거 신입 연습용인데.' },
     ],
     recordRewrites: [

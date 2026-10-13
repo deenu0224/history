@@ -2,7 +2,7 @@
  * 결록 단말 스토어(v3 「대조」, Zustand). 진행 상태 + 액션. core 를 호출해 상태를 바꾼다. 설계: docs/DESIGN_V3.md.
  *
  * 앱 4개: 업무(배정·체크리스트·보고서·종결된 보고서) · 관측 · DB 검색 · 메신저.
- * 상태가 바뀔 때마다 syncState() 가 메시지 도착, 정합성 보정(말소), 현실 이동(복원)을 반영한다(순수 함수).
+ * 상태가 바뀔 때마다 syncState() 가 메시지 도착, 좌표 재계산(소실 진행), 현실 이동(복원)을 반영한다(순수 함수).
  *
  * ── UI 계약(요약) ──────────────────────────────────────────────
  *  업무   openAssignment(id) → 관측 앱 열림
@@ -326,7 +326,7 @@ function closedVisible(s: PersistedState, c: ContentBundle) {
   return c.closedReports.filter((r) => checkState(cs, r.showWhen));
 }
 
-/** 정합성 보정(말소) 하나를 적용 */
+/** 새벽 좌표 재계산(소실 진행) 하나를 적용 */
 function applyCorrection(s: PersistedState, id: Id, idx: ContentIndex) {
   const e = idx.corrections[id]!;
   const log: RewriteEntry[] = [];
@@ -342,6 +342,8 @@ function applyCorrection(s: PersistedState, id: Id, idx: ContentIndex) {
   const held = cluesOfFrames(s.frames);
   const spans = e.degrade.filter((d) => !d.clue || held.includes(d.clue)).map((d) => ({ from: d.from, to: d.to }));
   let state: PersistedState = { ...s, corrections: [...s.corrections, id], degraded: [...s.degraded, ...spans] };
+  const fmtSpans = (xs: { from: number; to: number }[]) => xs.map((x) => `${x.from}-${x.to}`).join(',');
+  if (spans.length) log.push(entry('observation', 'tl_obs001', fmtSpans(s.degraded), fmtSpans(state.degraded)));
   if (e.closure && state.closures[e.closure.assignmentId]) {
     const before = state.closures[e.closure.assignmentId]!;
     const after: Closure = { ...before, shownVerdict: e.closure.verdictShown, note: e.closure.clearNote ? '' : before.note };
@@ -415,6 +417,10 @@ function applyShift(s: PersistedState, id: Id, c: ContentBundle, idx: ContentInd
     };
     after = { ...after, closures: { ...after.closures, [aid]: next } };
     log.push(entry('closure', aid, closureSummary(before), closureSummary(next)));
+  }
+  if (sh.clearDegraded && after.degraded.length) {
+    log.push(entry('observation', 'tl_obs001', after.degraded.map((x) => `${x.from}-${x.to}`).join(','), ''));
+    after = { ...after, degraded: [] };
   }
   const state = applyGrants(after, sh.unlocks);
   return { state: { ...state, rewriteLog: [...state.rewriteLog, ...log] }, log };

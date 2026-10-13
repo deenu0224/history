@@ -214,7 +214,7 @@ export function validateContent(content: ContentBundle, opts: ValidateOptions = 
   // 9. 정보 공개 규칙
   const beforeSolve: { owner: Id; text: string }[] = [
     ...content.assignments.flatMap((a) => [
-      { owner: a.id, text: [a.title, a.code, ...a.header.map((h) => `${h.label} ${h.value}`), ...a.refs.map((r) => r.title)].join(' ') },
+      { owner: a.id, text: [a.title, a.code, a.detection, ...a.header.map((h) => `${h.label} ${h.value}`), ...a.refs.map((r) => r.title)].join(' ') },
       ...a.checklist.map((i) => ({
         owner: i.id,
         text: [i.title, i.refLabel, i.prompt, i.notReadyText, i.wrongText ?? '', i.final?.recommendText ?? '', i.final?.mismatchNeedsText ?? ''].join(' '),

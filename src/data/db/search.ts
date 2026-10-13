@@ -129,7 +129,7 @@ export const searchEntries: SearchEntry[] = [
     id: 'se_correction',
     provenance: F,
     optional: true,
-    terms: ['정합성 보정', '정합성', '보정 로그'],
+    terms: ['좌표 재계산', '재계산', '관측기 로그', '소실'],
     results: [{ kind: 'record', id: 'rec_sys_log' }],
   },
 ];

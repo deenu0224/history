@@ -15,7 +15,7 @@ export interface BusEvents {
   'viewer:tapped': { hotspotId: Id };
   /** React → 관측 뷰어: 카메라를 대상(핫스팟 id 또는 타일 좌표)으로 이동 */
   'viewer:focus': { hotspotId?: Id; x?: number; y?: number };
-  /** 셸 → 화면 불안정 연출(정합성 보정·관측 진입/종료). intensity 0~1 */
+  /** 셸 → 화면 불안정 연출(좌표 재계산·관측 진입/종료). intensity 0~1 */
   glitch: { intensity: number; ms: number };
   /** 촉각 피드백 요청(소리·도장·진동). 코드표는 src/data/feedback.ts */
   feedback: { kind: FeedbackKind };

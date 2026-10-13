@@ -33,7 +33,7 @@ export const hintMessages: Message[] = [
   hint('h_dig_1', 'senior', SEN, '기록에 없는 걸 봤으면 DB부터. 들은 말 그대로 넣어 봐.'),
   hint('h_dig_2', 'senior', SEN, '종결함 열어 봤어? 네 이름 꽤 있을걸.'),
   hint('h_dig_3', 'senior', SEN, '업무 → 종결된 보고서.'),
-  hint('h_frames_1', 'senior', SEN, '보정 돌기 전에 찍을 거 다 찍어. 남는 건 프레임뿐이야.'),
+  hint('h_frames_1', 'senior', SEN, '재계산 돌기 전에 찍을 거 다 찍어. 남는 건 프레임뿐이야.'),
   hint('h_frames_2', 'senior', SEN, "DB에서 본 거, 관측에서 맞춰 봐. 기록에 '편수관'이라 돼 있으면 그 말 하는 사람이 있을 거고."),
   hint('h_frames_3', 'senior', SEN, '오후 한 시쯤 서리가 당상 곁에 붙어. 네 시 넘으면 푸른 관복이 그 사관 얘길 해.'),
   hint('h_report_1', 'senior', SEN, '칸마다 하나씩. 틀려도 돼.'),

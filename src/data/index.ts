@@ -8,7 +8,7 @@
  *  - work/       : 배정·체크리스트·종결된 보고서.
  *  - db/         : 통합 DB 색인·레코드.
  *  - messages/   : 메신저 메시지·힌트 사다리.
- *  - reality/    : 정합성 보정(말소)·현실 이동(복원).
+ *  - reality/    : 좌표 재계산(소실 진행)·현실 이동(복원).
  */
 import { mergeModules } from '@/core/content';
 import type { ContentModule } from '@/core/types';

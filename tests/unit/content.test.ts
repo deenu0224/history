@@ -72,10 +72,13 @@ describe('episode 1 content — matches the approved first ten minutes', () => {
     const a = content.assignments[0]!;
     expect(a.code).toBe('#C-2217');
     expect(a.officer).toBe('대조관 07');
-    expect(a.header.map((h) => `${h.label} ${h.value}`)).toEqual(['참조 수렴 3건', '일시 ####', '장소 미확인(참조: 실록청)']);
+    expect(a.detection).toBe('좌표 #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건에서 자동 탐지');
+    expect(a.header.map((h) => `${h.label} ${h.value}`)).toEqual(['일시 ####', '장소 미확인(참조: 「『성종실록』 편찬 실록청」)']);
+    // 남은 참조 수 같은 계기판은 없다
+    expect(JSON.stringify(content.assignments)).not.toMatch(/참조 수렴|사맥|기록선/);
     expect(a.checklist[3]!.final!.recommendButton).toBe('일치(노이즈)');
     expect(content.messages.some((m) => m.from === '오 실장')).toBe(true);
-    for (const t of ['#C-2217', '대조관 07', '오 실장', '노이즈 판정 권장', '종결된 보고서']) expect(narrative).toContain(t);
+    for (const t of ['#C-2217', '대조관 07', '오 실장', '노이즈 판정 권장', '종결된 보고서', a.detection]) expect(narrative).toContain(t);
   });
 
   it('hearing moments sit at the approved minutes', () => {
@@ -97,7 +100,7 @@ describe('episode 1 content — matches the approved first ten minutes', () => {
   it('the year-old report and 오 실장 lines are the approved wording (졸 → 사망)', () => {
     const prev = content.closedReports.find((c) => c.id === 'cr_c2217_prev')!;
     expect(narrative).toContain(prev.note);
-    for (const id of ['m_chief_02', 'm_chief_03', 'm_chief_04'])
+    for (const id of ['m_chief_02', 'm_chief_03', 'm_chief_03b', 'm_chief_04', 'm_chief_05'])
       expect(narrative).toContain(content.messages.find((m) => m.id === id)!.text);
   });
 });

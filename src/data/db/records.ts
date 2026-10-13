@@ -96,7 +96,7 @@ export const records: DbRecord[] = [
     provenance: V,
     title: '『성종실록』 편찬 기록',
     fields: [
-      { key: 'office', label: '실록청', value: '1495년 4월, 춘추관 안에 설치' },
+      { key: 'office', label: '「『성종실록』 편찬 실록청」', value: '1495년 4월, 춘추관 안에 설치' },
       {
         key: 'order',
         label: '편찬 명령',
@@ -122,10 +122,11 @@ export const records: DbRecord[] = [
   {
     id: 'rec_sys_log',
     provenance: F,
-    title: '단말 시스템 로그',
+    title: '실록청 단말 시스템 로그',
     fields: [
       { key: 'sync', label: '동기화', value: '정상' },
-      { key: 'correction', label: '정합성 보정', value: '매일 06:00 · 변경 0건' },
+      { key: 'correction', label: '좌표 재계산', value: '매일 06:00' },
+      { key: 'immune', label: '관측기', value: '관측기와 관측 데이터·시스템 로그는 소실의 영향을 받지 않는다.' },
       { key: 'rule', label: '규정 4조', value: '대조 중에는 DB 를 열람하지 않는다(선입견 방지).' },
     ],
   },

@@ -1,5 +1,7 @@
 /**
  * 메신저. 스토리 비트가 여기로 온다(힌트는 hints.ts 의 사다리가 보낸다).
+ *  - 세계: 실록청(實錄廳, 대한민국 국가역사복원기관, 가상) 기록대조과. 자동 분류는 통합 역사 DB 관리단, 복원 승인은 복원심의위원회.
+ *  - 자동 기각은 음모가 아니다: 하루 수천 건의 좌표 손상 건 중 열에 아홉은 진짜 장비 노이즈. 소실은 그 노이즈 속에 숨는다.
  *  - 오 실장(상사, 가상): 반말, 건조함. 시스템의 목소리 — "자주 있어. 장비 문제야."
  *  - 한 선임(동료, 가상): 10분 이후 등장. 반말. 정답(연도·이름·사건)을 말하지 않는다.
  *  - 현대 문장에는 '졸' 대신 '사망'. 실록 용어는 verified 인용 안에만.
@@ -21,12 +23,12 @@ const CORR = { corrections: ['corr_dawn'] };
 
 export const messages: Message[] = [
   // ── 23:04 배정 ─────────────────────────────────────────────
-  { id: 'm_sys_login', provenance: F, thread: 'system', from: SYS, text: '로그인했습니다. 기록대조과 · 대조관 07.', order: 0, clock: '23:04' },
+  { id: 'm_sys_login', provenance: F, thread: 'system', from: SYS, text: '로그인했습니다. 실록청 기록대조과 · 대조관 07.', order: 0, clock: '23:04' },
   { id: 'm_sys_assign', provenance: F, thread: 'system', from: SYS, text: '[업무] 새 배정: 좌표 손상 건 #C-2217 · 우선순위 낮음.', order: 1, clock: '23:04' },
   { id: 'm_chief_01', provenance: F, thread: 'chief', from: CHIEF, text: '07, 하나 넣었어. 좌표 손상 건. 체크리스트대로 보고 판정만 찍어.', order: 2, clock: '23:05' },
 
   // ── 자동 종결(轉1) ──────────────────────────────────────────
-  { id: 'm_sys_closed', provenance: F, thread: 'system', from: SYS, text: '#C-2217 — 자동 분류: 관측 오류(장비 노이즈) · 종결.', when: CLOSED, order: 10, clock: '23:29' },
+  { id: 'm_sys_closed', provenance: F, thread: 'system', from: SYS, text: '#C-2217 — 통합 역사 DB 관리단 자동 분류: 관측 오류(장비 노이즈) · 종결 · 근거 부족.', when: CLOSED, order: 10, clock: '23:29' },
   {
     id: 'm_chief_02',
     provenance: F,
@@ -49,6 +51,16 @@ export const messages: Message[] = [
   },
   { id: 'm_chief_03', provenance: F, thread: 'chief', from: CHIEF, text: '다음 건 넘어가.', when: CLOSED, order: 12, clock: '23:30' },
   {
+    id: 'm_chief_03b',
+    provenance: F,
+    thread: 'chief',
+    from: CHIEF,
+    text: '하루에 수천 건 떠. 열에 아홉은 진짜 장비 노이즈고. 근거 없으면 자동으로 떨어져.',
+    when: CLOSED,
+    order: 12.5,
+    clock: '23:30',
+  },
+  {
     id: 'm_sys_db',
     provenance: F,
     thread: 'system',
@@ -66,20 +78,20 @@ export const messages: Message[] = [
     provenance: F,
     thread: 'chief',
     from: CHIEF,
-    text: '아직 있어? 내일 아침 6시에 정합성 보정 돌아. 그 전에 퇴근해.',
+    text: '아직 있어? 새벽 6시에 좌표 재계산 돌아. 그 전에 끝내.',
     when: { opened: ['cr_c2217_prev'] },
     order: 20,
     clock: '23:40',
   },
 
-  // ── 06:00 정합성 보정(轉3) ───────────────────────────────────
-  { id: 'm_sys_corr', provenance: F, thread: 'system', from: SYS, text: '정합성 보정 완료 · 변경 0건.', when: CORR, order: 30, clock: '06:00' },
+  // ── 06:00 좌표 재계산(轉3): 소실이 진행되어 오후가 흐려진다. 프레임은 관측기에 있으니 남는다 ──
+  { id: 'm_sys_corr', provenance: F, thread: 'system', from: SYS, text: '06:00 좌표 재계산 완료 · #C-2217 일부 구간 고정 실패.', when: CORR, order: 30, clock: '06:00' },
   {
     id: 'm_chief_05',
     provenance: F,
     thread: 'chief',
     from: CHIEF,
-    text: '어제 그 건? 노이즈로 종결됐던데. 네가 노이즈로 찍었잖아.',
+    text: '소실이 진행됐네. 그 구간은 이제 흐려.',
     when: CORR,
     order: 31,
     clock: '06:12',
@@ -89,13 +101,13 @@ export const messages: Message[] = [
     provenance: F,
     thread: 'senior',
     from: SEN,
-    text: '07, 밤샜어? 보정 로그 봤는데 네 건 판정이 바뀌어 있더라. 그런 건 처음 봐.',
+    text: '07, 밤샜어? 재계산 로그 봤는데 네 좌표 오후가 통째로 흐려졌더라. 가리키던 기록이 깎인 거야.',
     when: CORR,
     order: 32,
     clock: '06:20',
     choices: [
-      { id: 'ch_insist', text: '제가 찍은 건 불일치였어요.', setsFlags: ['reply_insist'] },
-      { id: 'ch_doubt', text: '…피곤해서 그런가 봐요.', setsFlags: ['reply_doubt'] },
+      { id: 'ch_insist', text: '어젯밤엔 다 보였어요. 찍어 둔 것도 있고요.', setsFlags: ['reply_insist'] },
+      { id: 'ch_doubt', text: '…제가 본 게 맞긴 한가요.', setsFlags: ['reply_doubt'] },
     ],
   },
   {
@@ -103,7 +115,7 @@ export const messages: Message[] = [
     provenance: F,
     thread: 'senior',
     from: SEN,
-    text: '그럼 프레임은? 프레임은 보정이 못 건드려. 날것이니까.',
+    text: '찍은 건 관측기에 있어. 관측기는 소실을 안 타. 네 기억은 장담 못 해도.',
     when: { all: ['reply_insist'] },
     order: 33,
   },
@@ -112,7 +124,7 @@ export const messages: Message[] = [
     provenance: F,
     thread: 'senior',
     from: SEN,
-    text: '그래도 프레임은 남아 있을걸. 보정은 그건 못 건드려.',
+    text: '그러니까 프레임을 믿어. 사람 기억은 소실을 타도 관측기는 안 타.',
     when: { all: ['reply_doubt'] },
     order: 33,
   },
@@ -121,13 +133,22 @@ export const messages: Message[] = [
     provenance: F,
     thread: 'senior',
     from: SEN,
-    text: '노이즈로 안 떨어지는 건 딱 하나야. 네 칸이 다 근거로 찬 보고서. 업무에 양식 있어. 끝까지 채운 사람은 못 봤지만.',
+    text: '노이즈로 안 떨어지는 건 딱 하나야. 네 칸이 다 근거로 찬 불일치 보고서. 그건 자동 분류를 안 거치고 복원심의위원회로 바로 가. 업무에 양식 있어.',
     when: CORR,
     order: 34,
     clock: '06:21',
   },
 
   // ── 복원(結) ───────────────────────────────────────────────
+  {
+    id: 'm_sys_committee',
+    provenance: F,
+    thread: 'system',
+    from: SYS,
+    text: '복원심의위원회: 불일치 보고서 #C-2217 승인 · 복원 반영.',
+    when: FILED,
+    order: 39,
+  },
   { id: 'm_sys_sync', provenance: F, thread: 'system', from: SYS, text: '통합 역사 DB 동기화: 정상 · 변경 0건.', when: FILED, order: 40 },
   { id: 'm_me_01', provenance: F, thread: 'senior', from: ME, text: '선배, 무오사화 알아요?', when: FILED, order: 41 },
   {
@@ -185,6 +206,15 @@ export const messages: Message[] = [
     order: 46,
   },
   {
+    id: 'm_sys_obslog',
+    provenance: F,
+    thread: 'system',
+    from: '관측기 로그',
+    text: '어제 23:31 · DB 검색 「대내로 들여오라」 → 해당 기사 없음. (관측기 로그는 소실의 영향을 받지 않습니다.)',
+    when: FILED,
+    order: 47,
+  },
+  {
     id: 'm_sys_teaser',
     provenance: F,
     thread: 'system',
@@ -192,6 +222,15 @@ export const messages: Message[] = [
     text: '[업무] 종결된 보고서 2건이 새로 확인되었습니다 — 대조관 07 · 관측 오류.',
     when: FILED,
     order: 50,
+  },
+  {
+    id: 'm_me_name',
+    provenance: F,
+    thread: 'me',
+    from: ME,
+    text: '…우리 기관 이름이 여기서 왔구나.',
+    when: { records: ['rec_seongjong_sillok'] },
+    order: 25,
   },
   { id: 'm_me_03', provenance: F, thread: 'me', from: ME, text: '…이번에는, 무엇이 없어진 거지?', when: { ...FILED, opened: ['cr_c0408'] }, order: 51 },
 ];
