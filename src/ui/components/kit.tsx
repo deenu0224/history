@@ -1,9 +1,8 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { toDataURL } from '@/game/art';
 import type { CollectionCategory, CollectionEntry, EvidenceCategory } from '@/core/types';
 import { UI_KEYS } from '@/game/art';
 import { SPRITES } from '@/game/art/registry';
-import { isTyping, useKey } from '../hooks';
 
 export function PixelIcon({
   sprite,
@@ -102,48 +101,6 @@ export function Tabs<T extends string>({
           {t.badge !== undefined && <span className="tab-badge">{t.badge}</span>}
         </button>
       ))}
-    </div>
-  );
-}
-
-/** 전체 화면 모달 셸. 데스크톱은 중앙 창, 모바일은 전체 화면. */
-export function Modal({
-  title,
-  icon,
-  onClose,
-  children,
-  toolbar,
-  wide = false,
-  className = '',
-}: {
-  title: string;
-  icon?: string;
-  onClose(): void;
-  children: ReactNode;
-  toolbar?: ReactNode;
-  wide?: boolean;
-  className?: string;
-}) {
-  useKey((e) => {
-    if (e.key === 'Escape' && !isTyping(e)) onClose();
-  }, []);
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    return () => prev?.blur?.();
-  }, []);
-  return (
-    <div className="modal-back" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <section className={`modal panel ${wide ? 'modal-wide' : ''} ${className}`} role="dialog" aria-label={title}>
-        <header className="modal-head">
-          {icon && <PixelIcon sprite={icon} size={24} />}
-          <h2>{title}</h2>
-          <div className="modal-tools">{toolbar}</div>
-          <button className="btn btn-icon modal-close" onClick={onClose} aria-label="닫기">
-            ✕
-          </button>
-        </header>
-        <div className="modal-body">{children}</div>
-      </section>
     </div>
   );
 }

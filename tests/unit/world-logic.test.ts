@@ -4,10 +4,8 @@ import { autotile, groundKey } from '@/game/logic/autotile';
 import { buildSolidGrid, findAnchors } from '@/game/logic/grid';
 import { chooseZoom } from '@/game/logic/zoom';
 import { ambientTint, darkness, GameClock } from '@/game/logic/clock';
-import { moveBox } from '@/game/logic/collision';
-import { pickInteractable } from '@/game/logic/interact';
 import { resolveObjectSprite, resolveNpcSprite } from '@/game/keys';
-import { getMap } from '@/game/maps/fallback';
+import { MAPS } from '@/data/world/maps';
 import type { MapData } from '@/game/logic/types';
 
 const grid = (rows: string[]) => rows.map((r) => [...r].map((c) => c === '#'));
@@ -79,20 +77,22 @@ describe('autotile', () => {
   });
 });
 
-describe('real/fallback maps', () => {
-  for (const id of ['lab', 'archive', 'obs001']) {
-    it(`${id}: consistent dims and walkable spawn`, () => {
-      const m = getMap(id);
-      expect(m.ground).toHaveLength(m.h);
-      expect(m.walls.every((r) => r.length === m.w)).toBe(true);
-      const s = buildSolidGrid(m);
-      expect(s[m.spawn.y][m.spawn.x]).toBe(false);
-      autotile(m);
-    });
-  }
+describe('obs001 map', () => {
+  it('consistent dims, autotile works, pines/wells found', () => {
+    const m = MAPS.obs001 as MapData;
+    expect(m.ground).toHaveLength(m.h);
+    expect(m.walls).toHaveLength(m.h);
+    expect(m.ground.every((r) => r.length === m.w)).toBe(true);
+    expect(m.walls.every((r) => r.length === m.w)).toBe(true);
+    const r = autotile(m);
+    expect(r.pines.length).toBeGreaterThan(0);
+    expect(r.wells.length).toBe(1);
+    const s = buildSolidGrid(m);
+    expect(s[m.spawn.y]![m.spawn.x]).toBe(false);
+  });
 });
 
-describe('zoom / clock / collision / interact / keys', () => {
+describe('zoom / clock / keys', () => {
   it('chooseZoom', () => {
     expect(chooseZoom(1280, 720)).toBeGreaterThanOrEqual(2);
     expect(chooseZoom(1920, 1080)).toBe(3);
@@ -108,22 +108,6 @@ describe('zoom / clock / collision / interact / keys', () => {
     expect(c.whole).toBe(59);
     expect(darkness(ambientTint(720))).toBeLessThan(0.1);
     expect(darkness(ambientTint(0))).toBeGreaterThan(0.9);
-  });
-  it('moveBox blocks and slides', () => {
-    const g = grid(['...', '.#.', '...']);
-    const r = moveBox(g, { x: 48, y: 30, halfW: 7, h: 8 }, 0, 20);
-    expect(r.hitY).toBe(true);
-    expect(r.y).toBeLessThanOrEqual(32);
-  });
-  it('pickInteractable prefers facing target in range', () => {
-    const list = [
-      { id: 'a', x: 20, y: 0 },
-      { id: 'b', x: 0, y: 24 },
-      { id: 'far', x: 200, y: 0 },
-    ];
-    expect(pickInteractable({ x: 0, y: 0 }, 'right', list)?.id).toBe('a');
-    expect(pickInteractable({ x: 0, y: 0 }, 'down', list)?.id).toBe('b');
-    expect(pickInteractable({ x: 500, y: 0 }, 'down', list)).toBeNull();
   });
   it('sprite key aliasing with graceful fallback', () => {
     expect(resolveObjectSprite('obj_desk_writing', { ambient: 'past' }).key).toBe('obj_seoan');

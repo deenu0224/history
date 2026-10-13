@@ -105,6 +105,11 @@ export interface TimeConstraint {
   strength: EvidenceStrength;
   /** weak 인 이유. 예: '장기간 사용된 물건', '후대 모사본일 수 있음' */
   weakReason?: string;
+  /**
+   * 카드 고유의 판정 피드백 한 줄(일반 문구 '하한만 제한합니다' 대신). 정답·정답 연도를 말하지 않는다(테스트).
+   * 4자리 연도를 쓰지 않는다 — 경계 수치는 UI 가 time 에서 직접 보여 준다.
+   */
+  feedback?: string;
 }
 
 /** 증거 카드의 공개 단계. levels[0] 은 처음 얻었을 때(예: '미확인 관료'). */
@@ -146,6 +151,11 @@ export interface NotebookGrant {
   text: string;
   refIds?: Id[];
   provenance?: Provenance;
+  /**
+   * 현실 이동(RealityShift) 전의 상태. 손 노트에만 남는다: UI 는 before 를 취소선으로, text 를 새 글씨로 보여 준다.
+   * 단말(메신저·DB)에는 이전 상태를 보여 주는 표식이 없다.
+   */
+  before?: string;
 }
 
 export type Reward =
@@ -347,6 +357,8 @@ export interface CollectionField {
   value: string;
   unlockStage: CollectionStage;
   provenance?: Provenance;
+  /** 이 현실 이동(RealityShift id)이 적용되기 전에는 단계와 상관없이 보이지 않는다(말소된 사실). */
+  restoredBy?: Id;
 }
 
 export interface CollectionEntry extends ContentBase {
@@ -382,6 +394,9 @@ export interface PlayStats {
   phraseMisses: number;
   deductionAttempts: number;
   exhibits: number;
+  /** 보드에서 카드 겹치기(연결) 성공/실패 */
+  links: number;
+  linkMisses: number;
 }
 
 /**
@@ -399,6 +414,10 @@ export interface StateCondition extends FlagCondition {
   tapped?: Id[];
   attempted?: Id[];
   corrections?: Id[];
+  /** 적용된 현실 이동(RealityShift) */
+  shifts?: Id[];
+  /** 만든 카드 연결(EvidenceLink) */
+  links?: Id[];
   minStats?: Partial<PlayStats>;
   /** 이 중 하나 이상(OR). 막힘 방지용 대체 경로에 쓴다. */
   any?: StateCondition[];
@@ -436,13 +455,29 @@ export interface SearchEntry extends ContentBase {
   conditional?: { when: StateCondition; grants: Grants; note?: string }[];
   /** 칩 없이 직접 입력해야 닿는 선택 검색(호기심 보상). 진행 필수 항목에는 쓰지 않는다. */
   optional?: boolean;
+  /**
+   * 말소된 기사: 색인어는 있으나 결과가 없다 → '해당 기사 없음'. results 는 비워 두고, 복원하는 RealityShift 의
+   * searchRewrites 가 결과를 채운다(그 뒤로는 평범한 결과 — 복원 표식 없음).
+   */
+  noArticle?: boolean;
 }
 
-/** DB 메타데이터 레코드(가상). 정합성 보정의 대상이 될 수 있다. */
+export interface DbField {
+  key: string;
+  label: string;
+  value: string;
+}
+
+/** DB 메타데이터 레코드(가상). 정합성 보정·현실 이동의 대상이 될 수 있다. */
 export interface DbRecord extends ContentBase {
   title: string;
-  fields: { key: string; label: string; value: string }[];
+  fields: DbField[];
   note?: string;
+  /**
+   * 변조된 상태(말소된 세계의 DB). 반드시 fictional. 원인 없는 결과(사인 없는 졸년 등)만 담는다.
+   * RealityShift.recordRewrites 로만 실제 역사(verified)로 바뀐다. 엔딩 뒤 기록 열람 모드에서 원래 상태는 '변조'로 표시.
+   */
+  altered?: boolean;
 }
 
 /** 사료 뷰어에서 고를 수 있는 구절. text 는 사료 excerpt 의 부분 문자열이어야 한다(검증기). */
@@ -526,11 +561,75 @@ export interface TerminalMemo extends ContentBase {
   when?: StateCondition;
 }
 
-/** 정합성 보정(가상). 조건이 되면 조용히 레코드·메모를 고친다. verified 콘텐츠는 건드릴 수 없다. */
+/** 정합성 보정(가상). 조건이 되면 조용히 레코드·메모를 고친다(지운다). verified 콘텐츠는 건드릴 수 없다. */
 export interface CorrectionEvent extends ContentBase {
   trigger: StateCondition;
   recordPatches: { recordId: Id; key: string; value: string }[];
-  memoPatches: { memoId: Id; text: string }[];
+  /** text 로 바꾸거나, remove 면 메모가 사라진다(흔적 없음). */
+  memoPatches: { memoId: Id; text?: string; remove?: boolean }[];
+  grants?: Grants;
+}
+
+// ── 현실 이동(복원) ──────────────────────────────────────────────
+export interface MessageRewrite {
+  messageId: Id;
+  newText: string;
+}
+
+/** 레코드 다시 쓰기: 주어진 것만 바꾼다. fields 는 key 기준으로 바꾸거나 덧붙인다. */
+export interface RecordRewrite {
+  recordId: Id;
+  title?: string;
+  fields?: DbField[];
+  note?: string;
+  /** 복원 뒤 레코드가 실제 역사가 되면 'verified' + sources(url) 필수(검증기) */
+  provenance?: Provenance;
+  sources?: SourceRef[];
+}
+
+export interface SearchRewrite {
+  entryId: Id;
+  results: SearchResultRef[];
+}
+
+/** 복원된 기사(개인 기록관의 '복원' 도장 목록). source·event 는 verified 여야 한다. */
+export interface RestoredItem {
+  kind: 'source' | 'event' | 'record';
+  id: Id;
+}
+
+/**
+ * 현실 이동(가상 설정). 사실을 밝혀내면 세계 전체가 '원래부터' 그것을 알고 있었던 것이 된다.
+ * 메신저의 지난 메시지가 새 현실로 다시 쓰이고, DB 레코드에 원인이 생기며, '해당 기사 없음'이 평범한 결과가 된다.
+ * 단말에는 이전 상태를 보여 주는 표식이 없다. 이전/이후는 손 노트(notebookDiff)와 개인 기록관(restores)에만 남는다.
+ */
+export interface RealityShift extends ContentBase {
+  /** 기록관 '복원' 도장 옆 이름 */
+  title: string;
+  when: StateCondition;
+  /** 같은 순간 여러 개가 맞으면 order 순으로 적용 */
+  order: number;
+  messageRewrites: MessageRewrite[];
+  recordRewrites: RecordRewrite[];
+  searchRewrites?: SearchRewrite[];
+  restores: RestoredItem[];
+  /** 적용되는 순간 주는 것(복원 플래그, 서재 사료, 도감 단계 등) */
+  unlocks?: Grants;
+  /** 손 노트에 남는 이전/이후(취소선 + 새 글씨) */
+  notebookDiff: { id: Id; before: string; after: string; provenance?: Provenance }[];
+}
+
+/** 증거 보드의 카드 겹치기: inputs 를 정확히 그 조합으로 겹치면 result 카드가 생긴다(추론 카드). */
+export interface EvidenceLink extends ContentBase {
+  /** 정확히 이 카드들(순서 무관). 2장 이상. */
+  inputs: Id[];
+  result: { id: Id; level?: number };
+  /** 겹치기가 성립하려면 더 필요한 상태 */
+  requires?: StateCondition;
+  /** requires 미충족 시 문구(정답 금지) */
+  missText?: string;
+  /** 성공 시 한 줄 */
+  text: string;
   grants?: Grants;
 }
 
@@ -547,7 +646,7 @@ export interface TutorialStep extends ContentBase {
   /** [넛지, 방향, 근접] */
   hints: [string, string, string];
   /** 이 실패가 쌓이면 힌트 단계가 오른다 */
-  failOn?: ('unknown_search' | 'phrase_miss' | 'wrong_deduction' | 'empty_tap')[];
+  failOn?: ('unknown_search' | 'phrase_miss' | 'wrong_deduction' | 'empty_tap' | 'link_miss')[];
   /** 기본 40초 */
   idleSeconds?: number;
   order: number;
@@ -585,6 +684,8 @@ export interface ContentBundle {
   memos: TerminalMemo[];
   tutorial: TutorialStep[];
   help: HelpCard[];
+  shifts: RealityShift[];
+  links: EvidenceLink[];
 }
 
 export type ContentKey = keyof ContentBundle;

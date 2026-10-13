@@ -1,9 +1,8 @@
 import Phaser from 'phaser';
 import { registerPhaserAnims, registerPhaserTextures } from '../art';
 import { registerFxTextures } from '../fx/textures';
-import { useGameStore } from '@/store/gameStore';
 
-/** 텍스처/애니메이션 등록 후 store.currentScene(없으면 lab)으로 시작. */
+/** 텍스처·애니메이션을 등록하고 관측 씬을 시작한다. */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
@@ -13,7 +12,6 @@ export class BootScene extends Phaser.Scene {
     registerPhaserTextures(this);
     registerPhaserAnims(this);
     registerFxTextures(this);
-    const sceneId = useGameStore.getState().currentScene ?? 'lab';
-    this.scene.start('World', { sceneId });
+    this.scene.start('Observation');
   }
 }

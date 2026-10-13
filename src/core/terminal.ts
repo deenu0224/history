@@ -1,15 +1,22 @@
 /**
- * 결록 단말의 순수 로직: 상태 조건, 앱 잠금, 메시지 도착, 정합성 보정, 레코드/메모 보기, 튜토리얼·힌트.
+ * 결록 단말의 순수 로직: 상태 조건, 앱 잠금, 메시지 도착, 정합성 보정·현실 이동(합의된 현실의 다시 쓰기),
+ * 레코드/메모/메시지/검색 결과 보기, 카드 겹치기, 튜토리얼·힌트.
+ *
+ * 다시 쓰기의 적용 순서(콘텐츠 기준, 결정적): 정합성 보정(적용 순) → 현실 이동(적용 순). 나중 것이 이긴다.
  */
 import type {
   AppDef,
   AppId,
   CorrectionEvent,
   DbRecord,
+  EvidenceLink,
   FlagValue,
   Id,
   Message,
   PlayStats,
+  RealityShift,
+  SearchEntry,
+  SearchResultRef,
   StateCondition,
   TerminalMemo,
   TutorialStep,
@@ -27,6 +34,8 @@ export function emptyStats(): PlayStats {
     phraseMisses: 0,
     deductionAttempts: 0,
     exhibits: 0,
+    links: 0,
+    linkMisses: 0,
   };
 }
 
@@ -41,6 +50,8 @@ export interface ConditionState {
   tapped: readonly Id[];
   attempts: Readonly<Record<Id, number>>;
   corrections: readonly Id[];
+  shifts: readonly Id[];
+  links: readonly Id[];
   stats: PlayStats;
 }
 
@@ -52,6 +63,7 @@ export function checkState(s: ConditionState, c?: StateCondition): boolean {
   if (!(c.evidence ?? []).every((id) => s.evidence[id] !== undefined)) return false;
   if (!has(s.searched, c.searched) || !has(s.read, c.read) || !has(s.appsOpened, c.appsOpened)) return false;
   if (!has(s.phrases, c.phrases) || !has(s.tapped, c.tapped) || !has(s.corrections, c.corrections)) return false;
+  if (!has(s.shifts, c.shifts) || !has(s.links, c.links)) return false;
   if (!(c.attempted ?? []).every((id) => (s.attempts[id] ?? 0) > 0)) return false;
   for (const [k, v] of Object.entries(c.minStats ?? {}))
     if ((s.stats[k as keyof PlayStats] ?? 0) < (v ?? 0)) return false;
@@ -85,20 +97,99 @@ export function dueCorrections(events: readonly CorrectionEvent[], s: ConditionS
   return events.filter((e) => !s.corrections.includes(e.id) && checkState(s, e.trigger));
 }
 
-/** 보정이 적용된 레코드(보정은 흔적을 남기지 않는다 — 표시도 하지 않는다). */
-export function recordView(rec: DbRecord, events: readonly CorrectionEvent[], applied: readonly Id[]): DbRecord {
-  let fields = rec.fields;
-  for (const e of events)
-    if (applied.includes(e.id))
-      for (const p of e.recordPatches)
-        if (p.recordId === rec.id) fields = fields.map((f) => (f.key === p.key ? { ...f, value: p.value } : f));
-  return fields === rec.fields ? rec : { ...rec, fields };
+export function dueShifts(shifts: readonly RealityShift[], s: ConditionState): RealityShift[] {
+  return shifts.filter((x) => !s.shifts.includes(x.id) && checkState(s, x.when)).sort((a, b) => a.order - b.order);
 }
 
-export function memoView(memo: TerminalMemo, events: readonly CorrectionEvent[], applied: readonly Id[]): TerminalMemo {
+/** 현실 층(콘텐츠)과 적용된 id. 상태(PersistedState)는 corrections·shifts 를 그대로 넘기면 된다. */
+export interface RealityLayers {
+  corrections: readonly CorrectionEvent[];
+  shifts: readonly RealityShift[];
+}
+export interface RealityApplied {
+  corrections: readonly Id[];
+  shifts: readonly Id[];
+}
+
+const appliedIn = <T extends { id: Id }>(list: readonly T[], applied: readonly Id[]): T[] =>
+  applied.map((id) => list.find((x) => x.id === id)).filter((x): x is T => !!x);
+
+/** 보정·현실 이동이 적용된 레코드. 흔적·표식을 남기지 않는다(같은 객체 또는 새 객체만). */
+export function recordView(rec: DbRecord, layers: RealityLayers, applied: RealityApplied): DbRecord {
+  let out = rec;
+  for (const e of appliedIn(layers.corrections, applied.corrections))
+    for (const p of e.recordPatches)
+      if (p.recordId === rec.id) out = { ...out, fields: out.fields.map((f) => (f.key === p.key ? { ...f, value: p.value } : f)) };
+  for (const sh of appliedIn(layers.shifts, applied.shifts))
+    for (const r of sh.recordRewrites) {
+      if (r.recordId !== rec.id) continue;
+      let fields = out.fields;
+      for (const f of r.fields ?? [])
+        fields = fields.some((x) => x.key === f.key) ? fields.map((x) => (x.key === f.key ? f : x)) : [...fields, f];
+      out = {
+        ...out,
+        fields,
+        ...(r.title !== undefined ? { title: r.title } : {}),
+        ...(r.note !== undefined ? { note: r.note } : {}),
+        ...(r.provenance ? { provenance: r.provenance } : {}),
+        ...(r.sources ? { sources: r.sources } : {}),
+      };
+    }
+  return out;
+}
+
+/** 보정이 적용된 메모. 지워졌으면 null. */
+export function memoView(memo: TerminalMemo, layers: RealityLayers, applied: RealityApplied): TerminalMemo | null {
   let text = memo.text;
-  for (const e of events) if (applied.includes(e.id)) for (const p of e.memoPatches) if (p.memoId === memo.id) text = p.text;
+  for (const e of appliedIn(layers.corrections, applied.corrections))
+    for (const p of e.memoPatches)
+      if (p.memoId === memo.id) {
+        if (p.remove) return null;
+        if (p.text !== undefined) text = p.text;
+      }
   return text === memo.text ? memo : { ...memo, text };
+}
+
+/** 지금 현실의 메시지 본문. */
+export function messageText(m: Message, layers: RealityLayers, applied: RealityApplied): string {
+  let text = m.text;
+  for (const sh of appliedIn(layers.shifts, applied.shifts))
+    for (const r of sh.messageRewrites) if (r.messageId === m.id) text = r.newText;
+  return text;
+}
+
+export function messageView(m: Message, layers: RealityLayers, applied: RealityApplied): Message {
+  const text = messageText(m, layers, applied);
+  return text === m.text ? m : { ...m, text };
+}
+
+/** 지금 현실의 검색 결과. noArticle 항목은 다시 쓰이기 전까지 결과가 없다('해당 기사 없음'). */
+export function searchResultsView(
+  e: SearchEntry,
+  layers: RealityLayers,
+  applied: RealityApplied,
+): { results: SearchResultRef[]; noArticle: boolean } {
+  let results = e.results;
+  let rewritten = false;
+  for (const sh of appliedIn(layers.shifts, applied.shifts))
+    for (const r of sh.searchRewrites ?? [])
+      if (r.entryId === e.id) {
+        results = r.results;
+        rewritten = true;
+      }
+  return { results, noArticle: !!e.noArticle && !rewritten };
+}
+
+// ── 카드 겹치기 ───────────────────────────────────────────────
+const sameSet = (a: readonly Id[], b: readonly Id[]) => {
+  const A = new Set(a);
+  const B = new Set(b);
+  return A.size === B.size && [...A].every((x) => B.has(x));
+};
+
+/** 고른 카드 집합과 정확히 같은 입력을 가진 연결(없으면 undefined). */
+export function findLink(links: readonly EvidenceLink[], ids: readonly Id[]): EvidenceLink | undefined {
+  return links.find((l) => sameSet(l.inputs, ids));
 }
 
 // ── 튜토리얼·힌트 ─────────────────────────────────────────────
