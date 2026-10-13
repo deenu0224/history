@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HearingTracker, inHearRange, bubbleDwellMs, requiredZoom } from '@/game/logic/hearing';
-import { inDegraded, mostlyVisible, visibleFraction } from '@/game/logic/capture';
+import { centerVisible, inDegraded, mostlyVisible, visibleFraction } from '@/game/logic/capture';
 
 const base = { baseZoom: 3, center: { x: 320, y: 320 }, tile: 32 };
 
@@ -60,5 +60,18 @@ describe('capture helpers', () => {
     expect(inDegraded(600, sp)).toBe(true);
     expect(inDegraded(660, sp)).toBe(false);
     expect(inDegraded(10, undefined)).toBe(false);
+  });
+});
+
+describe('centerVisible(찍기: 중심이 화면 안이면 보인다)', () => {
+  const t = { id: 'a', cx: 10, cy: 100, halfW: 20, halfH: 30, priority: 1 };
+  it('가장자리에 걸쳐도 중심이 안이면 보인다', () => {
+    expect(centerVisible(t, 400, 800)).toBe(true);
+    const edge = { ...t, cx: 1, halfW: 5, halfH: 5 };
+    expect(centerVisible(edge, 400, 800)).toBe(true);
+    expect(centerVisible({ ...edge, cx: -1 }, 400, 800)).toBe(false);
+  });
+  it('중심이 밖이면 안 보인다', () => {
+    expect(centerVisible({ ...t, cy: -5 }, 400, 800)).toBe(false);
   });
 });

@@ -225,6 +225,23 @@ function appArchive(): PixelSprite {
   return finish(g, 32);
 }
 
+function appWork(): PixelSprite {
+  const g = tile(32, DEEP);
+  // 클립보드 판 + 종이(작업 지시서)
+  g.rect(7, 5, 18, 23, O.k5).hline(7, 5, 18, O.k7).vline(7, 5, 23, O.k7).hline(7, 27, 18, O.k3);
+  g.rect(9, 8, 14, 18, O.p0).hline(9, 25, 14, O.p1);
+  // 클립
+  g.rect(12, 3, 8, 5, O.k8).rect(13, 4, 6, 2, O.k4).hline(12, 3, 8, O.kw);
+  // 체크리스트 줄: 확인 칸 + 글줄
+  g.rect(10, 10, 2, 2, O.t3).hline(14, 10, 7, O.g1);
+  g.rect(10, 14, 2, 2, O.t3).hline(14, 14, 5, O.g1);
+  g.rect(10, 18, 2, 2, O.p3).hline(14, 18, 6, O.p3);
+  // 붉은 도장(우하단, 종이 밖으로 살짝)
+  g.ellipse(21, 23, 5, 5, O.r1).ellipse(21, 23, 3.5, 3.5, O.r0);
+  g.hline(19, 23, 5, O.p0).vline(21, 21, 5, O.p0);
+  return finish(g, 32);
+}
+
 function appNotebook(): PixelSprite {
   const g = tile(32, PAPER);
   // 줄 노트 (종이 타일 자체가 노트)
@@ -363,6 +380,14 @@ function smArchive(): PixelSprite {
   g.rect(2, 11, 12, 2, O.k6).hline(2, 11, 12, O.k8);
   return finish(g, 16);
 }
+function smWork(): PixelSprite {
+  const g = tile(16, DEEP);
+  g.rect(3, 3, 9, 11, O.k5).rect(4, 4, 7, 9, O.p0);
+  g.rect(5, 2, 5, 2, O.k8);
+  g.hline(5, 6, 4, O.t3).hline(5, 8, 3, O.g1).hline(5, 10, 4, O.p3);
+  g.rect(9, 10, 4, 4, O.r1).rect(10, 11, 2, 2, O.r0);
+  return finish(g, 16);
+}
 function smNotebook(): PixelSprite {
   const g = tile(16, PAPER);
   g.hline(3, 4, 9, O.p2).hline(3, 7, 9, O.p2).hline(3, 10, 6, O.p2);
@@ -396,6 +421,7 @@ export const OS_ICONS: Record<string, PixelSprite> = {
   app_messenger: appMessenger(),
   app_mail: appMail(),
   app_archive: appArchive(),
+  app_work: appWork(),
   app_notebook: appNotebook(),
   app_settings: appSettings(),
   app_timeline: appTimeline(),
@@ -406,6 +432,7 @@ export const OS_ICONS: Record<string, PixelSprite> = {
   app_messenger_sm: smMessenger(),
   app_mail_sm: smMail(),
   app_archive_sm: smArchive(),
+  app_work_sm: smWork(),
   app_notebook_sm: smNotebook(),
   app_settings_sm: smSettings(),
   app_timeline_sm: smTimeline(),

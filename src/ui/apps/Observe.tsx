@@ -13,6 +13,7 @@ import {
   selectFrames,
   selectNpcRoute,
   useGameStore,
+  type Frame,
   type FrameView,
   type ViewerSnapshot,
 } from '@/store/gameStore';
@@ -28,7 +29,7 @@ import { fmtMinute } from '../lib/text';
 const TL = CONTENT.timelines.find((t) => t.id === DEFAULT_TIMELINE)!;
 const SETTLE_MS = 400;
 
-type Sheets = null | 'replace' | { frame: number };
+type Sheets = null | 'replace' | 'heard' | { frame: number };
 
 export function ObserveApp() {
   const viewer = useRef<ViewerHandle>(null);
@@ -42,12 +43,11 @@ export function ObserveApp() {
 
   const [sheet, setSheet] = useState<Sheets>(null);
   const [pending, setPending] = useState<ViewerSnapshot | null>(null);
-  const [caption, setCaption] = useState<{ speaker?: string; text: string; n: number } | null>(null);
   const [note, setNote] = useState<{ text: string; n: number } | null>(null);
   const [blink, setBlink] = useState(0);
   const [route, setRoute] = useState<string | null>(null);
   const [shake, setShake] = useState(0);
-  const [count, setCount] = useState<{ text: string; n: number } | null>(null);
+  const [shot, setShot] = useState<ShotCard | null>(null);
   useBackHandler(sheet !== null, () => (setSheet(null), true));
 
   // 관측에 들어간다 / 나온다
@@ -81,14 +81,6 @@ export function ObserveApp() {
     return () => clearInterval(t);
   }, []);
 
-  // 시각이 바뀌면 들린 말 자막은 걷힌다
-  useEffect(() => setCaption(null), [minute]);
-  // 잠깐 보이는 줄들은 스스로 사라진다
-  useEffect(() => {
-    if (!caption) return;
-    const t = setTimeout(() => setCaption(null), 7000);
-    return () => clearTimeout(t);
-  }, [caption]);
   useEffect(() => {
     if (!note) return;
     const t = setTimeout(() => setNote(null), 4500);
@@ -100,18 +92,17 @@ export function ObserveApp() {
     return () => clearTimeout(t);
   }, [blink]);
   useEffect(() => {
-    if (!count) return;
-    const t = setTimeout(() => setCount(null), 1600);
+    if (!shot) return;
+    const t = setTimeout(() => setShot(null), 5200);
     return () => clearTimeout(t);
-  }, [count]);
+  }, [shot]);
 
   const onHear = useCallback((lineId: string) => {
     if (!useGameStore.getState().hearLine(lineId)) return;
     const f = findLine(CONTENT.npcs, lineId);
     if (!f) return;
     fx('hear');
-    // 말한 말만 자막으로 남긴다(몸짓 묘사는 뷰어의 말풍선으로 충분하다)
-    if (f.line.speaker) setCaption({ speaker: f.line.speaker, text: f.line.text, n: Date.now() });
+    // 말풍선이 이미 보여 주므로 자막은 두지 않는다. 들은 말은 '들은 말' 목록에 쌓인다.
     setBlink(Date.now());
   }, []);
 
@@ -138,7 +129,8 @@ export function ObserveApp() {
       h.flashShutter();
       haptic('shutter');
       setBlink(0);
-      setCount({ text: `필름 ${useGameStore.getState().frames.length}/${MAX_FRAMES}`, n: Date.now() });
+      setNote(null);
+      setShot(describeShot(r.frame!, r.newClues.length > 0, useGameStore.getState().frames.length));
     } else if (r.status === 'full') {
       fx('capture_full');
       setShake((n) => n + 1);
@@ -156,6 +148,7 @@ export function ObserveApp() {
     const r = useGameStore.getState().replaceFrame(i, snap);
     if (r.status === 'replaced' || r.status === 'captured') {
       viewer.current?.flashShutter();
+      if (r.frame) setShot(describeShot(r.frame, r.newClues.length > 0, useGameStore.getState().frames.length));
       haptic('shutter');
       setSheet(null);
       setPending(null);
@@ -173,6 +166,7 @@ export function ObserveApp() {
   });
   const routeInfo = route ? selectNpcRoute(st, route) : null;
   const wide = w >= 700;
+  const heardCount = st.heard.filter((id) => findLine(CONTENT.npcs, id)?.line.speaker).length;
 
   return (
     <div className={`obs ${wide ? 'obs-wide' : ''}`} data-testid="app-observe" ref={box}>
@@ -216,23 +210,36 @@ export function ObserveApp() {
             </button>
           </div>
         )}
-        {caption && (
-          <p className="obs-caption" key={caption.n} data-testid="heard-line">
-            {caption.speaker && <small>{caption.speaker}</small>}
-            <span>
-              「<RichText text={caption.text} />」
-            </span>
-          </p>
-        )}
+        <button type="button" className="obs-heard-btn" data-testid="heard-log-open" onClick={() => setSheet('heard')}>
+          들은 말{heardCount > 0 ? ` ${heardCount}` : ''}
+        </button>
         {note && (
           <p className="obs-note" key={note.n} role="status">
             {note.text}
           </p>
         )}
-        {count && (
-          <p className="obs-count" key={count.n} role="status">
-            {count.text}
-          </p>
+        {shot && (
+          <div className={`obs-shot ${shot.empty ? 'empty' : ''}`} key={shot.n} role="status" data-testid="shot-card">
+            {shot.thumb ? <img src={shot.thumb} alt="" draggable={false} /> : <i className="obs-shot-ph" />}
+            <div className="obs-shot-body">
+              <b>
+                필름 {shot.count}/{MAX_FRAMES} · {fmtMinute(shot.minute)}
+              </b>
+              {shot.empty ? (
+                <span data-testid="shot-empty">이 프레임에는 확인할 만한 것이 없다.</span>
+              ) : (
+                <>
+                  {shot.who.length > 0 && <span className="obs-shot-who">{shot.who.join(' · ')}</span>}
+                  {shot.lines.slice(0, 2).map((l, i) => (
+                    <span key={i} className="obs-shot-line">
+                      {l.speaker && <small>{l.speaker} </small>}「{l.text}」
+                    </span>
+                  ))}
+                  {shot.lines.length === 0 && <span className="quiet">들린 말은 없다.</span>}
+                </>
+              )}
+            </div>
+          </div>
         )}
         <button
           type="button"
@@ -277,10 +284,60 @@ export function ObserveApp() {
           <p className="quiet">잠긴 장면은 다시 찍을 수 없어 바꿀 수 없다.</p>
         </Sheet>
       )}
+      {sheet === 'heard' && <HeardLog onClose={() => setSheet(null)} />}
       {sheet && typeof sheet === 'object' && frames[sheet.frame] && (
         <FrameSheet fv={frames[sheet.frame]!} onClose={() => setSheet(null)} />
       )}
     </div>
+  );
+}
+
+interface ShotCard {
+  n: number;
+  count: number;
+  minute: number;
+  thumb?: string;
+  who: string[];
+  lines: { speaker?: string; text: string }[];
+  empty: boolean;
+}
+
+/** 방금 찍은 프레임에 무엇이 담겼는지(누가 · 어떤 말) 한눈에. 아무것도 없으면 그렇게 말한다. */
+function describeShot(frame: Frame, fresh: boolean, count: number): ShotCard {
+  const lines = frame.heardLineIds
+    .map((id) => findLine(CONTENT.npcs, id)?.line)
+    .filter((l): l is NonNullable<typeof l> => !!l && !!l.speaker)
+    .map((l) => ({ speaker: l.speaker, text: l.text.replace(/^[“"]|[”"]$/g, '') }));
+  const who = frame.visibleHotspotIds
+    .map((id) => CONTENT.npcs.find((n) => `hs_${n.id}` === id)?.label)
+    .filter((x): x is string => !!x);
+  void fresh;
+  return {
+    n: Date.now(),
+    count,
+    minute: frame.minute,
+    thumb: frame.thumbDataUrl,
+    who: [...new Set(who)],
+    lines,
+    empty: lines.length === 0 && frame.clueIds.length === 0,
+  };
+}
+
+/** 지금까지 들은 말(밑줄 = 검색어). 말풍선이 사라진 뒤에도 다시 읽을 수 있다. */
+function HeardLog({ onClose }: { onClose(): void }) {
+  const heard = useGameStore((s) => s.heard);
+  const rows = heard
+    .map((id) => findLine(CONTENT.npcs, id))
+    .filter((f): f is NonNullable<typeof f> => !!f && !!f.line.speaker);
+  return (
+    <Sheet title="들은 말" onClose={onClose} testId="heard-log">
+      {rows.length === 0 && <p className="quiet">아직 들은 말이 없다. 말하는 사람(「…」)에게 다가가 확대해 보자.</p>}
+      {rows.map(({ line }) => (
+        <p key={line.id} className="frame-line" data-testid={`heard-${line.id}`}>
+          {line.speaker && <small>{line.speaker}</small>}「<RichText text={line.text} />」
+        </p>
+      ))}
+    </Sheet>
   );
 }
 

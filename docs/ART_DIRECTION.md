@@ -198,7 +198,7 @@ this.add.nineslice(x, y, UI_KEYS.uiPanelHanji, undefined, 160, 96, 12, 12, 12, 1
 
 | 그룹 | 키 | 크기 |
 |---|---|---|
-| 앱 아이콘 | `app_db` `app_observe` `app_reader` `app_board` `app_messenger` `app_mail` `app_archive` `app_notebook` `app_settings` `app_timeline` (+`_sm`) | 32×32 / 16×16 |
+| 앱 아이콘 | `app_db` `app_observe` `app_reader` `app_board` `app_messenger` `app_mail` `app_archive` `app_work` `app_notebook` `app_settings` `app_timeline` (+`_sm`) | 32×32 / 16×16 |
 | 창/컨트롤(9-slice) | `os_window` `os_window_idle`(48², 6/6/20/6), `os_btn[_hover/_pressed]` `os_btn_primary[...]`(24², 6), `os_panel`, `os_field[_focus]`(24×20, 5), `os_tab[_idle]`(24×22), `os_scroll_thumb/_track`(8px, 3) | |
 | 컨트롤 소품 | `os_title_min/max/close[_hover]`(16²), `os_checkbox_off/on`(14²), `os_badge`(12²), `os_badge_dot`(8²) | |
 | 상태바 | `stat_signal` `stat_battery` `stat_clock` `stat_lock` `stat_sync` `stat_warning` | 12×12 |

@@ -33,7 +33,7 @@ import { rgbToHex, type RGB } from '../logic/clock';
 import { Gesture } from '../logic/gesture';
 import { buildSolidGrid } from '../logic/grid';
 import { pickHotspot, type HitTarget } from '../logic/hit';
-import { inDegraded, mostlyVisible } from '../logic/capture';
+import { centerVisible, inDegraded } from '../logic/capture';
 import { HearingTracker, inHearRange, requiredZoom, type HearNpcIn, type HearSpec } from '../logic/hearing';
 import type { DomLayer } from '../viewer/domLayer';
 import { walkRoute } from '../logic/route';
@@ -41,6 +41,9 @@ import { viewerTint } from '../logic/tint';
 import { TILE, type MapData } from '../logic/types';
 import type { AnchorRect, ViewerCamera, ViewerHost, ViewerHotspotInfo, ViewerSnapshot } from '../viewer/types';
 import { NpcActor, tileToFeet } from './NpcActor';
+
+/** 이 시간 안에 들린 줄은 지금 막 범위를 벗어났어도 프레임에 담긴다 */
+const RECENT_HEARD_MS = 10_000;
 
 interface LightDef {
   tex: string;
@@ -152,6 +155,9 @@ export class ObservationScene extends Phaser.Scene {
   private npcDefs = new Map<Id, NpcDef>();
   private flags: Flags = {};
   private inRangeIds: string[] = [];
+  /** 최근에 들렸던 줄(id → 마지막으로 범위 안이던 시각 ms). 셔터를 누르는 순간 인물이 막 범위를 벗어나도 찍힌다 */
+  private recentHeard = new Map<string, number>();
+  private recentMinute = -1;
   private degradedNow = false;
   private degLevel = 0;
 
@@ -1162,6 +1168,11 @@ export class ObservationScene extends Phaser.Scene {
     }
     const step = this.tracker.step(now, input);
     this.inRangeIds = step.inRangeIds;
+    if (this.minute !== this.recentMinute) {
+      this.recentMinute = this.minute;
+      this.recentHeard.clear();
+    }
+    for (const id of step.inRangeIds) this.recentHeard.set(id, now);
     for (const n of step.newlyHeard) this.host.onHear?.(n.lineId, n.npcId);
     if (!this.dom) return;
     const W = this.view.w / this.dpr;
@@ -1199,16 +1210,21 @@ export class ObservationScene extends Phaser.Scene {
     for (const h of this.hs) {
       if (h.status !== 'available') continue;
       const t = this.screenBox(h);
-      if (t && mostlyVisible(t, W, H)) visible.push(h.id);
+      if (t && centerVisible(t, W, H)) visible.push(h.id);
     }
     return {
       minute: this.minute,
       centerTile: { x: Math.floor(this.cam.x / TILE), y: Math.floor(this.cam.y / TILE) },
       zoom: Math.round((this.cam.zoom / this.range.base) * 100) / 100,
       visibleHotspotIds: visible,
-      heardLineIds: [...this.inRangeIds],
+      heardLineIds: [...new Set([...this.inRangeIds, ...this.recentLineIds()])],
       thumbDataUrl: this.dom ? this.dom.thumb(this.game.canvas) : '',
     };
+  }
+
+  private recentLineIds(): string[] {
+    const now = this.time.now;
+    return [...this.recentHeard].filter(([, t]) => now - t <= RECENT_HEARD_MS).map(([id]) => id);
   }
 
   /** 테스트 훅: 기준 배율의 z 배로 즉시 */

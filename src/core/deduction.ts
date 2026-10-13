@@ -1,3 +1,4 @@
+import { josa } from './josa';
 import { FACT_LABELS, citeEvidence, factText, hasFact, sameFact } from './content';
 
 export { judgeYear } from './chronology';
@@ -26,7 +27,7 @@ export function missingFeedback(required: readonly Fact[], facts: readonly Fact[
   const kinds = new Set(required.filter((f) => !hasFact(facts, f)).map((f) => f.kind));
   return [...kinds].map((kind) => ({
     code: 'missing_fact' as const,
-    message: `아직 ${FACT_LABELS[kind]}을(를) 입증하는 증거가 인용되지 않았습니다.`,
+    message: `아직 ${josa(FACT_LABELS[kind], '을/를')} 입증하는 증거가 인용되지 않았습니다.`,
   }));
 }
 
@@ -58,7 +59,7 @@ export function judgePerson(
       ...contradicting.map((fact) => ({
         code: 'fact_contradiction' as const,
         fact,
-        message: `'${factText(fact)}'은(는) ${person.name}와(과) 맞지 않습니다.`,
+        message: `${josa(`'${factText(fact)}'`, '은/는')} ${josa(person.name, '와/과')} 맞지 않습니다.`,
       })),
     ]);
 
@@ -72,7 +73,7 @@ export function judgePerson(
       ...unverified.map((fact) => ({
         code: 'fact_unverified' as const,
         fact,
-        message: `${person.name}에게서 '${factText(fact)}'을(를) 확인할 수 없습니다.`,
+        message: `${person.name}에게서 ${josa(`'${factText(fact)}'`, '을/를')} 확인할 수 없습니다.`,
       })),
     ]);
   }

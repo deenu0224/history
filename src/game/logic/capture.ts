@@ -11,6 +11,9 @@ export function visibleFraction(t: HitTarget, w: number, h: number, minHalf = MI
   return (ix * iy) / (4 * hw * hh);
 }
 
+/** 판정 상자의 중심이 화면 안에 있는가(찍기용: 인물이 화면 가장자리에 걸쳐도 "보인다"고 친다) */
+export const centerVisible = (t: HitTarget, w: number, h: number): boolean => t.cx >= 0 && t.cx <= w && t.cy >= 0 && t.cy <= h;
+
 export const mostlyVisible = (t: HitTarget, w: number, h: number): boolean => visibleFraction(t, w, h) >= 0.5;
 
 export interface Span {

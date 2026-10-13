@@ -1,3 +1,4 @@
+import { josa } from './josa';
 import { citeEvidence } from './content';
 import type { EvidenceView, Feedback, JudgeContext, JudgeResult, Year, YearDeduction } from './types';
 
@@ -55,29 +56,29 @@ function evidenceFeedback(v: EvidenceView, from: Year, to: Year): Feedback[] {
   const name = `「${v.label}」`;
   const evidenceId = v.id;
   if (!t || (t.notBefore === undefined && t.notAfter === undefined))
-    return [{ code: 'no_time_info', evidenceId, message: `${name}은(는) 연대와 관련된 정보가 없습니다.` }];
+    return [{ code: 'no_time_info', evidenceId, message: `${josa(name, '은/는')} 연대와 관련된 정보가 없습니다.` }];
 
   const out: Feedback[] = [];
   const conflict = !overlaps(from, to, t);
   if (t.strength === 'weak') {
     const why = t.weakReason ?? '사용·복제 시기가 불확실함';
-    out.push({ code: 'weak', evidenceId, message: t.feedback ?? `${name}은(는) 연대를 확정하기에 약합니다(${why}).` });
+    out.push({ code: 'weak', evidenceId, message: t.feedback ?? `${josa(name, '은/는')} 연대를 확정하기에 약합니다(${why}).` });
     if (conflict)
       out.push({
         code: 'weak_conflict',
         evidenceId,
-        message: `제출한 범위가 ${name}와(과) 어긋나지만, 약한 증거라 판정 근거로 쓰지 않습니다.`,
+        message: `제출한 범위가 ${josa(name, '와/과')} 어긋나지만, 약한 증거라 판정 근거로 쓰지 않습니다.`,
       });
     return out;
   }
   // 카드 고유 문구가 있으면 그것을, 없으면 일반 문구(코드는 같다)
-  const say = (generic: string) => t.feedback ?? `${name}은(는) ${generic}`;
+  const say = (generic: string) => t.feedback ?? `${josa(name, '은/는')} ${generic}`;
   if (t.notBefore !== undefined && t.notAfter !== undefined)
     out.push({ code: 'bounds_both', evidenceId, message: say('하한과 상한을 모두 제한합니다.') });
   else if (t.notBefore !== undefined)
     out.push({ code: 'bounds_lower', evidenceId, message: say('하한만 제한합니다.') });
   else out.push({ code: 'bounds_upper', evidenceId, message: say('상한만 제한합니다.') });
-  if (conflict) out.push({ code: 'contradiction', evidenceId, message: `제출한 범위가 ${name}와(과) 모순됩니다.` });
+  if (conflict) out.push({ code: 'contradiction', evidenceId, message: `제출한 범위가 ${josa(name, '와/과')} 모순됩니다.` });
   return out;
 }
 
@@ -123,7 +124,7 @@ export function judgeYear(d: YearDeduction, sub: YearSubmission, ctx: JudgeConte
       message:
         all.from === undefined
           ? '시작 연도를 제한하는 증거가 인용되지 않았습니다.'
-          : `시작 연도 ${from}은(는) 인용한 증거로 뒷받침되지 않습니다.`,
+          : `시작 연도 ${josa(String(from), '은/는')} 인용한 증거로 뒷받침되지 않습니다.`,
     });
   if (!upperOk)
     feedback.push({
@@ -131,7 +132,7 @@ export function judgeYear(d: YearDeduction, sub: YearSubmission, ctx: JudgeConte
       message:
         all.to === undefined
           ? '종료 연도를 제한하는 증거가 인용되지 않았습니다.'
-          : `종료 연도 ${to}은(는) 인용한 증거로 뒷받침되지 않습니다.`,
+          : `종료 연도 ${josa(String(to), '은/는')} 인용한 증거로 뒷받침되지 않습니다.`,
     });
   if (!lowerOk || !upperOk) return result('undetermined', feedback, all);
 

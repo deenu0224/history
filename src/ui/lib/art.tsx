@@ -27,12 +27,7 @@ export function Px({
   );
 }
 
-/** 데이터가 가리키는 아이콘이 아직 없으면 같은 결의 기존 아이콘을 쓴다(업무 = 문서함). */
-const ICON_ALIAS: Record<string, string> = { app_work: 'app_archive' };
-export const appIconKey = (iconKey: string, small = false) => {
-  const k = ICON_ALIAS[iconKey] ?? iconKey;
-  return small && hasSprite(`${k}_sm`) ? `${k}_sm` : k;
-};
+export const appIconKey = (iconKey: string, small = false) => (small && hasSprite(`${iconKey}_sm`) ? `${iconKey}_sm` : iconKey);
 
 const url = (k: string) => `url("${toDataURL(k)}")`;
 

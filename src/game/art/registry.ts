@@ -130,8 +130,8 @@ export const UI_KEYS = {
 const keysOf = (sprites: Record<string, unknown>, prefixes: string[]) => Object.keys(sprites).filter((k) => prefixes.some((p) => k.startsWith(p)));
 export const OS_KEYS = {
   /** 앱 아이콘 32×32 (+ `_sm` 16×16) */
-  apps: ['app_db', 'app_observe', 'app_reader', 'app_board', 'app_messenger', 'app_mail', 'app_archive', 'app_notebook', 'app_settings', 'app_timeline'],
-  appsSmall: ['app_db_sm', 'app_observe_sm', 'app_reader_sm', 'app_board_sm', 'app_messenger_sm', 'app_mail_sm', 'app_archive_sm', 'app_notebook_sm', 'app_settings_sm', 'app_timeline_sm'],
+  apps: ['app_db', 'app_observe', 'app_reader', 'app_board', 'app_messenger', 'app_mail', 'app_archive', 'app_work', 'app_notebook', 'app_settings', 'app_timeline'],
+  appsSmall: ['app_db_sm', 'app_observe_sm', 'app_reader_sm', 'app_board_sm', 'app_messenger_sm', 'app_mail_sm', 'app_archive_sm', 'app_work_sm', 'app_notebook_sm', 'app_settings_sm', 'app_timeline_sm'],
   chrome: keysOf(OS_SPRITES, ['os_']),
   statusIcons: ['stat_signal', 'stat_battery', 'stat_clock', 'stat_lock', 'stat_sync', 'stat_warning'],
   wallpaper: { desktop: 'os_wallpaper', portrait: 'os_wallpaper_portrait' },
