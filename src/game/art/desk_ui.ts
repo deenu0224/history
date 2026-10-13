@@ -175,7 +175,7 @@ function deskCard(): PixelSprite {
 function rulesTile(): PixelSprite {
   const g = new Grid(16, 8);
   for (let x = 0; x < 16; x++) g.set(x, 7, x % 8 === 3 ? D.z2 : D.z1);
-  g.set(3, 6, D.z1).set(11, 6, D.z1);
+  for (let x = 0; x < 16; x += 2) g.set(x, 6, D.s1);
   return sp(g, { x: 8, y: 4 });
 }
 

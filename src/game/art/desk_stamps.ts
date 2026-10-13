@@ -133,7 +133,12 @@ function impression(tone: InkTones, o: ImpOpts): PixelSprite {
     g.under(x, y, r() < 0.5 ? tone.l : tone.f);
   }
   // 종이 섬유에 먹힌 얼룩: 테두리 근처 약한 점
-  g.speckle(r, tone.f, 0.004 + 0.004 * o.splat, 0, 0, IW, IH);
+  const sp2 = 0.004 + 0.004 * o.splat;
+  for (let y = 0; y < IH; y++)
+    for (let x = 0; x < IW; x++) {
+      const labelArea = x >= 9 && x < IW - 9 && y >= 9 && y < IH - 9;
+      if (!labelArea && r() < sp2) g.under(x, y, tone.f);
+    }
   return sp(g, { x: IW / 2, y: IH / 2 });
 }
 

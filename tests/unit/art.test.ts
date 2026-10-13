@@ -4,6 +4,8 @@ import {
   CHAR_FRAMES,
   CHAR_H,
   CHAR_KEYS,
+  DESK_KEYS,
+  SCENE_KEYS,
   NINE_SLICE,
   OBJ_KEYS,
   PALETTE,
@@ -17,6 +19,8 @@ import {
 } from '@/game/art';
 import type { PixelSprite } from '@/game/art';
 import { isValidHex, OUTLINE_OF } from '@/game/art/palettes';
+import { DIORAMAS } from '@/game/scenes/maps';
+import { MAP_LEGEND } from '@/data/world/maps';
 
 describe('art registry', () => {
   it('has content', () => {
@@ -176,4 +180,96 @@ describe('validateSprite', () => {
   it('rejects bad color', () => expect(validateSprite({ ...ok, palette: { a: 'red' } }).length).toBeGreaterThan(0));
   it("rejects '.' in palette", () => expect(validateSprite({ ...ok, palette: { a: '#112233', '.': '#000000' } }).length).toBeGreaterThan(0));
   it('rejects empty frame', () => expect(validateSprite({ ...ok, frames: [['..', '..']] }).length).toBeGreaterThan(0));
+});
+
+describe('desk art', () => {
+  const size = (k: string) => `${SPRITES[k].w}x${SPRITES[k].h}`;
+  const flat = (v: unknown): string[] => (typeof v === 'string' ? [v] : Array.isArray(v) ? v.flatMap(flat) : v && typeof v === 'object' ? Object.values(v).flatMap(flat) : []);
+
+  it('all DESK_KEYS resolve to sprites', () => {
+    const keys = flat(DESK_KEYS);
+    expect(keys.length).toBeGreaterThan(25);
+    for (const k of keys) expect(SPRITES[k], k).toBeDefined();
+  });
+
+  it('stamp impressions are 64x40 with a blank label area, variants differ', () => {
+    for (const group of [DESK_KEYS.impressions.ok, DESK_KEYS.impressions.fix, DESK_KEYS.impressions.mismatch, DESK_KEYS.impressions.system]) {
+      expect(group.length).toBe(3);
+      expect(new Set(group.map((k) => SPRITES[k].frames[0].join())).size).toBe(3);
+      for (const k of group) {
+        expect(size(k)).toBe('64x40');
+        // 글자 면(가운데)은 비어 있다: UI 가 텍스트를 얹는다
+        const rows = SPRITES[k].frames[0].slice(14, 26).map((r) => r.slice(14, 50));
+        expect(rows.every((r) => /^\.+$/.test(r)), k).toBe(true);
+      }
+    }
+    expect(size(DESK_KEYS.impressions.mismatchAged)).toBe('64x40');
+  });
+
+  it('handheld stamps are 32x48 with rest + pressed frames; face close-up is 64x64 and temp', () => {
+    for (const k of Object.values(DESK_KEYS.held)) {
+      expect(size(k)).toBe('32x48');
+      expect(SPRITES[k].frames.length).toBe(2);
+    }
+    expect(size(DESK_KEYS.faceMismatch)).toBe('64x64');
+    expect(SPRITE_META[DESK_KEYS.faceMismatch].status).toBe('temp');
+  });
+
+  it('printer animates over 3 distinct frames and the ink colors are distinct', () => {
+    const p = SPRITES[DESK_KEYS.printer];
+    expect(p.frames.length).toBe(3);
+    expect(new Set(p.frames.map((f) => f.join())).size).toBe(3);
+    expect(ANIMS.find((a) => a.spriteKey === DESK_KEYS.printer)).toBeDefined();
+    const ink = (k: string) => Object.values(SPRITES[k].palette).join();
+    expect(new Set([DESK_KEYS.impressions.ok[0], DESK_KEYS.impressions.fix[0], DESK_KEYS.impressions.mismatch[0], DESK_KEYS.impressions.system[0]].map(ink)).size).toBe(4);
+  });
+
+  it('9-slice desk paper has defined slices', () => {
+    for (const k of [DESK_KEYS.card, DESK_KEYS.slip, DESK_KEYS.rulebookOpen]) expect(NINE_SLICE[k], k).toBeDefined();
+  });
+});
+
+describe('diorama art + maps', () => {
+  const ALLOWED_GROUND = new Set(Object.keys(MAP_LEGEND.ground));
+  const ALLOWED_WALL = new Set(Object.keys(MAP_LEGEND.walls));
+
+  it('scene objects/poses exist and new NPC variants are temp', () => {
+    for (const k of [...SCENE_KEYS.objects, ...SCENE_KEYS.poses]) {
+      expect(SPRITES[k], k).toBeDefined();
+      expect(SPRITE_META[k].status, k).toBe('temp');
+    }
+    for (const k of ['char_naegwan', 'char_gungnyeo']) expect(SPRITE_META[k].status).toBe('temp');
+    expect(CHAR_KEYS.naegwan).toBe('char_naegwan');
+  });
+
+  it('kneel/seat poses carry front, left and right frames', () => {
+    for (const k of SCENE_KEYS.poses.filter((p) => p.startsWith('pose_kneel') || p.startsWith('seat_'))) expect(SPRITES[k].frames.length, k).toBe(3);
+  });
+
+  it.each(Object.entries(DIORAMAS))('%s map is well-formed', (_id, m) => {
+    expect(m.ground.length).toBe(m.h);
+    expect(m.walls.length).toBe(m.h);
+    for (const r of m.ground) {
+      expect(r.length).toBe(m.w);
+      for (const c of r) expect(ALLOWED_GROUND.has(c), c).toBe(true);
+    }
+    for (const r of m.walls) {
+      expect(r.length).toBe(m.w);
+      for (const c of r) expect(ALLOWED_WALL.has(c), c).toBe(true);
+    }
+    expect(m.w).toBeGreaterThanOrEqual(14);
+    expect(m.w).toBeLessThanOrEqual(19);
+    expect(m.spawn.x).toBeLessThan(m.w);
+    expect(m.spawn.y).toBeLessThan(m.h);
+    expect(m.ambient).toBe('past');
+    for (const o of m.objects) {
+      expect(SPRITES[o.spriteKey], o.spriteKey).toBeDefined();
+      expect(o.x).toBeGreaterThanOrEqual(0);
+      expect(o.x).toBeLessThan(m.w);
+      expect(o.y).toBeGreaterThanOrEqual(0);
+      expect(o.y).toBeLessThan(m.h);
+      expect(o.frame ?? 0).toBeLessThan(SPRITES[o.spriteKey].frames.length);
+      if (o.anim) expect(ANIMS.some((a) => a.key === o.anim), o.anim).toBe(true);
+    }
+  });
 });

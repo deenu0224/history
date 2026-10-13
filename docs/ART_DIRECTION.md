@@ -130,6 +130,8 @@ type PixelSprite = {
 | `char_sagwan` | 사관. 짙은 녹청색 단령, 수염 없음, 허리춤 붓. write/read 포함 | 26 |
 | `char_clerk` | 서리. 회갈색 평복 + 검은 갓형 모자, 구부정 | 21 |
 | `char_servant` | 하인/노비. 흰회색 저고리·바지, 상투+망건 | 21 |
+| `char_naegwan` | 내관(궁중 시종, **temp**). 짙은 남색 도포, 수염 없음, 날개 없는 낮은 모자 | 21 |
+| `char_gungnyeo` | 궁녀(**temp**). 노란 저고리 + 남색 치마(`paintSkirt`), 쪽진 머리 + 비녀, 가슴 고름 | 21 |
 
 구분 장치(작은 크기에서): ① 실루엣 — 사모의 날개 vs 갓의 챙 vs 상투, ② 수염(긴/염소/콧수염/없음), ③ 로브 색, ④ 체격(`build` ±1)과 자세(서리는 구부정).
 
@@ -165,6 +167,14 @@ type PixelSprite = {
 | `servant-attire` | 하인/노비 복식 | 머리 모양, 옷, 신발 |
 | `plaque-text` | 현판 | 실제 문구·서체 (현재 글자는 실제 한자가 아닌 획 자리표시) |
 | `screen-painting` | 병풍 | 그림 소재 |
+| `naegwan-attire` | 내관 복식 | 복색·관모(성종~연산군) |
+| `gungnyeo-attire` | 궁녀 복식 | 저고리·치마 색, 머리 모양, 신분별 차이 |
+| `hwijang` | 휘장 | 형태·재질·색·걸이 방식 |
+| `bedding-form` | 이부자리 | 침구 형태·색 |
+| `decree-form` | 교지 | 형태·색·받드는 법·낭독 절차 |
+| `council-seating` | 회의 좌석 | 좌석 배치·방석·낮은 책상·돗자리 |
+| `print-storage` | 인쇄본 보관 | 인쇄본/낱장/궤 보관 방식 |
+| `woodblock-rack` | 판목 보관 | 판가 형태 |
 | `bookshelf-form` | 서가 | 조선 서책 보관 가구 형태 |
 | `sacho-form` | 사초 | 종이 규격/묶음/보관 |
 | `bookbinding` | 선장본 | 오침안정법 구멍 위치/실 색 |
@@ -212,3 +222,29 @@ this.add.nineslice(x, y, UI_KEYS.uiPanelHanji, undefined, 160, 96, 12, 12, 12, 1
 - `ov_*` 오버레이는 반투명이므로 뷰어 위에 `alpha` 그대로 합성한다. 주사선은 약해서 2~3배 확대에서도 거슬리지 않는다.
 - 탁영금 전시물(`exhibit_geomungo_TEMP`)은 검증된 특징만: 160:19:10 비례, 중앙 각자 칸(글자 없음), 학 그림, 용두, 운족. 괘/현/기타 문양 없음. **박물관 실물 사진 대조 전까지 temp**(`geomungo`). 서책(`bookbinding`)·사초(`sacho-form`)도 일반형 임시.
 - 9-slice 정의는 `NINE_SLICE`(ui.ts)에 합쳐져 테스트가 슬라이스 적합성을 검사한다.
+
+## 12. 책상(야간 근무 책상) 아트 (`desk_*.ts`)
+
+Papers-Please식 책상 UI 에셋. 전용 팔레트 `desk_palette.ts`(`D`/`DESKPAL`: OS 팔레트의 종이/목재/적/호박 + 잉크 녹·청, 황동, 황색 실, 반투명 잉크). 글자는 그리지 않는다 — UI 가 선명한 한글 텍스트를 얹는다. 코드 접근은 `DESK_KEYS`(registry.ts).
+
+| 그룹 | 키 | 크기 / 비고 |
+|---|---|---|
+| 찍힌 자국 | `stamp_ok_a/b/c`(확인·녹) `stamp_fix_a/b/c`(정정·청) `stamp_mismatch_a/b/c`(불일치·적) `stamp_mismatch_aged`(1년 묵은 바랜 적) `stamp_system_a/b/c`(관측 오류·종결, 회색 기계 인쇄) | 64×40, 반투명 잉크(종이가 비침). 가운데 글자 면은 **비어 있다**: UI 가 한글 + 작은 "07" 각인을 얹는다. 변형은 시드·기울기·마름·튄 점이 다르다 |
+| 손에 쥐는 도장 | `stamp_hold_ok/fix/mismatch/system` | 32×48, 2프레임(0 대기, 1 눌림 + 번진 잉크). 나무 선반 손잡이 + 색 잉크 받침 |
+| 도장 면 | `stamp_face_mismatch` | 64×64 **temp**. 홈에 굳은 붉은 잉크. 거울상 글자는 획 덩어리 자리표시 |
+| 상판/조명 | `desk_surface`(64², 타일링) `desk_edge`(64×16, 가로 타일링) `desk_lamp_pool`(192×128 반투명 디더, 가산 느낌으로 얹음) | |
+| 종이 9-slice | `desk_card`(48², 8/10/14/10) `desk_slip`(48×24, 9/7/8/7) `desk_rulebook_open`(96×64, 16/16/10/14) | 괘선은 늘어나면 굵어지므로 `desk_rules_tile`(16×8, 가로 타일링)을 UI 가 가운데에 깐다. 펼친 규정집의 접힘은 `desk_rulebook_gutter`(8×32, 세로 타일링)를 가운데에 얹는다 |
+| 규정집 | `desk_rulebook_closed` | 48×64. 빈 라벨 칸(제목은 UI) |
+| 프린터 | `desk_printer` | 96×80, 3프레임(종이 길이 3→13→25px, LED 깜빡). `anim_desk_printer_feed` |
+| 번호판 | `desk_queue_plaque` | 56×32. 빈 숫자 창 + 빈 라벨 홈 |
+| 서랍 | `desk_drawer_closed`(64×36) `desk_drawer_open`(64×60) | |
+| 조사 실 | `desk_thread_h`(16×4 적색, 가로 타일링) `desk_thread_dash`(16×4 황색 점선) `desk_thread_knot`/`_yellow`(10×10) `desk_pin`(8×10 황동 압정) | 세로는 CSS 회전 |
+
+## 13. 관측 디오라마 신규 (대조전·교지·회의·인쇄 보관)
+
+맵 데이터는 `src/game/scenes/maps/` (`sc_daejojeon`, `sc_court_decree`, `sc_council`, `sc_print_storage`, `index.ts` 의 `DIORAMAS`). 형식은 obs001 과 같은 `{w,h,ground,walls,spawn,ambient}` + `objects: {spriteKey,x,y,frame?,flat?,anim?}[]`. 범례·오토타일은 기존(`MAP_LEGEND`, `logic/autotile.ts`) 그대로이고, 휘장·병풍·이부자리·방석·돗자리·인물은 `objects` 로 얹는다. 오브젝트 좌표: 중심 x = `x*32+16`, 바닥 y = `(y+1)*32-2` (obs001 과 동일), 폭 2칸 스프라이트는 `.5` 단위 허용. 같은 칸의 겹침은 목록 순서.
+
+- **재구성 원칙**: 특정 전각·의식의 실제 구조를 주장하지 않는다. 대조전 내실에는 **몸 형상을 그리지 않는다**(정돈된 이부자리와 시종만). 임금의 자리는 그리지 않는다. 연도·장소 표지 없음.
+- **신규 오브젝트**(전부 temp): `obj_hwijang`(휘장 32×64) `obj_hwijang_tied`(걷어 묶음 64×64) `obj_screen_bamboo`(병풍 변형 64×48) `obj_screen_low`(침병 64×32) `obj_bedding`(64×48) `obj_soban` `obj_decree_stand` `obj_low_desk` `obj_cushion_{red,blue,green,plain}` `obj_cushion_row`(96×32) `obj_mat`(돗자리 32², 바닥 깔개) `obj_book_pile_tall` `obj_book_bundle` `obj_sheets_pile` `obj_chest_open` `obj_chest_long`(64×32) `obj_block_rack`(판가 32×56).
+- **자세 스프라이트**(`characters_scene.ts`, 걷기 없음, temp): `pose_kneel_{naegwan,gungnyeo_a,gungnyeo_b,servant}`(프레임 0 정면/1 왼쪽/2 오른쪽), `pose_clerk_packing`(2프레임, `anim_clerk_packing`), `pose_decree_{red,blue}`(교지를 받든 관원), `seat_council_{red,blue,green,empty}`(방석+서안 앉은 관원, 프레임 0 정면/1 왼쪽/2 오른쪽).
+- 새 고증 항목: `naegwan-attire` `gungnyeo-attire` `hwijang` `bedding-form` `decree-form` `council-seating` `print-storage` `woodblock-rack`.
