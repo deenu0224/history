@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { impliedRange } from '@/core/chronology';
 import { evidenceView } from '@/core/content';
 import type { EvidenceView, Id, JudgeResult, YearDeduction } from '@/core/types';
 import { playSfx } from '@/game/audio';
@@ -92,24 +91,17 @@ export function YearField({ label, value, onChange }: { label: string; value: nu
   );
 }
 
-export function YearTimeline({ d, views, from, to }: { d: YearDeduction; views: EvidenceView[]; from: number; to: number }) {
+export function YearTimeline({ views, from, to }: { d: YearDeduction; views: EvidenceView[]; from: number; to: number }) {
   const timed = views.filter((v) => v.time && (v.time.notBefore !== undefined || v.time.notAfter !== undefined));
-  const implied = useMemo(() => impliedRange(views, d.context, true), [views, d.context]);
   const nums: (number | undefined)[] = [from, to];
   for (const v of timed) nums.push(v.time!.notBefore, v.time!.notAfter);
   const domain = computeDomain(nums, { min: from - 20, max: to + 20 }, 30);
   const sc = makeScale(domain, 100);
   const tk = ticks(domain, 6);
-  const conflict = implied.from !== undefined && implied.to !== undefined && implied.from > implied.to;
-  const inter =
-    !conflict && (implied.from !== undefined || implied.to !== undefined)
-      ? rangeBar(Math.max(implied.from ?? domain.min, domain.min), Math.min(implied.to ?? domain.max, domain.max), sc)
-      : null;
   const mine = from <= to ? rangeBar(from, to, sc) : null;
   return (
     <div className="ytl" role="img" aria-label="증거별 연대 제약 타임라인">
       <div className="ytl-plot">
-        {inter && <div className="ytl-inter" style={{ left: `${inter.left}%`, width: `${inter.width}%` }} />}
         {tk.map((y) => (
           <div key={y} className="ytl-tick" style={{ left: `${sc.x(y)}%` }}>
             <span>{y}</span>
@@ -143,8 +135,7 @@ export function YearTimeline({ d, views, from, to }: { d: YearDeduction; views: 
         )}
       </div>
       <div className="ytl-legend">
-        <i className="lg lg-decisive" /> 결정적 <i className="lg lg-supporting" /> 보조 <i className="lg lg-weak" /> 약함(경계 불인정) <i className="lg lg-inter" /> 교집합
-        {conflict && <b className="ytl-warn">선택한 증거끼리 모순됩니다</b>}
+        <i className="lg lg-decisive" /> 결정적 <i className="lg lg-supporting" /> 보조 <i className="lg lg-weak" /> 약함(경계 불인정)
       </div>
     </div>
   );
