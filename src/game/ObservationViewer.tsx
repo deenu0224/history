@@ -124,7 +124,7 @@ export const ObservationViewer = forwardRef<ViewerHandle, ObservationViewerProps
     <div
       ref={box}
       className={className}
-      style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0, overflow: 'hidden', background: '#0b0d12', touchAction: 'none', userSelect: 'none' }}
+      style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0, overflow: 'hidden', background: '#0b0d12', touchAction: 'none', userSelect: 'none', isolation: 'isolate' }}
       role="application"
       aria-label="관측 화면"
     >

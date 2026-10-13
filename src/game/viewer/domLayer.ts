@@ -38,7 +38,7 @@ const CSS = `
  background:#25211e;border-right:2px solid #6b6048;border-bottom:2px solid #6b6048;transform:rotate(45deg) translateY(-1px);transform-origin:center}
 .vw-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .vw-mumble{position:absolute;left:0;bottom:0;transform:translate(-50%,0);padding:1px 6px 3px;background:#25211eE0;border:1px solid #6b6048;
- font:700 14px/1 'Noto Sans KR',monospace;color:#dccfae;letter-spacing:1px;opacity:0;transition:opacity .3s ease}
+ font:700 17px/1 'Noto Sans KR',monospace;color:#dccfae;letter-spacing:1px;opacity:0;transition:opacity .3s ease}
 .vw-mumble.on{opacity:.8;animation:vw-pulse 1.4s steps(4) infinite}
 @keyframes vw-pulse{0%,100%{opacity:.35}50%{opacity:.85}}
 .vw-flash{position:absolute;inset:0;background:#f4f1e6;opacity:0;pointer-events:none;z-index:9}

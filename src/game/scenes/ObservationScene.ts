@@ -687,7 +687,6 @@ export class ObservationScene extends Phaser.Scene {
     this.detailedHints = st.settings.hintLevel === 'detailed';
     this.tapped = new Set(st.tapped);
     this.flags = st.flags;
-    this.degradedNow = inDegraded(this.minute, this.host.degraded);
 
     const status = new Map(frame.hotspots.map((h) => [h.id, h.status]));
     for (const f of frame.npcs) this.actors.get(f.id)?.setPose(f.pose, snap || first);
