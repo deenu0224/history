@@ -4,3 +4,6 @@ import { worldObjects } from './worldObjects';
 import { npcs } from './npcs';
 
 export const world: ContentModule = { worldObjects, npcs };
+
+export { MAPS, MAP_LEGEND, PASSABLE_WALLS, SCENE_META, isWalkableTile, reachableTiles, tileKey, isSceneId } from './maps';
+export type { SceneId, SceneMap } from './maps';

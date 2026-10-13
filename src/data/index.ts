@@ -14,7 +14,7 @@ import { historical } from './historical';
 import { sample } from './sample';
 import { world } from './world';
 
-export const INCLUDE_SAMPLE = true;
+export const INCLUDE_SAMPLE = false;
 
 export const modules: Record<string, ContentModule> & { historical: ContentModule } = {
   historical,

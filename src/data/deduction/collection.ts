@@ -1,3 +1,306 @@
-import type { CollectionEntry } from '@/core/types';
+/**
+ * 도감 항목(17). 단계: 1 발견 · 2 정체 식별 · 3 정보 검증 · 4 관련 기록 연결 · 5 도감 완성.
+ * 필드 값은 docs/HISTORICAL_SOURCES.md 의 '확정' 사항만. 추정·이견은 값에 그렇게 밝힌다.
+ */
+import type { CollectionEntry, CollectionField, CollectionStage } from '@/core/types';
+import { REF } from '@/data/historical/refs';
 
-export const collection: CollectionEntry[] = [];
+const V = 'verified' as const;
+const f = (key: string, label: string, value: string, unlockStage: CollectionStage): CollectionField => ({
+  key,
+  label,
+  value,
+  unlockStage,
+  provenance: V,
+});
+
+export const collection: CollectionEntry[] = [
+  // ── 유물 ────────────────────────────────────────────────
+  {
+    id: 'col_art_takyeong',
+    provenance: V,
+    category: 'artifact',
+    refId: 'art_takyeong',
+    title: '탁영금(濯纓琴)',
+    unidentifiedTitle: '오래된 거문고',
+    fields: [
+      f('designation', '지정', '보물 「김일손 거문고」(1988.6.16 지정)', 2),
+      f('size', '크기', '길이 160㎝ · 너비 19㎝ · 높이 10㎝', 2),
+      f('holder', '소장', '국립대구박물관', 2),
+      f('inscription', '명문', "중앙부에 '濯纓琴' 세 글자 음각", 3),
+      f('crane', '그림', '학 그림이 있다(위치는 자료마다 머리 부분·하단부로 다름)', 3),
+      f('parts', '원형', '용두와 운족은 원형 그대로 남아 있다', 3),
+      f('made', '제작', '1490년경으로 추정(근거 명문은 알려지지 않음)', 4),
+      f('owner', '주인', '김일손(호 탁영)', 4),
+    ],
+    sources: [REF.takyeongKhs, REF.takyeongEncy],
+    links: ['col_per_kim_ilson', 'col_plc_daegu_museum'],
+  },
+
+  // ── 인물 ────────────────────────────────────────────────
+  {
+    id: 'col_per_kim_ilson',
+    provenance: V,
+    category: 'person',
+    refId: 'per_kim_ilson',
+    title: '김일손(金馹孫)',
+    unidentifiedTitle: '한 사관',
+    fields: [
+      f('life', '생몰', '1464 ~ 1498', 2),
+      f('names', '본관·자·호', '김해 · 계운 · 탁영(소미산인)', 2),
+      f('career', '관직', '1486년 문과 급제. 승문원 정자로 춘추관 기사관을 겸함', 2),
+      f('teacher', '스승', '김종직(점필재)의 문하', 3),
+      f('sacho', '사초', '스승의 「조의제문」과 이극돈의 비행을 사초에 적음', 4),
+      f('death', '최후', '1498년 음력 7월 능지처사. 중종반정 뒤 복관', 4),
+    ],
+    sources: [REF.kimIlson, REF.muoSahwa, REF.sillokVerdict],
+    links: ['col_art_takyeong', 'col_per_kim_jongjik', 'col_evt_muo_sahwa'],
+  },
+  {
+    id: 'col_per_yi_geukdon',
+    provenance: V,
+    category: 'person',
+    refId: 'per_yi_geukdon',
+    title: '이극돈(李克墩)',
+    unidentifiedTitle: '미확인 관료',
+    fields: [
+      f('life', '생몰', '1435 ~ 1503', 2),
+      f('names', '본관·자', '광주(廣州) · 사고', 2),
+      f('sejo', '편찬 이력', '『세조실록』 편수관으로 참여', 3),
+      f('sillok', '실록청', '1495년 지관사로 『성종실록』 편찬. 실록청 당상으로 사초를 정리', 3),
+      f('sahwa', '사화', '김일손 사초의 「조의제문」을 문제 삼음. 사화 뒤 파면', 4),
+    ],
+    sources: [REF.yiGeukdon, REF.muoSahwa, REF.sillokCompileOrder],
+    links: ['col_per_kim_ilson', 'col_evt_muo_sahwa', 'col_evt_seongjong_sillok'],
+  },
+  {
+    id: 'col_per_kim_jongjik',
+    provenance: V,
+    category: 'person',
+    refId: 'per_kim_jongjik',
+    title: '김종직(金宗直)',
+    unidentifiedTitle: '돌아가신 스승',
+    fields: [
+      f('life', '생몰', '1431 ~ 1492', 2),
+      f('names', '본관·호', '선산 · 점필재', 2),
+      f('work', '글', '1457년 「조의제문」을 지음', 3),
+      f('after', '사후', '무오사화 때 부관참시', 4),
+    ],
+    sources: [REF.kimJongjik, REF.sillokProclaim],
+    links: ['col_per_kim_ilson', 'col_src_jouijemun'],
+  },
+  {
+    id: 'col_per_yu_jagwang',
+    provenance: V,
+    category: 'person',
+    refId: 'per_yu_jagwang',
+    title: '유자광(柳子光)',
+    unidentifiedTitle: '이름만 아는 인물',
+    fields: [
+      f('life', '생몰', '1439 ~ 1512', 2),
+      f('names', '본관·출신', '영광 · 서얼 출신', 2),
+      f('grudge', '원한', '함양에서 김종직이 그의 시 현판을 철거해 불태운 일로 원한을 품음', 3),
+      f('sahwa', '사화', '「조의제문」에 주석을 달아 왕에게 고함', 3),
+    ],
+    sources: [REF.yuJagwang, REF.muoSahwa],
+    links: ['col_evt_muo_sahwa'],
+  },
+  {
+    id: 'col_per_eo_segyeom',
+    provenance: V,
+    category: 'person',
+    refId: 'per_eo_segyeom',
+    title: '어세겸(魚世謙)',
+    unidentifiedTitle: '편찬 명단의 이름',
+    fields: [
+      f('order', '편찬', '1495년 이극돈 등과 함께 『성종실록』 편찬의 명을 받음', 2),
+      f('after', '사화 뒤', '문제의 사초를 보고도 고하지 않은 죄로 파면', 3),
+    ],
+    sources: [REF.sillokCompileOrder, REF.muoSahwa],
+    links: ['col_src_compile_order'],
+  },
+
+  // ── 사료 ────────────────────────────────────────────────
+  {
+    id: 'col_src_seongjong_death',
+    provenance: V,
+    category: 'source',
+    refId: 'src_seongjong_death',
+    title: '성종의 죽음 (『성종실록』)',
+    unidentifiedTitle: '한 임금의 마지막 기사',
+    fields: [
+      f('date', '날짜', '성종 25년(1494) 12월 24일, 음력', 2),
+      f('text', '국역', '오시(午時)에 임금이 대조전(大造殿)에서 훙(薨)하였는데, 춘추(春秋)는 38세이다.', 3),
+    ],
+    sources: [REF.sillokSeongjongDeath],
+    links: ['col_src_myoho'],
+  },
+  {
+    id: 'col_src_myoho',
+    provenance: V,
+    category: 'source',
+    refId: 'src_myoho',
+    title: "묘호 '성'을 정하다 (『연산군일기』)",
+    unidentifiedTitle: '칭호를 정한 기록',
+    fields: [
+      f('date', '날짜', '연산 1년(1495) 1월 14일, 음력', 2),
+      f('text', '국역', '묘호는 성(成)이라 하고, 능호는 선(宣)이라 하고, 전호는 영사(永思)라 하였는데', 3),
+      f('meaning', '의미', '묘호는 왕이 죽은 뒤에 정한다. ‘성종’이라는 말은 이날 이후에만 쓰인다', 4),
+    ],
+    sources: [REF.sillokMyoho, REF.myoho],
+    links: ['col_src_seongjong_death', 'col_evt_seongjong_sillok'],
+  },
+  {
+    id: 'col_src_compile_order',
+    provenance: V,
+    category: 'source',
+    refId: 'src_compile_order',
+    title: '『성종실록』 편찬 명령 (『연산군일기』)',
+    unidentifiedTitle: '편찬을 명한 기록',
+    fields: [
+      f('date', '날짜', '연산 1년(1495) 4월 19일, 음력', 2),
+      f('text', '국역', '왕이 어세겸·이극돈·유순·성현·권건·신종호·조위에게 명하여 편찬하게 하였다.', 3),
+      f('office', '실록청', '같은 달 춘추관 안에 실록청을 설치', 4),
+    ],
+    sources: [REF.sillokCompileOrder, REF.seongjongSillok],
+    links: ['col_per_yi_geukdon', 'col_per_eo_segyeom', 'col_evt_seongjong_sillok'],
+  },
+  {
+    id: 'col_src_sacho_order',
+    provenance: V,
+    category: 'source',
+    refId: 'src_sacho_order',
+    title: '사초를 들이라 (『연산군일기』)',
+    unidentifiedTitle: '어느 전교',
+    fields: [
+      f('date', '날짜', '연산 4년(1498) 7월 11일, 음력', 2),
+      f('order', '전교', '“김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.”', 3),
+      f('objection', '간언', '“임금이 만약 사초를 보면 후세에 직필(直筆)이 없기 때문입니다.”', 3),
+      f('six', '결과', '극돈 등이 일손의 사초에서 6조목을 절취하여 봉해 올림', 4),
+    ],
+    sources: [REF.sillokSachoOrder],
+    links: ['col_evt_muo_sahwa', 'col_per_yi_geukdon', 'col_per_kim_ilson'],
+  },
+  {
+    id: 'col_src_house_search',
+    provenance: V,
+    category: 'source',
+    refId: 'src_house_search',
+    title: '김일손 집 수색 (『연산군일기』)',
+    unidentifiedTitle: '다음 날의 기사',
+    fields: [
+      f('date', '날짜', '연산 4년(1498) 7월 12일, 음력', 2),
+      f('text', '내용', '김일손의 집에서 수색한 잡문서 가운데 이목·권오복이 보낸 편지가 발견됨', 3),
+    ],
+    sources: [REF.sillokHouseSearch],
+    links: ['col_src_sacho_order'],
+  },
+  {
+    id: 'col_src_verdict',
+    provenance: V,
+    category: 'source',
+    refId: 'src_verdict',
+    title: '처분 (『연산군일기』)',
+    unidentifiedTitle: '보름 뒤의 기사',
+    fields: [
+      f('date', '날짜', '연산 4년(1498) 7월 26일, 음력', 2),
+      f('text', '국역', '김일손·권오복·권경유는 대역의 죄에 해당하니 능지 처사하고', 3),
+    ],
+    sources: [REF.sillokVerdict, REF.sillokProclaim],
+    links: ['col_evt_muo_sahwa', 'col_per_kim_ilson'],
+  },
+  {
+    id: 'col_src_gyeongguk',
+    provenance: V,
+    category: 'source',
+    refId: 'src_gyeongguk',
+    title: '『경국대전』',
+    unidentifiedTitle: '오래된 서책',
+    fields: [
+      f('what', '성격', '조선의 기본 법전', 2),
+      f('dates', '시행', '1471년 첫 시행, 1485년 최종본 『을사대전』 시행', 3),
+      f('note', '주의', '오래 쓰인 법전이라 장면의 시점을 좁히지 못한다', 3),
+    ],
+    sources: [REF.gyeongguk],
+  },
+  {
+    id: 'col_src_jouijemun',
+    provenance: V,
+    category: 'source',
+    refId: 'src_jouijemun',
+    title: '「조의제문(弔義帝文)」',
+    unidentifiedTitle: '문제가 된 글',
+    fields: [
+      f('author', '지은이', '김종직, 1457년', 2),
+      f('content', '내용', '꿈에 초나라 의제를 만난 일을 적은 글. 의제를 죽인 항우에 세조를 빗댄 것으로 읽혔다', 3),
+      f('sacho', '사초', '제자 김일손이 사관으로 있을 때 사초에 실음', 3),
+    ],
+    sources: [REF.jouijemun],
+    links: ['col_per_kim_jongjik', 'col_per_kim_ilson'],
+  },
+
+  // ── 사건 ────────────────────────────────────────────────
+  {
+    id: 'col_evt_seongjong_sillok',
+    provenance: V,
+    category: 'event',
+    refId: 'evt_seongjong_sillok',
+    title: '『성종실록』 편찬',
+    unidentifiedTitle: '선왕의 기록을 엮는 일',
+    fields: [
+      f('start', '시작', '1495년 4월, 춘추관 안에 실록청 설치', 2),
+      f('gajang', '가장사초', '사관이 집에 둔 사초를 실록청이 거두어 씀', 2),
+      f('end', '완성', '1499년 3월 인쇄 완료, 네 사고에 봉안. 297권 47책', 3),
+    ],
+    sources: [REF.seongjongSillok, REF.sagwan, REF.geomyeol],
+    links: ['col_src_compile_order', 'col_plc_chunchugwan'],
+  },
+  {
+    id: 'col_evt_muo_sahwa',
+    provenance: V,
+    category: 'event',
+    refId: 'evt_muo_sahwa',
+    title: '무오사화(戊午士禍)',
+    unidentifiedTitle: '알 수 없는 사건',
+    fields: [
+      f('when', '때', '1498년 음력 7월', 2),
+      f('cause', '발단', '김일손 사초 속 「조의제문」을 이극돈이 문제 삼아 유자광에게 알림', 3),
+      f('course', '경과', '7월 11일 사초 반입 명 → 12일부터 26일까지 신문', 4),
+      f('result', '결과', '김일손 등 처형, 김종직 부관참시, 여럿이 유배·파면', 4),
+      f('compile', '편찬', '실록 편찬은 계속되어 이듬해 완성', 5),
+    ],
+    sources: [REF.muoSahwa, REF.seongjongSillok, REF.sillokSachoOrder],
+    links: ['col_src_sacho_order', 'col_per_kim_ilson', 'col_per_yi_geukdon', 'col_per_yu_jagwang'],
+  },
+
+  // ── 장소 ────────────────────────────────────────────────
+  {
+    id: 'col_plc_chunchugwan',
+    provenance: V,
+    category: 'place',
+    refId: 'plc_chunchugwan',
+    title: '춘추관 · 실록청',
+    unidentifiedTitle: '미확인 관청',
+    fields: [
+      f('sillok', '실록청', '『성종실록』 실록청이 1495년 4월 춘추관 안에 설치됨', 2),
+      f('gisagwan', '기사관', '춘추관 기사관은 다른 관직의 정6품~정9품 관원이 겸함', 3),
+      { key: 'layout', label: '배치', value: '관측한 마당·대청·곳간의 배치는 재구성이다', unlockStage: 3, provenance: 'reconstructed' },
+    ],
+    sources: [REF.seongjongSillok, REF.gisagwan],
+    links: ['col_evt_seongjong_sillok'],
+  },
+  {
+    id: 'col_plc_daegu_museum',
+    provenance: V,
+    category: 'place',
+    refId: 'plc_daegu_museum',
+    title: '국립대구박물관',
+    unidentifiedTitle: '어느 박물관',
+    fields: [
+      f('address', '소재', '대구 수성구 청호로 321', 2),
+      f('holds', '관리 유물', '보물 「김일손 거문고」(탁영금)', 3),
+    ],
+    sources: [REF.takyeongKhs],
+    links: ['col_art_takyeong'],
+  },
+];
