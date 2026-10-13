@@ -5,10 +5,6 @@ import type { PixelSprite } from './pixel';
 import { C } from './palettes';
 import { Grid, autoOutline, rng, sprite } from './draw';
 
-const shadow = (g: Grid, cx: number, cy: number, rx: number, ry: number) => {
-  g.ellipse(cx, cy, rx, ry, C.shade1);
-  g.ellipse(cx, cy, rx - 2, Math.max(1, ry - 1), C.shade2);
-};
 const softShadow = (g: Grid, cx: number, cy: number, rx: number, ry: number) => {
   g.ellipse(cx, cy, rx, ry, C.shade0);
   g.ellipse(cx, cy, rx - 2, Math.max(1, ry - 1), C.shade1);
@@ -250,24 +246,16 @@ function lampFrame(f: number): Grid {
   g.hline(13, 17, 6, C.ochre2);
   // 심지
   g.set(17, 16, C.ink2);
-  // 불꽃
-  const flames: [number, number, number][] = [
-    [11, 3, 0],
-    [12, 3, 1],
-    [10, 3, -1],
-  ];
-  const [fy, h, lean] = flames[f];
-  void h;
+  // 불꽃 (프레임마다 기울기/높이가 다름)
+  const lean = [0, 1, -1][f];
   const fx = 17;
-  g.set(fx, 15, C.lamp1);
-  g.rect(fx - 1 + (lean > 0 ? 0 : 0), 13, 2, 2, C.lamp1);
-  g.set(fx, 14, C.lamp0).set(fx, 13, C.lamp0);
-  g.set(fx - 1, 14, C.lamp2);
-  g.set(fx + lean, 12, C.lamp1);
-  g.set(fx + lean, fy === 11 ? 11 : 11, C.lamp2);
-  if (f === 1) g.set(fx + lean, 10, C.lamp2);
-  g.set(fx + 1, 14, C.lamp2).set(fx - 2, 15, C.lamp3);
   g.set(fx, 16, C.lamp1);
+  g.rect(fx - 1, 13, 2, 3, C.lamp1);
+  g.set(fx, 14, C.lamp0).set(fx, 13, C.lamp0);
+  g.set(fx - 1, 14, C.lamp2).set(fx + 1, 14, C.lamp2).set(fx - 2, 15, C.lamp3);
+  g.set(fx + lean, 12, C.lamp1);
+  g.set(fx + lean, 11, C.lamp2);
+  if (f === 1) g.set(fx + lean, 10, C.lamp2);
   return autoOutlineKeepGlow(g);
 }
 /** 광원 번짐 색은 윤곽선 제외 */

@@ -4,7 +4,7 @@
  * 순수 함수(validate 등)는 DOM 없이 동작하고, 렌더 함수만 DOM(canvas)을 요구한다.
  */
 import type Phaser from 'phaser';
-import { SPRITES, TILES } from './registry';
+import { ANIMS, SPRITES, TILES } from './registry';
 
 export interface PixelSprite {
   w: number;
@@ -174,4 +174,20 @@ export function registerPhaserTextures(scene: Phaser.Scene): void {
   };
   for (const [key, sp] of Object.entries(TILES)) add(key, sp);
   for (const [key, sp] of Object.entries(SPRITES)) add(key, sp);
+}
+
+/**
+ * ANIMS 정의를 Phaser 애니메이션으로 등록한다. (registerPhaserTextures 이후 호출)
+ * 이미 있는 키는 건너뛴다.
+ */
+export function registerPhaserAnims(scene: Phaser.Scene): void {
+  for (const a of ANIMS) {
+    if (scene.anims.exists(a.key)) continue;
+    scene.anims.create({
+      key: a.key,
+      frames: a.frames.map((frame) => ({ key: a.spriteKey, frame })),
+      frameRate: a.frameRate,
+      repeat: a.repeat,
+    });
+  }
 }
