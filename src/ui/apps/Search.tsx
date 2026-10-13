@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NO_ARTICLE_TEXT } from '@/core/search';
 import type { DbRecord, Id, SearchResultRef } from '@/core/types';
-import { SOURCE_ACCESS_FLAG, selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
+import { SOURCE_ACCESS_FLAG, provenanceBadge, selectRecord, useGameStore, type SearchOutcome } from '@/store/gameStore';
 import { Px } from '../lib/art';
 import { CONTENT, IDX } from '../lib/content';
 import { feedbackForRewards, describeRewards } from '../lib/rewards';
@@ -398,6 +398,7 @@ function SourceCard({ id, onOpen }: { id: Id; onOpen(id: Id): void }) {
 
 function RecordCard({ id }: { id: Id }) {
   const corrections = useGameStore((s) => s.corrections);
+  const showProv = useGameStore((s) => s.settings.showProvenance);
   const rec = useMemo(
     () => selectRecord(useGameStore.getState(), id, CONTENT),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,6 +412,11 @@ function RecordCard({ id }: { id: Id }) {
         <h4>
           <T text={rec.title} />
         </h4>
+        {showProv && (
+          <span className="prov-mark" data-testid={`record-badge-${id}`}>
+            {provenanceBadge(rec.provenance, !!rec.altered && rec.provenance !== 'verified')}
+          </span>
+        )}
       </header>
       <table className="rec-table">
         <tbody>

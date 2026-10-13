@@ -96,8 +96,18 @@ export function Coach({ frontApp }: { frontApp: UiApp | null }) {
   if (!view) return null;
   const hintKey = `${view.step.id}:${view.tier}`;
   const showHint = !!view.hint && hintHidden !== hintKey && hintLevel !== 'off';
-  const below = rect ? rect.y < 140 : false;
   const ring = rect && showCoach;
+  // 말풍선은 대상(과 대상이 가리키는 내용)을 덮지 않게 위/아래 중 여유 있는 쪽에 둔다. 독·상태 표시줄은 침범하지 않는다.
+  const dockEl = document.querySelector('[data-testid="dock"]')?.getBoundingClientRect();
+  const dockBottom = !dockEl || dockEl.height > dockEl.width ? false : true;
+  const topLimit = (document.querySelector('[data-testid="statusbar"]')?.getBoundingClientRect().bottom ?? 40) + 4;
+  const bottomLimit = dockEl && dockBottom ? dockEl.top - 4 : window.innerHeight - 4;
+  const leftLimit = dockEl && !dockBottom ? dockEl.right + 8 : 8;
+  const BUBBLE_H = 76;
+  const spaceAbove = rect ? rect.y - 12 - topLimit : 0;
+  const spaceBelow = rect ? bottomLimit - (rect.y + rect.h + 12) : 0;
+  const shortScreen = window.innerHeight < 520;
+  const below = rect ? (spaceBelow >= BUBBLE_H ? spaceBelow >= spaceAbove || spaceAbove < BUBBLE_H : false) : false;
 
   return (
     <>
@@ -105,11 +115,12 @@ export function Coach({ frontApp }: { frontApp: UiApp | null }) {
         <div className="coach-layer" aria-live="polite" data-testid="coach">
           <div className="coach-ring" style={{ left: rect.x - 6, top: rect.y - 6, width: rect.w + 12, height: rect.h + 12 }} />
           <div
-            className={`coach-bubble ${below ? 'below' : 'above'}`}
+            key={view.step.id}
+            className={`coach-bubble ${shortScreen ? 'short' : below ? 'below' : 'above'}`}
             style={{
-              left: Math.min(Math.max(8, rect.x + rect.w / 2 - 130), Math.max(8, window.innerWidth - 268)),
-              top: below ? rect.y + rect.h + 12 : undefined,
-              bottom: below ? undefined : window.innerHeight - rect.y + 12,
+              left: Math.min(Math.max(leftLimit, rect.x + rect.w / 2 - 130), Math.max(leftLimit, window.innerWidth - 268)),
+              top: below ? rect.y + rect.h + 12 : spaceAbove >= BUBBLE_H ? undefined : topLimit,
+              bottom: below || spaceAbove < BUBBLE_H ? undefined : window.innerHeight - rect.y + 12,
             }}
           >
             <span>{view.step.coach}</span>

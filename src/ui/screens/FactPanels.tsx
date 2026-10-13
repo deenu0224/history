@@ -86,6 +86,7 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
               })}
             </div>
           )}
+          {candidates.length < d.candidates.length && <p className="dim small" data-testid="cand-more">맞는 사람이 보이지 않으면, 검색 앱에서 그 관청과 관련된 말을 더 찾아보자.</p>}
         </div>
         <div className="dcol">
           <EvidencePicker selected={picked} onToggle={toggle} sort="none" hint="후보와 맞는지 가려 줄 사실을 입증하는 카드를 고른다." />

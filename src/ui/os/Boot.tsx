@@ -72,7 +72,7 @@ export function Boot({ hasSaveHint }: { hasSaveHint?: boolean }) {
   return (
     <div className="boot" data-step={step} onPointerDown={step === 'cold' ? advance : undefined} data-testid="boot">
       {step === 'cold' && (
-        <button className="cold" data-testid="cold-open" onClick={advance} aria-label="다음">
+        <button className="cold" data-testid="cold-open" onClick={(e) => e.detail === 0 && advance()} aria-label="다음">
           <div className="cold-note" aria-label="손으로 적은 메모">
             <p className="hand cold-hand">
               무오<span className="smudge" aria-label="번져서 읽을 수 없는 글자">

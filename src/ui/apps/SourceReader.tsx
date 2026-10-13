@@ -36,7 +36,8 @@ export function segmentExcerpt(excerpt: string, phrases: readonly SourcePhrase[]
 export function SourceReader({ initial }: { initial?: Id }) {
   const library = useGameStore((s) => s.sources);
   const registered = useGameStore((s) => s.phrases);
-  const restoredAll = useGameStore((s) => readRestored(s)).join('|');
+  const shifts = useGameStore((s) => s.shifts);
+  const restoredAll = useMemo(() => readRestored({ shifts }).join('|'), [shifts]);
   const registerPhrase = useGameStore((s) => s.registerPhrase);
   const [sel, setSel] = useState<Id | undefined>(initial ?? library[0]);
   const [list, setList] = useState(false);

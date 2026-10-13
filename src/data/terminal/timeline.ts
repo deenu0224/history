@@ -33,6 +33,7 @@ export const timelines: ObservationTimeline[] = [
     hotspots: deriveHotspots('obs001', { worldObjects, npcs }),
     glitches: [
       { from: 480, to: 492, intensity: 0.6 },
+      { from: 720, to: 730, intensity: 0.25 }, // 정오 — 젊은 관원이 문제의 글을 입에 올리는 순간
       { from: 836, to: 846, intensity: 0.25 },
       { from: 1128, to: 1141, intensity: 0.6 },
     ],

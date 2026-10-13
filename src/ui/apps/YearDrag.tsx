@@ -4,15 +4,15 @@
  * 접근성/테스트용 비드래그 경로: 카드의 '타임라인에 올리기' 버튼, 줄의 ✕ 버튼.
  */
 import { useMemo, useRef, useState } from 'react';
-import { evidenceView } from '@/core/content';
 import type { Id, JudgeResult, YearDeduction } from '@/core/types';
-import { useGameStore } from '@/store/gameStore';
+import { selectYearCards, selectYearPreview, useGameStore, type YearCard } from '@/store/gameStore';
 import { VerdictPanel } from '../components/Verdict';
 import { YearField } from '../components/YearField';
-import { IDX } from '../lib/content';
 import { fx } from '../lib/fx';
 import { CONFIDENCE_LABEL, formatYearResult, formatYears, STRENGTH_LABEL, timeText, yearNoteId, type Confidence } from '../lib/format';
 import { clampYear, computeDomain, constraintBar, makeScale, rangeBar, ticks } from '../lib/timeline';
+
+const SHAPE_LABEL: Record<YearCard['shape'], string> = { lower: '이후', upper: '이전', both: '구간', none: '시기 단서 없음' };
 
 interface DragState {
   id: Id;
@@ -37,9 +37,21 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
   const [drag, setDrag] = useState<DragState | null>(null);
   const zone = useRef<HTMLDivElement>(null);
 
-  const ownedIds = Object.keys(owned).filter((id) => IDX.evidence[id]);
-  const tray = ownedIds.filter((id) => !placed.includes(id));
-  const view = (id: Id) => evidenceView(IDX.evidence[id]!, owned[id]!);
+  // 카드는 스토어 셀렉터(selectYearCards)가 준다: 단계별 공개 제약·모양·카드 고유 피드백
+  const cards = useMemo(
+    () => selectYearCards(useGameStore.getState(), d.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [owned, d.id],
+  );
+  const cardOf = (id: Id): YearCard | undefined => cards.find((c) => c.id === id);
+  const tray = cards.filter((c) => !placed.includes(c.id)).map((c) => c.id);
+  const preview = useMemo(
+    () => selectYearPreview(useGameStore.getState(), placed, d.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [owned, placed, d.id],
+  );
+  const ownedIds = cards.map((c) => c.id);
+  const view = (id: Id) => cardOf(id)!;
 
   const add = (id: Id) => {
     if (placed.includes(id)) return;
@@ -82,7 +94,7 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
     window.addEventListener('pointercancel', cancel);
   };
 
-  const rows = placed.filter((id) => owned[id] !== undefined && IDX.evidence[id]).map((id) => ({ id, v: view(id) }));
+  const rows = placed.filter((id) => cardOf(id)).map((id) => ({ id, v: view(id) }));
   const domain = useMemo(() => {
     const nums: (number | undefined)[] = [];
     for (const r of rows) nums.push(r.v.time?.notBefore, r.v.time?.notAfter);
@@ -90,6 +102,7 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
     return computeDomain(nums, { min: d.context?.from ?? 1392, max: d.context?.to ?? 1910 }, 24);
   }, [rows, touched, from, to, d.context]);
   const sc = makeScale(domain, 100);
+  const conflictNow = preview.conflict;
   const tk = ticks(domain, 4);
   const mine = touched && from <= to ? rangeBar(from, to, sc) : null;
   const invalid = from > to;
@@ -128,8 +141,12 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
               data-testid={`year-card-${id}`}
               onPointerDown={(e) => startDrag(e, id, 'tray')}
             >
-              <b>{v.label}</b>
+              <b>
+                {v.label} <span className={`yshape yshape-${v.shape}`} data-testid={`year-shape-${id}`}>{SHAPE_LABEL[v.shape]}</span>
+                {!v.verified && <span className="yshape yshape-unverified">원문 대조 전</span>}
+              </b>
               <span className="ycard-time">{v.time ? `${timeText(v.time)} · ${STRENGTH_LABEL[v.time.strength]}` : '연대 정보 없음'}</span>
+              {v.feedback && <small className="yfeedback" data-testid={`year-feedback-${id}`}>{v.feedback}</small>}
               <button type="button" className="ycard-add" data-testid={`year-add-${id}`} onClick={() => add(id)}>
                 ＋ 타임라인에 올리기
               </button>
@@ -155,6 +172,7 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
               <div className="yrow-label">
                 <b>{v.label}</b>
                 <small>{v.time ? timeText(v.time) : '연대 정보 없음'}</small>
+                {v.feedback && <small className="yfeedback">{v.feedback}</small>}
               </div>
               <div className="yrow-track">
                 {bar && (
@@ -209,6 +227,7 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
           }}
         />
       </div>
+      {conflictNow && <p className="warn" data-testid="year-conflict">놓은 카드들이 가리키는 시기가 서로 맞지 않는다. 카드를 빼 보자.</p>}
       {invalid && <p className="warn">시작 연도는 끝 연도보다 늦을 수 없다.</p>}
       <fieldset className="conf">
         <legend>가설 신뢰도 (선택)</legend>
@@ -239,7 +258,7 @@ export function YearDragPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimel
       )}
       {drag && (
         <div className="drag-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
-          {IDX.evidence[drag.id] ? evidenceView(IDX.evidence[drag.id]!, owned[drag.id] ?? 0).label : ''}
+          {cardOf(drag.id)?.label ?? ''}
         </div>
       )}
     </div>

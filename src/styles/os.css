@@ -224,7 +224,7 @@ p {
 .pill {
   font-family: var(--f-pixel);
   font-size: 0.9375rem;
-  min-height: 40px;
+  min-height: 44px;
   padding: 4px 12px;
   border: 0;
   background: var(--surface2);
@@ -328,6 +328,17 @@ p {
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
   cursor: pointer;
+  position: relative;
+}
+/* 글 속 밑줄 말: 보이는 크기는 글자만큼, 누르는 영역은 44px 이상으로 넓힌다 */
+.term::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: 50%;
+  height: 46px;
+  transform: translateY(-50%);
 }
 .term:hover,
 .term:active {
@@ -385,7 +396,7 @@ p {
 .subtabs button {
   font-family: var(--f-pixel);
   font-size: 0.9375rem;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   background: transparent;
   border: 0;
@@ -1072,6 +1083,15 @@ p {
 .hint button {
   pointer-events: auto;
 }
+/* 말풍선은 잠깐 읽히고 나면 흐려져서, 아래의 글을 가리지 않는다(고리는 그대로) */
+.coach-bubble {
+  animation: coach-fade 0.5s ease 7s forwards;
+}
+@keyframes coach-fade {
+  to {
+    opacity: 0.28;
+  }
+}
 .coach-bubble span,
 .coach-banner span {
   flex: 1;
@@ -1080,8 +1100,9 @@ p {
 .coach-banner button,
 .hint button {
   flex: none;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -8px 0;
   background: none;
   border: 0;
   color: var(--k8);
@@ -1165,7 +1186,7 @@ p {
   pointer-events: none;
 }
 .toast {
-  pointer-events: auto;
+  pointer-events: none;
   padding: 8px 14px;
   background: var(--k0);
   box-shadow: inset 0 0 0 2px var(--k6), 3px 3px 0 rgba(0, 0, 0, 0.4);
@@ -1487,7 +1508,7 @@ p {
 }
 .src-btn {
   margin-top: 4px;
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 8px;
   background: none;
   border: 0;
@@ -1509,8 +1530,8 @@ p {
   position: absolute;
   right: -8px;
   bottom: -14px;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: 0;
   color: var(--p3);
@@ -1832,7 +1853,7 @@ p {
   gap: 6px;
 }
 .log-item {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 10px;
   background: var(--k3);
   border: 0;
@@ -2201,6 +2222,9 @@ p {
 }
 .scrub {
   flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 3;
   padding: 6px 10px 8px;
   background: var(--k1);
   border-bottom: 2px solid var(--k4);
@@ -2309,7 +2333,7 @@ p {
 }
 .tap-panel {
   padding: 10px 12px 14px;
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 90px;
   animation: pop 0.2s both;
 }
@@ -2354,6 +2378,7 @@ p {
   text-decoration: none;
 }
 .hs-list {
+  flex: none;
   margin: 4px 10px 12px;
   background: var(--k1);
   box-shadow: inset 0 0 0 2px var(--k4);
@@ -2713,7 +2738,7 @@ p {
   color: var(--k8);
 }
 .ycard-add {
-  min-height: 40px;
+  min-height: 44px;
   background: var(--k4);
   border: 0;
   color: var(--k9);
@@ -2818,7 +2843,7 @@ p {
   mask-image: linear-gradient(270deg, transparent, #000 24px);
 }
 .yrow-x {
-  min-width: 40px;
+  min-width: 44px;
   min-height: 44px;
   background: none;
   border: 0;
@@ -3886,4 +3911,154 @@ p {
   .toasts {
     top: calc(var(--bar-h) + var(--safe-t) + 4px);
   }
+}
+
+/* 연도 패널: 카드 모양 표식 · 카드 고유 피드백 · 겹침 괄호 */
+.yshape {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  font-family: var(--f-pixel);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  background: var(--k3);
+  box-shadow: inset 0 0 0 1px var(--k6);
+  color: var(--k8);
+}
+.yshape-lower,
+.yshape-upper,
+.yshape-both {
+  color: var(--t4);
+  box-shadow: inset 0 0 0 1px var(--t3);
+}
+.yshape-unverified {
+  color: var(--a4);
+  box-shadow: inset 0 0 0 1px var(--a3);
+}
+.yfeedback {
+  display: block;
+  margin-top: 4px;
+  color: var(--k8);
+  line-height: 1.5;
+}
+.ybracket {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border: 2px dashed var(--a3);
+  border-top: 0;
+  border-bottom: 0;
+  background: rgba(224, 174, 92, 0.12);
+}
+.yrow-bracket .yrow-track {
+  position: relative;
+}
+
+/* 기록 열람 모드 */
+.ledger {
+  padding: 12px 14px 28px;
+}
+.ledger ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.ledger-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--k4);
+}
+.ledger-title {
+  display: block;
+  margin-bottom: 4px;
+}
+.ledger-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--f-pixel);
+  font-size: 0.8125rem;
+  background: var(--k3);
+  box-shadow: inset 0 0 0 1px var(--k6);
+}
+.badge-forged {
+  color: #e0a0a0;
+  box-shadow: inset 0 0 0 1px #a05555;
+}
+.badge-verified {
+  color: var(--t4);
+  box-shadow: inset 0 0 0 1px var(--t3);
+}
+.badge-recon,
+.badge-fict {
+  color: var(--a4);
+  box-shadow: inset 0 0 0 1px var(--a3);
+}
+
+/* 관측 뷰어: 인물의 하루 길 */
+.route-panel {
+  flex: none;
+  padding: 6px 12px 10px;
+  border-top: 2px solid var(--k4);
+}
+.route-title {
+  display: block;
+  font-family: var(--f-pixel);
+  font-size: 0.875rem;
+  color: var(--k8);
+  margin-bottom: 4px;
+}
+.route-panel ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.route-stop {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 10px;
+  background: var(--k3);
+  border: 0;
+  box-shadow: inset 0 0 0 2px var(--k5);
+  font-family: var(--f-pixel);
+  font-size: 0.9375rem;
+}
+.route-stop.on {
+  background: var(--t1);
+  box-shadow: inset 0 0 0 2px var(--t3);
+  color: var(--kw);
+}
+
+/* 낮은 가로 화면: 말풍선은 상태 표시줄 줄에 한 줄로 두어 앱 내용을 가리지 않는다(고리는 대상 위에 그대로) */
+@media (max-height: 520px) {
+  .coach-bubble.short {
+    top: 2px !important;
+    bottom: auto !important;
+    left: 200px !important;
+    width: auto;
+    max-width: calc(100vw - 440px);
+    padding: 2px 2px 2px 10px;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    animation: none;
+    z-index: 7100;
+    align-items: center;
+    min-height: 38px;
+  }
+  .coach-bubble.short button {
+    margin: -6px 0;
+  }
+}
+.ycard,
+.yrow,
+.ccard {
+  user-select: none;
+  -webkit-user-select: none;
 }

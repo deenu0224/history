@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { completion, entryView, stageOf, STAGE_LABELS } from '@/core/collection';
 import type { CollectionCategory, CollectionEntry } from '@/core/types';
-import { useGameStore } from '@/store/gameStore';
+import { selectCodexFields, useGameStore } from '@/store/gameStore';
 import { Chip, CATEGORY_ICON, entrySprite, PixelIcon, Pips, Tabs } from '../components/kit';
 import { CATEGORY_LABEL, CATEGORY_ORDER, CONTENT, IDX, entriesOf } from '../lib/content';
 import { pct } from '../lib/format';
@@ -105,6 +105,13 @@ function EntryDetail({ entry, onBack }: { entry: CollectionEntry; onBack(): void
   const openSource = useGameStore((s) => s.openSource);
   const inLibrary = useGameStore((s) => s.sources.includes(entry.refId));
   const v = entryView(entry, stage);
+  const shifts = useGameStore((s) => s.shifts);
+  // 말소된 필드(복원 전)는 단계와 상관없이 숨는다 — 지금 보이는 필드는 스토어 셀렉터가 정한다
+  const fields = useMemo(
+    () => selectCodexFields(useGameStore.getState(), entry.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [collection, shifts, entry.id],
+  );
   const locked = stage === 0;
   const linked = (entry.links ?? []).map((id) => IDX.collection[id]).filter((e): e is CollectionEntry => !!e && stageOf(collection, e.id) >= 1);
   const stageNote = stage >= 5 ? '도감 완성' : `다음 단계: ${STAGE_LABELS[(stage + 1) as 1]}`;
@@ -128,7 +135,7 @@ function EntryDetail({ entry, onBack }: { entry: CollectionEntry; onBack(): void
         <p className="empty">아직 발견하지 못했다. 관측과 조사로 단서를 찾자.</p>
       ) : (
         <dl className="fields">
-          {v.fields.map((f) => (
+          {fields.map((f) => (
             <div key={f.key} className="field">
               <dt>{f.label}</dt>
               <dd>
@@ -137,7 +144,7 @@ function EntryDetail({ entry, onBack }: { entry: CollectionEntry; onBack(): void
               </dd>
             </div>
           ))}
-          {v.fields.length === 0 && <p className="empty">더 조사하면 정보가 채워진다.</p>}
+          {fields.length === 0 && <p className="empty">더 조사하면 정보가 채워진다.</p>}
         </dl>
       )}
       {!locked && entry.category === 'source' && inLibrary && (

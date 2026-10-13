@@ -5,7 +5,7 @@ import { NOTEBOOK_SECTIONS, SECTION_LABELS } from '@/core/notebook';
 import { checkState } from '@/core/terminal';
 import type { Id, NoteEntry, NotebookSection, RecordAct, RewriteEntry } from '@/core/types';
 import { NOTEBOOK_MARGINS } from '@/data/script';
-import { selectExhibits, selectMemos, useGameStore } from '@/store/gameStore';
+import { selectExhibits, selectMemos, selectRecordLedger, useGameStore } from '@/store/gameStore';
 import { CATEGORY_ICON, PixelIcon } from '../components/kit';
 import { prefersReducedMotion, useWidth } from '../hooks';
 import { Px, exhibitSprite } from '../lib/art';
@@ -16,6 +16,7 @@ import { describeRewards } from '../lib/rewards';
 import { useRewriteText } from '../lib/rewrites';
 import { CodexScreen } from '../screens/Codex';
 import { TermText } from '../lib/terms';
+import { endingReached } from '../lib/objectives';
 import { useUi } from '../uiStore';
 
 type Tab = 'hand' | 'diff' | 'memo' | 'archive';
@@ -412,7 +413,8 @@ function MemoItem({ id, title, text }: { id: Id; title: string; text: string }) 
 
 // ── 기록관(전시 + 도감) ────────────────────────────────────────────
 function ArchivePage() {
-  const [sub, setSub] = useState<'show' | 'dex'>('show');
+  const [sub, setSub] = useState<'show' | 'dex' | 'ledger'>('show');
+  const ended = useGameStore((s) => endingReached(s));
   const collection = useGameStore((s) => s.collection);
   const total = completion(CONTENT.collection, collection);
   return (
@@ -424,8 +426,13 @@ function ArchivePage() {
         <button className={sub === 'dex' ? 'on' : ''} data-testid="arch-dex" onClick={() => setSub('dex')}>
           도감 {pct(total.ratio)}
         </button>
+        {ended && (
+          <button className={sub === 'ledger' ? 'on' : ''} data-testid="arch-ledger" onClick={() => setSub('ledger')}>
+            기록 열람
+          </button>
+        )}
       </div>
-      {sub === 'show' ? <Gallery /> : <CodexScreen />}
+      {sub === 'show' ? <Gallery /> : sub === 'dex' ? <CodexScreen /> : <LedgerPage />}
     </div>
   );
 }
@@ -515,5 +522,55 @@ function Gallery() {
         </aside>
       )}
     </div>
+  );
+}
+
+// ── 기록 열람 모드(엔딩 뒤): 모든 DB 기록의 원래 상태와 지금 상태 ─────────────────
+const BADGE_CLASS: Record<string, string> = { 변조: 'badge-forged', 검증: 'badge-verified', 재구성: 'badge-recon', 가상: 'badge-fict' };
+
+function LedgerPage() {
+  const shifts = useGameStore((s) => s.shifts);
+  const corrections = useGameStore((s) => s.corrections);
+  const rows = useMemo(
+    () => selectRecordLedger(useGameStore.getState(), CONTENT),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shifts, corrections],
+  );
+  return (
+    <article className="ledger paper" data-testid="ledger-page">
+      <p className="dim small">바뀌기 전과 지금의 기록. 변조된 기록은 실제 역사가 아니며, 복원된 기록만 검증된 사실이다.</p>
+      <ul>
+        {rows.map((r) => {
+          const changed = r.current.fields.filter((f) => r.original.fields.find((o) => o.key === f.key)?.value !== f.value);
+          return (
+            <li key={r.id} className="ledger-row" data-testid={`ledger-${r.id}`}>
+              <b className="ledger-title">{r.current.title}</b>
+              <span className="ledger-badges">
+                <span className={`badge ${BADGE_CLASS[r.originalBadge] ?? ''}`} data-testid={`ledger-orig-${r.id}`}>
+                  {r.originalBadge}
+                </span>
+                {r.restored && (
+                  <>
+                    <span aria-hidden="true">→</span>
+                    <span className={`badge ${BADGE_CLASS[r.currentBadge] ?? ''}`} data-testid={`ledger-now-${r.id}`}>
+                      {r.currentBadge}
+                    </span>
+                    <span className="stamp-restore">복원</span>
+                  </>
+                )}
+              </span>
+              {r.restored &&
+                changed.map((f) => (
+                  <div key={f.key} className="diff-pair">
+                    <small className="hand kind">{f.label}</small>
+                    <p className="hand strike old">{r.original.fields.find((o) => o.key === f.key)?.value ?? '(없음)'}</p>
+                    <p className="hand fresh">{f.value}</p>
+                  </div>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+    </article>
   );
 }

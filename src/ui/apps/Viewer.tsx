@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bus } from '@/core/bus';
 import { formatClock } from '@/core/observation';
-import { selectTimelineTicks, selectViewerFrame, useGameStore, type TapResult } from '@/store/gameStore';
+import { selectNpcRoute, selectTimelineTicks, selectViewerFrame, useGameStore, type TapResult } from '@/store/gameStore';
 import { ObservationViewer, type ViewerHandle } from '@/game/ObservationViewer';
 import { playSfx } from '@/game/audio';
 import { Px } from '../lib/art';
@@ -125,8 +125,44 @@ function Observing({ timelineId }: { timelineId: string }) {
       <div className="viewer-side">
         {!scrubUnder && <Scrubber tlId={tl.id} />}
         <TapPanel tap={lastTap} />
+        {lastTap?.kind === 'npc' && <RoutePanel npcId={lastTap.targetId} />}
         <HotspotList onPick={(id) => viewer.current?.focusHotspot(id)} open={wide} />
       </div>
+    </div>
+  );
+}
+
+/** 인물을 탭하면 그 사람의 하루 길(머문 시각)을 보여 준다. 시각을 누르면 그때로 옮긴다. 장면 위 점선은 뷰어가 그린다. */
+function RoutePanel({ npcId }: { npcId: string }) {
+  const minute = useGameStore((s) => s.obsMinute[TL_ID] ?? 0);
+  const scrub = useGameStore((s) => s.scrubObservation);
+  const route = useMemo(
+    () => selectNpcRoute(useGameStore.getState(), npcId, CONTENT, TL_ID),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [npcId, minute],
+  );
+  if (!route || route.points.length < 2) return null;
+  return (
+    <div className="route-panel" data-testid="route-panel">
+      <span className="route-title">{route.label}의 하루 길</span>
+      <ol>
+        {route.points.map((p, i) => (
+          <li key={p.minute}>
+            <button
+              type="button"
+              className={`route-stop ${i === route.current ? 'on' : ''}`}
+              aria-current={i === route.current ? 'step' : undefined}
+              data-testid={`route-stop-${p.minute}`}
+              onClick={() => {
+                fx('tap');
+                scrub(p.minute);
+              }}
+            >
+              {formatClock(p.minute)}
+            </button>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
