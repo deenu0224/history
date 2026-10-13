@@ -5,11 +5,13 @@
 import type { PixelSprite } from './pixel';
 import { C } from './palettes';
 import { Grid, autoOutline, rng, sprite } from './draw';
+import { OS_NINE_SLICE } from './os_chrome';
 
 /** 9-slice 정의 (Phaser add.nineslice 의 leftWidth 등과 일치) */
 export const NINE_SLICE: Record<string, { left: number; right: number; top: number; bottom: number }> = {
   ui_panel_hanji: { left: 12, right: 12, top: 12, bottom: 12 },
   ui_panel_modern: { left: 12, right: 12, top: 12, bottom: 12 },
+  ...OS_NINE_SLICE,
 };
 
 function panelHanji(): PixelSprite {
