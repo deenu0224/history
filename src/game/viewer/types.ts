@@ -56,6 +56,8 @@ export interface ViewerHandle {
   zoomStep(dir: 1 | -1): void;
   /** 이 NPC 의 하루 길을 점선으로(null 이면 끔) */
   setRouteNpc(npcId: string | null): void;
+  /** 지움(차갑게 감광·탈채색) / 되살림(따뜻한 먹 번짐) 연출. bus 'glitch' 에 kind 가 실려도 같다 */
+  playShift(kind: 'erase' | 'restore'): void;
 }
 
 export interface TestApi {

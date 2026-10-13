@@ -83,6 +83,7 @@ export function createViewer(parent: HTMLElement, host: ViewerHost): ViewerContr
     zoomTo: (z) => run((s) => s.zoomTo(z)),
     zoomStep: (d) => run((s) => s.zoomStep(d)),
     setRouteNpc: (id) => run((s) => s.setExplicitRoute(id)),
+    playShift: (k) => run((s) => s.playShift(k)),
     destroy: () => {
       ro.disconnect();
       window.removeEventListener('orientationchange', fit);

@@ -639,7 +639,12 @@ export class ObservationScene extends Phaser.Scene {
       if (hotspotId) this.focusHotspot(hotspotId);
       else if (x !== undefined && y !== undefined) this.focusTile(x, y);
     });
-    const offGlitch = bus.on('glitch', ({ intensity, ms }) => this.glitchPulse(intensity, ms));
+    const offGlitch = bus.on('glitch', (p) => {
+      // 확장 필드(kind)가 오면 지움/되살림 전용 연출, 아니면 일반 어긋남(가로 찢김)
+      const kind = (p as { kind?: string }).kind;
+      if (kind === 'erase' || kind === 'restore') this.playShift(kind, p.ms);
+      else this.glitchPulse(p.intensity, p.ms);
+    });
     this.cleanups.push(unsub, offFocus, offGlitch);
   }
 
@@ -865,6 +870,49 @@ export class ObservationScene extends Phaser.Scene {
     if (!this.reduceFlicker) this.tearUntil = now + Math.min(260, Math.max(100, ms * 0.5));
   }
 
+  /**
+   * 지움(erase): 차갑고 소리 없는 감광+탈채색. 되살림(restore): 따뜻한 먹이 번져 채워짐. 네온·파티클 없음.
+   * 뷰어는 읽기 전용이다(과거 상태를 바꾸지 않고 보이는 질감만 바꾼다).
+   */
+  playShift(kind: 'erase' | 'restore', ms = 1200): void {
+    const dur = Math.max(500, Math.min(2400, ms));
+    if (kind === 'erase') {
+      const c = this.game.canvas;
+      c.style.transition = `filter ${dur * 0.4}ms ease-in`;
+      c.style.filter = 'brightness(0.5) saturate(0.15) hue-rotate(-12deg) contrast(1.05)';
+      window.setTimeout(() => {
+        c.style.transition = `filter ${dur * 0.6}ms ease-out`;
+        c.style.filter = '';
+      }, dur * 0.45);
+      return;
+    }
+    const W = this.scale.width;
+    const H = this.scale.height;
+    const r = Math.hypot(W, H) / 2;
+    const ink = this.add.circle(W / 2, H / 2, r, 0x9a6a32, 0.32).setScrollFactor(0).setDepth(90003).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    this.overlayObjs.push(ink);
+    for (const c of this.tearCams) c.ignore(ink);
+    ink.setScale(0.02 / this.cam.zoom);
+    const u = 1 / this.cam.zoom;
+    this.tweens.add({
+      targets: ink,
+      scale: u * 1.05,
+      duration: dur * 0.55,
+      ease: 'Sine.easeOut',
+      onUpdate: () => ink.setPosition(this.scale.width / 2, this.scale.height / 2),
+      onComplete: () =>
+        this.tweens.add({
+          targets: ink,
+          alpha: 0,
+          duration: dur * 0.45,
+          onComplete: () => {
+            this.overlayObjs = this.overlayObjs.filter((o) => o !== ink);
+            ink.destroy();
+          },
+        }),
+    });
+  }
+
   private effectiveGlitch(now: number): number {
     const p = this.pulseGlitch;
     const pv = now < p.until ? p.level * (1 - (now - p.from) / Math.max(1, p.until - p.from)) : 0;
@@ -926,7 +974,7 @@ export class ObservationScene extends Phaser.Scene {
     const d = this.dpr;
     const u = Math.max(1, Math.round(d));
     const key = `${W}x${H}x${u}`;
-    for (const o of this.overlayObjs) (o as Phaser.GameObjects.Image).setPosition(W / 2, H / 2).setScale(1 / z);
+    for (const o of this.overlayObjs) if (o.type !== 'Arc') (o as Phaser.GameObjects.Image).setPosition(W / 2, H / 2).setScale(1 / z);
     if (key !== this.overlaySize) {
       this.overlaySize = key;
       this.scan.setSize(W, H).setTileScale(u, u);

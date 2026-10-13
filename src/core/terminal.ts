@@ -22,7 +22,7 @@ import type {
   TutorialStep,
 } from './types';
 
-export const APP_IDS: readonly AppId[] = ['messenger', 'search', 'viewer', 'reader', 'board', 'archive', 'notebook'];
+export const APP_IDS: readonly AppId[] = ['messenger', 'search', 'viewer', 'board', 'notebook'];
 
 export function emptyStats(): PlayStats {
   return {
@@ -52,6 +52,7 @@ export interface ConditionState {
   corrections: readonly Id[];
   shifts: readonly Id[];
   links: readonly Id[];
+  recorded: readonly Id[];
   stats: PlayStats;
 }
 
@@ -63,7 +64,7 @@ export function checkState(s: ConditionState, c?: StateCondition): boolean {
   if (!(c.evidence ?? []).every((id) => s.evidence[id] !== undefined)) return false;
   if (!has(s.searched, c.searched) || !has(s.read, c.read) || !has(s.appsOpened, c.appsOpened)) return false;
   if (!has(s.phrases, c.phrases) || !has(s.tapped, c.tapped) || !has(s.corrections, c.corrections)) return false;
-  if (!has(s.shifts, c.shifts) || !has(s.links, c.links)) return false;
+  if (!has(s.shifts, c.shifts) || !has(s.links, c.links) || !has(s.recorded, c.recorded)) return false;
   if (!(c.attempted ?? []).every((id) => (s.attempts[id] ?? 0) > 0)) return false;
   for (const [k, v] of Object.entries(c.minStats ?? {}))
     if ((s.stats[k as keyof PlayStats] ?? 0) < (v ?? 0)) return false;

@@ -37,6 +37,7 @@ export const CONTENT_KEYS: readonly ContentKey[] = [
   'help',
   'shifts',
   'links',
+  'acts',
 ];
 
 export function emptyBundle(): ContentBundle {
@@ -65,6 +66,7 @@ export function emptyBundle(): ContentBundle {
     help: [],
     shifts: [],
     links: [],
+    acts: [],
   };
 }
 

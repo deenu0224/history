@@ -30,9 +30,11 @@ export function Px({
   className = '',
   style,
   alt = '',
+  frame = 0,
 }: {
   k: string;
   scale?: number;
+  frame?: number;
   className?: string;
   style?: CSSProperties;
   alt?: string;
@@ -42,7 +44,7 @@ export function Px({
   return (
     <img
       className={`px ${className}`}
-      src={toDataURL(k)}
+      src={toDataURL(k, frame)}
       width={sp.w * scale}
       height={sp.h * scale}
       alt={alt}

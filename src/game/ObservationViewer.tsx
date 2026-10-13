@@ -47,6 +47,7 @@ export const ObservationViewer = forwardRef<ViewerHandle, ObservationViewerProps
       zoomTo: (z) => call((c) => c.zoomTo(z)),
       zoomStep: (d) => call((c) => c.zoomStep(d)),
       setRouteNpc: (id) => call((c) => c.setRouteNpc(id)),
+      playShift: (k) => call((c) => c.playShift(k)),
     }),
     [],
   );

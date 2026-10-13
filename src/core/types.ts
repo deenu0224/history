@@ -300,12 +300,52 @@ export interface EventDeduction extends DeductionBase {
   requiredFacts: Fact[];
 }
 
-export type Deduction = YearDeduction | PersonDeduction | EventDeduction;
+/** 인과 고리의 마디(플레이어가 보드에서 잇는 진술 카드). */
+export interface CausalNode {
+  id: Id;
+  text: string;
+}
+
+/** 정답 고리의 한 연결. requires 의 사실이 모두 인용되어야 '뒷받침'된다. */
+export interface CausalLinkRule {
+  from: Id;
+  to: Id;
+  requires: Fact[];
+}
+
+/** 알려진 틀린 연결과 그 고유 피드백(정답을 말하지 않는다). */
+export interface CausalWrongLink {
+  from: Id;
+  to: Id;
+  message: string;
+}
+
+/**
+ * 인과 추리: 마디를 화살표로 이어 '왜'를 설명한다. 각 화살표는 증거로 뒷받침되어야 한다.
+ * 정답 = chain 의 연속한 쌍 전부(그리고 그것만). 판정 규칙은 core/deduction.ts judgeCausal.
+ */
+export interface CausalDeduction extends DeductionBase {
+  kind: 'causal';
+  nodes: CausalNode[];
+  /** 정답 고리(원인 → 결과 순) */
+  chain: Id[];
+  links: CausalLinkRule[];
+  wrongLinks?: CausalWrongLink[];
+}
+
+export type Deduction = YearDeduction | PersonDeduction | EventDeduction | CausalDeduction;
+
+export interface CausalSubmissionLink {
+  from: Id;
+  to: Id;
+  evidenceIds: Id[];
+}
 
 export type DeductionSubmission =
   | { kind: 'year'; deductionId: Id; from: Year; to: Year; evidenceIds: Id[] }
   | { kind: 'person'; deductionId: Id; candidateId: Id; evidenceIds: Id[] }
-  | { kind: 'event'; deductionId: Id; statementId: Id; evidenceIds: Id[] };
+  | { kind: 'event'; deductionId: Id; statementId: Id; evidenceIds: Id[] }
+  | { kind: 'causal'; deductionId: Id; links: CausalSubmissionLink[] };
 
 export type FeedbackCode =
   | 'invalid_input'
@@ -329,13 +369,19 @@ export type FeedbackCode =
   | 'fact_unverified'
   | 'missing_fact'
   | 'not_supported'
-  | 'unknown_choice';
+  | 'unknown_choice'
+  | 'link_wrong'
+  | 'link_reversed'
+  | 'link_unsupported'
+  | 'chain_incomplete';
 
 export interface Feedback {
   code: FeedbackCode;
   message: string;
   evidenceId?: Id;
   fact?: Fact;
+  /** 인과 추리: 이 피드백이 가리키는 연결 */
+  link?: { from: Id; to: Id };
 }
 
 export interface JudgeResult {
@@ -382,7 +428,11 @@ export interface NoteEntry extends NotebookGrant {
 export type PlayerNotebook = Record<NotebookSection, NoteEntry[]>;
 
 // ── 결록 단말(터미널) ───────────────────────────────────────────
-export type AppId = 'messenger' | 'search' | 'viewer' | 'reader' | 'board' | 'archive' | 'notebook';
+/**
+ * 앱 5개. 사료 뷰어는 검색 앱 안의 '원문 보기'(구절 탭)로, 개인 기록관은 손 노트의 '기록관' 탭으로 합쳐졌다.
+ * 설정은 시스템 패널(앱 아님).
+ */
+export type AppId = 'messenger' | 'search' | 'viewer' | 'board' | 'notebook';
 
 /** 플레이 통계(상태 조건·튜토리얼 판정용). 오르기만 한다. */
 export interface PlayStats {
@@ -418,6 +468,8 @@ export interface StateCondition extends FlagCondition {
   shifts?: Id[];
   /** 만든 카드 연결(EvidenceLink) */
   links?: Id[];
+  /** 손 노트에 기록한 사실(RecordAct) */
+  recorded?: Id[];
   minStats?: Partial<PlayStats>;
   /** 이 중 하나 이상(OR). 막힘 방지용 대체 경로에 쓴다. */
   any?: StateCondition[];
@@ -460,6 +512,8 @@ export interface SearchEntry extends ContentBase {
    * searchRewrites 가 결과를 채운다(그 뒤로는 평범한 결과 — 복원 표식 없음).
    */
   noArticle?: boolean;
+  /** noArticle 일 때의 문구(기본 '해당 기사 없음.'). 예: '그런 단어 없음.' */
+  noArticleText?: string;
 }
 
 export interface DbField {
@@ -520,7 +574,8 @@ export interface ObservationTimeline extends ContentBase {
   glitches?: { from: number; to: number; intensity: number }[];
 }
 
-export type MessageThread = 'colleague' | 'device' | 'system' | 'mail';
+/** archivist = 두 번째 동료(아키비스트, avatar_colleague_b). 기억이 한 선임과 다르게 흔들린다. */
+export type MessageThread = 'colleague' | 'device' | 'system' | 'mail' | 'archivist';
 
 export interface MessageChoice {
   id: Id;
@@ -552,6 +607,8 @@ export interface ArchiveExhibit extends ContentBase {
   grants?: Grants;
   /** 이 전시물이 보여 주는 도감 항목 */
   collectionIds?: Id[];
+  /** 복원 전시물: 이 현실 이동으로 되살아난 기록. 기록관(손 노트 탭)에만 '복원' 도장이 찍힌다. */
+  restoredBy?: Id;
 }
 
 /** 단말 메모(동기화됨). 손글씨 노트와 달리 정합성 보정의 대상이다. */
@@ -617,6 +674,24 @@ export interface RealityShift extends ContentBase {
   unlocks?: Grants;
   /** 손 노트에 남는 이전/이후(취소선 + 새 글씨) */
   notebookDiff: { id: Id; before: string; after: string; provenance?: Provenance }[];
+}
+
+/** 다시 쓰기의 결: 말소(차갑게, 무음, 명도 한 칸) / 복원(따뜻한 먹 번짐). UI 연출 구분용. */
+export type RewriteTone = 'erase' | 'restore';
+
+/**
+ * '기록하기'(사관의 직필): 추리를 확정한 뒤 플레이어가 손 노트에 핵심 문장을 직접 적으면(UI: 따라 쓰기/도장)
+ * 그 사실이 복원된다. store.recordFact(actId) → 상태 recorded 에 들어가고 → when 에 recorded 를 가진 RealityShift 가 적용.
+ */
+export interface RecordAct extends ContentBase {
+  title: string;
+  /** 기록할 수 있는 조건(추리 확정 등) */
+  requires: StateCondition;
+  /** 따라 쓸 문장(검증된 실록·사전 문장 그대로). provenance verified + sources 필수. */
+  sentence: string;
+  /** 이 기록이 적용하는 현실 이동 */
+  restores: Id;
+  order: number;
 }
 
 /** 증거 보드의 카드 겹치기: inputs 를 정확히 그 조합으로 겹치면 result 카드가 생긴다(추론 카드). */
@@ -686,6 +761,7 @@ export interface ContentBundle {
   help: HelpCard[];
   shifts: RealityShift[];
   links: EvidenceLink[];
+  acts: RecordAct[];
 }
 
 export type ContentKey = keyof ContentBundle;
