@@ -77,7 +77,7 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
               {candidates.map((id) => {
                 const p = IDX.persons[id]!;
                 return (
-                  <button key={id} role="radio" aria-checked={cand === id} className={`cand ${cand === id ? 'on' : ''}`} onClick={() => setCand(id)}>
+                  <button key={id} data-testid={`cand-${id}`} role="radio" aria-checked={cand === id} className={`cand ${cand === id ? 'on' : ''}`} onClick={() => setCand(id)}>
                     <b>
                       {p.name}
                       {p.hanja && <small> {p.hanja}</small>}
@@ -95,7 +95,7 @@ export function PersonPanel({ d }: { d: PersonDeduction }) {
       </div>
       <div className="dsubmit">
         <span className="dim">{cand ? `${IDX.persons[cand]!.name} 선택` : '후보를 고르세요'}</span>
-        <button className="btn btn-primary btn-big" disabled={!cand} onClick={doSubmit}>
+        <button className="btn btn-primary btn-big" data-testid="submit-deduction" disabled={!cand} onClick={doSubmit}>
           신원 추리 제출
         </button>
       </div>
@@ -163,7 +163,7 @@ export function EventPanel({ d }: { d: EventDeduction }) {
           <h4>서술 선택</h4>
           <div className="cands" role="radiogroup" aria-label="서술">
             {d.statements.map((s) => (
-              <button key={s.id} role="radio" aria-checked={stmt === s.id} className={`cand ${stmt === s.id ? 'on' : ''}`} onClick={() => setStmt(s.id)}>
+              <button key={s.id} data-testid={`stmt-${s.id}`} role="radio" aria-checked={stmt === s.id} className={`cand ${stmt === s.id ? 'on' : ''}`} onClick={() => setStmt(s.id)}>
                 <b>{s.text}</b>
               </button>
             ))}
@@ -175,7 +175,7 @@ export function EventPanel({ d }: { d: EventDeduction }) {
       </div>
       <div className="dsubmit">
         <span className="dim">{stmt ? '서술 선택됨' : '서술을 고르세요'}</span>
-        <button className="btn btn-primary btn-big" disabled={!stmt} onClick={doSubmit}>
+        <button className="btn btn-primary btn-big" data-testid="submit-deduction" disabled={!stmt} onClick={doSubmit}>
           사건 해석 제출
         </button>
       </div>

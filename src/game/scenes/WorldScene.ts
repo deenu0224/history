@@ -228,7 +228,7 @@ export class WorldScene extends Phaser.Scene {
   private objectFilled(def: Interactable): boolean {
     const st = useGameStore.getState();
     const col = def.grants?.collect;
-    if (col && col.length > 0) return col.some((c) => (st.collection[c.entryId] ?? 0) >= 1);
+    if (col && col.length > 0) return col.every((c) => (st.collection[c.entryId] ?? 0) >= (c.stage ?? 1));
     return st.examined.includes(def.id);
   }
 
@@ -405,7 +405,10 @@ export class WorldScene extends Phaser.Scene {
 
   private applyZoom(): void {
     const cam = this.cameras.main;
-    const zoom = devOptions.zoom ?? chooseZoom(this.scale.width, this.scale.height);
+    // 캔버스는 기기 해상도(= CSS 크기 × dpr). 줌은 정수 기기 픽셀 텍셀이 되도록 고른다.
+    const css = this.scale.displaySize;
+    const dpr = css.width > 0 ? this.scale.width / css.width : 1;
+    const zoom = devOptions.zoom ?? chooseZoom(css.width, css.height, 32, dpr);
     cam.setSize(this.scale.width, this.scale.height);
     cam.setZoom(zoom);
     // 맵이 화면보다 작으면 가운데 정렬되도록 경계를 화면 크기까지 넓힌다.
@@ -812,6 +815,11 @@ export class WorldScene extends Phaser.Scene {
 
   listInteractives(): { id: string; kind: string; x: number; y: number }[] {
     return this.interactives().map((i) => ({ id: i.id, kind: i.kind, ...i.tile() }));
+  }
+
+  /** 오브젝트 스프라이트의 현재 텍스처 키 (테스트용) */
+  objectTexture(id: string): string | null {
+    return this.objects.find((o) => o.def.id === id)?.sprite.texture.key ?? null;
   }
 
   /** 현재 힌트가 가리키는 대상 id (테스트용) */

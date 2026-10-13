@@ -3,7 +3,7 @@ import { entryView, stageOf } from '@/core/collection';
 import { UI_KEYS } from '@/game/art';
 import { useGameStore } from '@/store/gameStore';
 import { PixelIcon } from '../components/kit';
-import { entriesOf } from '../lib/content';
+import { IDX, entriesOf } from '../lib/content';
 import { formatYearResult, latestYearResult, obsNumber } from '../lib/format';
 import { isPastScene, observationIndex } from '../lib/scene';
 import { currentObjective } from '../lib/script';
@@ -26,9 +26,12 @@ export function useHudInfo() {
   const result = useMemo(() => latestYearResult(notebook), [notebook]);
   const place = useMemo(() => {
     let best: { title: string; stage: number } | null = null;
+    // 관측지는 추리로 신원을 확정(단계 3)하기 전까지, 그리고 과거 사건이 일어난 장소일 때만 표시한다.
+    // (연구실 자료의 현대 소장처 같은 장소가 과거 장면 HUD 에 새지 않게)
+    const eventPlaces = new Set(Object.values(IDX.events).map((ev) => ev.placeId));
     for (const e of entriesOf('place')) {
       const st = stageOf(collection, e.id);
-      if (st >= 2 && (!best || st > best.stage)) best = { title: entryView(e, st).title, stage: st };
+      if (st >= 3 && eventPlaces.has(e.refId) && (!best || st > best.stage)) best = { title: entryView(e, st).title, stage: st };
     }
     return best?.title ?? null;
   }, [collection]);

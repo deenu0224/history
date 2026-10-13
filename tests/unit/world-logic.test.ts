@@ -97,6 +97,9 @@ describe('zoom / clock / collision / interact / keys', () => {
     expect(chooseZoom(1280, 720)).toBeGreaterThanOrEqual(2);
     expect(chooseZoom(1920, 1080)).toBe(3);
     expect(chooseZoom(390, 844)).toBe(1);
+    expect(chooseZoom(390, 844, 32, 3)).toBe(4); // ~9 tiles across, 4 device px per texel
+    expect(chooseZoom(412, 915, 32, 2.625)).toBe(4);
+    expect(chooseZoom(844, 390, 32, 2.625)).toBe(5);
     expect(chooseZoom(844, 390)).toBe(2);
   });
   it('clock and tint', () => {

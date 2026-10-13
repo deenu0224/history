@@ -28,6 +28,7 @@ export function EvidenceCard({
     <Tag
       className={`ecard ${partial ? 'ecard-partial' : ''} ${selected ? 'on' : ''} ${compact ? 'ecard-compact' : ''}`}
       onClick={onClick}
+      data-testid={`ev-${ev.id}`}
       aria-pressed={onClick ? Boolean(selected) : undefined}
       type={onClick ? 'button' : undefined}
     >

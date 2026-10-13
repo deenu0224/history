@@ -220,7 +220,7 @@ export function YearPanel({ d, onGoTimeline }: { d: YearDeduction; onGoTimeline(
       </div>
       <div className="dsubmit">
         <span className="dim">시도 {attempts}회</span>
-        <button className="btn btn-primary btn-big" onClick={doSubmit} disabled={invalid}>
+        <button className="btn btn-primary btn-big" data-testid="submit-deduction" onClick={doSubmit} disabled={invalid}>
           추리 제출 · {formatYears(from, Math.max(from, to))}
         </button>
       </div>

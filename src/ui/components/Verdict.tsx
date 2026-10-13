@@ -18,7 +18,7 @@ export function VerdictPanel({ result, seq, extra }: { result: JudgeResult; seq:
   const { general, byEvidence } = groupFeedback(result.feedback);
   const tone = result.verdict === 'confirmed' ? 'good' : result.verdict === 'partial' ? 'mid' : result.verdict === 'wrong' ? 'bad' : 'dim';
   return (
-    <section className={`verdict verdict-${result.verdict}`} aria-live="polite">
+    <section className={`verdict verdict-${result.verdict}`} aria-live="polite" data-testid="verdict" data-verdict={result.verdict}>
       <div className="verdict-head">
         <Stamp tone={tone} seq={seq}>
           {VERDICT_LABEL[result.verdict]}
