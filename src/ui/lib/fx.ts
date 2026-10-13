@@ -37,7 +37,7 @@ export function installFeedback(): () => void {
     const sfx = sfxFor(spec.sfx);
     if (sfx) playSfx(sfx);
     const s = useGameStore.getState().settings;
-    if (s.haptics && spec.haptic && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    if (s.haptics && spec.haptic && canVibrate()) {
       try {
         navigator.vibrate(spec.haptic);
       } catch {
@@ -51,11 +51,18 @@ export function installFeedback(): () => void {
 export function haptic(kind: FeedbackKind) {
   const spec = FEEDBACK[kind];
   const s = useGameStore.getState().settings;
-  if (s.haptics && spec?.haptic && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+  if (s.haptics && spec?.haptic && canVibrate()) {
     try {
       navigator.vibrate(spec.haptic);
     } catch {
       /* 무시 */
     }
   }
+}
+
+/** 사용자가 한 번이라도 탭한 뒤에만 진동한다(브라우저가 그 전 호출을 막고 경고를 남긴다). */
+function canVibrate(): boolean {
+  if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return false;
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  return ua ? ua.hasBeenActive : true;
 }
