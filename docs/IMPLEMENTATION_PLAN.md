@@ -2,16 +2,16 @@
 
 원칙: 문서보다 플레이 가능한 루프. 각 단계는 "완료 조건"을 실제로 실행해 확인한다.
 
-## 피벗: 결록 단말 (걷기 폐지)
-설계 `docs/TERMINAL_DESIGN.md`. 코어·데이터·스토어·단위 테스트는 단말 모델로 전환 완료(검색 색인, 관측 타임라인, 사료 구절,
-메시지, 기록관 전시물, 정합성 보정, 튜토리얼·힌트, 저장 v2). 다음 병렬 트랙(파일 소유는 TERMINAL_DESIGN §13.4):
-| 트랙 | 담당 | 산출물 |
-|---|---|---|
-| A. OS 셸 + 앱 UI | implementer (sonnet) | `src/ui/**`: 셸(모바일 전체화면/데스크톱 창), 7개 앱, 코치마크·힌트, 설정·도움말, e2e |
-| B. 관측 뷰어 | implementer (sonnet) | `src/game/**`: `<ObservationViewer/>` 디오라마, 팬·줌, 타임라인 NPC, 핫스팟 탭 |
-| C. 아트 추가 | implementer (sonnet) | `src/game/art/**`: 앱 아이콘, 창 크롬, 배경화면, 글리치, 노트 질감, 도장, 전시물 |
-완료 조건: 모바일 뷰포트에서 탭만으로 프롤로그 → 관측 → 3개 추리 → 기록관 → 예고까지 완주(e2e), 데스크톱 창 모드 동일.
-아래 Phase 1~2 의 '이동·카메라 추적·연구실 씬' 항목은 폐기되고 단말 앱으로 대체된다.
+## v3 「대조」 재설계 (현재)
+설계 `docs/DESIGN_V3.md`, 첫 10분 `docs/NARRATIVE_FIRST10.md`. 손 노트·메모·증거 보드·기록관·코치마크·카드 겹치기·기록하기는 폐기.
+| 트랙 | 담당 | 산출물 | 상태 |
+|---|---|---|---|
+| A. 설계·코어·데이터·스토어 | architect (opus) | `docs/DESIGN_V3.md`, `src/core/**`(report.ts 신설), `src/data/**`(work/db/messages/reality/report/observation), `src/store/gameStore.ts`(저장 v4), 단위 테스트 | 완료 |
+| B. 관측 뷰어 | implementer | `src/game/**`: 엿듣기(hear 규칙), 캡처 스냅숏(ViewerSnapshot), 훼손 구간, `reportView`·`hearLine` 호출 | 진행 중 |
+| C. UI 재구축 | implementer (sonnet) | `src/ui/**`: 앱 4개(업무·관측·DB·메신저), 체크리스트·도장(길게 누르기)·필름·보고서 4칸·종결함·용어 풀이, 다시 쓰기 연출 | 다음 |
+| D. E2E | 메인 | `tests/e2e`: 모바일·데스크톱 탭만으로 완주 | 다음 |
+완료 조건: 모바일 뷰포트에서 탭·끌기·핀치만으로 배정 → 체크리스트 → 기각 → DB → 옛 보고서 → 보정 → 보고서 → 도장 → 복원 → 예고(e2e). 데스크톱 창 모드 동일.
+스토어 단위 테스트(`tests/unit/store.test.ts`)가 같은 흐름을 탭 전용으로 완주한다.
 
 ## 작업 분할 (divide and conquer)
 | 트랙 | 담당 에이전트 | 산출물 | 의존 |

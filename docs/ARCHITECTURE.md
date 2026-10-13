@@ -1,10 +1,11 @@
 # ARCHITECTURE — 결록(缺錄)
 
-> **결록 단말 전환(걷기 폐지)**: §2 데이터 흐름, §3 버스, §9 스토어, §10 저장의 최신 계약은 `TERMINAL_DESIGN.md` §13 이 우선한다.
-> 요약: 버스 `interact/scene:*/world:*` 제거 → `app:open · viewer:* · glitch · feedback`. 스토어 `examine/talk/setScene` 제거 →
-> `search · startObservation/scrubObservation/tapHotspot/endObservation · registerPhrase · readMessage/chooseReply · inspectExhibit · 튜토리얼`.
-> 저장 v2(`migrations[1]`). 새 코어 모듈 `core/search.ts`, `core/observation.ts`, `core/terminal.ts`, 새 데이터 모듈 `data/terminal/`.
-> 검증기(§7)는 단말 콘텐츠도 검사한다: 검색 참조·칩 색인 일치·칩만으로 진행 가능·사료 구절 원문 일치·타임라인 구간·답장 플래그·보정 대상·플래그 생산 가능성.
+> **v3 「대조」(최신, 이 머리말이 아래 본문보다 우선한다)** — 설계 `DESIGN_V3.md`.
+> - 콘텐츠 번들: `persons, artifacts, sources, events, places, worldObjects, npcs, timelines, clues, apps, assignments, closedReports, reports, searchEntries, records, messages, hints, corrections, shifts`. 증거 카드(evidence)·추리(deductions)·도감(collection)·노트·메모·구절·전시물·튜토리얼·카드 겹치기·기록하기는 삭제.
+> - 새 코어 `core/report.ts`: 프레임(ViewerSnapshot + clueIds) → 단서(Clue: frame/record/combo) → 보고서 4칸 판정(언제=`chronology.judgeYear`, 누구=`deduction.judgePerson`, 무슨 일·그 결과=`judgeFacts`). 단서는 판정 엔진에 `clueAsEvidence` 로 넘긴다(§4~6 규칙 그대로).
+> - `core/terminal.ts`: 상태 조건(heard·seen·clues·stamped·closed·opened·filed·hintsDone…), 앱 잠금, 메시지·보정·현실 이동, 레이어 보기(레코드·메시지·검색·배정 헤더·종결 보고서), 힌트 사다리(메신저만).
+> - 저장 v4(`migrations[3]`: 설정만 남기고 버림). 스토어 계약은 `src/store/gameStore.ts` 머리 주석과 `DESIGN_V3.md` §10.
+> - 검증기 `core/validate.ts`: 보고서 칸의 데이터 풀이 가능성(브루트포스), 단서 프레임 조건의 만족 가능성, 칩 색인, 해결 전 4자리 연도 금지, 힌트·피드백 정답 금지, 현대 문장 '졸' 금지, 복원 규칙.
 
 > 코어 엔진·스토어·데이터 계약 문서. 그래픽(`src/game/art`)과 사료 목록(`HISTORICAL_SOURCES.md`)은 별도 문서를 따른다.
 
