@@ -29,6 +29,7 @@ export const searchEntries: SearchEntry[] = [
     terms: ['김일손', '金馹孫', '탁영', '濯纓', '계운'],
     results: [
       { kind: 'record', id: 'rec_alt_kim_ilson' },
+      { kind: 'record', id: 'rec_kim_ilson_posts' },
       { kind: 'person', id: 'per_kim_ilson' },
       { kind: 'artifact', id: 'art_takyeong' },
     ],
@@ -49,6 +50,7 @@ export const searchEntries: SearchEntry[] = [
     terms: ['실록청', '성종대왕 실록', '성종실록', '성종대왕', '實錄廳'],
     results: [
       { kind: 'record', id: 'rec_seongjong_sillok' },
+      { kind: 'record', id: 'rec_sillokcheong_reward' },
       { kind: 'event', id: 'evt_seongjong_sillok' },
       { kind: 'source', id: 'src_compile_order' },
     ],

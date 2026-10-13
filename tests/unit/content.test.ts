@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 import historicalSourcesDoc from '../../docs/HISTORICAL_SOURCES.md?raw';
 import narrativeDoc from '../../docs/NARRATIVE_FIRST10.md?raw';
+import shift1Doc from '../../docs/NARRATIVE_SHIFT1.md?raw';
+import { DIORAMAS } from '@/game/scenes/maps';
+import { originalText, recordSegments } from '@/core/duty';
 import { findLine, inWindow, timelineTicks } from '@/core/observation';
 import { validateContent } from '@/core/validate';
 import { content, GLOSSARY, modules } from '@/data';
@@ -16,14 +19,19 @@ describe('episode 1 content — registry', () => {
     expect(r.warnings).toEqual([]);
   });
 
-  it('meets minimums: 3+ verified persons, the 탁영금, 3+ 실록 sources, 4 apps, 4 checklist items', () => {
+  it('meets minimums: 3+ verified persons, the 탁영금, 3+ 실록 sources, 4 apps, 3 shifts with one new rule each after the first', () => {
     const verified = <T extends { provenance: string }>(xs: T[]) => xs.filter((x) => x.provenance === 'verified');
     expect(verified(content.persons).length).toBeGreaterThanOrEqual(3);
     expect(content.artifacts.some((a) => a.id === 'art_takyeong' && a.provenance === 'verified')).toBe(true);
     const sillok = content.sources.filter((s) => s.sources?.some((r) => r.url.includes('sillok.history.go.kr')));
     expect(sillok.length).toBeGreaterThanOrEqual(3);
     expect(content.apps.map((a) => a.app)).toEqual(['work', 'viewer', 'db', 'messenger']);
-    expect(content.assignments[0]!.checklist.map((i) => i.title)).toEqual(['장소 대조', '인물 대조', '시각 대조', '판정']);
+    expect(content.workShifts.map((w) => [w.no, w.newRules.length])).toEqual([
+      [1, 3],
+      [2, 1],
+      [3, 1],
+    ]);
+    expect(content.cases.filter((c) => c.kind === 'routine').length).toBeGreaterThanOrEqual(11);
   });
 
   it('keeps every verified quote line traceable to HISTORICAL_SOURCES.md', () => {
@@ -31,6 +39,18 @@ describe('episode 1 content — registry', () => {
     for (const npc of content.npcs)
       for (const l of npc.dialogue.filter((x) => x.provenance === 'verified'))
         expect(historicalSourcesDoc.includes(strip(l.text)), `${npc.id}#${l.id}`).toBe(true);
+  });
+
+  it('every routine card is the verified 국역 sentence from HISTORICAL_SOURCES; the distortion is a different word', () => {
+    const norm = (t: string) => t.replace(/\s+/g, '');
+    const doc = norm(historicalSourcesDoc);
+    for (const c of content.cases.filter((x) => x.kind === 'routine')) {
+      expect(doc.includes(norm(originalText(c))), `${c.id}: ${originalText(c)}`).toBe(true);
+      expect(c.record!.sources.every((r) => r.url.startsWith('https://sillok.history.go.kr/') || r.url.startsWith('https://encykorea'))).toBe(true);
+      for (const r of c.record!.sources) expect(doc.includes(norm(r.url.replace('https://sillok.history.go.kr/id/', ''))), r.url).toBe(true);
+      const d = c.record!.distortion;
+      if (d) expect(recordSegments(c).find((x) => x.id === d.segmentId)!.text).not.toBe(d.text);
+    }
   });
 
   it('does not place the 탁영금 (or any zither) in the past scene', () => {
@@ -60,7 +80,7 @@ describe('episode 1 content — registry', () => {
       ...content.messages.filter((m) => m.provenance !== 'verified').map((m) => m.text),
       ...content.closedReports.map((c) => c.note),
       ...content.clues.map((c) => c.text + c.label),
-      ...content.assignments.flatMap((a) => a.checklist.map((i) => i.prompt)),
+      ...content.cases.flatMap((c) => Object.values(c.explain ?? {})),
     ];
     for (const t of modern) expect(t).not.toMatch(/졸/);
   });
@@ -73,12 +93,11 @@ describe('episode 1 content — matches the approved first ten minutes', () => {
     expect(a.code).toBe('#C-2217');
     expect(a.officer).toBe('대조관 07');
     expect(a.detection).toBe('좌표 #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건에서 자동 탐지');
-    expect(a.header.map((h) => `${h.label} ${h.value}`)).toEqual(['일시 ####', '장소 미확인(참조: 「『성종실록』 편찬 실록청」)']);
+    expect(a.header.map((h) => `${h.label} ${h.value}`)).toEqual(['일시 ####', '장소 미확인(기록상: 『성종실록』 편찬 실록청)']);
     // 남은 참조 수 같은 계기판은 없다
     expect(JSON.stringify(content.assignments)).not.toMatch(/참조 수렴|사맥|기록선/);
-    expect(a.checklist[3]!.final!.recommendButton).toBe('일치(노이즈)');
     expect(content.messages.some((m) => m.from === '오 실장')).toBe(true);
-    for (const t of ['#C-2217', '대조관 07', '오 실장', '노이즈 판정 권장', '종결된 보고서', a.detection]) expect(narrative).toContain(t);
+    for (const t of ['#C-2217', '대조관 07', '오 실장', '종결된 보고서', a.detection]) expect(narrative).toContain(t);
   });
 
   it('hearing moments sit at the approved minutes', () => {
@@ -100,8 +119,30 @@ describe('episode 1 content — matches the approved first ten minutes', () => {
   it('the year-old report and 오 실장 lines are the approved wording (졸 → 사망)', () => {
     const prev = content.closedReports.find((c) => c.id === 'cr_c2217_prev')!;
     expect(narrative).toContain(prev.note);
-    for (const id of ['m_chief_02', 'm_chief_03', 'm_chief_03b', 'm_chief_04', 'm_chief_05'])
+    for (const id of ['m_chief_03b', 'm_chief_05'])
       expect(narrative).toContain(content.messages.find((m) => m.id === id)!.text);
+  });
+});
+
+describe('v4 shift 1 — matches the approved shift-1 narrative (with §10 corrections)', () => {
+  const doc = shift1Doc.replace(/\s+/g, ' ');
+  const q = content.workShifts[0]!.queue.map((id) => content.cases.find((c) => c.id === id)!);
+  it('five cards in the approved order and kinds; goal 5', () => {
+    expect(q.map((c) => c.code)).toEqual(['#A-0412', '#A-0419', '#A-0423', '#A-0431', '#C-2217']);
+    expect(q.map((c) => c.expected.join('/'))).toEqual(['confirm', 'correct', 'confirm', 'correct', 'mismatch/auto_close']);
+    expect(content.workShifts[0]!.goal).toBe(5);
+    for (const c of q) expect(doc).toContain(c.code);
+  });
+  it('approved lines and the C-2217 card wording', () => {
+    const msg = (id: string) => content.messages.find((m) => m.id === id)!.text;
+    for (const id of ['m_me_nomemory', 'm_chief_warn2', 'm_chief_drawer']) expect(doc).toContain(msg(id));
+    const c = q[4]!;
+    expect(doc).toContain('이 지점을 가리키는 기록 3건에서 자동 탐지');
+    expect(c.detection).toContain('이 지점을 가리키는 기록 3건에서 자동 탐지');
+    expect(c.recommend).toContain('대조할 기록 없음 → 장비 오류로 자동 종결');
+    const line = (id: string) => findLine(content.npcs, id)!.line.text;
+    expect(doc).toContain(line('a0419_l1').replace(/^…/, ''));
+    expect(doc).toContain(line('a0423_l1'));
   });
 });
 
@@ -154,12 +195,32 @@ describe('episode 1 content — maps & walkability', () => {
     }
   });
 
+  it('case vignettes stand on free floor of their diorama (not on a decoration, inside the walls)', () => {
+    for (const tl of content.timelines.filter((t) => t.sceneId !== 'obs001')) {
+      const d = DIORAMAS[tl.sceneId as keyof typeof DIORAMAS];
+      expect(d, `${tl.id} scene ${tl.sceneId}`).toBeDefined();
+      const taken = new Set(d.objects.filter((o) => !o.flat).map((o) => tileKey(Math.round(o.x), o.y)));
+      for (const h of tl.hotspots.filter((x) => x.kind === 'npc')) {
+        const npc = content.npcs.find((n) => n.id === h.targetId)!;
+        for (const w of npc.schedule) {
+          expect(isWalkableTile(d, w.x, w.y), `${npc.id} (${w.x},${w.y}) walkable`).toBe(true);
+          expect(taken.has(tileKey(w.x, w.y)), `${npc.id} (${w.x},${w.y}) on decoration`).toBe(false);
+        }
+      }
+    }
+    for (const tl of content.timelines.filter((t) => t.sceneId === 'obs001' && t.id !== 'tl_obs001'))
+      for (const h of tl.hotspots) {
+        const npc = content.npcs.find((n) => n.id === h.targetId)!;
+        for (const w of npc.schedule) expect(isWalkableTile(MAPS.obs001, w.x, w.y)).toBe(true);
+      }
+  });
+
   it('places objects on distinct tiles and uses semantic sprite keys', () => {
     const allowed = new Set([
       'obj_desk_writing', 'obj_books_stack', 'obj_bookshelf', 'obj_sacho_bundle', 'obj_lamp', 'obj_screen',
       'obj_chest', 'obj_jar', 'obj_brazier', 'obj_signboard', 'obj_well', 'obj_lab_desk', 'obj_lab_shelf',
       'obj_display_case', 'obj_db_console', 'obj_observe_chair', 'obj_plant', 'npc_official_red',
-      'npc_official_blue', 'npc_official_green', 'npc_historian', 'npc_clerk', 'npc_servant', 'door',
+      'npc_official_blue', 'npc_official_green', 'npc_historian', 'npc_clerk', 'npc_servant', 'door', 'char_naegwan',
     ]);
     const seen = new Set<string>();
     for (const o of content.worldObjects) {
@@ -180,7 +241,8 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
     if (o.hiddenText) pastTexts.push([o.id, o.hiddenText]);
     o.grants?.terms?.forEach((t) => pastTexts.push([`${o.id}:term`, t]));
   }
-  for (const n of content.npcs.filter((x) => x.sceneId === 'obs001')) {
+  const c2217Npcs = new Set(content.timelines.find((t) => t.id === 'tl_obs001')!.hotspots.map((h) => h.targetId));
+  for (const n of content.npcs.filter((x) => c2217Npcs.has(x.id))) {
     pastTexts.push([n.id, n.label]);
     for (const l of n.dialogue) {
       pastTexts.push([`${n.id}#${l.id}`, `${l.speaker ?? ''} ${l.text}`]);
@@ -191,10 +253,8 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
   for (const c of content.clues.filter((x) => x.frame)) pastTexts.push([c.id, `${c.label} ${c.text}`]);
   OBSERVATION_HUD.forEach((t) => pastTexts.push(['hud', t]));
   for (const t of content.timelines) pastTexts.push([t.id, t.title], ...t.meta.map((m): [string, string] => [t.id, `${m.label} ${m.value}`]));
-  for (const a of content.assignments) {
-    pastTexts.push([a.id, [a.title, ...a.header.map((h) => h.value), ...a.refs.map((r) => r.title)].join(' ')]);
-    for (const i of a.checklist) pastTexts.push([i.id, [i.prompt, i.refLabel, i.notReadyText, i.wrongText ?? ''].join(' ')]);
-  }
+  for (const a of content.assignments) pastTexts.push([a.id, [a.title, ...a.header.map((h) => h.value), ...a.refs.map((r) => r.title)].join(' ')]);
+  for (const c of content.cases.filter((x) => x.kind !== 'routine')) pastTexts.push([c.id, [c.title, c.detection, c.recommend, c.notReadyText].join(' ')]);
   for (const m of content.messages.filter((x) => x.hint)) pastTexts.push([m.id, m.text]);
 
   it('collects a meaningful amount of past-scene text', () => {
@@ -202,7 +262,7 @@ describe('episode 1 content — past-scene text never dates the scene', () => {
   });
 
   it.each(pastTexts)('%s: %s', (id, text) => {
-    for (const re of DATING) expect(text.replace(/#C-\d{4}/g, ''), id).not.toMatch(re);
+    for (const re of DATING) expect(text.replace(/#[A-Z]-\d{4}/g, ''), id).not.toMatch(re);
   });
 
   it('never names 이극돈 in the past scene or before identification', () => {

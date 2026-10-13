@@ -139,16 +139,23 @@ export interface ShownSegment extends CaseSegment {
 /** 원문(검증된 문장) */
 export const originalText = (c: CaseDef): string => (c.record?.segments ?? []).map((s) => s.text).join('');
 
-/** 카드에 보이는 조각. restored 이면 원문 그대로. */
+/** 기록 카드의 짚을 수 있는 모든 조각(날짜 + 문장) */
+export const recordSegments = (c: CaseDef): CaseSegment[] => [...(c.record?.date ?? []), ...(c.record?.segments ?? [])];
+
+/** 카드에 보이는 조각(날짜 조각 먼저). restored 이면 원문 그대로. */
 export function shownSegments(c: CaseDef, restored = false): ShownSegment[] {
   const d = c.record?.distortion;
-  return (c.record?.segments ?? []).map((s) => {
+  return recordSegments(c).map((s) => {
     const altered = !restored && !!d && d.segmentId === s.id;
     return { ...s, shown: altered ? d!.text : s.text, altered };
   });
 }
 
-export const shownText = (c: CaseDef, restored = false) => shownSegments(c, restored).map((s) => s.shown).join('');
+/** 카드 문장(날짜 제외)의 보이는 글자 */
+export const shownText = (c: CaseDef, restored = false) => {
+  const dateIds = new Set((c.record?.date ?? []).map((x) => x.id));
+  return shownSegments(c, restored).filter((s) => !dateIds.has(s.id)).map((s) => s.shown).join('');
+};
 
 /** 데이터가 정한 정답 도장(검증기가 expected 와 맞는지 본다) */
 export function derivedExpected(c: CaseDef): CaseStamp[] {
@@ -235,10 +242,12 @@ export const NOT_READY = {
   report: '불일치 보고서는 업무의 보고서 양식에서 낸다.',
 } as const;
 
-const DEFAULT_WRONG: Record<'confirm' | 'correct', string> = {
+const DEFAULT_WRONG = {
   confirm: '기록과 관측이 다른 곳이 있었다. 낱말을 하나씩 짚어 보자.',
   correct: '고칠 곳이 없는 기록이었다. 표기가 달라도 뜻이 같으면 확인이다.',
-};
+  /** 변조가 있는 건에서 표기 차이(노랑)를 근거로 정정했다 */
+  wrongWord: '짚은 두 낱말은 표기만 다른 같은 말이었다. 기록과 관측이 정말 다른 곳은 따로 있었다.',
+} as const;
 
 /**
  * 도장 판정(순수). 미완성 조작은 not_ready(경고 없음). 오판·규정 외 도장은 ok + correct:false + warning.
@@ -284,7 +293,7 @@ export function judgeStamp(i: StampInput): StampDecision {
   return {
     status: 'ok',
     correct: ok,
-    warning: ok ? undefined : { reason: c.explain?.correct ?? DEFAULT_WRONG.correct },
+    warning: ok ? undefined : { reason: expected.includes('correct') ? DEFAULT_WRONG.wrongWord : (c.explain?.correct ?? DEFAULT_WRONG.correct) },
     restored: ok,
   };
 }
@@ -338,7 +347,7 @@ export function dutyCounters(d: DutyState, shifts: readonly WorkShift[], cases: 
     warnings: countedWarnings(d).length,
   };
   for (const s of shifts) {
-    const done = s.queue.filter((id) => caseDone(d, id) && cases[id]?.kind !== 'lost');
+    const done = s.queue.filter((id) => caseDone(d, id) && !!cases[id]);
     const processed = done.length;
     out[`processed:${s.id}`] = processed;
     out[`correct:${s.id}`] = done.filter((id) => d.cases[id]?.correct).length;
@@ -356,7 +365,7 @@ export interface ShiftReport {
   dutyId: Id;
   no: number;
   title: string;
-  /** 처리한 기록 건(노이즈 포함, 소실 건 제외) */
+  /** 처리한 건(노이즈·좌표 손상 건 포함) */
   processed: number;
   goal: number;
   goalMet: boolean;

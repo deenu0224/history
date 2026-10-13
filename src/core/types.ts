@@ -663,6 +663,8 @@ export interface CaseRecord {
   citation: string;
   /** 원문을 담은 사료(HistoricalSource) — 있으면 조각을 이은 문장이 그 excerpt 안에 있어야 한다 */
   sourceId?: Id;
+  /** 카드 머리의 월·일 조각(짚을 수 있다, 변조 대상이 될 수 있다). citation 뒤에 붙여 보인다 */
+  date?: CaseSegment[];
   /** 원문 조각. 이어 붙이면 검증된 국역(또는 사전) 문장 그대로. */
   segments: CaseSegment[];
   /** 앞·뒤를 생략했다는 표시(…). 원문 일부만 옮길 때 */

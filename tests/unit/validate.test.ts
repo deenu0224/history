@@ -67,3 +67,47 @@ describe('validator — catches broken content', () => {
     );
   });
 });
+
+describe('validator — v4 근무·건', () => {
+  const caseIn = (c: ContentBundle, id: string) => c.cases.find((x) => x.id === id)!;
+
+  it('fails on shipped placeholders (TODO_VERIFY)', () => {
+    const c = clone();
+    caseIn(c, 'case_a0412').verification = 'TODO_VERIFY';
+    expect(codes(c)).toContain('placeholder_shipped');
+    const d = clone();
+    caseIn(d, 'case_a0419').title = 'TODO_VERIFY 확인 필요';
+    expect(codes(d)).toContain('placeholder_shipped');
+  });
+
+  it('distortion must be pairable, different, and the expected verdict must follow the data', () => {
+    const c = clone();
+    caseIn(c, 'case_a0419').pairs = caseIn(c, 'case_a0419').pairs.filter((p) => p.record !== 'a0419_yi');
+    caseIn(c, 'case_a0412').expected = ['correct'];
+    caseIn(c, 'case_a0431').record!.distortion!.text = '3월';
+    expect(codes(c)).toEqual(expect.arrayContaining(['distortion_unpaired', 'expected_mismatch', 'distortion_same']));
+  });
+
+  it('observed segments must spell the heard line; routine originals need url sources; no year on card heads', () => {
+    const c = clone();
+    caseIn(c, 'case_a0423').observed[0]!.segments[0]!.text = '다른 말';
+    caseIn(c, 'case_a0412').record!.sources = [];
+    caseIn(c, 'case_a0412').record!.citation = '『성종실록』 1494년 12월 24일';
+    expect(codes(c)).toEqual(expect.arrayContaining(['observed_mismatch', 'record_without_source', 'year_leak']));
+  });
+
+  it('warning reasons, rules and the interview never carry the #C-2217 answer; routine hints never name the fix', () => {
+    const c = clone();
+    caseIn(c, 'case_a0423').explain = { correct: '무오년의 일이다.' };
+    c.interviews[0]!.closing[0]!.text = '7월 11일을 봐.';
+    c.messages.find((m) => m.id === 'h_inspect_2')!.text = '이극돈 쪽을 봐.';
+    expect(codes(c).filter((x) => x === 'answer_leak').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('one new rule per shift after the first; queues fit their night without replays', () => {
+    const c = clone();
+    c.workShifts[1]!.newRules.push('rule_5');
+    c.workShifts[2]!.length = 60;
+    expect(codes(c)).toEqual(expect.arrayContaining(['one_rule_per_shift', 'queue_too_long']));
+  });
+});

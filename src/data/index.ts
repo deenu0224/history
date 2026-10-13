@@ -9,6 +9,7 @@
  *  - db/         : 통합 DB 색인·레코드.
  *  - messages/   : 메신저 메시지·힌트 사다리.
  *  - reality/    : 좌표 재계산(소실 진행)·현실 이동(복원).
+ *  - duty/       : v4 근무(밤)·건·규정·면담과 건의 관측 장면(디오라마 타임라인·말하는 인물).
  */
 import { mergeModules } from '@/core/content';
 import type { ContentModule } from '@/core/types';
@@ -27,6 +28,10 @@ import { reports } from './report/report';
 import { assignments } from './work/assignments';
 import { closedReports } from './work/closed';
 import { world } from './world';
+import { cases, caseNpcs, caseTimelines } from './duty/cases';
+import { interviews } from './duty/interview';
+import { rules } from './duty/rules';
+import { workShifts } from './duty/shifts';
 
 export const modules: Record<string, ContentModule> & { historical: ContentModule } = {
   historical,
@@ -38,6 +43,7 @@ export const modules: Record<string, ContentModule> & { historical: ContentModul
   db: { searchEntries, records },
   messages: { messages: [...messages, ...hintMessages], hints },
   reality: { corrections, shifts },
+  duty: { workShifts, cases, rules, interviews, timelines: caseTimelines, npcs: caseNpcs },
 };
 
 export const content = mergeModules(...Object.values(modules));

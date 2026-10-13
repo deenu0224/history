@@ -52,4 +52,17 @@ export const REF = {
     'kja_10407026_004',
   ),
   sillokProclaim: sillok('『연산군일기』 연산 4년 7월 27일 「김일손 등을 벤 것을 종묘 사직에 알리고…」', 'kja_10407027_001'),
+  // v4 근무 사례(HISTORICAL_SOURCES §10)
+  sillokSeongjongIll: sillok('『성종실록』 성종 25년 12월 24일 (종재·시신 문안)', 'kia_12512024_001'),
+  sillokCompleted: sillok('『연산군일기』 연산 5년 3월 10일 (『성종실록』 완성, 수찬 당상·낭청 사급)', 'kja_10503010_002'),
+  sillokEnshrined: sillok('『연산군일기』 연산 5년 3월 15일 (외방 사고 봉안)', 'kja_10503015_001'),
+  sillokSagwanAttend: sillok('『연산군일기』 연산 1년 3월 19일 (승지와 사관이 참석하여 들어야 함)', 'kja_10103019_001'),
+  sillokAccession: sillok('『연산군일기』 연산 즉위년 12월 29일 (대보, 창덕궁 즉위)', 'kja_10012029_004'),
+  sillokReward: sillok('『연산군일기』 연산 3년 12월 21일 (실록청 총재관·당상 하사)', 'kja_10312021_001'),
+  sillokMourning: sillok('『연산군일기』 연산 즉위년 12월 26일 (빈전 도감 제조 이극돈의 아룀)', 'kja_10012026_003'),
+  sillokSagwanBarred: sillok('『연산군일기』 연산 3년 8월 1일 (사관은 참예하지 말라)', 'kja_10308001_003'),
+  sillokKimIlsonMemorial: sillok('『연산군일기』 연산 1년 5월 28일 (충청도 도사 김일손의 상소)', 'kja_10105028_005'),
+  sillokKimIlsonHeonnap: sillok('『연산군일기』 연산 1년 10월 9일 (헌납 김일손의 아룀)', 'kja_10110009_002'),
+  sillokBurnSacho: sillok('『연산군일기』 연산 4년 7월 28일 (사초를 불살라 버려라)', 'kja_10407028_003'),
+  sillokYiYukPosthumous: sillok('『연산군일기』 연산 5년 1월 24일 (실록청 당상 이육의 사후 처분)', 'kja_10501024_002'),
 } as const satisfies Record<string, SourceRef>;

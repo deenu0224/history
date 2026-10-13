@@ -1,7 +1,7 @@
 /**
  * 불일치 보고서(4칸) — 좌표 #C-2217. 칸마다 첨부 1~2개(프레임 또는 DB 기록). 판정은 core/report.ts.
  *  - 정답은 여기(데이터)에만. 피드백 문구에는 정답 연도·인물 이름·사건 이름을 쓰지 않는다(테스트).
- *  - 보정(corr_dawn) 뒤에 열린다. 네 칸이 모두 확인되면 도장 → shift_c2217.
+ *  - 근무 3 에 열린다(위원회 직송 — 규정 5조 위반 경고장이 나오지만 복원되면 '해당 없음'). 네 칸이 모두 확인되면 도장 → shift_c2217.
  */
 import type { ReportSpec } from '@/core/types';
 import { FACT } from '@/data/historical/facts';
@@ -15,7 +15,7 @@ export const reports: ReportSpec[] = [
     assignmentId: 'as_c2217',
     title: '불일치 보고서 — 좌표 #C-2217',
     maxAttachments: 2,
-    unlockWhen: { corrections: ['corr_dawn'] },
+    unlockWhen: { duties: ['duty_3'] },
     restores: 'shift_c2217',
     when: {
       label: '언제',

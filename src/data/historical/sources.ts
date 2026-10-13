@@ -119,4 +119,14 @@ export const sources: HistoricalSource[] = [
     sources: [REF.jouijemun],
     relatedIds: ['per_kim_jongjik', 'per_kim_ilson', 'evt_muo_sahwa'],
   },
+  {
+    id: 'src_burn_order',
+    provenance: V,
+    title: '『연산군일기』 연산 4년 7월 28일 기사',
+    summary: '실록청에 김종직·권오복·김일손·권경유 등의 사초를 불살라 버리라고 전교한 기사. 실제로 집행되었는지는 이 기사에 없다.',
+    excerpt: '실록청(實錄廳)에 전교하기를, "김종직·권오복·김일손·권경유 등의 사초(史草)는 다 곧 불살라 버려라." 하였다.',
+    sources: [REF.sillokBurnSacho],
+    glossary: [GLOSS.sacho, GLOSS.sillokcheong],
+    relatedIds: ['src_sacho_order'],
+  },
 ];

@@ -24,6 +24,7 @@ export const shifts: RealityShift[] = [
       { kind: 'source', id: 'src_house_search' },
       { kind: 'source', id: 'src_verdict' },
       { kind: 'source', id: 'src_proclaim' },
+      { kind: 'source', id: 'src_burn_order' },
       { kind: 'event', id: 'evt_muo_sahwa' },
       { kind: 'record', id: 'rec_alt_kim_ilson' },
       { kind: 'record', id: 'rec_alt_kwon_obok' },
@@ -43,7 +44,14 @@ export const shifts: RealityShift[] = [
     // 종결 보고서는 관측기 시스템 로그라 소실·복원의 영향을 받지 않는다 — 그대로 '관측 오류 · 해당 기사 없음'이 남는다(부재의 증거).
     clearDegraded: true,
     searchRewrites: [
-      { entryId: 'se_order', results: [{ kind: 'source', id: 'src_sacho_order' }, { kind: 'source', id: 'src_house_search' }] },
+      {
+        entryId: 'se_order',
+        results: [
+          { kind: 'source', id: 'src_sacho_order' },
+          { kind: 'source', id: 'src_house_search' },
+          { kind: 'source', id: 'src_burn_order' },
+        ],
+      },
       { entryId: 'se_jikpil', results: [{ kind: 'source', id: 'src_sacho_order' }] },
       {
         entryId: 'se_muo',
@@ -58,6 +66,7 @@ export const shifts: RealityShift[] = [
         entryId: 'se_kim_ilson',
         results: [
           { kind: 'record', id: 'rec_alt_kim_ilson' },
+          { kind: 'record', id: 'rec_kim_ilson_posts' },
           { kind: 'person', id: 'per_kim_ilson' },
           { kind: 'source', id: 'src_verdict' },
           { kind: 'artifact', id: 'art_takyeong' },
@@ -74,11 +83,16 @@ export const shifts: RealityShift[] = [
       },
     ],
     messageRewrites: [
-      { messageId: 'm_chief_02', newText: '07, 그거 무오사화 7월 11일 좌표잖아. 교과서 건이야. 깔끔하게 했더라.' },
+      // 근무 1 의 오 실장(서랍 도장) — 복원된 현실에서 그 좌표는 교과서 건이다
+      { messageId: 'm_chief_drawer', newText: '07, 그거 무오사화 7월 11일 좌표잖아. 교과서 건이야. 서랍 도장은 왜 꺼냈어?' },
       { messageId: 'm_chief_02n', newText: '07, 그거 무오사화 7월 11일 좌표잖아. 교과서 건이야. 깔끔하게 했더라.' },
       { messageId: 'm_chief_05', newText: '재계산 로그 깨끗하더라. 흐린 구간 없음. 수고했어.' },
       { messageId: 'm_senior_01', newText: '07, 밤샜어? 무오사화 좌표 대조라며. 그거 신입 연습용인데.' },
+      { messageId: 'm_senior_s2_1', newText: '07, 어제 무오사화 좌표 맡았다며. 신입 때 생각나네.' },
     ],
+    // 위원회 승인 건: 규정 5조 위반 경고장이 '해당 없음'으로 다시 쓰인다(복원된 현실에서는 재판정이 아니었다)
+    voidWarnings: [{ ruleId: 'rule_5', text: '해당 없음 — 복원심의위원회 승인 건' }],
+    caseRewrites: [{ caseId: 'case_c2217_re', detection: '좌표 #C-2217 · 연산군 4년 7월 11일 · 복원심의위원회 승인' }],
     recordRewrites: [
       {
         recordId: 'rec_alt_kim_ilson',

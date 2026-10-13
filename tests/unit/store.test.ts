@@ -1,22 +1,32 @@
 import { clear } from 'idb-keyval';
 import { loadGame } from '@/core/save';
 import { checkState } from '@/core/terminal';
+import { findLine } from '@/core/observation';
+import { recordSegments } from '@/core/duty';
 import {
   conditionState,
   createGameStore,
   enableAutosave,
-  selectApps,
   selectAssignment,
+  selectCaseCard,
+  selectCaseLedger,
   selectClosedReports,
+  selectDesk,
   selectFrames,
   selectInbox,
+  selectInterview,
+  selectObservationRange,
   selectRecord,
   selectRecordLedger,
+  selectReplay,
   selectReport,
   selectRewrittenMessages,
+  selectShiftReport,
+  selectVerdictHistory,
   type ViewerSnapshot,
 } from '@/store/gameStore';
 import { content } from '@/data';
+import type { CaseDef } from '@/core/types';
 
 let store = createGameStore(content);
 const s = () => store.getState();
@@ -27,345 +37,521 @@ beforeEach(async () => {
 });
 
 const RED = 'hs_npc_red_official';
+const caseOf = (id: string) => content.cases.find((c) => c.id === id) as CaseDef;
 const snap = (minute: number, heard: string[], visible: string[] = [], zoom = 2): ViewerSnapshot => ({
   minute,
-  centerTile: { x: 19, y: 8 },
+  centerTile: { x: 8, y: 6 },
   zoom,
   visibleHotspotIds: visible,
   heardLineIds: heard,
   thumbDataUrl: '',
 });
-/** 시각을 옮기고, 들리는 대사를 뷰어처럼 알리고, 찍는다 */
-const shoot = (minute: number, heard: string[], visible: string[] = []) => {
-  s().scrubObservation(minute);
-  for (const l of heard) expect(s().hearLine(l)).toBe(true);
-  return s().captureFrame(snap(minute, heard, visible));
-};
-const frameWith = (clue: string) => s().frames.find((f) => f.clueIds.includes(clue))!;
 const inbox = () => s().inbox;
+/** 대사가 들리는 첫 분 */
+const lineMinute = (lineId: string) => findLine(content.npcs, lineId)!.line.at![0]!.from;
 
-/** 첫 10분(NARRATIVE_FIRST10): 배정 → ①~④ → 자동 종결 → DB → 1년 전 보고서 */
-function playFirstTen() {
-  s().openAssignment('as_c2217');
-  expect(s().openApp('viewer')).toBe(true);
+/** 뷰어 흉내: 책상 위 건의 장면을 열고, 관측 대상 대사가 들리는 순간으로 옮겨 듣는다 */
+function observe(caseId: string) {
+  const c = caseOf(caseId);
   expect(s().startObservation()).toBe(true);
-  s().reportView(snap(480, [], ['hs_obs_store_sacho'], 2));
-  expect(s().stampChecklist('ck_place', 'match').status).toBe('stamped');
-  shoot(540, ['r2', 'c1', 'c2'], [RED, 'hs_npc_clerk']);
-  expect(s().stampChecklist('ck_person', 'match').status).toBe('stamped');
-  shoot(730, ['y3']);
-  shoot(850, ['m2']);
-  shoot(850, ['b2', 'b3']);
-  expect(s().stampChecklist('ck_time', 'mismatch').status).toBe('stamped');
-  expect(s().stampChecklist('ck_verdict', 'mismatch').status).toBe('closed');
-  s().search('대내로 들여오라');
-  s().search('김일손');
-  s().openRecord('rec_alt_kim_ilson');
-  expect(s().openClosedReport('cr_c2217_prev')).toBe(true);
+  for (const o of c.observed)
+    if (o.lineId) {
+      s().scrubObservation(lineMinute(o.lineId));
+      expect(s().hearLine(o.lineId)).toBe(true);
+    }
+}
+/** 변조 낱말과 짝의 관측 낱말 */
+function distortedPair(c: CaseDef) {
+  const d = c.record!.distortion!;
+  const p = c.pairs.find((x) => x.record === d.segmentId)!;
+  return [d.segmentId, p.observed] as const;
+}
+function notationPair(c: CaseDef) {
+  const p = c.pairs.find((x) => x.notation)!;
+  return [p.record, p.observed] as const;
+}
+/** 정답대로 한 건을 처리한다(관측 → 짚기 → (근거 프레임) → 도장) */
+function playCase(caseId: string) {
+  expect(s().nextCase()).toMatchObject({ status: 'loaded', caseId });
+  const c = caseOf(caseId);
+  if (c.kind === 'routine') {
+    observe(caseId);
+    if (c.record!.distortion) {
+      const [rec, obs] = distortedPair(c);
+      expect(s().inspect(rec, obs)).toMatchObject({ status: 'linked', relation: 'differs' });
+      if (selectCaseCard(s(), caseId)!.needsFrame) {
+        expect(s().stampCase('correct').status).toBe('not_ready');
+        const line = c.observed.find((o) => o.segments.some((x) => x.id === obs))!.lineId!;
+        const cap = s().captureFrame(snap(lineMinute(line), [line]));
+        expect(cap).toMatchObject({ target: 'case', status: 'captured' });
+      }
+      const r = s().stampCase('correct');
+      expect(r).toMatchObject({ status: 'stamped', correct: true });
+      expect(r.warning).toBeUndefined();
+      expect(r.restored!.text).toBe(c.record!.segments.map((x) => x.text).join(''));
+    } else {
+      const r = s().stampCase('confirm');
+      expect(r).toMatchObject({ status: 'stamped', correct: true });
+    }
+  } else if (c.kind === 'noise') {
+    expect(s().startObservation()).toBe(true);
+    s().scrubObservation(c.readyWhen!.reached!.minute);
+    expect(s().stampCase('auto_close')).toMatchObject({ status: 'stamped', correct: true });
+  }
 }
 
-describe('v3 — first ten minutes', () => {
-  it('boots into 업무 + 메신저 with the assignment and 오 실장', () => {
-    expect(selectApps(s())).toEqual(['work', 'messenger']);
-    expect(inbox()).toEqual(['m_sys_login', 'm_sys_assign', 'm_chief_01']);
-    const a = selectAssignment(s(), 'as_c2217')!;
-    expect(a.header.map((h) => h.value)).toEqual(['####', '미확인(참조: 「『성종실록』 편찬 실록청」)']);
-    expect(a.assignment.detection).toContain('이 지점을 가리키는 기록 3건에서 자동 탐지');
-    expect(a.assignment.code).toBe('#C-2217');
-    expect(s().openApp('viewer')).toBe(false);
-    expect(s().openApp('db')).toBe(false);
-    expect(s().search('김일손').status).toBe('locked');
+/** 근무 1 정답 플레이(승인 시안): 네 건 → #C-2217 하루 관측 → 서랍의 불일치 → 판정 이력 */
+function playShift1(drawer = true) {
+  expect(s().startDuty('duty_1').status).toBe('started');
+  for (const id of ['case_a0412', 'case_a0419', 'case_a0423', 'case_a0431']) playCase(id);
+  expect(s().nextCase()).toMatchObject({ status: 'loaded', caseId: 'case_c2217' });
+  expect(s().startObservation()).toBe(true);
+  expect(s().stampCase('auto_close').status).toBe('not_ready'); // 하루를 끝까지 보기 전
+  s().scrubObservation(850);
+  expect(s().hearLine('m2')).toBe(true);
+  const r = s().stampCase(drawer ? 'mismatch' : 'auto_close');
+  expect(r.status).toBe('stamped');
+  expect(r.autoClassification).toBe('자동 분류: 관측 오류(장비 노이즈) · 종결');
+  return r;
+}
+
+/** 근무 2: 규정 4조 + 종결 건 재생(14~17시 한 구간) + DB */
+function playShift2(replayWindows = ['rw_14']) {
+  expect(s().startDuty('duty_2').status).toBe('started');
+  playCase('case_a0501');
+  for (const w of replayWindows) {
+    const rr = s().openReplay(w);
+    expect(rr.status).toBe('opened');
+    expect(rr.warning).toBeUndefined(); // 근무 2 에는 규정 5조가 없다
+    if (w === 'rw_14') {
+      s().scrubObservation(850);
+      s().hearLine('m2');
+      expect(s().captureFrame(snap(850, ['m2'])).target).toBe('film');
+      s().hearLine('c3');
+      s().captureFrame(snap(860, ['c3'], [RED, 'hs_npc_clerk']));
+      s().scrubObservation(1000);
+      s().hearLine('b5');
+      s().captureFrame(snap(1000, ['b5'], ['hs_npc_blue_official']));
+    }
+    s().endObservation();
+  }
+  s().search('김일손');
+  s().openRecord('rec_alt_kim_ilson');
+  s().search('이극돈');
+  s().openRecord('rec_alt_yi_geukdon');
+  for (const id of ['case_a0502', 'case_a0503', 'case_a0504', 'case_a0505']) {
+    if (selectDesk(s()).nextLoadable !== id) break;
+    playCase(id);
+  }
+}
+
+function fileReport() {
+  const frameWith = (clue: string) => s().frames.find((f) => f.clueIds.includes(clue))!;
+  const fr = (clue: string) => ({ kind: 'frame' as const, id: frameWith(clue).id });
+  const rec = (id: string) => ({ kind: 'record' as const, id });
+  expect(selectReport(s())!.unlocked).toBe(true);
+  s().attach('when', fr('cl_alive'));
+  s().attach('when', rec('rec_alt_kim_ilson'));
+  s().setYear(1498, 1498);
+  s().attach('who', rec('rec_alt_yi_geukdon'));
+  s().attach('who', fr('cl_veteran'));
+  s().attach('what', fr('cl_order'));
+  s().attach('result', fr('cl_order'));
+  s().attach('result', rec('rec_alt_kim_ilson'));
+  const r = s().submitReport()!;
+  expect(Object.values(r.blanks).map((b) => b.verdict)).toEqual(['confirmed', 'confirmed', 'confirmed', 'confirmed']);
+  return s().stampReport();
+}
+
+describe('v4 — 근무 1 (승인 시안)', () => {
+  it('starts on the desk with two stamps and the base rules; no year anywhere on the cards', () => {
+    expect(selectDesk(s()).nextDutyId).toBe('duty_1');
+    expect(s().startDuty('duty_2').status).toBe('locked');
+    s().startDuty('duty_1');
+    const d = selectDesk(s());
+    expect(d.shift!.goal).toBe(5);
+    expect(d.rules.map((r) => r.rule.no)).toEqual([1, 2, 3]);
+    expect(d.shutter).toBe(false);
+    expect(d.clock).toBe('23:04');
+    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_login', 'm_chief_01']));
+    for (const c of content.cases) expect(JSON.stringify(selectCaseCard(s(), c.id)!.citation ?? '')).not.toMatch(/\d{4}/);
   });
 
-  it('① 장소 대조: needs a zoomed look; the wrong stamp is free', () => {
-    s().openAssignment('as_c2217');
+  it('A-0412: needs observation first, then 확인; the 훙/승하 pair is a notation difference', () => {
+    s().startDuty('duty_1');
+    s().nextCase();
+    expect(s().stampCase('confirm')).toMatchObject({ status: 'not_ready' });
+    expect(s().duty.warnings).toEqual([]); // 미완성 조작에는 경고가 없다
+    observe('case_a0412');
+    expect(s().inspect('a0412_died', 'a0412o_died')).toMatchObject({ relation: 'notation', message: '표기 차이 — 판단은 대조관' });
+    expect(s().inspect('a0412_place', 'a0412o_place').relation).toBe('none');
+    expect(s().inspect('a0412_osi', 'a0412o_place').relation).toBe('none');
+    const r = s().stampCase('confirm');
+    expect(r).toMatchObject({ status: 'stamped', correct: true });
+    expect(selectCaseCard(s(), 'case_a0412')!.impression).toMatchObject({ label: '확인', engraving: '07' });
+    expect(selectDesk(s()).clock).toBe('23:44');
+  });
+
+  it('A-0419: 정정 requires linking the differing word; restores the verified original', () => {
+    s().startDuty('duty_1');
+    playCase('case_a0412');
+    s().nextCase();
+    expect(selectCaseCard(s(), 'case_a0419')!.segments.find((x) => x.altered)!.shown).toBe('유자광(柳子光)');
+    observe('case_a0419');
+    expect(s().stampCase('correct')).toMatchObject({ status: 'not_ready' });
+    expect(s().inspect('a0419_yi', 'a0419o_yi').relation).toBe('differs');
+    const r = s().stampCase('correct');
+    expect(r).toMatchObject({ status: 'stamped', correct: true });
+    expect(r.restored!.text).toBe('왕이 어세겸(魚世謙)·이극돈(李克墩) 등에게 명하여 (대행왕의 《실록》을) 편찬하게 하였다.');
+    expect(r.restored!.sources[0]!.url).toContain('kja_10104019_002');
+    const card = selectCaseCard(s(), 'case_a0419')!;
+    expect(card.restored).toBe(true);
+    expect(card.segments.some((x) => x.altered)).toBe(false);
+  });
+
+  it('A-0423 trap: 정정 on the yellow pair → warning 1 with an educational reason; still processed', () => {
+    s().startDuty('duty_1');
+    playCase('case_a0412');
+    playCase('case_a0419');
+    s().nextCase();
+    observe('case_a0423');
+    const [rec, obs] = notationPair(caseOf('case_a0423'));
+    expect(s().inspect(rec, obs).relation).toBe('notation');
+    const r = s().stampCase('correct');
+    expect(r).toMatchObject({ status: 'stamped', correct: false });
+    expect(r.warning!.reason).toContain('성종');
+    expect(r.warning!.reason).toContain('같은 내용');
+    expect(s().recentSlips).toHaveLength(1);
+    expect(selectDesk(s()).slips).toHaveLength(1);
+    expect(s().duty.suspended).toBe(false);
+  });
+
+  it('full shift 1: the drawer stamp, auto-close overlay, verdict history with the faded 07, 오 실장', () => {
+    playShift1();
+    expect(s().duty.warnings.map((w) => w.ruleId)).toEqual(['rule_3']);
+    const hist = selectVerdictHistory(s());
+    expect(hist.map((h) => [h.when, h.impression.label, h.impression.faded ?? false])).toEqual([
+      ['오늘', '불일치', false],
+      ['1년 전', '불일치', true],
+    ]);
+    expect(hist.every((h) => h.impression.engraving === '07')).toBe(true);
+    expect(s().openClosedReport(hist[1]!.closedReportId!)).toBe(true);
+    expect(inbox()).toEqual(expect.arrayContaining(['m_me_nomemory', 'm_chief_warn1', 'm_chief_drawer', 'm_chief_03b', 'm_sys_db']));
+    expect(selectInbox(s()).find((i) => i.message.id === 'm_me_nomemory')!.message.text).toBe('나는 이 도장을 찍은 기억이 없다.');
+    expect(selectDesk(s()).canEnd).toBe(true);
+    const end = s().endDuty();
+    expect(end.status).toBe('ended');
+    expect(end.report).toMatchObject({ processed: 5, goal: 5, goalMet: true, warnings: 1 });
+    expect(end.report!.line).toBe('첫날부터 서랍을 열었네. …내일 보자.');
+  });
+
+  it('approved wording: with the trap mistake the drawer stamp is warning 2 → "07. 경고 두 개야."', () => {
+    s().startDuty('duty_1');
+    playCase('case_a0412');
+    playCase('case_a0419');
+    s().nextCase();
+    observe('case_a0423');
+    s().inspect(...notationPair(caseOf('case_a0423')));
+    s().stampCase('correct');
+    playCase('case_a0431');
+    s().nextCase();
     s().startObservation();
-    expect(s().stampChecklist('ck_place', 'match').status).toBe('not_ready');
-    s().reportView(snap(480, [], ['hs_obs_store_sacho'], 1));
-    expect(s().stampChecklist('ck_place', 'match').status).toBe('not_ready');
-    s().reportView(snap(480, [], ['hs_obs_store_sacho'], 1.6));
-    expect(s().stampChecklist('ck_place', 'mismatch').status).toBe('wrong');
-    expect(s().stampChecklist('ck_place', 'match').status).toBe('stamped');
-    expect(s().stampChecklist('ck_place', 'match').status).toBe('already');
+    s().scrubObservation(1030);
+    s().stampCase('mismatch');
+    s().openClosedReport('cr_c2217_prev');
+    expect(inbox()).toContain('m_chief_warn2');
+    expect(inbox()).not.toContain('m_chief_warn1');
+    expect(selectShiftReport(s(), 'duty_1')).toMatchObject({ warnings: 2, correct: 4, processed: 5 });
   });
 
-  it('② 엿듣기 + 캡처: a frame must hold the 당상 and his voice', () => {
-    s().openAssignment('as_c2217');
-    s().startObservation();
-    s().scrubObservation(500);
-    expect(s().hearLine('r2')).toBe(false); // 08:40 전
-    s().scrubObservation(530);
-    expect(s().hearLine('r2')).toBe(true);
-    expect(s().hearLine('m2')).toBe(false); // 아직 오지 않은 전교
-    // 들리지 않는 시각의 대사는 프레임에 들어가지 않는다
-    const fake = s().captureFrame(snap(530, ['m2'], [RED]));
-    expect(fake.frame!.heardLineIds).toEqual([]);
-    expect(s().stampChecklist('ck_person', 'match').status).toBe('not_ready');
-    const real = s().captureFrame(snap(530, ['r2'], [RED]));
-    expect(real.newClues).toEqual(['cl_dangsang']);
-    expect(s().stampChecklist('ck_person', 'match').status).toBe('stamped');
-    expect(s().terms).toEqual([]); // r2 는 칩이 없다
-  });
-
-  it('③ 시각 대조 needs the 14:00 전교; ④ 불일치 needs a frame; auto-dismissal follows', () => {
-    s().openAssignment('as_c2217');
-    s().startObservation();
-    s().reportView(snap(480, [], ['hs_obs_hall_manuscript'], 2));
-    s().stampChecklist('ck_place', 'match');
-    shoot(540, ['r2'], [RED]);
-    s().stampChecklist('ck_person', 'match');
-    s().scrubObservation(660);
-    const nr = s().stampChecklist('ck_time', 'mismatch');
-    expect(nr.status).toBe('not_ready');
-    expect(nr.message).toContain('확인한 시간대');
-    s().scrubObservation(850);
-    s().hearLine('m2');
-    expect(s().terms).toEqual(expect.arrayContaining(['대내로 들여오라', '김일손']));
-    expect(s().stampChecklist('ck_time', 'match').status).toBe('wrong');
-    expect(s().stampChecklist('ck_time', 'mismatch').status).toBe('stamped');
-    const v = s().stampChecklist('ck_verdict', 'mismatch');
-    expect(v).toMatchObject({ status: 'not_ready', message: '불일치 판정에는 근거 프레임이 필요하다.' });
-    s().captureFrame(snap(850, ['m2']));
-    const closed = s().stampChecklist('ck_verdict', 'mismatch', '14시 전교');
-    expect(closed).toEqual({ status: 'closed', autoClassification: '자동 분류: 관측 오류(장비 노이즈) · 종결' });
-    expect(selectAssignment(s(), 'as_c2217')!.closure).toMatchObject({ verdict: 'mismatch', shownLabel: '불일치', note: '14시 전교' });
-    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_closed', 'm_chief_02', 'm_chief_03', 'm_sys_db']));
-    expect(inbox()).not.toContain('m_chief_02n');
-    expect(selectApps(s())).toContain('db');
-  });
-
-  it('choosing 일치(노이즈) also closes — same road, different words', () => {
-    s().openAssignment('as_c2217');
-    s().startObservation();
-    s().reportView(snap(480, [], ['hs_obs_store_sacho'], 2));
-    s().stampChecklist('ck_place', 'match');
-    shoot(540, ['r2'], [RED]);
-    s().stampChecklist('ck_person', 'match');
-    s().scrubObservation(850);
-    s().hearLine('m2');
-    s().stampChecklist('ck_time', 'mismatch');
-    expect(s().stampChecklist('ck_verdict', 'match').status).toBe('closed');
-    expect(inbox()).toContain('m_chief_02n');
-  });
-
-  it('DB: the heard order has no article; 김일손 has no cause; the year-old report is mine', () => {
-    playFirstTen();
-    const order = s().lastSearch;
-    expect(s().search('대내로 들여오라')).toMatchObject({ status: 'no_article', message: '해당 기사 없음.' });
-    void order;
-    const r = selectRecord(s(), 'rec_alt_kim_ilson')!;
-    const f = Object.fromEntries(r.fields.map((x) => [x.label, x.value]));
-    expect(f).toMatchObject({ 사인: '기록 없음', '같은 달 사망': '권오복, 권경유 (사인 기록 없음)' });
-    expect(JSON.stringify(r)).not.toContain('졸');
-    const list = selectClosedReports(s());
-    expect(list.map((x) => x.id)).toEqual(['as_c2217', 'cr_c2217_prev']);
-    expect(list[1]).toMatchObject({ code: '#C-2217', when: '1년 전', officer: '대조관 07', classification: '관측 오류 · 종결' });
-    expect(list[1]!.note).toContain('같은 달 사망한 세 사람');
-    expect(inbox()).toContain('m_chief_04');
-    expect(selectInbox(s()).at(-1)!.message.text).toBe('아직 있어? 새벽 6시에 좌표 재계산 돌아. 그 전에 끝내.');
-    expect(selectFrames(s()).left).toBe(2); // 필름 두 장 남음
-    expect(s().corrections).toEqual([]); // 아직 보정 전
+  it('accepting the auto-close is failure-free: same history hook, 오 실장 agrees', () => {
+    playShift1(false);
+    expect(s().duty.warnings).toEqual([]);
+    s().openClosedReport('cr_c2217_prev');
+    expect(inbox()).toEqual(expect.arrayContaining(['m_me_nomemory', 'm_chief_02n']));
+    expect(selectVerdictHistory(s())[1]!.impression.faded).toBe(true);
   });
 });
 
-describe('v3 — after ten minutes: correction, report, stamp, restoration', () => {
-  it('full tap-only playthrough', () => {
-    playFirstTen();
-    // 남은 두 장: 13시대 서리 귓속말(+붉은 관복), 16시 「살아 있소」
-    shoot(800, ['c3'], [RED, 'hs_npc_clerk']);
-    expect(s().corrections).toEqual([]);
-    shoot(1000, ['b5'], ['hs_npc_blue_official']);
-    // ── 새벽 6시 좌표 재계산: 소실이 진행되어 오후가 흐려진다. 종결 보고서(관측기 로그)는 그대로 ──
+describe('v4 — 근무 2: rule 4 frames and the secret reopen', () => {
+  it('rule 4 adds the shutter; 정정 needs an evidence frame of the differing line', () => {
+    playShift1();
+    s().endDuty();
+    s().startDuty('duty_2');
+    const d = selectDesk(s());
+    expect(d.shutter).toBe(true);
+    expect(d.rules.filter((r) => r.isNew).map((r) => r.rule.id)).toEqual(['rule_4']);
+    s().markRulesRead();
+    expect(selectDesk(s()).rules.some((r) => r.isNew)).toBe(false);
+    s().nextCase();
+    observe('case_a0501');
+    s().inspect(...distortedPair(caseOf('case_a0501')));
+    expect(s().stampCase('correct')).toMatchObject({ status: 'not_ready', message: expect.stringContaining('근거 프레임') });
+    // 다른 말이 안 들리는 순간을 찍으면 근거가 아니다
+    expect(s().captureFrame(snap(845, [])).target).toBe('case');
+    expect(s().stampCase('correct').status).toBe('not_ready');
+    s().captureFrame(snap(860, ['a0501_l1']));
+    expect(selectCaseCard(s(), 'case_a0501')!.frameShows).toEqual(['a0501_ob1']);
+    expect(s().stampCase('correct')).toMatchObject({ status: 'stamped', correct: true });
+    expect(inbox()).toEqual(expect.arrayContaining(['m_senior_s2_1', 'm_senior_s2_2', 'm_senior_s2_3']));
+  });
+
+  it('replay costs shift time: 1 window keeps the goal, 2 windows cost a case and the evaluation', () => {
+    playShift1();
+    s().endDuty();
+    playShift2(['rw_14']);
+    expect(selectDesk(s()).processed).toBe(5);
+    expect(new Set(s().frames.flatMap((f) => f.clueIds))).toEqual(new Set(['cl_order', 'cl_veteran', 'cl_dangsang', 'cl_alive']));
+    const end = s().endDuty();
+    expect(end.report).toMatchObject({ processed: 5, goalMet: true, replays: 1 });
+    expect(end.report!.line).toContain('재생이 찍혔던데');
+
+    store = createGameStore(content);
+    playShift1();
+    s().endDuty();
+    playShift2(['rw_14', 'rw_08']);
+    expect(selectDesk(s()).processed).toBe(4);
+    expect(s().nextCase().status).toBe('no_time');
+    const e2 = s().endDuty();
+    expect(e2.report).toMatchObject({ processed: 4, goalMet: false, replays: 2 });
+    expect(e2.report!.line).toContain('목표 미달');
+    expect(inbox()).toContain('m_chief_04');
+  });
+
+  it('replay is clamped to its window and logged; not available in shift 1', () => {
+    playShift1();
+    expect(s().openReplay('rw_14').status).toBe('locked');
+    s().endDuty();
+    s().startDuty('duty_2');
+    expect(selectReplay(s())).toMatchObject({ available: true, violation: false, costMinutes: 60, count: 0 });
+    s().openReplay('rw_11');
+    expect(selectObservationRange(s())).toEqual({ from: 660, to: 840 });
+    expect(s().scrubObservation(1000)).toBe(840);
+    expect(selectDesk(s()).clock).toBe('00:00');
+    expect(selectReplay(s()).count).toBe(1);
+  });
+
+  it('06:00 recalculation at the end of shift 2 degrades only what is already captured', () => {
+    playShift1();
+    s().endDuty();
+    playShift2();
+    s().endDuty();
     expect(s().corrections).toEqual(['corr_dawn']);
-    const cl = selectAssignment(s(), 'as_c2217')!.closure!;
-    expect(cl).toMatchObject({ verdict: 'mismatch', shownVerdict: 'mismatch' });
-    expect(s().recentRewrites.map((r) => [r.kind, r.tone])).toEqual([['observation', 'erase']]);
     expect(s().degraded).toEqual([
       { from: 780, to: 900 },
       { from: 840, to: 960 },
       { from: 960, to: 1020 },
     ]);
-    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_corr', 'm_chief_05', 'm_senior_03']));
-    expect(selectInbox(s()).find((i) => i.message.id === 'm_chief_05')!.message.text).toBe('소실이 진행됐네. 그 구간은 이제 흐려.');
-    // 프레임은 남는다. 썩은 구간의 유일한 핵심 프레임은 버릴 수 없다
-    expect(s().frames).toHaveLength(6);
-    expect(s().captureFrame(snap(500, [])).status).toBe('full');
-    expect(s().removeFrame(frameWith('cl_order').id).status).toBe('protected');
+    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_corr', 'm_chief_05', 'm_senior_01']));
     expect(selectFrames(s()).frames.filter((f) => f.protected).length).toBe(3);
-    s().scrubObservation(850);
-    expect(s().hearLine('b4')).toBe(false); // 훼손 구간에선 들리지 않는다
-    expect(s().removeFrame(s().frames[0]!.id).status).toBe('removed');
-    expect(s().captureFrame(snap(900, ['r3'])).status).toBe('degraded');
-
-    // ── 보고서 ──
-    expect(selectReport(s())!.unlocked).toBe(true);
-    s().search('이극돈');
-    s().openRecord('rec_alt_yi_geukdon');
-    s().search('실록청');
-    s().openRecord('rec_seongjong_sillok');
-    expect(inbox()).toContain('m_me_name'); // "우리 기관 이름이 여기서 왔구나"
-    s().search('어세겸');
-    s().openRecord('rec_eo_segyeom');
-    const order = { kind: 'frame' as const, id: frameWith('cl_order').id };
-    const veteran = { kind: 'frame' as const, id: frameWith('cl_veteran').id };
-    const alive = { kind: 'frame' as const, id: frameWith('cl_alive').id };
-    const objection = { kind: 'frame' as const, id: frameWith('cl_objection').id };
-    const rec = (id: string) => ({ kind: 'record' as const, id });
-
-    // 틀린 시도(무료, 칸별 피드백, 정답 없음)
-    s().attach('when', rec('rec_seongjong_sillok'));
-    s().setYear(1495, 1499);
-    s().attach('who', rec('rec_eo_segyeom'));
-    s().attach('who', veteran);
-    s().attach('what', objection);
-    s().attach('result', rec('rec_alt_kim_ilson'));
-    let r = s().submitReport()!;
-    expect(r.complete).toBe(false);
-    expect(r.blanks.when.verdict).toBe('partial');
-    expect(r.blanks.who.verdict).toBe('wrong');
-    expect(r.blanks.what.verdict).toBe('undetermined');
-    expect(r.blanks.what.feedback[0]!.message).toBe('그 반대는 무엇에 대한 것이었나?');
-    expect(r.blanks.result.feedback[0]!.message).toContain('그날의 일과 이어진다는 근거');
-    const said = JSON.stringify(r);
-    for (const w of ['1498', '이극돈', '무오']) expect(said).not.toContain(w);
-    expect(s().stampReport().status).toBe('not_ready');
-
-    // 언제: 살아 있소 + 사망 기록 — 전교가 보고서 어디에도 없으면 이름이 없다
-    s().detach('when', rec('rec_seongjong_sillok'));
-    s().attach('when', alive);
-    s().attach('when', rec('rec_alt_kim_ilson'));
-    s().setYear(1498, 1498);
-    s().detach('what', objection);
-    r = s().submitReport()!;
-    expect(r.blanks.when.verdict).not.toBe('confirmed');
-    expect(r.blanks.when.feedback.map((f) => f.message)).toContain('살아 있다는 사관이 누구인지, 이 보고서 어디에도 이름이 없다.');
-    expect(selectReport(s())!.impliedYears).toEqual({ from: undefined, to: undefined });
-
-    // 고친다
-    s().attach('what', order);
-    expect(s().attach('when', order)).toBe('full'); // 칸당 2개
-    s().detach('who', rec('rec_eo_segyeom'));
-    s().attach('who', rec('rec_alt_kim_ilson'));
-    r = s().submitReport()!;
-    expect(r.blanks.who.verdict).toBe('wrong'); // 관직이 맞지 않는다(모순)
-    s().detach('who', rec('rec_alt_kim_ilson'));
-    s().attach('who', rec('rec_alt_yi_geukdon'));
-    s().attach('result', order);
-    r = s().submitReport()!;
-    expect(Object.values(r.blanks).map((b) => b.verdict)).toEqual(['confirmed', 'confirmed', 'confirmed', 'confirmed']);
-    expect(selectReport(s())!.impliedYears).toEqual({ from: 1498, to: 1498 });
-    s().ackRewrites();
-
-    // ── 도장 → 복원 ──
-    const filed = s().stampReport();
-    expect(filed.status).toBe('filed');
-    expect(filed.shiftId).toBe('shift_c2217');
-    expect(s().stampReport().status).toBe('already');
-    expect(selectAssignment(s(), 'as_c2217')!.header.find((h) => h.key === 'when')!.value).toBe('연산군 4년 7월 11일');
-    const kinds = new Set(s().recentRewrites.map((x) => x.kind));
-    expect([...kinds].sort()).toEqual(['assignment', 'message', 'observation', 'record', 'search']);
-    expect(s().degraded).toEqual([]); // 주소가 돌아오자 흐린 구간도 걷힌다
-    expect(inbox()).toEqual(expect.arrayContaining(['m_sys_committee', 'm_sys_obslog']));
-    expect(s().recentRewrites.every((x) => x.tone === 'restore')).toBe(true);
-    // 나만 기억한다: 메시지는 지금 현실로, 원래 본문은 플레이어 쪽 기록에만
-    const rw = selectRewrittenMessages(s());
-    expect(rw.m_chief_02!.original).toBe('07, 그거 자동 종결됐더라. 자주 있어. 장비 문제야.');
-    expect(selectInbox(s()).find((i) => i.message.id === 'm_chief_02')!.message.text).toContain('무오사화 7월 11일 좌표');
-    expect(selectInbox(s()).find((i) => i.message.id === 'm_senior_04')!.message.text).toContain('그걸 모르는 사람이 어디 있어');
-    // 기록이 돌아왔다(verified + 출처)
-    const kim = selectRecord(s(), 'rec_alt_kim_ilson')!;
-    expect(kim.provenance).toBe('verified');
-    expect(kim.fields.find((x) => x.key === 'cause')!.value).toContain('능지처사');
-    expect(selectRecordLedger(s()).filter((x) => x.restored).map((x) => x.id).sort()).toEqual(
-      ['rec_alt_kim_ilson', 'rec_alt_kim_jongjik', 'rec_alt_kwon_gyeongyu', 'rec_alt_kwon_obok', 'rec_alt_yi_geukdon'].sort(),
-    );
-    const again = s().search('대내로 들여오라');
-    expect(again.status).toBe('ok');
-    expect(again.hits[0]!.results.map((x) => x.id)).toEqual(['src_sacho_order', 'src_house_search']);
-    // 종결함은 관측기 로그: 바뀌지 않는다(부재의 증거). 그리고 내 이름의 관측 오류가 더 있다
-    const list = selectClosedReports(s());
-    expect(list[0]!.classification).toBe('자동 분류: 관측 오류(장비 노이즈) · 종결');
-    expect(list[1]!.note).toContain('해당 기사 없음');
-    expect(list.slice(2).map((x) => [x.code, x.classification])).toEqual([
-      ['#C-0408', '관측 오류 · 종결'],
-      ['#C-3391', '관측 오류 · 종결'],
-    ]);
-    s().openClosedReport('cr_c0408');
-    expect(inbox().at(-1)).toBe('m_me_03');
-  });
-
-  it('correction never strands the player: early fallback degrades only what is already captured', () => {
-    playFirstTen();
-    // 핵심 프레임 없이 힌트 사다리(hl_frames)를 끝까지 받는다
-    expect(s().tickIdle(50)?.id).toBe('h_frames_1');
-    expect(s().tickIdle(95)?.id).toBe('h_frames_2');
-    expect(s().tickIdle(140)?.id).toBe('h_frames_3');
-    expect(s().corrections).toEqual(['corr_dawn']);
-    expect(s().degraded).toEqual([{ from: 840, to: 960 }]); // 전교만 이미 찍혀 있었다
-    // 16시와 13시는 여전히 들리고 찍힌다
-    s().scrubObservation(1000);
-    expect(s().hearLine('b5')).toBe(true);
-    expect(s().captureFrame(snap(1000, ['b5'])).status).toBe('captured');
-    s().scrubObservation(850);
-    expect(s().hearLine('c3')).toBe(false); // 14시 이후는 훼손(전교 구간)
-    s().scrubObservation(800);
-    expect(s().hearLine('c3')).toBe(true); // 13시대는 아직 멀쩡하다
   });
 });
 
-describe('v3 — hints only via messenger', () => {
-  it('silence first, then one rung at a time; off = none', () => {
-    s().openAssignment('as_c2217');
-    s().openApp('viewer');
-    expect(s().tickIdle(10)).toBeNull();
-    expect(s().tickIdle(31)!.id).toBe('h_look_1');
-    expect(s().tickIdle(31)).toBeNull();
-    expect(s().tickIdle(61)!.id).toBe('h_look_2');
-    expect(selectInbox(s(), content, 'chief').map((i) => i.message.id)).toContain('h_look_2');
+describe('v4 — 근무 3: noise, the forbidding rule, the report, restoration', () => {
+  function toShift3() {
+    playShift1();
+    s().openClosedReport('cr_c2217_prev');
+    s().endDuty();
+    playShift2();
+    s().endDuty();
+    s().ackRewrites();
+    expect(s().startDuty('duty_3').status).toBe('started');
+  }
+
+  it('full correct playthrough of all three shifts ends in restoration', () => {
+    toShift3();
+    expect(selectDesk(s()).rules.find((r) => r.isNew)!.rule.id).toBe('rule_5');
+    expect(selectReplay(s()).violation).toBe(true);
+    playCase('case_c4410'); // 새 종류: 진짜 노이즈 → 자동 종결이 정답
+    expect(inbox()).toContain('m_senior_03');
+    playCase('case_a0601');
+    playCase('case_c0951');
+    playCase('case_a0602');
+    expect(s().nextCase()).toMatchObject({ caseId: 'case_c2217_re' });
+    const card = selectCaseCard(s(), 'case_c2217_re')!;
+    expect(card.detection).toContain('기록 2건');
+    expect(card.timelineId).toBeUndefined(); // 관측 생략(규정 5조)
+    expect(card.header!.find((h) => h.key === 'when')!.value).toBe('####');
+    expect(inbox()).toContain('m_me_redetect');
+    expect(s().endDuty().status).toBe('blocked');
+
+    s().ackRewrites();
+    const filed = fileReport();
+    expect(filed.status).toBe('filed');
+    expect(filed.shiftId).toBe('shift_c2217');
+    // 규정 5조 위반 경고장이 나오지만, 복원된 현실에서 '해당 없음'으로 다시 쓰인다
+    expect(filed.warning).toMatchObject({ ruleId: 'rule_5', voided: true, voidText: '해당 없음 — 복원심의위원회 승인 건' });
+    expect(s().duty.suspended).toBe(false);
+    const kinds = new Set(s().recentRewrites.map((x) => x.kind));
+    expect([...kinds].sort()).toEqual(['assignment', 'case', 'message', 'observation', 'record', 'search', 'warning']);
+    expect(selectCaseCard(s(), 'case_c2217_re')!.detection).toContain('연산군 4년 7월 11일');
+    expect(selectAssignment(s(), 'as_c2217')!.header.find((h) => h.key === 'when')!.value).toBe('연산군 4년 7월 11일');
+    expect(s().degraded).toEqual([]);
+    expect(selectInbox(s()).find((i) => i.message.id === 'm_senior_04')!.message.text).toContain('그걸 모르는 사람이 어디 있어');
+    const rw = selectRewrittenMessages(s());
+    expect(rw.m_chief_drawer!.original).toBe('그 도장, 서랍에 다시 넣어 둬. 그거 쓰는 사람, 오래 못 버텨.');
+    expect(rw.m_chief_drawer!.current).toContain('무오사화 7월 11일 좌표');
+    expect(selectRecord(s(), 'rec_alt_kim_ilson')!.provenance).toBe('verified');
+    expect(selectRecordLedger(s()).filter((x) => x.restored)).toHaveLength(5);
+    expect(s().search('대내로 들여오라').hits[0]!.results.map((x) => x.id)).toContain('src_burn_order');
+    // 관측기 로그는 그대로(부재의 증거)
+    expect(inbox()).toContain('m_sys_obslog2');
+    const closed = selectClosedReports(s());
+    expect(closed.find((x) => x.id === 'cr_c2217_prev')!.note).toContain('해당 기사 없음');
+
+    const end = s().endDuty();
+    expect(end.status).toBe('ended');
+    expect(end.report).toMatchObject({ processed: 5, goalMet: true, warnings: 0, voided: 1 });
+    expect(end.report!.line).toBe('위원회 건이라 경고는 빠졌어. …다음엔 미리 말해.');
+    expect(selectDesk(s()).episodeDone).toBe(true);
+    // 예고: 내 이름의 관측 오류가 더 있다
+    expect(inbox()).toContain('m_sys_teaser');
+    expect(selectClosedReports(s()).map((x) => x.code)).toEqual(expect.arrayContaining(['#C-0408', '#C-3391']));
+    s().openClosedReport('cr_c0408');
+    expect(inbox().at(-1)).toBe('m_me_03');
+    // 엔딩 뒤 기록 열람: 원문(검증)·변조·재구성 배지
+    const ledger = selectCaseLedger(s());
+    const a0419 = ledger.find((x) => x.id === 'case_a0419')!;
+    expect(a0419.original.badge).toBe('검증');
+    expect(a0419.distortion).toMatchObject({ from: '이극돈(李克墩)', to: '유자광(柳子光)', badge: '변조' });
+    expect(a0419.lines[0]!.badge).toBe('재구성');
+  });
+
+  it('auto-closing the re-detected coordinate is allowed but the night does not end without the report', () => {
+    toShift3();
+    for (const id of ['case_c4410', 'case_a0601', 'case_c0951', 'case_a0602']) playCase(id);
+    s().nextCase();
+    expect(s().stampCase('auto_close')).toMatchObject({ status: 'stamped', correct: true });
+    expect(s().duty.warnings.filter((w) => w.dutyId === 'duty_3')).toEqual([]);
+    expect(inbox()).toEqual(expect.arrayContaining(['m_chief_s3_auto', 'm_me_forget']));
+    const end = s().endDuty();
+    expect(end).toMatchObject({ status: 'blocked', message: expect.stringContaining('보고서') });
+    expect(fileReport().status).toBe('filed');
+    expect(s().endDuty().status).toBe('ended');
+  });
+
+  it('reopening in shift 3 is a rule-5 violation (warnings), voided by restoration', () => {
+    toShift3();
+    const r = s().openReplay('rw_17');
+    expect(r.status).toBe('opened');
+    expect(r.warning).toMatchObject({ ruleId: 'rule_5' });
+    s().endObservation();
+    for (const id of ['case_c4410', 'case_a0601', 'case_c0951', 'case_a0602']) playCase(id);
+    s().nextCase();
+    fileReport();
+    expect(s().duty.warnings.filter((w) => w.ruleId === 'rule_5').every((w) => w.voided)).toBe(true);
+  });
+
+  it('degraded spans block hearing and capturing; protected frames cannot be discarded', () => {
+    toShift3();
+    s().openReplay('rw_14');
+    s().scrubObservation(850);
+    expect(s().hearLine('b4')).toBe(false);
+    expect(s().captureFrame(snap(900, ['r3'])).status).toBe('degraded');
+    const order = s().frames.find((f) => f.clueIds.includes('cl_order'))!;
+    expect(s().removeFrame(order.id).status).toBe('protected');
+  });
+});
+
+describe('v4 — mistakes: warnings, suspension interview, still completes', () => {
+  it('three warnings suspend observation; the interview recaps them and the shift continues', () => {
+    s().startDuty('duty_1');
+    // ① 확인 건에 서랍 도장 → 경고
+    s().nextCase();
+    observe('case_a0412');
+    expect(s().stampCase('mismatch').warning!.ruleId).toBe('rule_3');
+    // ② 변조 건을 확인 → 경고(그 건의 교육적 사유)
+    s().nextCase();
+    observe('case_a0419');
+    const w2 = s().stampCase('confirm').warning!;
+    expect(w2.reason).toContain('유자광');
+    // ③ 함정 건을 정정 → 세 번째 경고 → 관측 권한 정지
+    s().nextCase();
+    observe('case_a0423');
+    s().inspect(...notationPair(caseOf('case_a0423')));
+    const r3 = s().stampCase('correct');
+    expect(r3.suspended).toBe(true);
+    expect(s().duty.suspended).toBe(true);
+    expect(s().nextCase().status).toBe('suspended');
+    expect(s().startObservation()).toBe(false);
+    const iv = selectInterview(s())!;
+    expect(iv.active).toBe(true);
+    expect(iv.recap.map((w) => w.reason)).toEqual(s().duty.warnings.map((w) => w.reason));
+    for (const w of ['무오', '1498', '김일손']) expect(JSON.stringify(iv)).not.toContain(w);
+    expect(s().finishInterview('iv_sorry')).toBe(true);
+    expect(selectInterview(s())!.closing.map((l) => l.text)).toContain('그래. 그럼 됐어.');
+    expect(s().duty.suspended).toBe(false);
+    // 계속한다
+    playCase('case_a0431');
+    s().nextCase();
+    s().startObservation();
+    s().scrubObservation(1030);
+    expect(s().stampCase('auto_close').status).toBe('stamped');
+    const end = s().endDuty();
+    expect(end.report).toMatchObject({ processed: 5, correct: 2, warnings: 3, interviews: 1 });
+    // 근무 2·3 도 끝까지 간다
+    playShift2();
+    s().endDuty();
+    s().startDuty('duty_3');
+    for (const id of ['case_c4410', 'case_a0601', 'case_c0951', 'case_a0602']) playCase(id);
+    s().nextCase();
+    expect(fileReport().status).toBe('filed');
+    expect(s().endDuty().status).toBe('ended');
+  });
+
+  it('정정 on a yellow pair of a distorted card is a judgment error with an honest reason', () => {
+    s().startDuty('duty_1');
+    for (const id of ['case_a0412', 'case_a0419', 'case_a0423']) playCase(id);
+    s().nextCase();
+    observe('case_a0431');
+    expect(s().inspect('a0431d_day', 'a0431o_day').relation).toBe('notation');
+    const r = s().stampCase('correct');
+    expect(r).toMatchObject({ correct: false });
+    expect(r.warning!.reason).toContain('정말 다른 곳은 따로');
+  });
+
+  it('inspecting needs the line to be heard; unrelated words give no thread', () => {
+    s().startDuty('duty_1');
+    s().nextCase();
+    expect(s().inspect('a0412_place', 'a0412o_place').status).toBe('unavailable');
+    observe('case_a0412');
+    expect(s().inspect('a0412_osi', 'a0412o_died')).toMatchObject({ status: 'linked', relation: 'none' });
+    expect(s().stats.inspects).toBe(1);
+  });
+
+  it('hint ladders arrive through the messenger only, never naming the word to fix', () => {
+    s().startDuty('duty_1');
+    playCase('case_a0412');
+    s().nextCase();
+    s().startObservation();
+    s().scrubObservation(lineMinute('a0419_l1'));
+    s().hearLine('a0419_l1');
+    expect(s().tickIdle(45)!.id).toBe('h_inspect_1');
+    const seg = recordSegments(caseOf('case_a0419')).find((x) => x.id === 'a0419_yi')!;
+    for (const m of selectInbox(s(), content, 'chief')) for (const w of ['이극돈', '유자광', seg.text]) expect(m.message.text).not.toContain(w);
     s().updateSettings({ hintLevel: 'off' });
     expect(s().tickIdle(500)).toBeNull();
   });
-
-  it('failures climb the ladder (stamp misses on ②)', () => {
-    s().openAssignment('as_c2217');
-    s().startObservation();
-    s().reportView(snap(480, [], ['hs_obs_store_sacho'], 2));
-    s().stampChecklist('ck_place', 'match');
-    s().stampChecklist('ck_person', 'match');
-    s().stampChecklist('ck_person', 'match');
-    expect(inbox()).toContain('h_listen_1');
-  });
 });
 
-describe('v3 — frames', () => {
-  it('max 6, replace, remove drops report refs', () => {
-    s().openAssignment('as_c2217');
-    s().startObservation();
-    for (let i = 0; i < 6; i++) expect(s().captureFrame(snap(480 + i, [])).status).toBe('captured');
-    expect(s().captureFrame(snap(490, [])).status).toBe('full');
-    s().scrubObservation(540);
-    s().hearLine('r2');
-    const rep = s().replaceFrame(2, snap(540, ['r2'], [RED]));
-    expect(rep.status).toBe('replaced');
-    expect(rep.newClues).toEqual(['cl_dangsang']);
-    expect(s().frames[2]!.seq).toBe(7);
-    expect(checkState(conditionState(s()), { clues: ['cl_dangsang'] })).toBe(true);
-    expect(s().removeFrame(s().frames[2]!.id).status).toBe('removed');
-    expect(checkState(conditionState(s()), { clues: ['cl_dangsang'] })).toBe(false);
-    expect(selectFrames(s()).left).toBe(1);
+describe('v4 — conditions & save', () => {
+  it('duty counters drive conditions', () => {
+    playShift1();
+    const cs = conditionState(s());
+    expect(checkState(cs, { cases: ['case_c2217'], closed: ['as_c2217'] })).toBe(true);
+    expect(checkState(cs, { counters: [{ key: 'processed:duty_1', min: 5 }] })).toBe(true);
+    expect(checkState(cs, { counters: [{ key: 'warnings:duty_1', max: 0 }] })).toBe(false);
   });
-});
 
-describe('v3 — save', () => {
-  it('saves, loads (v4) and autosaves', async () => {
-    playFirstTen();
+  it('saves, loads (v5) and autosaves', async () => {
+    playShift1();
     await s().save('manual');
     const file = await loadGame('manual');
-    expect(file!.version).toBe(4);
+    expect(file!.version).toBe(5);
     const other = createGameStore(content);
     expect(await other.getState().load('manual')).toBe(true);
-    expect(other.getState().frames).toHaveLength(4);
-    expect(other.getState().closures.as_c2217!.verdict).toBe('mismatch');
+    expect(other.getState().duty.cases.case_c2217!.stamp).toBe('mismatch');
+    expect(selectDesk(other.getState()).processed).toBe(5);
     vi.useFakeTimers();
     const off = enableAutosave(store, 100);
     s().setFlag('x');

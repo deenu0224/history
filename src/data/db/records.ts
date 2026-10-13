@@ -130,4 +130,30 @@ export const records: DbRecord[] = [
       { key: 'rule', label: '규정 4조', value: '대조 중에는 DB 를 열람하지 않는다(선입견 방지).' },
     ],
   },
+  // v4 근무 2~3 조사용(HISTORICAL_SOURCES §10.3 D-1·D-2). 연도·왕대·권차·기사 id 를 가린다(월·일만).
+  {
+    id: 'rec_sillokcheong_reward',
+    provenance: V,
+    title: '『성종실록』 실록청 — 하사 기록',
+    fields: [
+      { key: 'when', label: '날짜', value: '12월 21일' },
+      { key: 'heads', label: '총재관', value: '신승선·어세겸 — 안장 갖춘 말 한 필, 표리 한 벌, 비단 한 필' },
+      { key: 'dang', label: '당상', value: '이극돈·유순·홍귀달·윤효손·안침·허침·조익정·이육·신종호 — 안장 갖춘 말 한 필, 표리 한 벌' },
+      { key: 'rule', label: '기준', value: '『세조실록』의 예에 따라 출사한 날짜에 차등을 둠' },
+    ],
+    note: '실록청은 그 일 전에도 일하고 있었다.',
+    sources: [REF.sillokReward],
+    glossary: [GLOSS.sillokcheong, GLOSS.pyori],
+  },
+  {
+    id: 'rec_kim_ilson_posts',
+    provenance: V,
+    title: '인사 기록 — 김일손(金馹孫)',
+    fields: [
+      { key: 'post1', label: '충청도 도사', value: '이익과 병폐 26가지를 조목으로 상소(5월 28일)' },
+      { key: 'post2', label: '헌납', value: '신녕 현감의 일과 단월역 왜인의 일을 아룀(10월 9일)' },
+    ],
+    note: '살아서 관직에 있던 사람.',
+    sources: [REF.sillokKimIlsonMemorial, REF.sillokKimIlsonHeonnap],
+  },
 ];

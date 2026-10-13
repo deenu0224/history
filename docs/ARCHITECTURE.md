@@ -1,6 +1,13 @@
 # ARCHITECTURE — 결록(缺錄)
 
-> **v3 「대조」(최신, 이 머리말이 아래 본문보다 우선한다)** — 설계 `DESIGN_V3.md`.
+> **v4 「근무」(최신, 이 머리말이 아래 본문보다 우선한다)** — 설계 `DESIGN_V4.md` §3(엔진)·§8(계약)·§9(저장).
+> - 콘텐츠 번들에 `workShifts, cases, rules, interviews` 추가(`src/data/duty/`: 근무·건·규정·면담 + 건의 관측 장면 `caseTimelines`/`caseNpcs`). 배정(`assignments`)의 체크리스트는 삭제.
+> - 새 코어 `core/duty.ts`(순수): 기록 카드 조각·변조·짝 → 검사 관계(differs/notation/none), 도장 판정 `judgeStamp`(not_ready 와 경고 구분), 규정 기능(capture·frame_for_correct·no_reopen), 근무 시계·큐, 경고·카운터(`dutyCounters`), 근무 보고.
+> - 상태 조건(`StateCondition`)에 `duties, dutiesEnded, cases, current, counters, reached` 추가(`core/terminal.ts checkState`).
+> - 스토어: 근무 액션(`startDuty, nextCase, inspect, stampCase, openReplay, finishInterview, endDuty`)과 셀렉터(`selectDesk, selectCaseCard, selectVerdictHistory, selectReplay, selectInterview, selectShiftReport, selectCaseLedger`). `apply()` 는 영속 키만 쓴다.
+> - 저장 v5(`migrations[4]`: 설정만 남기고 버림). 검증기 10절(근무·건·TODO_VERIFY·#C-2217 정답 금지·일상 건 힌트 정답 금지).
+>
+> **v3 「대조」** — 설계 `DESIGN_V3.md`.
 > - 콘텐츠 번들: `persons, artifacts, sources, events, places, worldObjects, npcs, timelines, clues, apps, assignments, closedReports, reports, searchEntries, records, messages, hints, corrections, shifts`. 증거 카드(evidence)·추리(deductions)·도감(collection)·노트·메모·구절·전시물·튜토리얼·카드 겹치기·기록하기는 삭제.
 > - 새 코어 `core/report.ts`: 프레임(ViewerSnapshot + clueIds) → 단서(Clue: frame/record/combo) → 보고서 4칸 판정(언제=`chronology.judgeYear`, 누구=`deduction.judgePerson`, 무슨 일·그 결과=`judgeFacts`). 단서는 판정 엔진에 `clueAsEvidence` 로 넘긴다(§4~6 규칙 그대로).
 > - `core/terminal.ts`: 상태 조건(heard·seen·clues·stamped·closed·opened·filed·hintsDone…), 앱 잠금, 메시지·보정·현실 이동, 레이어 보기(레코드·메시지·검색·배정 헤더·종결 보고서), 힌트 사다리(메신저만).

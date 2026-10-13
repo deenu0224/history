@@ -9,7 +9,8 @@ describe('save/load', () => {
     const data = initialPersisted();
     data.flags.met = true;
     data.heard.push('m2');
-    data.checklist.ck_place = 'match';
+    data.duty.started.push('duty_1');
+    data.duty.cases.case_a0412 = { openedAt: 0, links: [{ record: 'a0412_died', observed: 'a0412o_died', relation: 'notation' }], stamp: 'confirm', correct: true };
     data.frames.push({ id: 'fr_1', seq: 1, minute: 850, centerTile: { x: 1, y: 2 }, zoom: 2, visibleHotspotIds: [], heardLineIds: ['m2'], clueIds: ['cl_order'] });
     await saveGame('manual', data, new Date('2026-01-01T00:00:00Z'));
     const file = await loadGame('manual');
@@ -67,6 +68,24 @@ describe('save/load', () => {
     const out = migrate(v3);
     expect(out.data.flags).toEqual({});
     expect(out.data.settings).toMatchObject({ volume: 0.2, hintLevel: 'off' });
+  });
+
+  it('v4 → v5 (근무): v3 「대조」 progress is dropped, settings survive, duty state starts empty', () => {
+    const v4 = {
+      schema: SAVE_SCHEMA,
+      version: 4,
+      savedAt: 'x',
+      slot: 'auto',
+      data: { ...initialPersisted(), checklist: { ck_place: 'match' }, closures: { as_c2217: {} }, flags: { closed_mismatch: true }, settings: { volume: 0.3, hintLevel: 'detailed' } },
+    };
+    const out = migrate(v4);
+    expect(out.version).toBe(5);
+    expect(out.data).not.toHaveProperty('checklist');
+    expect(out.data).not.toHaveProperty('closures');
+    expect(out.data.flags).toEqual({});
+    expect(out.data.duty).toEqual(initialPersisted().duty);
+    expect(out.data.settings).toMatchObject({ volume: 0.3, hintLevel: 'detailed' });
+    expect(Object.keys(out.data).sort()).toEqual(Object.keys(initialPersisted()).sort());
   });
 
   it('applies migrations step by step', () => {
