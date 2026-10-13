@@ -1,5 +1,11 @@
 # ARCHITECTURE — 결록(缺錄)
 
+> **결록 단말 전환(걷기 폐지)**: §2 데이터 흐름, §3 버스, §9 스토어, §10 저장의 최신 계약은 `TERMINAL_DESIGN.md` §13 이 우선한다.
+> 요약: 버스 `interact/scene:*/world:*` 제거 → `app:open · viewer:* · glitch · feedback`. 스토어 `examine/talk/setScene` 제거 →
+> `search · startObservation/scrubObservation/tapHotspot/endObservation · registerPhrase · readMessage/chooseReply · inspectExhibit · 튜토리얼`.
+> 저장 v2(`migrations[1]`). 새 코어 모듈 `core/search.ts`, `core/observation.ts`, `core/terminal.ts`, 새 데이터 모듈 `data/terminal/`.
+> 검증기(§7)는 단말 콘텐츠도 검사한다: 검색 참조·칩 색인 일치·칩만으로 진행 가능·사료 구절 원문 일치·타임라인 구간·답장 플래그·보정 대상·플래그 생산 가능성.
+
 > 코어 엔진·스토어·데이터 계약 문서. 그래픽(`src/game/art`)과 사료 목록(`HISTORICAL_SOURCES.md`)은 별도 문서를 따른다.
 
 ## 1. 계층
