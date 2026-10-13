@@ -3,7 +3,8 @@
  *  - 콜드 오픈: 데스크톱이 켜지기 전 짧은 줄(입력 없음, 탭하면 넘어감). docs/NARRATIVE_FIRST10.md.
  *  - 관측 HUD 에는 연도·장소·인물을 넣지 않는다.
  */
-import type { Provenance, StateCondition } from '@/core/types';
+import type { Provenance, SourceRef, StateCondition } from '@/core/types';
+import { REF } from './historical/refs';
 
 export interface ScriptLine {
   speaker?: string;
@@ -16,17 +17,24 @@ const F = 'fictional' as const;
 export const EPISODE_1 = {
   id: 'ep1',
   title: '한 사관의 흔적',
-  /** 첫 실행 프롤로그(세계관). 건너뛸 수 있다. */
-  prologue: [
-    { text: '언제부터인지, 역사가 사라지기 시작했다.', provenance: F },
-    { text: '책장이 찢기는 것도, 파일이 지워지는 것도 아니다. 기록도, 기억도 — 처음부터 없었던 것처럼.', provenance: F },
-    { text: '사람들은 그것을 「역사 소실」이라 부른다. 무엇이 사라졌는지는, 아무도 모른다.', provenance: F },
-    { text: '정부는 오래전부터 알고 있었다. 그리고 소실의 영향을 받지 않는 장치를 만들었다. 관측기.', provenance: F },
-    { text: '관측기는 과거를 직접 본다. 단, 기록이 가리키는 곳만. 기록은 시간의 주소다.', provenance: F },
-    { text: '實錄廳 실록청. 사라진 기록을 찾아 과거를 보고, 다시 적는 국가기관.', provenance: F },
-    { text: '나는 그곳의 대조관이다. 기록과 과거를 맞대어 보고, 도장을 찍는다.', provenance: F },
-    { text: '일치. 불일치. 도장이 찍히면, 그것이 역사가 된다.', provenance: F },
-  ] as ScriptLine[],
+  /**
+   * 첫 실행 프롤로그(건너뛰기 가능). 설명 대신 소실을 눈앞에서 보여준다:
+   * 실록 한 쪽에서 한 줄이 글자째 사라지고, 아래 줄이 올라와 빈칸 없이 메운다.
+   * 사라지는 줄은 검증된 실록 원문 — 플레이어는 14:00 관측에서 이 말을 다시 듣는다.
+   */
+  prologue: {
+    erased: {
+      text: '김일손의 사초를 모두 대내로 들여오라.',
+      provenance: 'verified' as Provenance,
+      sources: [REF.sillokSachoOrder] as SourceRef[],
+    },
+    beats: [
+      { text: '방금, 한 줄이 사라졌다.', provenance: F },
+      { text: '빈칸은 남지 않는다. 찢긴 자국도. 기억도.', provenance: F },
+      { text: '그래서 아무도 모른다.', provenance: F },
+      { text: '實錄廳 기록대조과. 대조관 07.', provenance: F },
+    ] as ScriptLine[],
+  },
   coldOpen: [
     { text: '23:04. 기록대조과. 야근.', provenance: F },
     { text: '모니터에 배정 하나. 우선순위 낮음.', provenance: F },
