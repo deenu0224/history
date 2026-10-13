@@ -49,7 +49,15 @@ export function Impression({
     <span className={`imp imp-${tone} ${faded ? 'imp-faded' : ''} ${fresh ? 'imp-fresh' : ''} ${system ? 'imp-system' : ''} ${className}`} style={style} data-testid={testId} data-variant={look.variant} data-stamp={stamp}>
       <Px k={look.sprite} scale={scale} className="imp-art" />
       <b className="imp-label" style={{ fontSize: `${0.62 * scale}rem` }}>
-        {label}
+        {label.includes(' · ') ? (
+          <span className="imp-two">
+            {label.split(' · ').map((x) => (
+              <span key={x}>{x.replace(/\(.*\)/, '')}</span>
+            ))}
+          </span>
+        ) : (
+          label
+        )}
       </b>
       <i className="imp-eng" style={{ fontSize: `${0.34 * scale}rem` }} aria-label="각인">
         {engraving}

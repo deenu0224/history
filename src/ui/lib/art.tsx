@@ -78,6 +78,7 @@ export function deskCssVars(): CSSProperties {
     '--d-knot': 'desk_thread_knot',
     '--d-knot-y': 'desk_thread_knot_yellow',
     '--d-pin': 'desk_pin',
+    '--d-plaque': 'desk_queue_plaque',
   };
   const out: Record<string, string> = {};
   for (const [v, k] of Object.entries(keys)) if (hasSprite(k)) out[v] = url(k);

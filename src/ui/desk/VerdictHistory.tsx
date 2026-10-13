@@ -1,5 +1,6 @@
 /** 카드 뒤: 같은 좌표에 지난 도장들(오늘 / 어제 / 그저께 / 1년 전). 1년 전 바랜 도장을 탭하면 확대된다. */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { VerdictHistoryEntry } from '@/store/gameStore';
 import { useGameStore } from '@/store/gameStore';
 import { fx } from '../lib/fx';
@@ -52,7 +53,8 @@ export function VerdictHistory({ entries, code, onBack }: { entries: VerdictHist
           );
         })}
       </ul>
-      {zoom && (
+      {zoom &&
+        createPortal(
         <div className="aged-zoom" data-testid="aged-zoom" role="dialog" aria-label="바랜 도장" onClick={() => setZoom(null)}>
           <div className="aged-paper">
             <Impression caseId="aged" stamp="mismatch" label={zoom.impression.label} engraving={zoom.impression.engraving} faded scale={4} className="aged-imp" />
@@ -66,8 +68,9 @@ export function VerdictHistory({ entries, code, onBack }: { entries: VerdictHist
               닫기
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+          document.querySelector('.os-root') ?? document.body,
+        )}
     </article>
   );
 }

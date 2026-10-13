@@ -280,10 +280,6 @@ function ReportTab() {
     ui.setFlipped(false);
     // 승인 도장 → 책상으로 돌아오면 일시가 채워지고, 경고장 글자가 바뀌고, 메신저의 지난 대화가 다시 쓰인다
     window.setTimeout(() => openPanel(null), 1500);
-    window.setTimeout(() => {
-      ui.openThread('chief');
-      openPanel('messenger');
-    }, 9000);
   };
 
   return (

@@ -39,7 +39,7 @@ export function HeardStrip({ card }: { card: CaseCardView }) {
                   <button
                     key={s.id}
                     type="button"
-                    className={`chip ${s.gloss ? 'has-gloss' : ''} ${isSel ? 'sel' : ''} ${inspect && !done ? 'pick' : ''} ${!done && rel ? `ln-${rel}` : ''}`}
+                    className={`dchip ${s.gloss ? 'has-gloss' : ''} ${isSel ? 'sel' : ''} ${inspect && !done ? 'pick' : ''} ${!done && rel ? `ln-${rel}` : ''}`}
                     data-testid={`obs-${s.id}`}
                     data-seg={`obs:${s.id}`}
                     aria-pressed={isSel}

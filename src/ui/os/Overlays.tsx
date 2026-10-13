@@ -1,23 +1,21 @@
 import { useEffect, useState } from 'react';
-import { useGameStore } from '@/store/gameStore';
 import { Px, appIconKey } from '../lib/art';
 import { CONTENT } from '../lib/content';
 import { fx } from '../lib/fx';
 import { useUi } from '../uiStore';
-import { useGameClock } from './StatusBar';
+import { openPanel } from '../lib/nav';
 
 /** 위에서 잠깐 내려오는 알림. 탭하면 그 앱으로. */
 export function Banner() {
   const banner = useUi((s) => s.banner);
   const clear = useUi((s) => s.clearBanner);
-  const inApp = useGameStore((s) => s.ui.app !== null);
+  const panel = useUi((s) => s.panel);
   useEffect(() => {
     if (!banner) return;
     const t = setTimeout(() => clear(banner.id), 6500);
     return () => clearTimeout(t);
   }, [banner, clear]);
-  // 홈 화면에서는 알림 카드가 이미 보인다
-  if (!banner || !inApp) return null;
+  if (!banner || panel === 'messenger') return null;
   return (
     <button
       type="button"
@@ -28,8 +26,7 @@ export function Banner() {
         fx('tap');
         const ui = useUi.getState();
         if (banner.thread) ui.openThread(banner.thread);
-        useGameStore.getState().closeModal();
-        useGameStore.getState().openApp(banner.app);
+        openPanel('messenger');
         ui.dismissNotice(banner.id);
       }}
     >
@@ -39,40 +36,6 @@ export function Banner() {
         {banner.sub && <small>{banner.sub}</small>}
       </span>
     </button>
-  );
-}
-
-/** 앱이 없을 때의 바탕 화면: 시계와 남은 알림. */
-export function Home({ mode }: { mode: 'desktop' | 'mobile' }) {
-  const notices = useUi((s) => s.notices);
-  const dismiss = useUi((s) => s.dismissNotice);
-  const clock = useGameClock();
-  return (
-    <div className={`home home-${mode}`} data-testid="home">
-      <p className="home-clock">{clock}</p>
-      <p className="home-sub">실록청 기록대조과 · 대조관 07</p>
-      <ul className="home-notes">
-        {notices.map((n) => (
-          <li key={n.id}>
-            <button
-              type="button"
-              className="note"
-              data-testid="notice"
-              onClick={() => {
-                fx('tap');
-                const ui = useUi.getState();
-                if (n.thread) ui.openThread(n.thread);
-                useGameStore.getState().openApp(n.app);
-                dismiss(n.id);
-              }}
-            >
-              <b>{n.text}</b>
-              {n.sub && <small>{n.sub}</small>}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

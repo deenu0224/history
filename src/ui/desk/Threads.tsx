@@ -84,7 +84,7 @@ export function Threads({ rootRef, links, born, hidden }: { rootRef: RefObject<H
 
   if (hidden) return null;
   return (
-    <div className="threads" aria-hidden="true" data-testid="threads-layer">
+    <div className="thr-layer" aria-hidden="true" data-testid="threads-layer">
       {geo.map((g) => {
         const t = born[g.key];
         const age = t ? now - t : Infinity;

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MUSIC } from '@/data/feedback';
+import { installAudioUnlock, setMusic } from '@/game/audio';
 import { enableAutosave, useGameStore } from '@/store/gameStore';
-import { setVolume, unlockAudio } from '@/game/audio';
+import { DeskShell } from './desk/DeskShell';
 import { Boot } from './os/Boot';
-import { Shell } from './os/Shell';
-import { osCssVars } from './lib/art';
+import { deskCssVars, osCssVars } from './lib/art';
 import { installFeedback } from './lib/fx';
 import { enterOs } from './lib/session';
 import { useUi } from './uiStore';
@@ -13,21 +14,27 @@ const params = () => new URLSearchParams(typeof location !== 'undefined' ? locat
 export function App() {
   const phase = useUi((s) => s.phase);
   const scale = useUi((s) => s.textScale);
-  const volume = useGameStore((s) => s.settings.volume);
   const [ready, setReady] = useState(false);
-  const vars = useMemo(() => osCssVars(), []);
+  const vars = useMemo(() => ({ ...osCssVars(), ...deskCssVars() }), []);
 
   useEffect(() => installFeedback(), []);
+  // 오디오: 어떤 제스처에서든 스스로 풀린다(한 번만 설치)
   useEffect(() => {
-    const on = () => unlockAudio();
-    window.addEventListener('pointerdown', on, { once: true });
-    window.addEventListener('keydown', on, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', on);
-      window.removeEventListener('keydown', on);
-    };
+    try {
+      installAudioUnlock();
+    } catch {
+      /* 오디오 없음 */
+    }
   }, []);
-  useEffect(() => setVolume(volume), [volume]);
+  // 부트·프롤로그의 음악(책상에 들어가면 책상의 감독이 이어받는다)
+  useEffect(() => {
+    if (phase !== 'boot') return;
+    try {
+      setMusic(MUSIC.boot);
+    } catch {
+      /* 오디오 없음 */
+    }
+  }, [phase]);
   useEffect(() => {
     document.documentElement.style.fontSize = `${16 * scale}px`;
   }, [scale]);
@@ -47,7 +54,7 @@ export function App() {
 
   return (
     <div className="os-root" style={vars}>
-      {phase === 'boot' ? <Boot /> : ready ? <Shell /> : null}
+      {phase === 'boot' ? <Boot /> : ready ? <DeskShell /> : null}
     </div>
   );
 }

@@ -151,18 +151,18 @@ function Seg({ seg, card, ghost }: { seg: CaseCardView['segments'][number]; card
   return (
     <button
       type="button"
-      className={`seg ${gloss ? 'has-gloss' : ''} ${isSel ? 'sel' : ''} ${inspect && !done ? 'pick' : ''} ${!done && rel ? `ln-${rel}` : ''} ${restoredHere ? 'seg-restored' : ''}`}
+      className={`dseg ${gloss ? 'has-gloss' : ''} ${isSel ? 'sel' : ''} ${inspect && !done ? 'pick' : ''} ${!done && rel ? `ln-${rel}` : ''} ${restoredHere ? 'dseg-restored' : ''}`}
       data-testid={`seg-${seg.id}`}
       data-seg={`rec:${seg.id}`}
       aria-pressed={isSel}
       onClick={tap}
     >
       {restoredHere && (
-        <span className="seg-ghost" aria-hidden="true">
+        <span className="dseg-ghost" aria-hidden="true">
           {ghost!.from}
         </span>
       )}
-      <span className="seg-text">{seg.shown}</span>
+      <span className="dseg-text">{seg.shown}</span>
     </button>
   );
 }
@@ -188,7 +188,7 @@ function LostBody({ card }: { card: CaseCardView }) {
       )}
       {card.recommend && (
         <p className="dc-recommend" data-testid="case-recommend">
-          <b>시스템 권장</b> {card.recommend}
+          {card.recommend}
         </p>
       )}
       {!card.done && card.notReadyText && !card.ready && <p className="dc-todo">{card.notReadyText}</p>}

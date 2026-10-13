@@ -5,6 +5,7 @@ import { useGameStore } from '@/store/gameStore';
 import { App } from './App';
 import { useUi } from './ui/uiStore';
 import './styles/os.css';
+import './styles/desk.css';
 
 if (new URLSearchParams(location.search).get('test') === '1') {
   Object.assign(window, { __STORE__: useGameStore, __BUS__: bus, __UI__: useUi });

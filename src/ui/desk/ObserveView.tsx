@@ -36,6 +36,7 @@ export function ObserveView({ timelineId, mode, shutter, expanded, onToggleExpan
   const range = selectObservationRange(st) ?? { from: tl.start, to: tl.end };
   const minute = st.obsMinute[tl.id] ?? tl.initial;
   const degraded = useMemo(() => (tl.id === 'tl_obs001' ? selectDegraded(st) : []), [st.degraded, tl.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [wide, setWide] = useState(false);
   const [blink, setBlink] = useState(0);
   const [note, setNote] = useState<{ text: string; n: number } | null>(null);
   const [shot, setShot] = useState<{ n: number; thumb?: string; minute: number; text: string } | null>(null);
@@ -45,6 +46,18 @@ export function ObserveView({ timelineId, mode, shutter, expanded, onToggleExpan
     if (mode !== 'case') return;
     const g = useGameStore.getState();
     if (g.ui.observation?.timelineId !== timelineId) g.startObservation(timelineId);
+  }, [timelineId, mode]);
+
+  // 좁은 세로 화면의 관측 창은 처음부터 말하는 인물 쪽으로(전체 화면은 인물이 너무 작다). 전체/말하는 이 버튼으로 오간다.
+  useEffect(() => {
+    if (mode !== 'case') return;
+    const narrow = typeof window !== 'undefined' && window.innerWidth < 700 && window.innerHeight >= window.innerWidth;
+    const t = window.setTimeout(() => {
+      setWide(!narrow);
+      if (narrow) viewerCall(viewer.current, 'focusSpeaker');
+      else viewerCall(viewer.current, 'fitToScene');
+    }, 60);
+    return () => window.clearTimeout(t);
   }, [timelineId, mode]);
 
   // 카메라가 멈추면 본 것을 알린다
@@ -84,7 +97,7 @@ export function ObserveView({ timelineId, mode, shutter, expanded, onToggleExpan
   }, [blink]);
   useEffect(() => {
     if (!shot) return;
-    const t = setTimeout(() => setShot(null), 4200);
+    const t = setTimeout(() => setShot(null), 2600);
     return () => clearTimeout(t);
   }, [shot]);
 
@@ -161,8 +174,19 @@ export function ObserveView({ timelineId, mode, shutter, expanded, onToggleExpan
           <button type="button" className="round" data-testid="zoom-out" aria-label="축소" onClick={() => (fx('tap'), viewer.current?.zoomStep(-1))}>
             －
           </button>
-          <button type="button" className="round" data-testid="obs-fit" aria-label="장면 전체" onClick={() => (fx('tap'), viewerCall(viewer.current, 'fitToScene') || viewer.current?.zoomTo(0.01))}>
-            ◱
+          <button
+            type="button"
+            className="round round-text"
+            data-testid="obs-fit"
+            aria-label={wide ? '말하는 이 보기' : '장면 전체 보기'}
+            onClick={() => {
+              fx('tap');
+              if (wide) viewerCall(viewer.current, 'focusSpeaker') || viewer.current?.zoomStep(1);
+              else viewerCall(viewer.current, 'fitToScene') || viewer.current?.zoomTo(0.01);
+              setWide(!wide);
+            }}
+          >
+            {wide ? '인물' : '전체'}
           </button>
         </div>
         {note && (

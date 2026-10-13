@@ -15,7 +15,7 @@ const fromOf = (play: RewritePlay | undefined, label?: string): string | undefin
   return c ? c.from.replace(/^[^:]*:\s*/, '') : undefined;
 };
 
-export function Scramble({ text, playKey, label, ms = 1500, rich }: { text: string; playKey: string; label?: string; ms?: number; rich?: boolean }) {
+export function Scramble({ text, playKey, label, ms = 1500, rich, hold = 0 }: { text: string; playKey: string; label?: string; ms?: number; rich?: boolean; hold?: number }) {
   const play = useUi((s) => s.rewritePlay[playKey]);
   const done = useUi((s) => s.doneRewrite);
   const [shown, setShown] = useState<string | null>(null);
@@ -32,8 +32,14 @@ export function Scramble({ text, playKey, label, ms = 1500, rich }: { text: stri
       return;
     }
     let raf = 0;
-    const t0 = performance.now();
+    let wait = 0;
+    const t0 = performance.now() + hold;
+    if (hold > 0) setShown(from);
     const tick = (now: number) => {
+      if (now < t0) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const t = Math.min(1, (now - t0) / ms);
       if (t >= 1) {
         setShown(null);
@@ -44,7 +50,10 @@ export function Scramble({ text, playKey, label, ms = 1500, rich }: { text: stri
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(wait);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [play, from, playKey, text, ms]);
 

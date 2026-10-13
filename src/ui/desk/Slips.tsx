@@ -62,7 +62,7 @@ export function SlipReader() {
           </span>
         </header>
         <p className="slip-reason" data-testid="slip-reason">
-          <Scramble text={w.voided && w.voidText ? w.voidText : w.reason} playKey={`warning:${w.id}`} />
+          <Scramble text={w.voided && w.voidText ? w.voidText : w.reason} playKey={`warning:${w.id}`} hold={1500} />
         </p>
         <footer className="slip-foot">
           <span>대조관 07</span>
