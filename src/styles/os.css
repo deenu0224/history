@@ -312,6 +312,32 @@ p {
   vertical-align: text-bottom;
   animation: blink 1s steps(2) infinite;
 }
+.boot[data-step='prologue'] .boot-room {
+  opacity: 0.25;
+  transition: opacity 1.2s;
+}
+.boot[data-step='prologue'] {
+  justify-content: center;
+  padding-bottom: var(--safe-b);
+}
+.prologue-line {
+  position: relative;
+  max-width: 20em;
+  min-height: 5.2em;
+  text-align: center;
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--k9);
+  word-break: keep-all;
+  animation: fade-in 0.6s both;
+}
+.prologue-skip {
+  position: absolute;
+  top: calc(12px + var(--safe-t, 0px));
+  right: 12px;
+  min-width: 44px;
+  min-height: 44px;
+}
 .cold-hint {
   position: relative;
   margin-top: 18px;

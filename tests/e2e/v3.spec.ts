@@ -202,6 +202,9 @@ test('결록 v3: 대조 — 처음부터 끝까지 실제 입력만으로', asyn
 
   // ════════ B0 부트 ════════
   await page.goto('/?test=1&boot=1');
+  await expect(T('prologue')).toBeVisible();
+  await shot('boot-prologue');
+  await tap(T('boot-skip'));
   await expect(T('cold-open')).toBeVisible();
   await shot('boot-cold-open');
   for (let i = 0; i < 8 && (await T('cold-open').count()); i++) {

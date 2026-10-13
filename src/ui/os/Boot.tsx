@@ -1,4 +1,4 @@
-/** 부팅: 야근하는 사무실의 밤. 두 줄을 탭으로 넘기면 바로 데스크톱. 이어하기가 있으면 먼저 묻는다. */
+/** 부팅: 새로 시작하면 세계관 프롤로그(건너뛰기 가능) → 야근하는 사무실의 밤 두 줄 → 데스크톱. 이어하기가 있으면 먼저 묻는다. */
 import { useEffect, useRef, useState } from 'react';
 import { peekSave } from '@/core/save';
 import { EPISODE_1 } from '@/data/script';
@@ -8,7 +8,7 @@ import { useTypewriter } from '../hooks';
 import { fx } from '../lib/fx';
 import { useUi } from '../uiStore';
 
-type Step = 'checking' | 'cold' | 'login' | 'entering';
+type Step = 'checking' | 'prologue' | 'cold' | 'login' | 'entering';
 
 export function Boot() {
   const setPhase = useUi((s) => s.setPhase);
@@ -29,16 +29,22 @@ export function Boot() {
       }
       if (!alive) return;
       hasSave.current = saved;
-      setStep(saved ? 'login' : 'cold');
+      setStep(saved ? 'login' : 'prologue');
     })();
     return () => {
       alive = false;
     };
   }, []);
 
-  const lines = EPISODE_1.coldOpen;
+  const paging = step === 'prologue' || step === 'cold';
+  const lines = step === 'prologue' ? EPISODE_1.prologue : EPISODE_1.coldOpen;
   const cur = lines[line]?.text ?? '';
-  const tw = useTypewriter(step === 'cold' ? cur : '', 16);
+  const tw = useTypewriter(paging ? cur : '', step === 'prologue' ? 28 : 16);
+
+  const toCold = () => {
+    setLine(0);
+    setStep('cold');
+  };
 
   const enter = async (mode: 'continue' | 'new') => {
     if (busy.current) return;
@@ -58,23 +64,31 @@ export function Boot() {
 
   const advance = () => {
     unlockAudio();
-    if (step !== 'cold') return;
+    if (!paging) return;
     if (!tw.done) return tw.finish();
     fx('tap');
     if (line + 1 < lines.length) setLine(line + 1);
+    else if (step === 'prologue') toCold();
     else void enter('new');
+  };
+
+  const skip = (e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    unlockAudio();
+    toCold();
   };
 
   // 줄이 다 써지면 잠시 뒤 스스로 넘어간다(짧게)
   useEffect(() => {
-    if (step !== 'cold' || !tw.done) return;
-    const t = window.setTimeout(advance, line + 1 < lines.length ? 1700 : 2100);
+    if (!paging || !tw.done) return;
+    const base = step === 'prologue' ? 2600 : 1700;
+    const t = window.setTimeout(advance, line + 1 < lines.length ? base : base + 400);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, tw.done, line]);
 
   return (
-    <div className="boot" data-step={step} data-testid="boot" onPointerDown={step === 'cold' ? advance : undefined}>
+    <div className="boot" data-step={step} data-testid="boot" onPointerDown={paging ? advance : undefined}>
       <div className="boot-room" aria-hidden="true">
         <div className="boot-window">
           {Array.from({ length: 28 }, (_, i) => (
@@ -83,6 +97,17 @@ export function Boot() {
         </div>
         <div className="boot-glow" />
       </div>
+      {step === 'prologue' && (
+        <p className="prologue-line" key={`p${line}`} data-testid="prologue">
+          {tw.shown}
+          <i className="caret" />
+        </p>
+      )}
+      {step === 'prologue' && (
+        <button type="button" className="btn btn-ghost prologue-skip" data-testid="boot-skip" onPointerDown={skip}>
+          건너뛰기
+        </button>
+      )}
       {step === 'cold' && (
         <p className="cold-line" key={line} data-testid="cold-open">
           {tw.shown}
@@ -98,7 +123,15 @@ export function Boot() {
               이어서 로그인
             </button>
             {confirmNew ? (
-              <button type="button" className="btn" data-testid="boot-new-confirm" onClick={() => enter('new')}>
+              <button
+                type="button"
+                className="btn"
+                data-testid="boot-new-confirm"
+                onClick={() => {
+                  setLine(0);
+                  setStep('prologue');
+                }}
+              >
                 정말 처음부터 시작
               </button>
             ) : (
@@ -109,7 +142,7 @@ export function Boot() {
           </div>
         </div>
       )}
-      {step === 'cold' && <span className="cold-hint">탭하여 넘기기</span>}
+      {paging && <span className="cold-hint">탭하여 넘기기</span>}
     </div>
   );
 }
