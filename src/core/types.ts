@@ -638,6 +638,153 @@ export interface RewriteEntry {
   after: string;
 }
 
+// ── v4 「근무」: 근무(밤)·건·규정·면담 ─────────────────────────────
+/**
+ * 건(case)의 도장. 확인(초록)·정정(파랑)은 대조관의 도장, 불일치(빨강)는 서랍 속 규정 외 도장,
+ * auto_close 는 시스템 권장 '자동 종결 승인', report 는 불일치 보고서(위원회 직송)로 처리됨.
+ */
+export type CaseStamp = 'confirm' | 'correct' | 'mismatch' | 'auto_close' | 'report';
+export const CASE_STAMPS: readonly CaseStamp[] = ['confirm', 'correct', 'mismatch', 'auto_close', 'report'];
+
+/** routine: 기록 문장이 있는 일상 대조 · noise: 기록 없는 좌표 손상 건(진짜 노이즈) · lost: 소실(#C-2217) */
+export type CaseKind = 'routine' | 'noise' | 'lost';
+
+/** 기록 카드·들은 말을 이루는 조각. 탭할 수 있는 낱말 단위. */
+export interface CaseSegment {
+  id: Id;
+  text: string;
+  /** 이 낱말을 누르면 보이는 한 줄 풀이(함정의 공정성: 판단에 필요한 지식은 풀이로 준다) */
+  gloss?: Gloss;
+}
+
+/** 건의 기록 카드: 검증된 원문 문장(조각들) + 한 낱말 변조(가상). */
+export interface CaseRecord {
+  /** 카드 머리: '『성종실록』 25년 12월 24일' 처럼 실록식 날짜. 4자리 연도 금지(검증기) */
+  citation: string;
+  /** 원문을 담은 사료(HistoricalSource) — 있으면 조각을 이은 문장이 그 excerpt 안에 있어야 한다 */
+  sourceId?: Id;
+  /** 원문 조각. 이어 붙이면 검증된 국역(또는 사전) 문장 그대로. */
+  segments: CaseSegment[];
+  /** 앞·뒤를 생략했다는 표시(…). 원문 일부만 옮길 때 */
+  leadingEllipsis?: boolean;
+  trailingEllipsis?: boolean;
+  /** 변조(가상, '변조' 표식): 이 조각 하나만 다른 낱말로 바뀌어 카드에 보인다 */
+  distortion?: { segmentId: Id; text: string };
+  /** 원문 출처(verified, url 필수) */
+  sources: SourceRef[];
+}
+
+/** 관측에서 짚을 수 있는 것: 들은 대사(line) 또는 장면의 대상(target, 핫스팟). */
+export interface CaseObserved {
+  id: Id;
+  kind: 'line' | 'target';
+  /** line: 대사 id — 들어야(뷰어 hearLine) 짚을 수 있다. 조각을 이으면 대사 본문 그대로(검증기) */
+  lineId?: Id;
+  /** target: 핫스팟 id — 탭하거나 확대해서 봐야 짚을 수 있다 */
+  hotspotId?: Id;
+  segments: CaseSegment[];
+}
+
+/**
+ * 원문 조각 ↔ 관측 조각의 '같은 것을 가리키는' 짝. 판정은 데이터로 계산한다(core/duty.ts inspectRelation):
+ *  - 기록 조각이 변조됐으면 → differs(빨간 실)
+ *  - notation 이면 → notation(노란 깜빡임 후 끊김: 표기 차이, 판단은 대조관)
+ *  - 그 외 → none(연결 없음)
+ * 짝이 아닌 조합은 언제나 none.
+ */
+export interface CasePair {
+  record: Id;
+  observed: Id;
+  notation?: boolean;
+  /** 표기 차이의 해설(엔딩 뒤 기록 열람·경고장). 정답을 숨길 필요가 없는 일상 건만 */
+  note?: string;
+}
+
+export interface CaseDef extends ContentBase {
+  /** 카드 번호 '#A-0412' */
+  code: string;
+  kind: CaseKind;
+  /** 이 건이 나오는 근무 */
+  dutyId: Id;
+  /** 카드 한 줄 제목 */
+  title: string;
+  record?: CaseRecord;
+  /** lost/noise: 좌표 손상 건 헤더(배정 재사용: 일시 ####·장소·탐지 한 줄) */
+  assignmentId?: Id;
+  /** lost/noise 카드의 탐지 한 줄(배정 detection 대신) */
+  detection?: string;
+  /** 시스템 권장 문구(lost/noise) */
+  recommend?: string;
+  /** 관측(디오라마 짧은 장면). 없으면 '관측 생략' */
+  timelineId?: Id;
+  observed: CaseObserved[];
+  pairs: CasePair[];
+  /** 데이터가 정한 정답(검증기가 pairs·distortion 과 맞는지 확인한다). lost 는 여러 개 허용 */
+  expected: CaseStamp[];
+  /** 틀린 도장의 경고장 사유(교육적인 한 줄). 없으면 규정 기본 문구. C-2217 의 정답을 담지 않는다(검증기) */
+  explain?: Partial<Record<CaseStamp, string>>;
+  /** 도장이 눌리기 위한 조건(lost/noise: 하루를 끝까지 봤다 등) */
+  readyWhen?: StateCondition;
+  notReadyText?: string;
+  /** 처리에 드는 근무 시간(분) */
+  minutes: number;
+  /** lost: 관측기 로그 재생 구간(근무 시간을 쓴다) */
+  replay?: { windows: ReplayWindow[]; minutes: number };
+  /** 검증 대기 자리표시. 'TODO_VERIFY' 인 건은 출하 콘텐츠에 넣을 수 없다(검증기) */
+  verification?: 'ok' | 'TODO_VERIFY';
+}
+
+export interface ReplayWindow {
+  id: Id;
+  label: string;
+  from: number;
+  to: number;
+}
+
+/** 근무(밤 하나). 큐·목표·새 규정·근무 보고 한 줄. */
+export interface WorkShift extends ContentBase {
+  no: number;
+  title: string;
+  /** 근무 시작 시각(분, 23:00 = 1380) */
+  startClock: number;
+  /** 근무 길이(분). 남은 시간에 들어가지 않는 건은 올라오지 않는다 */
+  length: number;
+  goal: number;
+  /** 건 순서 */
+  queue: Id[];
+  /** 이 근무에 새로 생긴 규정(닌텐도식: 근무마다 하나) */
+  newRules: Id[];
+  /** 근무 명세(책상 위 종이) */
+  briefing: string[];
+  /** 근무를 끝내기 위한 조건(큐 소진 외) */
+  endWhen?: StateCondition;
+  endBlockedText?: string;
+  /** 근무 보고의 오 실장 한 줄: 조건이 맞는 첫 줄 */
+  reportLines: { when?: StateCondition; text: string }[];
+  /** 근무가 끝난 뒤 다음 근무로 넘어가며 보일 한 줄(연출) */
+  outro?: string[];
+}
+
+/** 규정집의 한 조. */
+export interface RuleDef extends ContentBase {
+  no: number;
+  title: string;
+  text: string;
+  /** 이 규정을 어겼을 때 경고장 기본 문구 */
+  violation?: string;
+  /** 이 규정이 켜는 기능: frame_for_correct(정정에 근거 프레임), no_reopen(종결 건 재관측·재판정 금지), capture(셔터) */
+  enables?: ('frame_for_correct' | 'no_reopen' | 'capture')[];
+}
+
+/** 관측 권한 정지 면담(경고 3회). 오 실장과의 짧은 장면 후 계속(게임 오버 없음). */
+export interface InterviewDef extends ContentBase {
+  lines: { from: string; text: string; when?: StateCondition }[];
+  /** 경고장 사유를 다시 읽어 주는 자리(줄 번호 뒤에 끼운다) */
+  recapAfter: number;
+  choices: MessageChoice[];
+  closing: { from: string; text: string; when?: StateCondition }[];
+}
+
 // ── 콘텐츠 번들 ────────────────────────────────────────────────
 export interface ContentBundle {
   persons: HistoricalPerson[];
@@ -659,6 +806,11 @@ export interface ContentBundle {
   hints: HintLadder[];
   corrections: CorrectionEvent[];
   shifts: RealityShift[];
+  // v4 「근무」
+  workShifts: WorkShift[];
+  cases: CaseDef[];
+  rules: RuleDef[];
+  interviews: InterviewDef[];
 }
 
 export type ContentKey = keyof ContentBundle;

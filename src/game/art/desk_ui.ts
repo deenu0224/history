@@ -22,7 +22,7 @@ function deskSurface(): PixelSprite {
   const g = new Grid(N, N, D.w3);
   const r = rng(2024);
   const plankH = 16;
-  const tones = [D.w3, D.w2, D.w3, D.w2];
+  const tones = [D.w3, D.w3, D.w2, D.w3];
   for (let p = 0; p < 4; p++) {
     const y0 = p * plankH;
     const joint = 8 + Math.floor(r() * 40);
@@ -174,7 +174,7 @@ function deskCard(): PixelSprite {
 /** 괘선 타일 16×8: 가로 괘선 한 줄(가로로 이어붙임). 세로 간격은 UI 가 background-size 로 정함. */
 function rulesTile(): PixelSprite {
   const g = new Grid(16, 8);
-  for (let x = 0; x < 16; x++) g.set(x, 7, x % 5 === 2 ? D.z2 : D.z1);
+  for (let x = 0; x < 16; x++) g.set(x, 7, x % 8 === 3 ? D.z2 : D.z1);
   g.set(3, 6, D.z1).set(11, 6, D.z1);
   return sp(g, { x: 8, y: 4 });
 }

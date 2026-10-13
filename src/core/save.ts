@@ -1,9 +1,10 @@
 import { del, get, set } from 'idb-keyval';
-import type { AppId, FlagValue, Id, PlayStats, RewriteEntry, Stamp } from './types';
+import type { AppId, FlagValue, Id, PlayStats, RewriteEntry } from './types';
+import { emptyDuty, type DutyState } from './duty';
 import type { HintLevel, HintState } from './terminal';
 import type { Frame, ReportDraft } from './report';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const SAVE_SCHEMA = 'gyeollok-save';
 export type SaveSlot = 'auto' | 'manual';
 
@@ -28,24 +29,12 @@ export interface SearchLogEntry {
   entryIds: Id[];
 }
 
-/** 배정 종결(이번 건). 플레이어가 찍은 것과, 지금 현실이 보여 주는 것은 다를 수 있다(보정·복원). */
-export interface Closure {
-  /** 플레이어가 실제로 찍은 판정 */
-  verdict: Stamp;
-  /** 지금 현실이 보여 주는 판정(보정 뒤 '일치(노이즈)'로 바뀔 수 있다) */
-  shownVerdict: Stamp;
-  /** 플레이어가 적은 소견(보정이 지울 수 있다) */
-  note: string;
-  /** 근거로 붙인 프레임 */
-  frameIds: Id[];
-  /** 지금 현실의 분류 문구 */
-  classification: string;
-}
-
 /**
  * 저장되는 게임 상태(v4: 「대조」). 구조를 바꾸면 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
  * v1 → v2: 걷기 폐지. v2 → v3: 현실 이동·카드 겹치기·기록하기.
  * v3 → v4: v3 「대조」 재설계. 손 노트·메모·증거 보드·기록관·튜토리얼·증거 카드·추리·도감 상태를 버린다(설정만 유지).
+ * v4 → v5: v4 「근무」(페이퍼 플리즈식 밤 근무 3개). 체크리스트·배정 종결을 근무 상태(duty)로 대체.
+ *   v3 의 진행(체크리스트 한 판)은 근무 구조와 대응하지 않으므로 버리고 설정만 남긴다(docs/DESIGN_V4.md §9).
  */
 export interface PersistedState {
   flags: Record<string, FlagValue>;
@@ -80,10 +69,6 @@ export interface PersistedState {
   frameSeq: number;
   /** 열어 본 배정 */
   assignmentsOpened: Id[];
-  /** 체크리스트 항목 → 찍은 도장 */
-  checklist: Record<Id, Stamp>;
-  /** 배정 → 종결 */
-  closures: Record<Id, Closure>;
   /** 열어 본 종결 보고서 */
   opened: Id[];
   /** 보고서 초안 */
@@ -95,6 +80,12 @@ export interface PersistedState {
   hints: HintState;
   stats: PlayStats;
   settings: Settings;
+  /** v5: 근무(밤)·건·경고·면담·재생 */
+  duty: DutyState;
+  /** v5: 타임라인 id → 본 적 있는 가장 늦은 시각(분) */
+  obsReached: Record<Id, number>;
+  /** v5: 메시지 id → 도착한 단말 시각('HH:MM') */
+  arrivedAt: Record<Id, string>;
 }
 
 export interface SaveFile {
@@ -192,7 +183,59 @@ export const migrations: Record<number, Migration> = {
       settings: { textSpeed: 1, volume: 0.8, showProvenance: false, hintLevel: 'normal', haptics: true, reduceFlicker: false, ...settings },
     };
   },
+  4: (d) => {
+    // v4(대조 체크리스트 한 판) → v5(근무 3개): 진행은 대응하지 않으므로 처음부터, 설정만 유지한다.
+    const settings = (d.settings ?? {}) as Record<string, unknown>;
+    return { ...freshV5(), settings: { ...freshV5().settings, ...settings } };
+  },
 };
+
+/** v5 의 빈 상태(마이그레이션용). 스토어의 initialPersisted 와 같은 모양이어야 한다(save.test). */
+export function freshV5(): PersistedState {
+  return {
+    flags: {},
+    terms: [],
+    searchLog: [],
+    searched: [],
+    recordsOpened: [],
+    inbox: [],
+    read: [],
+    replies: {},
+    corrections: [],
+    shifts: [],
+    rewriteLog: [],
+    heard: [],
+    seen: [],
+    hoursVisited: [],
+    tapped: [],
+    obsMinute: {},
+    appsOpened: [],
+    frames: [],
+    frameSeq: 0,
+    assignmentsOpened: [],
+    opened: [],
+    reports: {},
+    filed: [],
+    degraded: [],
+    hints: { sent: {}, fails: {} },
+    stats: {
+      searches: 0,
+      unknownSearches: 0,
+      scrubs: 0,
+      taps: 0,
+      captures: 0,
+      stamps: 0,
+      stampMisses: 0,
+      reportSubmits: 0,
+      reportFails: 0,
+      inspects: 0,
+    },
+    settings: { textSpeed: 1, volume: 0.8, showProvenance: false, hintLevel: 'normal', haptics: true, reduceFlicker: false },
+    duty: emptyDuty(),
+    obsReached: {},
+    arrivedAt: {},
+  };
+}
 
 export const slotKey = (slot: SaveSlot) => `${SAVE_SCHEMA}:${slot}`;
 

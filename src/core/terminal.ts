@@ -35,6 +35,7 @@ export function emptyStats(): PlayStats {
     stampMisses: 0,
     reportSubmits: 0,
     reportFails: 0,
+    inspects: 0,
   };
 }
 
@@ -56,6 +57,14 @@ export interface ConditionState {
   filed: readonly Id[];
   hintsDone: readonly Id[];
   stats: PlayStats;
+  /** v4 근무 */
+  duties?: readonly Id[];
+  dutiesEnded?: readonly Id[];
+  cases?: readonly Id[];
+  current?: Id | null;
+  counters?: Readonly<Record<string, number>>;
+  /** 타임라인 id → 본 적 있는 가장 늦은 시각(분) */
+  reached?: Readonly<Record<Id, number>>;
 }
 
 export function checkState(s: ConditionState, c?: StateCondition): boolean {
@@ -70,6 +79,13 @@ export function checkState(s: ConditionState, c?: StateCondition): boolean {
   if (!has(s.filed, c.filed) || !has(s.hintsDone, c.hintsDone)) return false;
   for (const [k, v] of Object.entries(c.minStats ?? {}))
     if ((s.stats[k as keyof PlayStats] ?? 0) < (v ?? 0)) return false;
+  if (!has(s.duties ?? [], c.duties) || !has(s.dutiesEnded ?? [], c.dutiesEnded) || !has(s.cases ?? [], c.cases)) return false;
+  if (c.current !== undefined && s.current !== c.current) return false;
+  for (const k of c.counters ?? []) {
+    const v = s.counters?.[k.key] ?? 0;
+    if ((k.min !== undefined && v < k.min) || (k.max !== undefined && v > k.max)) return false;
+  }
+  if (c.reached && (s.reached?.[c.reached.timelineId] ?? -1) < c.reached.minute) return false;
   if (c.any && c.any.length > 0 && !c.any.some((sub) => checkState(s, sub))) return false;
   return true;
 }

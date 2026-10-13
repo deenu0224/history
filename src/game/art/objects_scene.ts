@@ -23,7 +23,6 @@ const CURTAIN_TONES = [C.blue0, C.blue1, C.blue2, C.blue3] as const;
 /** 휘장(걸개 천). 전체가 내려온 모양. 32×64 */
 function hwijangClosed(): PixelSprite {
   const g = new Grid(32, 64);
-  const r = rng(1201);
   g.ellipse(16, 62, 14, 1.6, C.shade1);
   // 걸이대
   g.rect(0, 0, 32, 3, C.wood1);
@@ -46,7 +45,6 @@ function hwijangClosed(): PixelSprite {
   }
   // 걸이 고리
   for (let x = 3; x < 31; x += 5) g.set(x, 3, C.ochre1).set(x, 4, C.ochre2);
-  g.speckle(r, CURTAIN_TONES[0], 0.012, 2, 8, 28, 40);
   // 중간 가는 가로 비침(천 결)
   for (let y = 10; y < 46; y += 7) for (let x = 1; x < 31; x += 3) if (g.get(x, y) === CURTAIN_TONES[1]) g.set(x, y, CURTAIN_TONES[0]);
   // 바닥 그림자 겹침

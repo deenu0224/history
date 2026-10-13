@@ -196,7 +196,7 @@ function cushion(g: Grid, cx: number, y: number, hw: number, tone: [string, stri
   g.set(cx, y + 2, tone[2]);
 }
 
-function councilFront(st: Style, seed: number): Grid {
+function councilFront(st: Style, seed: number, empty = false): Grid {
   const g = new Grid(SW, SH);
   const [r0, r1, r2] = st.robe;
   const r = rng(seed);
@@ -206,35 +206,37 @@ function councilFront(st: Style, seed: number): Grid {
   g.hline(5, 36, 22, C.shade1);
   g.hline(5, 32, 22, st.robe[1]);
   g.hline(5, 36, 22, st.robe[2]);
-  // 책상다리 하체
-  for (let y = 28; y <= 35; y++) {
-    const w = 7 + Math.floor((y - 28) * 0.55);
-    g.hline(16 - w, y, w * 2, r1);
-    g.set(16 - w, y, r0).set(17 - w, y, r0);
-    g.set(15 + w, y, r2).set(14 + w, y, r2);
+  if (!empty) {
+    // 책상다리 하체
+    for (let y = 28; y <= 35; y++) {
+      const w = 7 + Math.floor((y - 28) * 0.55);
+      g.hline(16 - w, y, w * 2, r1);
+      g.set(16 - w, y, r0).set(17 - w, y, r0);
+      g.set(15 + w, y, r2).set(14 + w, y, r2);
+    }
+    g.hline(5, 35, 22, r2);
+    g.set(12, 33, r2).set(13, 34, r2).set(20, 33, r2).set(19, 34, r2);
+    // 상체
+    for (let y = 19; y <= 29; y++) {
+      const w = y === 19 ? 6 : 7;
+      g.hline(16 - w, y, w * 2, r1);
+      g.set(16 - w, y, r0).set(17 - w, y, r0);
+      g.set(15 + w, y, r2).set(14 + w, y, r2);
+    }
+    g.hline(9, 27, 14, st.belt[0]);
+    g.hline(9, 28, 14, st.belt[1]);
+    g.set(14, 27, C.ochre0).set(17, 27, C.ochre0);
+    // 깃 + 흉배
+    g.hline(13, 19, 6, r2);
+    g.set(15, 19, st.inner).set(16, 19, st.inner).set(15, 20, st.inner).set(16, 20, st.inner);
+    g.set(14, 20, r2).set(17, 20, r2);
+    if (st.badge) {
+      g.rect(14, 22, 5, 4, st.badge[0]);
+      g.box(14, 22, 5, 4, st.badge[1]);
+      g.set(16, 23, st.badge[1]);
+    }
+    headFront(g, st, 4, 4);
   }
-  g.hline(5, 35, 22, r2);
-  g.set(12, 33, r2).set(13, 34, r2).set(20, 33, r2).set(19, 34, r2);
-  // 상체
-  for (let y = 19; y <= 29; y++) {
-    const w = y === 19 ? 6 : 7;
-    g.hline(16 - w, y, w * 2, r1);
-    g.set(16 - w, y, r0).set(17 - w, y, r0);
-    g.set(15 + w, y, r2).set(14 + w, y, r2);
-  }
-  g.hline(9, 27, 14, st.belt[0]);
-  g.hline(9, 28, 14, st.belt[1]);
-  g.set(14, 27, C.ochre0).set(17, 27, C.ochre0);
-  // 깃 + 흉배
-  g.hline(13, 19, 6, r2);
-  g.set(15, 19, st.inner).set(16, 19, st.inner).set(15, 20, st.inner).set(16, 20, st.inner);
-  g.set(14, 20, r2).set(17, 20, r2);
-  if (st.badge) {
-    g.rect(14, 22, 5, 4, st.badge[0]);
-    g.box(14, 22, 5, 4, st.badge[1]);
-    g.set(16, 23, st.badge[1]);
-  }
-  headFront(g, st, 4, 4);
   // 낮은 책상(서안): 윗면 + 앞 판 + 짧은 다리
   g.rect(3, 29, 26, 5, C.wood0);
   g.hline(3, 29, 26, C.hanji2);
@@ -254,20 +256,22 @@ function councilFront(st: Style, seed: number): Grid {
   g.line(21, 31, 25, 29, C.ochre1);
   g.set(26, 29, C.ink2);
   g.rect(5, 30, 4, 3, C.ink2).hline(5, 30, 4, C.ink0);
-  // 소매가 책상 위에 얹힘
-  g.rect(7, 27, 6, 4, r1);
-  g.hline(7, 27, 6, r0);
-  g.hline(7, 30, 6, r2);
-  g.rect(19, 27, 6, 4, r1);
-  g.hline(19, 27, 6, r0);
-  g.hline(19, 30, 6, r2);
-  g.rect(12, 28, 2, 2, st.skin[1]);
-  g.rect(18, 28, 2, 2, st.skin[1]);
+  if (!empty) {
+    // 소매가 책상 위에 얹힘
+    g.rect(7, 27, 6, 4, r1);
+    g.hline(7, 27, 6, r0);
+    g.hline(7, 30, 6, r2);
+    g.rect(19, 27, 6, 4, r1);
+    g.hline(19, 27, 6, r0);
+    g.hline(19, 30, 6, r2);
+    g.rect(12, 28, 2, 2, st.skin[1]);
+    g.rect(18, 28, 2, 2, st.skin[1]);
+  }
   r();
   return g;
 }
 
-function councilSide(st: Style, seed: number): Grid {
+function councilSide(st: Style, seed: number, empty = false): Grid {
   // 왼쪽을 바라보며 앉음: 책상은 왼쪽(그의 앞)
   const g = new Grid(SW, SH);
   const [r0, r1, r2] = st.robe;
@@ -276,24 +280,26 @@ function councilSide(st: Style, seed: number): Grid {
   cushion(g, 19, 32, 10, [C.hanji0, C.hanji1, C.hanji2]);
   g.hline(9, 32, 20, st.robe[1]);
   g.hline(9, 36, 20, st.robe[2]);
-  // 하체(앞쪽 무릎이 왼쪽으로)
-  for (let y = 28; y <= 35; y++) {
-    const x0 = y < 30 ? 14 : y < 32 ? 12 : 11;
-    g.hline(x0, y, 27 - x0 - 3, r1);
-    g.set(x0, y, r0).set(x0 + 1, y, r0);
-    g.set(23, y, r2).set(22, y, r2);
+  if (!empty) {
+    // 하체(앞쪽 무릎이 왼쪽으로)
+    for (let y = 28; y <= 35; y++) {
+      const x0 = y < 30 ? 14 : y < 32 ? 12 : 11;
+      g.hline(x0, y, 27 - x0 - 3, r1);
+      g.set(x0, y, r0).set(x0 + 1, y, r0);
+      g.set(23, y, r2).set(22, y, r2);
+    }
+    g.hline(11, 35, 13, r2);
+    // 상체
+    for (let y = 19; y <= 29; y++) {
+      const x0 = y < 22 ? 15 : 16;
+      g.hline(x0, y, 9, r1);
+      g.set(x0, y, r0);
+      g.set(x0 + 8, y, r2).set(x0 + 7, y, r2);
+    }
+    g.hline(16, 27, 9, st.belt[0]);
+    g.hline(16, 28, 9, st.belt[1]);
+    headSide(g, st, 6, 4);
   }
-  g.hline(11, 35, 13, r2);
-  // 상체
-  for (let y = 19; y <= 29; y++) {
-    const x0 = y < 22 ? 15 : 16;
-    g.hline(x0, y, 9, r1);
-    g.set(x0, y, r0);
-    g.set(x0 + 8, y, r2).set(x0 + 7, y, r2);
-  }
-  g.hline(16, 27, 9, st.belt[0]);
-  g.hline(16, 28, 9, st.belt[1]);
-  headSide(g, st, 6, 4);
   // 낮은 책상: 옆모습(좁고 세로로 긴 판)
   g.rect(2, 24, 9, 11, C.wood0);
   g.hline(2, 24, 9, C.hanji2);
@@ -311,19 +317,21 @@ function councilSide(st: Style, seed: number): Grid {
   g.vline(5, 29, 3, C.ink1).vline(7, 29, 2, C.ink1);
   g.line(10, 30, 7, 26, C.ochre1);
   g.set(7, 25, C.ink2);
-  // 앞으로 뻗은 팔
-  g.rect(8, 28, 8, 3, r1);
-  g.hline(8, 28, 8, r0);
-  g.hline(8, 30, 8, r2);
-  g.rect(6, 28, 3, 3, st.skin[1]);
-  g.hline(6, 30, 3, st.skin[2]);
+  if (!empty) {
+    // 앞으로 뻗은 팔
+    g.rect(8, 28, 8, 3, r1);
+    g.hline(8, 28, 8, r0);
+    g.hline(8, 30, 8, r2);
+    g.rect(6, 28, 3, 3, st.skin[1]);
+    g.hline(6, 30, 3, st.skin[2]);
+  }
   r();
   return g;
 }
 
-function councilSprite(st: Style, seed: number): PixelSprite {
-  const f = councilFront(st, seed);
-  const l = councilSide(st, seed + 1);
+function councilSprite(st: Style, seed: number, empty = false): PixelSprite {
+  const f = councilFront(st, seed, empty);
+  const l = councilSide(st, seed + 1, empty);
   const rg = l.flipH();
   const frames = [f, l, rg];
   // 외곽선: 로브/피부/나무 등 재질별(characters.finish 와 동일 규칙) + 책상 나무
@@ -351,4 +359,5 @@ export const SCENE_POSES: Record<string, PixelSprite> = {
   seat_council_red: councilSprite(officialRed, 31),
   seat_council_blue: councilSprite(officialBlue, 41),
   seat_council_green: councilSprite(officialGreen, 51),
+  seat_council_empty: councilSprite(officialRed, 61, true),
 };

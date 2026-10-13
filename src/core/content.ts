@@ -32,6 +32,10 @@ export const CONTENT_KEYS: readonly ContentKey[] = [
   'hints',
   'corrections',
   'shifts',
+  'workShifts',
+  'cases',
+  'rules',
+  'interviews',
 ];
 
 export function emptyBundle(): ContentBundle {
@@ -55,6 +59,10 @@ export function emptyBundle(): ContentBundle {
     hints: [],
     corrections: [],
     shifts: [],
+    workShifts: [],
+    cases: [],
+    rules: [],
+    interviews: [],
   };
 }
 

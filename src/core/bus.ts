@@ -46,7 +46,23 @@ export type FeedbackKind =
   | 'message'
   /** 합의된 현실의 다시 쓰기: 복원(따뜻한 먹 번짐) / 말소(차갑게, 무음, 명도 한 칸) */
   | 'restore'
-  | 'erase';
+  | 'erase'
+  // ── v4 「근무」 ──
+  /** 정정 도장(파랑) / 서랍의 불일치 도장(빨강) */
+  | 'stamp_correct'
+  | 'stamp_red'
+  /** 프린터가 종이를 뱉는다(규정·근무 보고) / 빨간 경고장 */
+  | 'printer'
+  | 'warning'
+  /** 검사 모드: 빨간 실(다름) / 노란 깜빡임(표기 차이) / 연결 없음 */
+  | 'inspect_link'
+  | 'inspect_notation'
+  | 'inspect_none'
+  /** 다음 건이 책상에 올라온다 / 근무 종료 */
+  | 'queue_next'
+  | 'shift_end'
+  /** 규정집·카드 넘김 */
+  | 'page';
 
 type Handler<T> = (payload: T) => void;
 

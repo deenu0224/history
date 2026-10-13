@@ -149,6 +149,56 @@ export const OS_KEYS = {
   exhibits: ['exhibit_geomungo_TEMP', 'exhibit_silrok_book_TEMP', 'exhibit_sacho_bundle_TEMP'],
 } as const;
 
+
+/** 책상(야간 근무 책상) 키 그룹 — 도장/종이/규정집/프린터/번호판/서랍/실/조명 */
+export const DESK_KEYS = {
+  /** 찍힌 자국 64×40. 변형 a/b/c 중 무작위. 글자 면은 비어 있다(UI 가 한글 + "07" 각인을 얹음) */
+  impressions: {
+    ok: ['stamp_ok_a', 'stamp_ok_b', 'stamp_ok_c'],
+    fix: ['stamp_fix_a', 'stamp_fix_b', 'stamp_fix_c'],
+    mismatch: ['stamp_mismatch_a', 'stamp_mismatch_b', 'stamp_mismatch_c'],
+    mismatchAged: 'stamp_mismatch_aged',
+    system: ['stamp_system_a', 'stamp_system_b', 'stamp_system_c'],
+  },
+  /** 손에 쥐는 도장 32×48, 프레임 0=대기 1=눌림 */
+  held: { ok: 'stamp_hold_ok', fix: 'stamp_hold_fix', mismatch: 'stamp_hold_mismatch', system: 'stamp_hold_system' },
+  /** 불일치 도장 면 클로즈업 64×64 (TEMP) */
+  faceMismatch: 'stamp_face_mismatch',
+  surface: 'desk_surface',
+  edge: 'desk_edge',
+  lampPool: 'desk_lamp_pool',
+  card: 'desk_card',
+  rulesTile: 'desk_rules_tile',
+  slip: 'desk_slip',
+  rulebookClosed: 'desk_rulebook_closed',
+  rulebookOpen: 'desk_rulebook_open',
+  rulebookGutter: 'desk_rulebook_gutter',
+  printer: 'desk_printer',
+  queuePlaque: 'desk_queue_plaque',
+  drawerClosed: 'desk_drawer_closed',
+  drawerOpen: 'desk_drawer_open',
+  threadH: 'desk_thread_h',
+  threadDash: 'desk_thread_dash',
+  threadKnot: 'desk_thread_knot',
+  threadKnotYellow: 'desk_thread_knot_yellow',
+  pin: 'desk_pin',
+} as const;
+
+/** 관측 디오라마(대조전·교지·회의·인쇄 보관) 신규 오브젝트/포즈 키. 포즈 프레임: 0 정면, 1 왼쪽, 2 오른쪽 */
+export const SCENE_KEYS = {
+  objects: [
+    'obj_hwijang', 'obj_hwijang_tied', 'obj_screen_bamboo', 'obj_screen_low', 'obj_bedding', 'obj_soban', 'obj_decree_stand', 'obj_low_desk',
+    'obj_cushion_red', 'obj_cushion_blue', 'obj_cushion_green', 'obj_cushion_plain', 'obj_cushion_row', 'obj_mat',
+    'obj_book_pile_tall', 'obj_book_bundle', 'obj_sheets_pile', 'obj_chest_open', 'obj_chest_long', 'obj_block_rack',
+  ],
+  poses: [
+    'pose_kneel_naegwan', 'pose_kneel_gungnyeo_a', 'pose_kneel_gungnyeo_b', 'pose_kneel_servant', 'pose_clerk_packing',
+    'pose_decree_red', 'pose_decree_blue', 'seat_council_red', 'seat_council_blue', 'seat_council_green', 'seat_council_empty',
+  ],
+  /** 바닥에 깔리는 것(캐릭터보다 항상 아래) */
+  flat: ['obj_mat', 'obj_cushion_row', 'obj_cushion_red', 'obj_cushion_blue', 'obj_cushion_green', 'obj_cushion_plain'],
+} as const;
+
 /** 캐릭터 프레임 배치 (characters.ts 참고) */
 export { CHAR_FRAMES };
 
@@ -191,6 +241,8 @@ export const ANIMS: AnimDef[] = [
   anim('anim_brazier_embers', OBJ_KEYS.brazier, [0, 1], 3, -1),
   anim('anim_lab_desk_screen', OBJ_KEYS.labDesk, [0, 1], 2, -1),
   anim('anim_terminal_blink', OBJ_KEYS.terminal, [0, 1], 2, -1),
+  anim('anim_clerk_packing', 'pose_clerk_packing', [0, 1], 1.2, -1),
+  anim('anim_desk_printer_feed', 'desk_printer', [0, 1, 2], 4, 0),
 ];
 
 // ───────────────────────── 메타데이터 (TEMP / FINAL) ─────────────────────────
@@ -228,6 +280,43 @@ Object.assign(metaEntries, {
   tile_roof_ridge_r: temp('치미/용마루 장식 약식.', ['roof-ornament']),
   exhibit_geomungo_TEMP: temp('탁영금: 160:19:10 비례, 중앙 각자 칸(글자 없음), 학 그림, 용두, 운족만 표현. 박물관 실물 사진과 대조 전까지 임시(형태·색·학 그림 위치 미확인).', ['geomungo']),
   exhibit_silrok_book_TEMP: temp('선장본 일반형(5공, 붉은 실, 빈 제첨). 실제 실록 판본의 규격·제본 확인 전.', ['bookbinding']),
+  // ── 책상 / 도장 (허구의 근무 책상 소품, 고증 대상 아님)
+  stamp_face_mismatch: temp('거울상 글자 면은 획 덩어리 자리표시(실제 음각 글자 없음). 확정 문구/각인 도입 시 교체. 마른 잉크 질감은 최종.'),
+  // ── 디오라마 신규 인물 (복식 미확인)
+  char_naegwan: temp('내관(궁중 환관 시종) 복식·모자 임시: 짙은 남색 도포 + 낮은 모자. 실제 복색·관모 확인 전.', ['naegwan-attire']),
+  char_gungnyeo: temp('궁녀 복식·머리 임시: 노란 저고리 + 남색 치마 + 쪽진 머리. 실제 복색·가체 여부 확인 전.', ['gungnyeo-attire']),
+  pose_kneel_naegwan: temp('내관 무릎 꿇은 자세. 복식 임시.', ['naegwan-attire']),
+  pose_kneel_gungnyeo_a: temp('궁녀 무릎 꿇은 자세. 복식 임시.', ['gungnyeo-attire']),
+  pose_kneel_gungnyeo_b: temp('궁녀 무릎 꿇은 자세(색 변형). 복식 임시.', ['gungnyeo-attire']),
+  pose_kneel_servant: temp('하인 무릎 꿇은 자세. 복식 임시.', ['servant-attire']),
+  pose_clerk_packing: temp('서리 복식·서책 포장 동작 임시.', ['clerk-attire', 'bookbinding']),
+  pose_decree_red: temp('교지를 받든 관원: 관복 색·교지(두루마리) 형태·받드는 자세 임시.', ['gwanbok-color', 'decree-form']),
+  pose_decree_blue: temp('교지를 받든 관원(청색 변형). 관복 색·교지 형태·자세 임시.', ['gwanbok-color', 'decree-form']),
+  seat_council_red: temp('회의 좌석(방석+서안) 구성·관복 색 임시.', ['gwanbok-color', 'council-seating']),
+  seat_council_blue: temp('회의 좌석(방석+서안) 구성·관복 색 임시.', ['gwanbok-color', 'council-seating']),
+  seat_council_green: temp('회의 좌석(방석+서안) 구성·관복 색 임시.', ['gwanbok-color', 'council-seating']),
+  seat_council_empty: temp('회의 좌석(방석+서안) 구성 임시.', ['council-seating']),
+  // ── 디오라마 신규 오브젝트 (재구성)
+  obj_hwijang: temp('휘장 형태·재질·색(남색 비단 + 황토 단) 임시.', ['hwijang']),
+  obj_hwijang_tied: temp('걷어 묶은 휘장 형태·색 임시.', ['hwijang']),
+  obj_screen_bamboo: temp('병풍 그림(대나무) 일반 구도 자리표시. 낙관·점은 글자 아님.', ['screen-painting']),
+  obj_screen_low: temp('낮은 침병(머리맡 병풍) 형태·비단 문양 임시.', ['screen-painting']),
+  obj_bedding: temp('이부자리 형태·색(청록 비단 이불, 목침) 임시. 몸 형상은 의도적으로 그리지 않음.', ['bedding-form']),
+  obj_soban: temp('소반 형태 일반형(원형, 뚜껑 그릇) 임시.'),
+  obj_decree_stand: temp('교지 받침·두루마리(황색 비단, 붉은 끈) 형태 임시.', ['decree-form']),
+  obj_low_desk: temp('낮은 책상(서안) 일반형 임시.', ['council-seating']),
+  obj_cushion_red: temp('방석 형태·색 임시.', ['council-seating']),
+  obj_cushion_blue: temp('방석 형태·색 임시.', ['council-seating']),
+  obj_cushion_green: temp('방석 형태·색 임시.', ['council-seating']),
+  obj_cushion_plain: temp('방석 형태·색 임시.', ['council-seating']),
+  obj_cushion_row: temp('방석 줄 형태·색 임시.', ['council-seating']),
+  obj_mat: temp('왕골 돗자리(통로 깔개) 문양·가선 임시.', ['council-seating']),
+  obj_book_pile_tall: temp('선장본 더미(표지 색·쌓는 방식) 임시.', ['bookbinding']),
+  obj_book_bundle: temp('보자기로 싼 서책 묶음 형태 임시.', ['bookbinding']),
+  obj_sheets_pile: temp('제본 전 낱장 인쇄지 더미 형태 임시.', ['print-storage']),
+  obj_chest_open: temp('열린 궤(서책 보관) 형태 임시.', ['print-storage']),
+  obj_chest_long: temp('긴 궤 형태 임시.', ['print-storage']),
+  obj_block_rack: temp('목판(판목) 보관 판가 형태·보관 방식 임시.', ['print-storage', 'woodblock-rack']),
   exhibit_sacho_bundle_TEMP: temp('사초 묶음 일반형(접은 종이 더미 + 끈). 실제 사초 규격/묶음 확인 전.', ['sacho-form']),
 });
 
@@ -251,4 +340,12 @@ export const REFERENCE_NEEDED: { id: string; topic: string; note: string }[] = [
   { id: 'dancheong-pattern', topic: '단청', note: '관아 건물에서의 문양/채색 수위' },
   { id: 'gate-form', topic: '관아 대문', note: '솟을대문 여부, 문짝 장식' },
   { id: 'roof-ornament', topic: '지붕 장식', note: '치미/잡상 사용 여부' },
+  { id: 'naegwan-attire', topic: '내관 복식', note: '궁중 환관 시종의 복색·관모(성종~연산군). 현재 짙은 남색 도포 + 낮은 모자는 임시' },
+  { id: 'gungnyeo-attire', topic: '궁녀 복식', note: '저고리·치마 색, 머리 모양(쪽·가체), 신분별 차이' },
+  { id: 'hwijang', topic: '휘장', note: '궁궐 실내 휘장의 형태·재질·색·걸이 방식' },
+  { id: 'bedding-form', topic: '이부자리', note: '궁궐 침구(요·이불·베개·목침)의 형태와 색' },
+  { id: 'decree-form', topic: '교지', note: '교지(두루마리)의 형태·색·받드는 법·낭독 절차' },
+  { id: 'council-seating', topic: '회의 좌석', note: '관원 회의 좌석 배치·방석·낮은 책상·돗자리' },
+  { id: 'print-storage', topic: '인쇄본 보관', note: '인쇄본/낱장/궤의 보관 방식과 가구' },
+  { id: 'woodblock-rack', topic: '판목 보관', note: '인쇄용 판목을 두는 판가의 형태' },
 ];
