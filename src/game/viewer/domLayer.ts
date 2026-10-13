@@ -118,7 +118,10 @@ export class DomLayer {
         const dx = Math.min(Math.max(b.x, half), W - half) - b.x;
         it.bubble.style.marginLeft = `${Math.round(dx)}px`;
         it.bubble.style.setProperty('--tail', `${Math.round(-dx)}px`);
-        it.bubble.style.bottom = '8px';
+        // 위 가장자리에서 잘리지 않게: 모자라는 만큼 아래로 내린다(머리를 조금 덮더라도 글이 보이는 게 먼저)
+        const bh = it.bubble.offsetHeight || 40;
+        const over = 4 - (b.y - 8 - bh);
+        it.bubble.style.bottom = `${over > 0 ? Math.round(8 - over) : 8}px`;
       } else if (it.bubbleOn) {
         it.bubbleOn = false;
         it.bubble.classList.remove('on');

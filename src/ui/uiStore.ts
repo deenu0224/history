@@ -91,6 +91,14 @@ interface UiLocal {
   /** 검사 모드(기록 낱말 → 관측 낱말을 차례로 짚는다) */
   inspect: boolean;
   setInspect(v: boolean): void;
+  /** 검사 모드를 한 번이라도 켰는가(켜기 전까지는 검사 버튼이 숨 쉰다) */
+  inspectUsed: boolean;
+  /** 짚지 않고 정정을 눌렀다 → 검사 버튼이 한 번 크게 깜빡인다(글 팝업 없이) */
+  inspectNudge: number;
+  nudgeInspect(): void;
+  /** 도장이 책상을 내리친다(짧은 흔들림) */
+  shake: { n: number; heavy: boolean } | null;
+  doShake(heavy?: boolean): void;
   /** 짚은 조각(기록 쪽 또는 관측 쪽). 반대쪽 조각을 누르면 실이 이어진다 */
   sel: { side: 'rec' | 'obs'; id: Id } | null;
   select(sel: { side: 'rec' | 'obs'; id: Id } | null): void;
@@ -231,7 +239,12 @@ export const useUi = create<UiLocal>()((set, get) => ({
 
   ...deskFresh(),
   setShownCase: (shownCase) => set({ shownCase }),
-  setInspect: (inspect) => set({ inspect, sel: null }),
+  setInspect: (inspect) => set((s) => ({ inspect, sel: null, inspectUsed: s.inspectUsed || inspect, inspectNudge: inspect ? 0 : s.inspectNudge })),
+  inspectUsed: false,
+  inspectNudge: 0,
+  nudgeInspect: () => set({ inspectNudge: Date.now() }),
+  shake: null,
+  doShake: (heavy = false) => set({ shake: { n: Date.now(), heavy } }),
   select: (sel) => set({ sel }),
   setGhost: (g) => set({ ghost: g ? { ...g, at: Date.now() } : null }),
   cardSay: (text, tone = 'info') => set({ cardMsg: { text, tone, n: Date.now() + Math.random() } }),

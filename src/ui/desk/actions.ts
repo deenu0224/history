@@ -54,6 +54,10 @@ export function doStamp(kind: CaseStamp): CaseStampResult | null {
   if (r.status === 'not_ready') {
     fx('stamp_miss');
     ui.cardSay(r.message ?? '아직 찍을 수 없다.', 'warn');
+    // 짚지 않고 정정을 눌렀다: 검사 버튼이 한 번 크게 숨 쉰다(글 팝업 없이 다음 동작을 가리킨다)
+    const heardAny = !!before && before.observed.some((o) => o.available);
+    const pinned = !!before && before.links.some((l) => l.relation === 'differs' || l.relation === 'notation');
+    if (kind === 'correct' && before?.kind === 'routine' && heardAny && !pinned) ui.nudgeInspect();
     return r;
   }
   if (r.status !== 'stamped') return r;
@@ -62,6 +66,7 @@ export function doStamp(kind: CaseStamp): CaseStampResult | null {
   ui.setInspect(false);
   ui.stampFresh(id);
   fx(STAMP_FX[kind]);
+  ui.doShake(kind === 'mismatch');
   ui.clearCardMsg();
   // 정정이 맞으면: 바뀌어 있던 낱말이 번지며 원문으로 돌아온다
   if (r.restored && before) {

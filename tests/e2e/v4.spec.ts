@@ -40,6 +40,7 @@ test('결록 v4: 근무 3밤 — 처음부터 끝까지 실제 입력만으로',
   const shot = async (name: string) => {
     n++;
     console.log(`[${proj} ${Math.round((Date.now() - t0) / 1000)}s] ${name}`);
+    await page.waitForTimeout(1100); // 연출(인쇄·먹 번짐·도장)이 가라앉은 뒤의 화면을 남긴다
     await page.screenshot({ path: `${SHOT_DIR}/${proj}-${String(n).padStart(2, '0')}-${name}.png` });
   };
   const T = (id: string) => page.getByTestId(id);
@@ -448,6 +449,13 @@ test('결록 v4: 근무 3밤 — 처음부터 끝까지 실제 입력만으로',
   await expect(T('card-msg')).toContainText('프레임');
   expect(await store((s) => s.duty.cases.case_a0501?.stamp)).toBeUndefined();
   await shot('s2-a0501-needs-frame');
+  // 방금 들은 말은 10초만 프레임에 같이 담긴다 — 넓은 화면(장면 전체)이면 말하는 이를 다시 크게 잡고 찍는다
+  {
+    const hs = (await hotspot())!.id;
+    await panTo([hs], 80);
+    await zoomTo(1.9);
+    await panTo([hs], 60);
+  }
   await tap(T('shutter'));
   await expect(T('case-frame')).toHaveAttribute('data-has', '1');
   await shot('s2-a0501-frame-pinned');

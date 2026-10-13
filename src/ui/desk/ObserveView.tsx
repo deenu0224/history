@@ -290,7 +290,7 @@ export function Scrubber({
   }
 
   return (
-    <div className="scrub" data-testid="scrub">
+    <div className={`scrub ${span >= 180 ? '' : 'edge-labels'}`} data-testid="scrub">
       <button type="button" className="round" data-testid="scrub-prev" aria-label={`${stepSize}분 전`} onClick={(e) => e.detail === 0 && step(-stepSize)} onPointerDown={holdStep(-stepSize)} onPointerUp={release} onPointerLeave={release} onPointerCancel={release}>
         ◀
       </button>

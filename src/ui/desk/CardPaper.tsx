@@ -69,7 +69,7 @@ function Front({ card, freshHere, canFlip, onFlip }: { card: CaseCardView; fresh
         )}
       </header>
 
-      {lost ? <LostBody card={card} /> : <RoutineBody card={card} ghost={ghost?.caseId === card.case.id ? ghost : null} />}
+      {lost ? <LostBody card={card} hideTodo={!!msg && msg.text === card.notReadyText} /> : <RoutineBody card={card} ghost={ghost?.caseId === card.case.id ? ghost : null} />}
 
       {card.needsFrame && !card.done && <FramePin card={card} />}
       {card.done && card.needsFrame && card.frame && <FramePin card={card} />}
@@ -167,8 +167,10 @@ function Seg({ seg, card, ghost }: { seg: CaseCardView['segments'][number]; card
   );
 }
 
-function LostBody({ card }: { card: CaseCardView }) {
+function LostBody({ card, hideTodo }: { card: CaseCardView; hideTodo?: boolean }) {
   const aId = card.case.assignmentId ?? '';
+  // 시스템 권장을 따르지 않은 도장(불일치 · 보고서)이면 권장 문구에 줄이 그어진다 — 내가 그 권장을 거슬렀다
+  const overruled = card.done && !!card.impression && card.impression.stamp !== 'auto_close';
   return (
     <div className="dc-lost">
       <dl className="dc-meta">
@@ -187,11 +189,11 @@ function LostBody({ card }: { card: CaseCardView }) {
         </p>
       )}
       {card.recommend && (
-        <p className="dc-recommend" data-testid="case-recommend">
+        <p className={`dc-recommend ${overruled ? 'overruled' : ''}`} data-testid="case-recommend">
           {card.recommend}
         </p>
       )}
-      {!card.done && card.notReadyText && !card.ready && <p className="dc-todo">{card.notReadyText}</p>}
+      {!card.done && card.notReadyText && !card.ready && !hideTodo && <p className="dc-todo">{card.notReadyText}</p>}
     </div>
   );
 }

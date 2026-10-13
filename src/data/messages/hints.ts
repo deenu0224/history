@@ -26,7 +26,7 @@ export const hintMessages: Message[] = [
   hint('h_hear_1', 'chief', CHIEF, '07, 관측 화면 확대해 봐. 말하는 사람 머리 위 「…」 보이지? 붙으면 들려.'),
   hint('h_hear_2', 'chief', CHIEF, '그 사람을 가운데 두고 두 손가락으로 벌려.'),
   hint('h_hear_3', 'chief', CHIEF, '들은 말은 아래에 남아. 기록 카드랑 같으면 확인.'),
-  hint('h_inspect_1', 'chief', CHIEF, '기록 카드 낱말 하나 누르고, 들은 말에서 같은 걸 가리키는 낱말을 눌러 봐. 다르면 실이 붉게 이어져.'),
+  hint('h_inspect_1', 'chief', CHIEF, '위의 「검사」 켜고, 기록 카드 낱말 하나 → 들은 말에서 같은 걸 가리키는 낱말 하나. 다르면 실이 붉게 이어져.'),
   hint('h_inspect_2', 'chief', CHIEF, '사람 이름부터 하나씩 맞대 봐.'),
   hint('h_inspect_3', 'chief', CHIEF, '붉은 실이 이어지면 정정 도장.'),
   hint('h_day_1', 'chief', CHIEF, '하루 전체 관측 건이야. 시간 막대 끝까지 밀어.'),

@@ -20,7 +20,7 @@ export const workShifts: WorkShift[] = [
     goal: 5,
     queue: ['case_a0412', 'case_a0419', 'case_a0423', 'case_a0431', 'case_c2217'],
     newRules: ['rule_1', 'rule_2', 'rule_3'],
-    briefing: ['근무 명세 · 대조관 07 · 처리 목표 5건', '확인: 기록 문장 = 관측.', '정정: 기록의 낱말이 관측과 다르다 → 다른 낱말을 짚고 정정.'],
+    briefing: ['대조관 07 · 처리 목표 5건', '확인(초록): 기록 문장이 관측과 같다.', '정정(파랑): 기록의 낱말이 관측과 다르다 → 그 낱말을 짚은 뒤 정정.', '도장은 길게 눌러 찍는다.'],
     reportLines: [
       { when: { all: ['closed_mismatch'] }, text: '첫날부터 서랍을 열었네. …내일 보자.' },
       { when: { counters: [{ key: 'warnings:duty_1', min: 1 }] }, text: '경고는 내일 안 따라가. 내일 보자.' },
@@ -37,7 +37,7 @@ export const workShifts: WorkShift[] = [
     goal: 5,
     queue: ['case_a0501', 'case_a0502', 'case_a0503', 'case_a0504', 'case_a0505'],
     newRules: ['rule_4'],
-    briefing: ['근무 명세 · 대조관 07 · 처리 목표 5건 · 06:00 종료', '규정 4조 신설: 정정 건에는 근거 프레임 1장.'],
+    briefing: ['대조관 07 · 처리 목표 5건 · 06:00 종료', '규정 4조 신설: 정정 건에는 근거 프레임 1장.'],
     reportLines: [
       {
         when: { counters: [{ key: 'goal:duty_2', max: 0 }, { key: 'replays:duty_2', min: 1 }] },
@@ -59,7 +59,7 @@ export const workShifts: WorkShift[] = [
     goal: 5,
     queue: ['case_c4410', 'case_a0601', 'case_c0951', 'case_a0602', 'case_c2217_re'],
     newRules: ['rule_5'],
-    briefing: ['근무 명세 · 대조관 07 · 처리 목표 5건', '규정 5조 신설: 자동 종결 건은 재관측·재판정하지 않는다.'],
+    briefing: ['대조관 07 · 처리 목표 5건', '규정 5조 신설: 자동 종결 건은 재관측·재판정하지 않는다.'],
     endWhen: { filed: ['rep_c2217'] },
     endBlockedText: '아직 끝나지 않았다. 업무에 불일치 보고서 양식이 열려 있다.',
     reportLines: [

@@ -85,6 +85,18 @@ export function DeskShell() {
   }, [cardId]);
 
   const needsRoutine = !!card && card.kind === 'routine' && !card.done;
+  // 관측 창이 살아 있지 않으면(신호 없음 · 도장 찍힘 · 관측 생략) 세로 화면에서 접어 카드에 자리를 준다
+  const obsLive = !!card && !!card.timelineId && !card.done && panel !== 'log';
+
+  // 도장이 책상을 내리친다: 짧은 흔들림(줄인 움직임 설정이면 없음)
+  const shake = useUi((s) => s.shake);
+  const [shaking, setShaking] = useState<'' | 'shake' | 'shake-heavy'>('');
+  useEffect(() => {
+    if (!shake || reduceFlicker) return;
+    setShaking(shake.heavy ? 'shake-heavy' : 'shake');
+    const t = window.setTimeout(() => setShaking(''), shake.heavy ? 420 : 240);
+    return () => window.clearTimeout(t);
+  }, [shake, reduceFlicker]);
 
   const layout = (
     <>
@@ -104,7 +116,7 @@ export function DeskShell() {
       data-inspect={inspect || undefined}
     >
       <TopStrip onSlips={() => setSlipList(true)} />
-      <main className="desk">{layout}</main>
+      <main className={`desk ${obsLive ? '' : 'obs-off'} ${shaking}`}>{layout}</main>
       <Threads rootRef={rootRef} links={card?.links ?? []} born={born} hidden={!card || card.done || flipped || expanded} />
 
       {panel === 'menu' && <div className="menu-back" data-testid="menu-back" onPointerDown={close} />}
@@ -171,7 +183,21 @@ function PlaqueBar({ card, canInspect }: { card: ReturnType<typeof selectCaseCar
   const desk = selectDesk(st);
   const inspect = useUi((s) => s.inspect);
   const setInspect = useUi((s) => s.setInspect);
+  const used = useUi((s) => s.inspectUsed);
+  const nudge = useUi((s) => s.inspectNudge);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!nudge) return;
+    const t = window.setTimeout(() => tick((n) => n + 1), 6100);
+    return () => window.clearTimeout(t);
+  }, [nudge]);
   if (!desk.shift) return <div className="plaque-bar" />;
+  // 검사 버튼은 한 번 쓰기 전까지, 첫 건(보기·엿듣기만 배우는 건)이 지난 뒤에만 숨 쉰다. 짚지 않고 정정을 누르면 크게 한 번.
+  const everInspected = used || Object.values(st.duty.cases).some((c) => c.links.length > 0);
+  const anyStamped = Object.values(st.duty.cases).some((c) => !!c.stamp);
+  const heard = !!card && card.observed.some((o) => o.available);
+  const nudged = nudge > 0 && Date.now() - nudge < 6000;
+  const pulse = inspect ? '' : nudged ? 'pulse-hard' : !everInspected && anyStamped && heard ? 'pulse-soft' : '';
   const nowCode = card && !card.done ? card.code : (CONTENT.cases.find((c) => c.id === desk.nextLoadable)?.code ?? '— — —');
   const showBell = !card || card.done;
   return (
@@ -188,7 +214,7 @@ function PlaqueBar({ card, canInspect }: { card: ReturnType<typeof selectCaseCar
       {canInspect && (
         <button
           type="button"
-          className={`inspect-toggle ${inspect ? 'on' : 'pulse-soft'}`}
+          className={`inspect-toggle ${inspect ? 'on' : ''} ${pulse}`}
           data-testid="inspect-toggle"
           aria-pressed={inspect}
           onClick={() => {

@@ -14,7 +14,15 @@ export function ObsWindow({ card }: { card: CaseCardView | null }) {
   let body;
   if (!card) body = <Dead text="신호 없음" sub="다음 건을 올리면 관측 창이 켜진다." />;
   else if (!card.timelineId) body = <Dead text="관측 생략" sub="이 건은 규정에 따라 관측하지 않는다." />;
-  else if (card.done) body = <Dead text="관측 종료" sub="도장이 찍힌 건." off />;
+  else if (card.done)
+    body = (
+      <Dead
+        text="관측 종료"
+        sub={card.observed.some((o) => o.available) ? '들은 말은 아래에 남는다.' : '관측 화면이 꺼졌다.'}
+        verdict={card.impression ? { label: card.impression.label, stamp: card.impression.stamp, over: card.impression.overlay } : undefined}
+        off
+      />
+    );
   else if (panel === 'log') body = <Dead text="관측기 로그 열람 중" />;
   else
     body = (
@@ -38,7 +46,7 @@ export function ObsWindow({ card }: { card: CaseCardView | null }) {
   );
 }
 
-function Dead({ text, sub, off }: { text: string; sub?: string; off?: boolean }) {
+function Dead({ text, sub, off, verdict }: { text: string; sub?: string; off?: boolean; verdict?: { label: string; stamp: string; over?: string } }) {
   return (
     <div className={`obsv obsv-dead ${off ? 'power-off' : ''}`} data-testid="obs-dead">
       <div className="obsv-screen">
@@ -46,6 +54,14 @@ function Dead({ text, sub, off }: { text: string; sub?: string; off?: boolean })
           <b>{text}</b>
           {sub && <small>{sub}</small>}
         </p>
+        {verdict && (
+          <span className={`obs-verdict v-${verdict.stamp}`} data-testid="obs-verdict">
+            <i>내 판정</i>
+            <b>{verdict.label}</b>
+            <em>07</em>
+            {verdict.over && <s>{verdict.over}</s>}
+          </span>
+        )}
       </div>
     </div>
   );

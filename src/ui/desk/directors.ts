@@ -1,5 +1,5 @@
 /** 책상 뒤에서 도는 감독들: 메시지 전달 연출, 다시 쓰기(복원) 연출, 프린터(경고장), 음악. */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { bus } from '@/core/bus';
 import { MUSIC } from '@/data/feedback';
 import { setMusic, setMusicVolume, setSfxVolume, setVolume } from '@/game/audio';
@@ -79,33 +79,61 @@ export function useRewriteDirector() {
     };
     queue(now);
     const restore = recent.some((r) => r.tone === 'restore');
-    if (restore) {
-      fx('restore');
-      ui.bloom();
-    } else fx('erase');
-    bus.emit('glitch', { intensity: restore ? 0.35 : 0.5, ms: 1400, kind: restore ? 'restore' : 'erase' } as { intensity: number; ms: number });
-    if (hold.length) window.setTimeout(() => queue(hold), 1600);
+    // 복원 연출(먹 번짐 · 소리 · 화면 일렁임)은 책상이 보일 때 — 서류함이 닫힌 뒤에 터진다
+    const play = () => {
+      if (restore) {
+        fx('restore');
+        useUi.getState().bloom();
+      } else fx('erase');
+      bus.emit('glitch', { intensity: restore ? 0.35 : 0.5, ms: 1400, kind: restore ? 'restore' : 'erase' } as { intensity: number; ms: number });
+    };
+    if (hold.length) {
+      window.setTimeout(() => {
+        queue(hold);
+        if (restore) play();
+      }, 1600);
+      if (!restore) play();
+    } else play();
+    void ui;
     useGameStore.getState().ackRewrites();
   }, [recent]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** 프린터가 뱉은 경고장: 도장 0.7초 뒤에 프린터가 돌고 → 경고장이 올라와 읽는다. */
+/**
+ * 프린터가 뱉은 경고장: 도장 0.7초 뒤에 프린터가 돌고 → 경고장이 올라와 읽는다.
+ * 업무(보고서 양식) 같은 패널이 열려 있으면 책상으로 돌아올 때까지 기다린다. 복원과 겹치면 카드의 먹 번짐이 먼저 보이고
+ * 그다음에 경고장이 올라온다(경고장 글자가 '해당 없음'으로 바뀌는 순간을 책상 위에서 본다).
+ */
 export function useSlipDirector() {
   const slips = useGameStore((s) => s.recentSlips);
+  const panel = useUi((s) => s.panel);
+  const pending = useRef<{ ids: string[]; restore: boolean }>({ ids: [], restore: false });
+  const [nonce, setNonce] = useState(0);
   useEffect(() => {
     if (!slips.length) return;
-    const ids = slips.map((s) => s.id);
+    pending.current.ids.push(...slips.map((s) => s.id));
+    pending.current.restore ||= useGameStore.getState().filed.length > 0 && slips.some((s) => s.ruleId === 'rule_5');
     useGameStore.getState().ackSlips();
+    setNonce((n) => n + 1);
+  }, [slips]);
+  useEffect(() => {
+    if (!pending.current.ids.length || (panel && panel !== 'menu')) return;
     const fast = fastMode();
-    window.setTimeout(() => {
+    const restore = pending.current.restore;
+    const lead = fast ? 0 : restore ? 2600 : 700;
+    const t = window.setTimeout(() => {
+      const ids = pending.current.ids;
+      pending.current = { ids: [], restore: false };
+      if (!ids.length) return;
       useUi.getState().print();
       fx('printer');
       window.setTimeout(() => {
         fx('warning');
         useUi.getState().readSlip(ids);
       }, fast ? 0 : 520);
-    }, fast ? 0 : 700);
-  }, [slips]);
+    }, lead);
+    return () => window.clearTimeout(t);
+  }, [nonce, panel]);
 }
 
 /** 앱 열기 신호(bus) → 패널 */
@@ -119,6 +147,7 @@ export function useMusicDirector() {
   const phase = useUi((s) => s.phase);
   const shownCase = useUi((s) => s.shownCase);
   const reportFor = useUi((s) => s.shiftReportFor);
+  const panel = useUi((s) => s.panel);
   const musicV = useUi((s) => s.musicVolume);
   const sfxV = useUi((s) => s.sfxVolume);
   const master = st.settings.volume;
@@ -130,7 +159,9 @@ export function useMusicDirector() {
   if (phase === 'os') {
     if (desk?.episodeDone) track = MUSIC.ending;
     else if (st.filed.length > 0) track = MUSIC.restore;
-    else if ((card?.kind === 'lost' && card.done) || liveWarn >= 2 || reportFor === 'duty_2') track = MUSIC.tension;
+    // 긴장: #C-2217 서랍 도장 뒤 · 재탐지(관측 생략) 카드 · 보고서를 쓰는 동안 · 살아 있는 경고 2장 · 06:00 재계산
+    else if ((card?.kind === 'lost' && (card.done || !card.timelineId)) || (panel === 'filing' && st.duty.active === 'duty_3') || !!st.duty.replay || liveWarn >= 2 || reportFor === 'duty_2')
+      track = MUSIC.tension;
     else if (st.ui.observation) track = MUSIC.observe;
     else track = st.duty.started.length === 0 ? MUSIC.boot : MUSIC.desk;
   }
