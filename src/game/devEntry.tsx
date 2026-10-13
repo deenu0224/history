@@ -13,6 +13,7 @@ if (q.get('zoom')) devOptions.zoom = Number(q.get('zoom'));
 const t = q.get('time');
 if (t) worldClock.minute = Number(t);
 if (q.get('hold') === '1') worldClock.minutesPerSecond = 0;
+for (const f of (q.get('flags') ?? '').split(',').filter(Boolean)) useGameStore.getState().setFlag(f);
 if (q.get('collect')) useGameStore.getState().advanceCollection(q.get('collect')!, 1);
 
 document.body.style.cssText = 'margin:0;background:#0b0d12;overflow:hidden';

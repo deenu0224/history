@@ -6,6 +6,7 @@ export const FX_KEYS = {
   poolCool: 'fx_pool_cool',
   poolMonitor: 'fx_pool_monitor',
   marker: 'fx_marker',
+  shimmer: 'fx_shimmer',
 } as const;
 
 function radial(size: number, stops: [number, string][]): HTMLCanvasElement {
@@ -55,5 +56,6 @@ export function registerFxTextures(scene: Phaser.Scene): void {
   add(FX_KEYS.poolWarm, radial(256, [[0, 'rgba(255,196,120,0.6)'], [0.25, 'rgba(255,176,96,0.38)'], [0.6, 'rgba(240,140,64,0.13)'], [1, 'rgba(220,120,50,0)']]), true);
   add(FX_KEYS.poolCool, radial(256, [[0, 'rgba(150,200,230,0.9)'], [0.35, 'rgba(110,160,200,0.38)'], [1, 'rgba(80,120,170,0)']]), true);
   add(FX_KEYS.poolMonitor, radial(128, [[0, 'rgba(130,200,195,0.7)'], [0.4, 'rgba(80,150,150,0.28)'], [1, 'rgba(60,120,130,0)']]), true);
+  add(FX_KEYS.shimmer, radial(64, [[0, 'rgba(225,235,240,0.55)'], [0.5, 'rgba(200,215,225,0.25)'], [1, 'rgba(190,205,220,0)']]), true);
   add(FX_KEYS.marker, markerCanvas(), false);
 }

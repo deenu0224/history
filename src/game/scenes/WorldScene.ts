@@ -73,6 +73,7 @@ interface ObjActor {
   lights: LightActor[];
   visible: boolean;
   stateful: boolean;
+  shimmer?: boolean;
 }
 
 interface Interactive {
@@ -233,6 +234,18 @@ export class WorldScene extends Phaser.Scene {
 
   private createObjects(): void {
     for (const def of getSceneObjects(this.sceneId)) {
+      if (def.spriteKey === 'door' && def.kind === 'observe') {
+        // 귀환 지점: 문이 아니라 공기가 일렁이는 희미한 왜곡
+        const sp = this.add
+          .sprite(def.x * TILE + TILE / 2, def.y * TILE + TILE / 2, FX_KEYS.shimmer)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setDepth(def.y * TILE + 30)
+          .setAlpha(0.12);
+        sp.setDisplaySize(30, 44);
+        const res = { kind: 'sprite', key: FX_KEYS.shimmer, frame: 0, flat: false, character: false, wallMounted: true, placeholder: false } as ResolvedSprite;
+        this.objects.push({ def, res, sprite: sp, lights: [], visible: true, stateful: false, shimmer: true });
+        continue;
+      }
       const res = resolveObjectSprite(def.spriteKey, { ambient: this.map.ambient, filled: this.objectFilled(def) });
       const stateful = def.spriteKey === 'obj_display_case' || res.key === OBJ_KEYS.caseEmpty || res.key === OBJ_KEYS.caseFilled;
       let sprite: Phaser.GameObjects.Sprite;
@@ -645,6 +658,7 @@ export class WorldScene extends Phaser.Scene {
     for (const n of this.npcs) n.update(dt, frozen);
     this.updatePlayer(dt, frozen);
     this.updateAtmosphere();
+    this.updateShimmer();
     this.updateHint(frozen);
   }
 
@@ -720,6 +734,17 @@ export class WorldScene extends Phaser.Scene {
       this.pendingRetries++;
       this.approach(p);
       this.pending = p;
+    }
+  }
+
+  private updateShimmer(): void {
+    const t = this.time.now / 1000;
+    for (const o of this.objects) {
+      if (!o.shimmer || !o.visible) continue;
+      const w = Math.sin(t * 2.1) * 0.5 + Math.sin(t * 3.7 + 1) * 0.5;
+      o.sprite.setAlpha(0.1 + 0.07 * w);
+      o.sprite.setDisplaySize(30 + w * 2, 44 + Math.sin(t * 1.3) * 3);
+      o.sprite.x = o.def.x * TILE + TILE / 2 + Math.round(Math.sin(t * 5) * 1);
     }
   }
 
