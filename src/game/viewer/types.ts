@@ -82,6 +82,10 @@ export interface ViewerHandle {
   snapshot(): ViewerSnapshot;
   /** 셔터 연출(하얀 번쩍임 + 소리) */
   flashShutter(): void;
+  /** 장면 전체가 한눈에 보이게 되돌린다(디오라마: 처음 화면). 시작 화면도 이것이다 */
+  fitToScene(): void;
+  /** 말하는 인물(없으면 보이는 첫 인물)을 엿들을 수 있는 배율로 화면 가운데에. 인물이 없으면 fitToScene */
+  focusSpeaker(): void;
   /** 이 NPC 의 하루 길을 점선으로(null 이면 끔) */
   setRouteNpc(npcId: string | null): void;
   /** 지움(차갑게 감광·탈채색) / 되살림(따뜻한 먹 번짐) 연출. bus 'glitch' 에 kind 가 실려도 같다 */

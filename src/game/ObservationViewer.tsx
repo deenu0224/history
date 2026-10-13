@@ -66,6 +66,8 @@ export const ObservationViewer = forwardRef<ViewerHandle, ObservationViewerProps
       setRouteNpc: (id) => call((c) => c.setRouteNpc(id)),
       playShift: (k) => call((c) => c.playShift(k)),
       focusTarget: (id) => call((c) => c.focusTarget(id)),
+      fitToScene: () => call((c) => c.fitToScene()),
+      focusSpeaker: () => call((c) => c.focusSpeaker()),
       snapshot: () => ctl.current?.snapshot() ?? EMPTY,
       flashShutter: () => call((c) => c.flashShutter()),
     }),

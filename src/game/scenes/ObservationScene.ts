@@ -4,13 +4,14 @@ import { formatClock, linesAt, npcPoseAt, viewerFrame, type HotspotStatus, type 
 import type { Id, Interactable, NpcDef, ObservationTimeline } from '@/core/types';
 import { content } from '@/data';
 import type { Flags } from '@/core/world';
-import { MAPS, type SceneId } from '@/data/world/maps';
+import { MAPS } from '@/data/world/maps';
+import { DIORAMAS, type Diorama } from './maps';
 import { selectViewerFrame, useGameStore } from '@/store/gameStore';
-import { OBJ_KEYS } from '../art';
+import { OBJ_KEYS, SCENE_KEYS, SPRITES } from '../art';
 import { setAmbience } from '../audio';
 import { FX_KEYS } from '../fx/textures';
 import { resetTransition, transitionIn } from '../fx/transition';
-import { resolveObjectSprite, type ResolvedSprite } from '../keys';
+import { resolveObjectSprite, warnOnce, type ResolvedSprite } from '../keys';
 import { autotile, type AutotileResult } from '../logic/autotile';
 import {
   chooseBaseZoom,
@@ -37,7 +38,7 @@ import { centerVisible, inDegraded } from '../logic/capture';
 import { HearingTracker, inHearRange, requiredZoom, type HearNpcIn, type HearSpec } from '../logic/hearing';
 import type { DomLayer } from '../viewer/domLayer';
 import { walkRoute } from '../logic/route';
-import { viewerTint } from '../logic/tint';
+import { clampDioramaCenter, dioramaZoomRange, fitZoom, hiddenStatics, sceneTint } from '../logic/diorama';
 import { TILE, type MapData } from '../logic/types';
 import type { AnchorRect, ViewerCamera, ViewerHost, ViewerHotspotInfo, ViewerSnapshot } from '../viewer/types';
 import { NpcActor, tileToFeet } from './NpcActor';
@@ -73,6 +74,21 @@ interface ObjActor {
   shimmer: boolean;
 }
 
+/** 디오라마 장식 한 점(상호작용 없음) */
+interface DecorActor {
+  spriteKey: string;
+  x: number;
+  y: number;
+  sprite: Phaser.GameObjects.Sprite;
+  lights: LightActor[];
+}
+
+/** 키로 안 지정해도 돌리는 반복 애니메이션 */
+const OBJECT_ANIM_DEFAULT: Record<string, string> = {
+  [OBJ_KEYS.lamp]: 'anim_lamp_flicker',
+  [OBJ_KEYS.brazier]: 'anim_brazier_embers',
+};
+
 interface Hs {
   id: Id;
   targetId: Id;
@@ -84,6 +100,8 @@ interface Hs {
 }
 
 const SLACK = TILE * 2;
+/** 디오라마 한눈에 보기 여백(월드 px) */
+const FIT_MARGIN = 0;
 const ENTER_MS = 1400;
 
 /** 관측 #001 디오라마. 플레이어·이동·충돌 없음 — 카메라(팬/줌)와 시각(스토어)만 있다. */
@@ -92,12 +110,15 @@ export class ObservationScene extends Phaser.Scene {
   private host!: ViewerHost;
   private tl!: ObservationTimeline;
   private map!: MapData;
+  /** 디오라마(짧은 장면) 정의. 마당 전체 지도(obs001)면 null */
+  private diorama: Diorama | null = null;
   private auto!: AutotileResult;
   private solid: boolean[][] = [];
   private world = { w: 0, h: 0 };
 
   private actors = new Map<Id, NpcActor>();
   private objects: ObjActor[] = [];
+  private decor: DecorActor[] = [];
   private hs: Hs[] = [];
   private windowLights: { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; boost: number }[] = [];
   private tintRect!: Phaser.GameObjects.Rectangle;
@@ -176,7 +197,14 @@ export class ObservationScene extends Phaser.Scene {
       return;
     }
     this.tl = tl;
-    this.map = MAPS[tl.sceneId as SceneId] as MapData;
+    const full = (MAPS as Record<string, MapData | undefined>)[tl.sceneId];
+    this.diorama = full ? null : ((DIORAMAS as Record<string, Diorama | undefined>)[tl.sceneId] ?? null);
+    const map = full ?? this.diorama;
+    if (!map) {
+      this.add.text(8, 8, `scene not found: ${tl.sceneId}`, { color: '#dccfae', fontSize: '12px' });
+      return;
+    }
+    this.map = map;
     this.auto = autotile(this.map);
     this.solid = buildSolidGrid(this.map);
     this.world = { w: this.map.w * TILE, h: this.map.h * TILE };
@@ -186,6 +214,7 @@ export class ObservationScene extends Phaser.Scene {
     this.bakeTiles();
     this.createStatics();
     this.createObjects();
+    this.createDioramaObjects();
     this.createWindows();
     this.createNpcs();
     for (const n of content.npcs) this.npcDefs.set(n.id, n);
@@ -283,22 +312,78 @@ export class ObservationScene extends Phaser.Scene {
         sprite = this.add.sprite(def.x * TILE + TILE / 2, baseY, res.key, 0).setOrigin(0.5, 1).setDepth(baseY);
       }
       if (res.anim && this.anims.exists(res.anim)) sprite.play({ key: res.anim, delay: Math.random() * 500 });
-      const lights: LightActor[] = [];
-      for (const ld of LIGHTS[res.key] ?? []) {
-        const img = this.add.image(sprite.x + (ld.dx ?? 0), sprite.y + ld.dy, ld.tex).setBlendMode(Phaser.BlendModes.ADD).setDepth(50001);
-        img.setScale((ld.radius * 2) / img.width);
-        lights.push({ img, def: ld, src: ld.flicker && res.anim ? sprite : null });
-      }
+      const lights = this.makeLights(sprite, res.key, !!res.anim);
       this.objects.push({ def, res, sprite, lights, shimmer: false });
     }
   }
 
+  /** 등잔·화로 같은 광원 스프라이트에 빛웅덩이를 붙인다 */
+  private makeLights(sprite: Phaser.GameObjects.Sprite, key: string, animated: boolean): LightActor[] {
+    const lights: LightActor[] = [];
+    for (const ld of LIGHTS[key] ?? []) {
+      const img = this.add.image(sprite.x + (ld.dx ?? 0), sprite.y + ld.dy, ld.tex).setBlendMode(Phaser.BlendModes.ADD).setDepth(50001);
+      img.setScale((ld.radius * 2) / img.width);
+      lights.push({ img, def: ld, src: ld.flicker && animated ? sprite : null });
+    }
+    return lights;
+  }
+
+  /**
+   * 디오라마의 `objects`(장식·자세 스프라이트)를 정적 스프라이트로 깐다.
+   *  - 바닥에 깔리는 것(flat)은 캐릭터 아래(깊이 -500대)
+   *  - 인물(char_/pose_)은 NpcActor 와 같은 발 위치(타일 +22)에 서서 말하는 인물과 같은 줄에서 깊이가 맞는다
+   *  - 그 밖의 사물은 앵커를 타일 아래쪽(+28)에 둔다. 깊이 = 접지 y
+   *  - 말하는 인물이 서는 칸의 정적 인물 장식은 그리지 않는다
+   */
+  private createDioramaObjects(): void {
+    const d = this.diorama;
+    if (!d) return;
+    const npcTiles = this.speakerTiles();
+    const hidden = hiddenStatics(d.objects, npcTiles);
+    const flatSet = new Set<string>(SCENE_KEYS.flat);
+    for (const o of d.objects) {
+      if (hidden.has(o)) continue;
+      const spr = SPRITES[o.spriteKey];
+      if (!spr) {
+        warnOnce(`diorama "${this.tl.sceneId}": unknown spriteKey "${o.spriteKey}" skipped`);
+        continue;
+      }
+      const flat = o.flat ?? flatSet.has(o.spriteKey);
+      const anchor = spr.anchor ?? { x: spr.w / 2, y: spr.h };
+      const figure = /^(char_|pose_)/.test(o.spriteKey);
+      const cx = o.x * TILE + TILE / 2;
+      const groundY = flat ? o.y * TILE + TILE / 2 : o.y * TILE + (figure ? 22 : TILE - 4);
+      const sprite = this.add.sprite(cx, groundY, o.spriteKey, o.frame ?? 0).setOrigin(anchor.x / spr.w, anchor.y / spr.h);
+      sprite.setDepth(flat ? -500 + o.y : groundY);
+      if (o.anim && this.anims.exists(o.anim)) sprite.play({ key: o.anim, delay: Math.random() * 500 });
+      else if (!o.anim && !o.flat && OBJECT_ANIM_DEFAULT[o.spriteKey] && this.anims.exists(OBJECT_ANIM_DEFAULT[o.spriteKey]!)) {
+        sprite.play({ key: OBJECT_ANIM_DEFAULT[o.spriteKey]!, delay: Math.random() * 500 });
+      }
+      const lights = this.makeLights(sprite, o.spriteKey, !!sprite.anims.currentAnim);
+      this.decor.push({ spriteKey: o.spriteKey, x: o.x, y: o.y, sprite, lights });
+    }
+  }
+
+  /** 이 타임라인에서 말하는 인물(핫스팟 NPC)이 서는 모든 칸 */
+  private speakerTiles(): { x: number; y: number }[] {
+    const byId = new Map<Id, NpcDef>(content.npcs.map((n) => [n.id, n]));
+    const out: { x: number; y: number }[] = [];
+    for (const h of this.tl.hotspots) {
+      if (h.kind !== 'npc') continue;
+      for (const w of byId.get(h.targetId)?.schedule ?? []) out.push({ x: w.x, y: w.y });
+    }
+    return out;
+  }
+
   private createWindows(): void {
-    const lamps = this.objects.filter((o) => LIGHTS[o.res.key]?.some((l) => l.tex === FX_KEYS.poolWarm));
+    const lamps: { x: number; y: number }[] = [
+      ...this.objects.filter((o) => LIGHTS[o.res.key]?.some((l) => l.tex === FX_KEYS.poolWarm)).map((o) => ({ x: o.def.x, y: o.def.y })),
+      ...this.decor.filter((o) => o.lights.length > 0).map((o) => ({ x: o.x, y: o.y })),
+    ];
     for (const p of this.auto.windows) {
       let boost = 0;
       for (const l of lamps) {
-        const d = Math.hypot(l.def.x - p.x, l.def.y - p.y);
+        const d = Math.hypot(l.x - p.x, l.y - p.y);
         if (d < 5) boost = Math.max(boost, 0.85 - d * 0.1);
       }
       const img = this.add.image(p.x * TILE, p.y * TILE, 'tile_window_hanji_lit').setOrigin(0, 0).setDepth(-900).setAlpha(0);
@@ -337,7 +422,7 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   private createAtmosphere(): void {
-    const t = viewerTint(this.tl.initial);
+    const t = sceneTint(this.tl.sceneId, this.tl.initial);
     this.tintCur = t.color;
     this.tintRect = this.add
       .rectangle(this.world.w / 2, this.world.h / 2, 9000, 9000, rgbToHex(t.color))
@@ -378,6 +463,10 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   private computeRange(): ZoomRange {
+    if (this.diorama) {
+      // 작은 디오라마: 처음 화면 = 장면 전체가 한눈에 들어오는 배율(엿듣기 기준 배율도 이것)
+      return dioramaZoomRange(fitZoom(this.view, this.world, FIT_MARGIN), this.view, this.world);
+    }
     const dpr = this.dpr;
     const base = chooseBaseZoom(this.scale.width / dpr, this.scale.height / dpr, dpr);
     return zoomRange(base, this.view, this.world);
@@ -385,8 +474,13 @@ export class ObservationScene extends Phaser.Scene {
 
   private setupCamera(): void {
     this.range = this.computeRange();
-    this.cam = initialCam(this.tl.camera, this.range.base, this.view, this.world);
+    if (this.diorama) {
+      this.cam = { x: this.world.w / 2, y: this.world.h / 2, zoom: this.range.base };
+    } else {
+      this.cam = initialCam(this.tl.camera, this.range.base, this.view, this.world);
+    }
     this.zoomTarget = this.cam.zoom;
+    this.clampCam();
     this.applyCamera();
     const onResize = () => this.onResize();
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
@@ -397,17 +491,21 @@ export class ObservationScene extends Phaser.Scene {
     const v = this.view;
     this.cameras.main.setSize(v.w, v.h);
     const prev = this.range;
+    const wasFit = !!this.diorama && Math.abs(this.cam.zoom - prev.base) < 1e-6 && Math.hypot(this.cam.x - this.world.w / 2, this.cam.y - this.world.h / 2) < 2;
     this.range = this.computeRange();
     const z = snapZoom(this.cam.zoom / prev.base * this.range.base, this.range.min, this.range.max);
     this.cam = { ...this.cam, zoom: z };
     this.zoomTarget = z;
+    if (wasFit) this.cam = { x: this.world.w / 2, y: this.world.h / 2, zoom: this.range.base };
     this.clampCam();
     this.applyCamera();
     this.overlaySize = '';
   }
 
   private clampCam(): void {
-    const c = clampCenter(this.cam.x, this.cam.y, this.cam.zoom, this.view, this.world, SLACK);
+    const c = this.diorama
+      ? clampDioramaCenter(this.cam.x, this.cam.y, this.cam.zoom, this.range.base, this.view, this.world, SLACK)
+      : clampCenter(this.cam.x, this.cam.y, this.cam.zoom, this.view, this.world, SLACK);
     this.cam.x = c.x;
     this.cam.y = c.y;
   }
@@ -776,6 +874,27 @@ export class ObservationScene extends Phaser.Scene {
     if (next !== undefined) this.zoomTo(next);
   }
 
+  /** 장면 전체가 한눈에 보이게(디오라마는 처음 화면, 마당 지도는 가장 멀리) 부드럽게 되돌린다 */
+  fitToScene(): void {
+    this.haltMotion();
+    this.wheelIdleAt = 0;
+    this.zoomAnchor = { x: this.view.w / 2, y: this.view.h / 2 };
+    this.zoomTarget = this.diorama ? this.range.base : this.range.min;
+    this.focusGoal = { x: this.world.w / 2, y: this.world.h / 2 };
+  }
+
+  /** 지금 시각에 말하는(없으면 보이는 첫) 인물을 엿들을 수 있는 배율로 화면 가운데에. 인물이 없으면 fitToScene */
+  focusSpeaker(): void {
+    const npcs = this.hs.filter((h) => h.kind === 'npc' && h.status === 'available' && h.actor?.shown);
+    const talking = npcs.find((h) => {
+      const def = this.npcDefs.get(h.targetId);
+      return !!def && linesAt(def, this.minute, this.flags).length > 0;
+    });
+    const h = talking ?? npcs[0];
+    if (h) this.focusTarget(h.id);
+    else this.fitToScene();
+  }
+
   getCameraInfo(): ViewerCamera {
     const d = this.dpr;
     return {
@@ -953,7 +1072,7 @@ export class ObservationScene extends Phaser.Scene {
   }
 
   private updateAtmosphere(dt: number): void {
-    const target = viewerTint(this.minute);
+    const target = sceneTint(this.tl.sceneId, this.minute);
     const k = smoothK(dt, 8);
     this.tintCur = [
       this.tintCur[0] + (target.color[0] - this.tintCur[0]) * k,
@@ -964,6 +1083,13 @@ export class ObservationScene extends Phaser.Scene {
     this.tintRect.setFillStyle(rgbToHex(this.tintCur));
     const dark = this.tintDark;
     const poolScale = 0.22 + 0.78 * dark;
+    for (const o of this.decor) {
+      for (const l of o.lights) {
+        let m = 1;
+        if (l.def.flicker && l.src) m = l.def.flicker[Math.min(Number(l.src.frame.name) || 0, l.def.flicker.length - 1)]!;
+        l.img.setAlpha(l.def.alpha * m * poolScale);
+      }
+    }
     for (const o of this.objects) {
       for (const l of o.lights) {
         let m = 1;
@@ -1005,7 +1131,7 @@ export class ObservationScene extends Phaser.Scene {
     const frame = this.reduceFlicker ? 0 : Math.floor(now / 90) % 4;
     this.noise.forEach((n, i) => {
       n.setVisible(i === frame);
-      n.setAlpha(Math.min(1, g * 1.6));
+      n.setAlpha(Math.min(1, g * (this.reduceFlicker ? 0.8 : 1.6)));
       if (i === frame && !this.reduceFlicker) n.setTilePosition(Math.floor(Math.random() * 64), Math.floor(Math.random() * 64));
     });
     this.scan.setAlpha(0.55 + g * 0.2);

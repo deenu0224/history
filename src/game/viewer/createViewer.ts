@@ -100,6 +100,8 @@ export function createViewer(parent: HTMLElement, host: ViewerHost): ViewerContr
     setRouteNpc: (id) => run((s) => s.setExplicitRoute(id)),
     playShift: (k) => run((s) => s.playShift(k)),
     focusTarget: (id) => run((s) => s.focusTarget(id)),
+    fitToScene: () => run((s) => s.fitToScene()),
+    focusSpeaker: () => run((s) => s.focusSpeaker()),
     snapshot: (): ViewerSnapshot => scene()?.snapshot() ?? EMPTY_SNAPSHOT,
     flashShutter: () => {
       dom.doFlash();
