@@ -68,10 +68,10 @@ async function waitScene(page: Page, id: string) {
 }
 
 /** 대화/시퀀스를 끝까지 넘긴다. 데스크톱은 키보드(E), 모바일은 탭. */
-async function advanceAll(page: Page, info: TestInfo, opts: { maxSteps?: number } = {}) {
+async function advanceAll(page: Page, info: TestInfo, opts: { maxSteps?: number; dialogOnly?: boolean } = {}) {
   const mobile = isMobile(info);
   for (let i = 0; i < (opts.maxSteps ?? 80); i++) {
-    const dlg = page.locator('.dialog.panel:not(.dialog-confirm), .seq');
+    const dlg = page.locator(opts.dialogOnly ? '.dialog.panel:not(.dialog-confirm)' : '.dialog.panel:not(.dialog-confirm), .seq');
     if (!(await dlg.first().isVisible().catch(() => false))) {
       await page.waitForTimeout(150);
       if (!(await dlg.first().isVisible().catch(() => false))) return;
@@ -255,11 +255,11 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
     const portrait = page.viewportSize()!.height > page.viewportSize()!.width;
     const tilesAcross = cam.w / cam.zoom / 32;
     if (portrait) expect(tilesAcross).toBeGreaterThanOrEqual(7.5), expect(tilesAcross).toBeLessThanOrEqual(10.5);
-    else expect(tilesAcross).toBeLessThanOrEqual(15);
+    else expect(cam.h / cam.zoom / 32).toBeLessThanOrEqual(8.5), expect(cam.h / cam.zoom / 32).toBeGreaterThanOrEqual(5);
     expect(Number.isInteger(cam.zoom)).toBe(true);
     // 탭 이동: 바닥을 탭하면 그 타일로 걸어간다
     const from = await page.evaluate(() => (window as any).__GAME__.getPlayerTile());
-    const target = { x: from.x, y: from.y - 3 };
+    const target = { x: from.x, y: from.y - 2 };
     const sp = await tileToScreen(page, target.x, target.y);
     await page.touchscreen.tap(sp.x, sp.y);
     await expect
@@ -423,7 +423,7 @@ test('episode 1 is playable start to finish', async ({ page }, info) => {
   await expect.poll(() => page.evaluate(() => (window as any).__GAME__.objectTexture('arc_center_case'))).toBe('obj_case_filled');
   await page.waitForTimeout(700);
   await shot(page, info, '12-archive-after-return'); // 진열대가 채워진 모습(대화 중)
-  await advanceAll(page, info);
+  await advanceAll(page, info, { dialogOnly: true });
   expect(await S.flag('archive_center_seen')).toBe(true);
   await expect.poll(() => page.evaluate(() => (window as any).__GAME__.objectTexture('arc_center_case'))).toBe('obj_case_filled');
 

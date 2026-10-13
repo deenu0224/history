@@ -37,6 +37,7 @@ export function useHudInfo() {
   }, [collection]);
   return {
     past,
+    scene,
     obs: obsNumber(observationIndex(scene)),
     year: result ? formatYearResult(result.from, result.to, result.verdict) : null,
     place,
@@ -53,7 +54,7 @@ export function Hud({ layout }: { layout: Layout }) {
       <div className="hud-row">
         <div className="hud-id" aria-label="관측 번호">
           <span className="hud-lamp" />
-          {info.past ? `관측 ${info.obs}` : '연구실'}
+          {info.past ? `관측 ${info.obs}` : info.scene === 'archive' ? '개인 기록관' : '연구실'}
         </div>
         {info.past && (
           <dl className="hud-fields">
