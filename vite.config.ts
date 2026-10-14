@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 const walk = (dir: string): string[] =>
   readdirSync(dir).flatMap((f) => {
@@ -19,7 +19,7 @@ function swPlugin(): Plugin {
     name: 'gyeollok-sw',
     apply: 'build',
     configResolved(c) {
-      outDir = join(c.root, c.build.outDir);
+      outDir = resolve(c.root, c.build.outDir);
       root = c.root;
     },
     closeBundle() {
