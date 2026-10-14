@@ -155,7 +155,7 @@ export function Room({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h?:
           <Chips times={['09:10', '11:40', '13:20', '14:00', '14:05', '15:00']} on="11:40" />
           <div style={{ position: 'relative', marginTop: 12 }}>
             <RoomPlan w={pw} mode="normal" markers={markers} />
-            <div style={{ position: 'absolute', left: hx - 42, top: hy - 14 - 40, background: 'var(--accent)', color: '#08141a', borderRadius: 14, padding: '1px 12px', fontWeight: 600, fontSize: 16, lineHeight: '24px', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,.5)' }}>같은 사람</div>
+            <div style={{ position: 'absolute', left: hx - 42, top: hy - 14 - 40, background: 'var(--accent)', color: '#17120a', borderRadius: 14, padding: '1px 12px', fontWeight: 600, fontSize: 16, lineHeight: '24px', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,.5)' }}>같은 사람</div>
           </div>
           <div className="t-m" style={{ marginTop: 10, color: 'var(--text)' }}>
             <span style={{ color: AMBER }}>●</span> 이극돈의 눈 · 11:40
@@ -180,12 +180,12 @@ export function RoomContra({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: numbe
     { id: 'Y', x: 3.5, y: 3.75, label: '이', eye: true, facing: 0 },
     { id: 'O', x: 6.0, y: 2.0, label: '어', eye: true, facing: 90 },
     { id: 'N', x: 11.0, y: 1.1, label: '윤', eye: true, facing: 135, sel: true, alert: true, dim: false },
-    { id: 'B', x: 6.0, y: 8.45, label: '?', speaker: true },
+    { id: 'B', x: 6.0, y: 8.2, label: '?', speaker: true },
   ];
   const nx = 11.0 * c;
   const ny = 1.1 * c;
   const bx = 6.0 * c;
-  const by = 8.45 * c;
+  const by = 8.2 * c;
   return (
     <RoomBase w={w} h={h} sat={sat} sab={sab} topH={topH}>
       <div className="sheet" style={{ height: sheetH }}>
@@ -207,14 +207,14 @@ export function RoomContra({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: numbe
               extra={
                 <>
                   <line x1={nx} y1={ny} x2={bx} y2={by} stroke="#d98a7a" strokeWidth="1.5" strokeDasharray="5 4" />
-                  <g transform={`translate(${(nx + bx) / 2 + 6},${(ny + by) / 2 - 8})`}>
+                  <g transform={`translate(${nx + (bx - nx) * 0.62 + 8},${ny + (by - ny) * 0.62 - 6})`}>
                     <rect x="-4" y="-17" width="64" height="24" rx="6" fill="#0d1219" stroke="#d98a7a" strokeWidth="1" />
                     <text x="28" y="0" textAnchor="middle" fill="#f0b3a6" style={{ font: '600 16px Pretendard' }}>9.2칸</text>
                   </g>
                 </>
               }
             />
-            <div style={{ position: 'absolute', left: 4.1 * c, top: 6, background: 'rgba(239,229,203,.7)', color: '#6b5e45', border: '1px dashed #988a68', borderRadius: 8, padding: '0 8px', fontSize: 16, lineHeight: '22px', filter: 'blur(.4px)', whiteSpace: 'nowrap' }}>…사초를 …… 들여……</div>
+            <div style={{ position: 'absolute', left: 3.6 * c, top: 20, background: 'rgba(239,229,203,.7)', color: '#6b5e45', border: '1px dashed #988a68', borderRadius: 8, padding: '0 8px', fontSize: 16, lineHeight: '22px', filter: 'blur(.4px)', whiteSpace: 'nowrap' }}>…사초를 …… 들여……</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
             <button className="btn primary">「모두」를 남긴다</button>
@@ -235,10 +235,10 @@ export function Search({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h
         <div className="t-h" style={{ marginLeft: 2 }}>찾기</div>
       </div>
       <div style={{ padding: '10px 16px 0' }}>
-        <div style={{ height: 52, borderRadius: 14, background: 'var(--surface)', border: '1.5px solid var(--accent)', display: 'flex', alignItems: 'center', padding: '0 6px 0 16px', boxShadow: '0 0 0 4px rgba(74,151,149,.14)' }}>
+        <div style={{ height: 52, borderRadius: 14, background: 'var(--surface)', border: '1.5px solid var(--accent)', display: 'flex', alignItems: 'center', padding: '0 6px 0 16px', boxShadow: '0 0 0 4px rgba(196,151,90,.14)' }}>
           <span style={{ flex: 1, fontSize: 17 }}>김일손<span style={{ display: 'inline-block', width: 2, height: 22, background: 'var(--accent-strong)', verticalAlign: -5, marginLeft: 2 }} /></span>
           <button className="icon-btn" style={{ color: 'var(--muted)' }}><IClear /></button>
-          <button className="icon-btn" style={{ background: 'var(--accent)', color: '#08141a', width: 44, height: 40, borderRadius: 10 }}><ISearch /></button>
+          <button className="icon-btn" style={{ background: 'var(--accent)', color: '#17120a', width: 44, height: 40, borderRadius: 10 }}><ISearch /></button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, overflow: 'hidden', margin: '14px -16px 0', padding: '0 16px' }}>
           <span className="t-m" style={{ whiteSpace: 'nowrap' }}>들은 말에서</span>

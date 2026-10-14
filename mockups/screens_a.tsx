@@ -64,8 +64,8 @@ function GapGraphic({ w }: { w: number }) {
         {bar(0, w * 0.82)}
         {bar(12, w * 0.64, 0.8)}
         {bar(24, w * 0.9, 0.9)}
-        <rect x="0.75" y="38.75" width={w - 1.5} height="30.5" fill="#0f141c" stroke="#4a9795" strokeWidth="1.5" strokeDasharray="5 4" />
-        <text x={w / 2} y="59" textAnchor="middle" fill="#86c4bd" style={{ font: '16px Galmuri11' }} letterSpacing="3">#### ####</text>
+        <rect x="0.75" y="38.75" width={w - 1.5} height="30.5" fill="#0f141c" stroke="#c4975a" strokeWidth="1.5" strokeDasharray="5 4" />
+        <text x={w / 2} y="59" textAnchor="middle" fill="#e3c48c" style={{ font: '16px Galmuri11' }} letterSpacing="3">#### ####</text>
         {bar(80, w * 0.7, 0.55)}
         {bar(92, w * 0.46, 0.4)}
       </g>
@@ -77,7 +77,7 @@ export function Home({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h?:
   const cw = w - 32;
   return (
     <Screen w={w} h={h} sat={sat} sab={sab}>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(120% 60% at 50% 0%, rgba(74,151,149,.12), transparent 60%)' }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(120% 60% at 50% 0%, rgba(196,151,90,.08), transparent 60%)' }} />
       {/* 위 띠 */}
       <div style={{ position: 'absolute', left: 0, right: 0, top: sat, height: 52, display: 'flex', alignItems: 'center', padding: '0 6px 0 20px' }}>
         <Clock color="var(--accent-strong)">23:04</Clock>
@@ -136,7 +136,7 @@ function PCard({ c, sel, dim, flag }: { c: (typeof CARDS)[number]; sel?: boolean
 
 function EvRow({ kind, time, text, sel, mine, dimmed }: { kind: string; time: string; text: string; sel?: boolean; mine?: boolean; dimmed?: boolean }) {
   return (
-    <div style={{ minHeight: 64, display: 'flex', gap: 12, alignItems: 'center', padding: '8px 14px', borderRadius: 12, background: sel ? 'rgba(74,151,149,.16)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--line)'}`, opacity: dimmed ? 0.75 : 1 }}>
+    <div style={{ minHeight: 64, display: 'flex', gap: 12, alignItems: 'center', padding: '8px 14px', borderRadius: 12, background: sel ? 'rgba(196,151,90,.14)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent)' : 'var(--line)'}`, opacity: dimmed ? 0.75 : 1 }}>
       <div style={{ width: 54, flex: 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
         <span className="t-m" style={{ fontSize: 16, color: mine ? 'var(--accent-strong)' : 'var(--muted)' }}>{kind}</span>
         <Clock>{time}</Clock>
@@ -160,7 +160,7 @@ export function TagScreen({ phase, w = 390, h = 844, sat = 47, sab = 34 }: { pha
   return (
     <Screen w={w} h={h} sat={sat} sab={sab}>
       <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: top, background: '#0b0a08' }}>
-        <CutView spec={spec} highlightIds={[ringId]} transition="none" />
+        <div className="cutfx" style={{ width: '100%', height: '100%' }}><CutView spec={spec} highlightIds={[ringId]} transition="none" /></div>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0,0,0,0) 30%, rgba(8,6,4,.55) 100%), linear-gradient(rgba(10,8,6,.7), rgba(10,8,6,0) 30%)', pointerEvents: 'none' }} />
       </div>
       <div style={{ position: 'absolute', left: 6, top: sat + 2, zIndex: 40 }}>
@@ -267,7 +267,7 @@ function Fact({ children, src, open, altered }: { children: ReactNode; src?: Rea
 export function PersonCard({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h?: number; sat?: number; sab?: number }) {
   return (
     <Screen w={w} h={h} sat={sat} sab={sab} bg="#0b1017">
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(100% 50% at 50% 30%, rgba(74,151,149,.1), transparent 70%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(100% 50% at 50% 30%, rgba(196,151,90,.06), transparent 70%)' }} />
       <div style={{ position: 'absolute', left: 0, right: 0, top: sat, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px' }}>
         <button className="icon-btn"><IBack /></button>
         <button className="icon-btn"><IClose /></button>
@@ -288,7 +288,7 @@ export function PersonCard({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: numbe
           <div style={{ color: '#5f6b77', marginTop: 0 }}>사유: <span style={{ borderBottom: '1.5px dashed #6c7885' }}>기록 없음</span></div>
         </Fact>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 14 }}>
-          <Eye state="open" tone="paper" />
+          <Eye state="unknown" tone="paper" />
           <span className="t-b" style={{ color: '#1e2024' }}>눈: 아직 모름</span>
         </div>
       </div>

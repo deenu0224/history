@@ -190,6 +190,10 @@ export function RewriteVerdict({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: n
 // ───────────────────────── 17 복원: 기록 ─────────────────────────
 const inkFilter = (
   <svg width="0" height="0" style={{ position: 'absolute' }}>
+    <filter id="ink2" x="-5%" y="-20%" width="110%" height="140%">
+      <feGaussianBlur stdDeviation="0.8" result="b" />
+      <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 12 -4.5" />
+    </filter>
     <filter id="ink" x="-5%" y="-20%" width="110%" height="140%">
       <feGaussianBlur stdDeviation="1.7" result="b" />
       <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -8" />
@@ -220,7 +224,7 @@ function InkLine({ time, children, spread = 1 }: { time: string; children: React
 
 export function RestoreRecord({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h?: number; sat?: number; sab?: number }) {
   return (
-    <Screen w={w} h={h} sat={sat} sab={sab} bg="#1a1612">
+    <Screen w={w} h={h} sat={sat} sab={sab} bg="#1a1612" dark>
       {inkFilter}
       <div className="hanji" style={{ position: 'absolute', inset: 0 }} />
       <div style={{ position: 'absolute', left: 22, right: 22, top: sat + 28 }}>
@@ -245,7 +249,7 @@ export function RestoreRecord({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: nu
           <span className="t-m" style={{ color: '#6b5e45' }}>일시</span>
           <span className="read" style={{ fontSize: 17, lineHeight: '26px', color: '#171310', fontWeight: 700, position: 'relative' }}>
             <span className="pixel" style={{ color: '#a49880', letterSpacing: '.1em', marginRight: 12, fontWeight: 400, textDecoration: 'line-through' }}>####</span>
-            <span style={{ filter: 'url(#ink)' }}>연산군 4년 7월 11일</span>
+            <span style={{ filter: 'url(#ink2)', textShadow: '0 0 3px rgba(23,19,16,.35)' }}>연산군 4년 7월 11일</span>
           </span>
           <span className="t-m" style={{ color: '#6b5e45' }}>장소</span>
           <span className="read" style={{ fontSize: 17, lineHeight: '26px', color: '#8e8264' }}>춘추관 실록청</span>
@@ -321,7 +325,7 @@ export function ClosedEye({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number
           <div style={{ position: 'absolute', left: 0, right: 0, top: sat + 48 + 49 + 14, zIndex: 12, display: 'flex', justifyContent: 'center', padding: '0 14px' }}>
             <div className="t-m" style={{ background: 'rgba(19,24,32,.9)', border: '1px solid var(--line)', borderRadius: 12, padding: '8px 14px', color: '#a7b4c1' }}>06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 열린 눈 1개 닫힘</div>
           </div>
-          <div style={{ position: 'absolute', left: 28, right: 28, top: '40%', transform: 'translateY(-50%)', zIndex: 12, background: 'rgba(27,33,42,.96)', border: '1px solid #3a4658', borderRadius: 16, padding: '26px 20px 24px', textAlign: 'center', boxShadow: '0 18px 40px rgba(0,0,0,.55)' }}>
+          <div style={{ position: 'absolute', left: 28, right: 28, top: '56%', transform: 'translateY(-50%)', zIndex: 12, background: 'rgba(27,33,42,.96)', border: '1px solid #3a4658', borderRadius: 16, padding: '26px 20px 24px', textAlign: 'center', boxShadow: '0 18px 40px rgba(0,0,0,.55)' }}>
             <div style={{ display: 'grid', placeItems: 'center' }}><Eye state="closed" size={48} /></div>
             <div className="t-h" style={{ marginTop: 12, color: '#c3ccd5' }}>볼 수 없다</div>
             <div className="t-b" style={{ marginTop: 6, color: 'var(--muted)', wordBreak: 'keep-all' }}>이 사람의 그날 기록이 지워졌다</div>

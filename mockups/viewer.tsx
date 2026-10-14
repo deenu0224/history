@@ -41,7 +41,7 @@ export function TopBand({ title, time, eyes, cold = false, sat }: { title: strin
         paddingTop: sat,
         background: cold ? 'linear-gradient(rgba(14,18,24,.94), rgba(18,23,30,.9))' : 'linear-gradient(rgba(10,13,18,.9), rgba(15,20,28,.8))',
         backdropFilter: 'blur(6px)',
-        borderBottom: '1px solid rgba(134,196,189,.22)',
+        borderBottom: '1px solid rgba(190,170,130,.22)',
       }}
     >
       <div style={{ height: 48, display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 18 }}>
@@ -120,7 +120,7 @@ export function Viewer({
   return (
     <>
       <div style={{ position: 'absolute', left: 0, top: 0, width: cw, height: ch, background: '#0b0a08' }}>
-        <CutStrip specs={specs} index={index} onIndexChange={() => {}} highlightIds={ringIds} />
+        <div className="cutfx" style={{ width: '100%', height: '100%' }}><CutStrip specs={specs} index={index} onIndexChange={() => {}} highlightIds={ringIds} /></div>
         <EyeFraming w={cw} h={ch} gaze={gaze} cold={cold} />
         {sleeve ? <div style={{ position: 'absolute', right: -6, bottom: -2, zIndex: 9, filter: 'drop-shadow(-6px -4px 0 rgba(10,8,6,.28))' }}><Sleeve scale={2} /></div> : null}
         {nameTags
@@ -135,7 +135,7 @@ export function Viewer({
         </div>
       ) : null}
       <TopBand title={title} time={time} eyes={eyes} cold={cold} sat={sat} />
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: bottom, background: 'var(--bg)', borderTop: '1px solid rgba(134,196,189,.28)', padding: `14px 16px ${sab + 8}px`, display: 'flex', gap: 12, zIndex: 20 }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: bottom, background: 'var(--bg)', borderTop: '1px solid rgba(190,170,130,.28)', padding: `14px 16px ${sab + 8}px`, display: 'flex', gap: 12, zIndex: 20 }}>
         {actions}
       </div>
     </>

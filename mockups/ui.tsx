@@ -14,7 +14,7 @@ export interface FrameOpts {
 }
 
 /** 휴대폰 화면 한 장. sat/sab = 안전 영역(상단 상태 표시줄 / 하단 홈 인디케이터) */
-export function Screen({ w, h, sat = 47, sab = 34, bg, children, radius, style, noDevice }: { w: number; h: number; sat?: number; sab?: number; bg?: string; children: ReactNode; radius?: number; style?: CSSProperties; noDevice?: boolean }) {
+export function Screen({ w, h, sat = 47, sab = 34, bg, children, radius, style, noDevice, dark }: { dark?: boolean; w: number; h: number; sat?: number; sab?: number; bg?: string; children: ReactNode; radius?: number; style?: CSSProperties; noDevice?: boolean }) {
   return (
     <div
       className="screen"
@@ -22,15 +22,15 @@ export function Screen({ w, h, sat = 47, sab = 34, bg, children, radius, style, 
       style={{ width: w, height: h, ['--sat' as string]: `${sat}px`, ['--sab' as string]: `${sab}px`, background: bg ?? 'var(--bg)', borderRadius: radius, ...style }}
     >
       {children}
-      {noDevice ? null : <DeviceBar sat={sat} />}
+      {noDevice ? null : <DeviceBar sat={sat} dark={dark} />}
       {noDevice ? null : <div className="homebar" style={{ bottom: Math.max(6, Math.round(sab / 4)) }} />}
     </div>
   );
 }
 
-export function DeviceBar({ sat }: { sat: number }) {
+export function DeviceBar({ sat, dark }: { sat: number; dark?: boolean }) {
   return (
-    <div className="devbar" style={{ height: sat }}>
+    <div className="devbar" style={{ height: sat, color: dark ? 'rgba(30,24,16,.85)' : undefined }}>
       <span>9:41</span>
       <span className="icons">
         <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1" /><rect x="5" y="5.5" width="3" height="6.5" rx="1" /><rect x="10" y="3" width="3" height="9" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" /></svg>
