@@ -11,51 +11,65 @@ const CSS_H = 520;
 const DPR = Math.min(3, Math.max(1, Math.round(window.devicePixelRatio || 1)));
 const SIZE = povInternalSize(CSS_W, CSS_H, DPR);
 
-/** 14:00 — 전교를 가져온 사람이 문 앞에서 종이를 펴 읽는다(verified 문장의 시각화; 시각·자리·모습은 재구성) */
+/**
+ * 14:00 — 전교를 가져온 사람이 문 앞에서 종이를 펴 읽는다(①: verified 문장, 낭독 연출·시각·자리·모습은 재구성).
+ * §13 배치: W 윤효손 · Y 이극돈 · O 어세겸 · H 홍귀달(구석) · U/A 「?」 두 관원(유순·안침, 누가 어느 쪽인지 정하지 않음).
+ * 사람 8 = 눈 넷 + 「?」 둘 + 서리 + 전교를 가져온 사람. 김일손은 그 방에 없다. 이 순간은 '듣는' 순간이라 모두 seated.
+ */
 const AT_1400: PovFigure[] = [
   { id: 'reader', pose: 'standing-reading', seat: 'B', facing: 270, holding: 'paper', robe: 'messenger' },
-  { id: 'hong', personId: 'hong_gwidal', pose: 'seated', seat: 'H', facing: 'B', robe: 'blue' },
+  { id: 'yun', personId: 'yun_hyoson', pose: 'seated', seat: 'W', facing: 'B', robe: 'green' },
   { id: 'yi', personId: 'yi_geukdon', pose: 'seated', seat: 'Y', facing: 'B', robe: 'red' },
   { id: 'eo', personId: 'eo_segyeom', pose: 'seated', seat: 'O', facing: 'B', robe: 'red-dark' },
-  { id: 'yun', personId: 'yun_hyoson', pose: 'seated', seat: 'N', facing: 'B', robe: 'green' },
-  { id: 'clerk', pose: 'standing', pos: { x: 1.4, y: 5.5 }, facing: 'B', robe: 'clerk', beard: 0 },
+  { id: 'hong', personId: 'hong_gwidal', pose: 'seated', seat: 'H', facing: 'B', robe: 'blue' },
+  { id: 'q1', personId: 'unknown_ua', pose: 'seated', seat: 'U', facing: 'B', robe: 'young' },
+  { id: 'q2', personId: 'unknown_ua', pose: 'seated', seat: 'A', facing: 'B', robe: 'slate' },
+  { id: 'clerk', pose: 'standing', seat: 'CL', facing: 'B', robe: 'clerk', beard: 0 },
 ];
 
 const without = (seat: SeatId) => AT_1400.filter((f) => f.seat !== seat);
 
+/** 눈 줄 순서: E1 윤효손 · E2 이극돈 · E3 어세겸 · E4 홍귀달 · 김일손(열리지 않음) */
+const EYE_ORDER = ['yun', 'yi', 'eo', 'hong'];
+
 interface Shot {
   id: string;
+  eye: string;
   title: string;
   time: string;
   eyes: ('open' | 'closed' | 'never')[];
   spec: PovSpec;
 }
 
+const OPEN4: Shot['eyes'] = ['open', 'open', 'open', 'open', 'never'];
+
 const SHOTS: Shot[] = [
   {
-    id: 'hong',
+    id: 'e1-yun',
+    eye: 'yun',
     title: '첫 번째 기억',
     time: '14:00',
-    eyes: ['open', 'open', 'open', 'open', 'never'],
+    eyes: OPEN4,
     spec: {
-      witnessId: 'hong_gwidal',
-      seatId: 'H',
-      lookAt: { x: 6.3, y: 8.2, h: 0.5 },
-      fov: 60,
+      witnessId: 'yun_hyoson',
+      seatId: 'W',
+      lookAt: { x: 6.4, y: 8.2, h: 0.55 },
+      fov: 55,
       time: '14:00',
       focus: 'reader',
-      figures: without('H'),
+      figures: without('W'),
       overlay: 'memory',
-      self: { robe: 'blue', hands: 'rest' },
+      self: { robe: 'green', hands: 'rest' },
       props: { slips: 'none' },
       size: SIZE,
     },
   },
   {
-    id: 'yi',
+    id: 'e2-yi',
+    eye: 'yi',
     title: '두 번째 기억',
     time: '14:00',
-    eyes: ['open', 'open', 'open', 'open', 'never'],
+    eyes: OPEN4,
     spec: {
       witnessId: 'yi_geukdon',
       seatId: 'Y',
@@ -71,26 +85,28 @@ const SHOTS: Shot[] = [
     },
   },
   {
-    id: 'yun',
+    id: 'e4-hong',
+    eye: 'hong',
     title: '네 번째 기억',
     time: '14:00',
-    eyes: ['open', 'open', 'open', 'open', 'never'],
+    eyes: OPEN4,
     spec: {
-      witnessId: 'yun_hyoson',
-      seatId: 'N',
+      witnessId: 'hong_gwidal',
+      seatId: 'H',
       lookAt: { x: 6.6, y: 7.6, h: 0.4 },
       fov: 60,
       time: '14:00',
       focus: 'reader',
-      figures: without('N'),
+      figures: without('H'),
       overlay: 'memory',
-      self: { robe: 'green', hands: 'rest' },
+      self: { robe: 'blue', hands: 'rest' },
       props: { slips: 'none' },
       size: SIZE,
     },
   },
   {
-    id: 'erased',
+    id: 'e3-erased',
+    eye: 'eo',
     title: '세 번째 기억',
     time: '14:00',
     eyes: ['open', 'open', 'closed', 'open', 'never'],
@@ -109,26 +125,30 @@ const SHOTS: Shot[] = [
     },
   },
   {
-    id: 'closeup',
+    id: 'e2-closeup',
+    eye: 'yi',
     title: '두 번째 기억',
     time: '15:00',
-    eyes: ['open', 'open', 'open', 'open', 'never'],
+    eyes: OPEN4,
     spec: {
       witnessId: 'yi_geukdon',
       seatId: 'Y',
-      eye: { x: 4.12, y: 3.78, h: 0.86 },
-      lookAt: { x: 4.8, y: 3.74, h: 0.4 },
-      fov: 44,
+      eye: { x: 4.28, y: 3.84, h: 0.95 },
+      lookAt: { x: 4.86, y: 3.8, h: 0.36 },
+      fov: 50,
+      exposure: 1.5,
       time: '15:00',
       focus: 'self',
-      figures: [{ id: 'hong', personId: 'hong_gwidal', pose: 'seated-writing', seat: 'H', robe: 'blue' }],
+      figures: [{ id: 'yun', personId: 'yun_hyoson', pose: 'seated', seat: 'W', robe: 'green' }],
       overlay: 'memory',
-      self: { robe: 'red', hands: 'hold-slips', at: { x: 4.62, y: 3.86, h: 0.5 } },
+      self: { robe: 'red', hands: 'hold-slips', at: { x: 4.74, y: 3.9, h: 0.44 } },
       props: { slips: 'none', nameTag: true, sealedBundle: true },
       size: SIZE,
     },
   },
 ];
+
+export const POV_DEV_SHOTS = SHOTS;
 
 function EyeIcon({ s, active }: { s: 'open' | 'closed' | 'never'; active: boolean }) {
   const col = s === 'open' ? MOOD.amber : s === 'closed' ? MOOD.teal : MOOD.hanjiMuted;
@@ -182,7 +202,7 @@ function Cut({ shot, onPerf }: { shot: Shot; onPerf: (s: string) => void }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {shot.eyes.map((e, i) => (
-            <EyeIcon key={i} s={e} active={i === ['hong', 'yi', 'erased', 'yun'].indexOf(shot.id === 'closeup' ? 'yi' : shot.id)} />
+            <EyeIcon key={i} s={e} active={i === EYE_ORDER.indexOf(shot.eye)} />
           ))}
         </div>
       </header>

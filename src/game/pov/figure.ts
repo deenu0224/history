@@ -14,6 +14,7 @@ export const ROBE: Record<RobeId, string> = {
   'red-dark': '#6c2623',
   blue: '#3a4e66',
   green: '#30584a',
+  slate: '#4d555c',
   messenger: '#3c3f40',
   clerk: '#bdb5a0',
   young: '#4a6376',
@@ -210,7 +211,8 @@ export function buildFigure(f: PovFigure, seed = 1): THREE.Mesh {
 /** 눈의 주인 자신의 소매·손(앞쪽 덮개). 세계 좌표에서 카메라 기저로 놓는다 */
 export function buildSelf(robeId: RobeId, hands: 'rest' | 'hold-slips' | 'write', eye: THREE.Vector3, fwd: THREE.Vector3, at?: THREE.Vector3, withTag = false): THREE.Mesh {
   const b = new Builder(77);
-  const robe = ROBE[robeId];
+  // 내 소매는 늘 내 몸 그늘 속이라 색이 죽는다 → 소매 색만 한 단 밝혀 눈의 주인 색을 살린다(화면 문법)
+  const robe = '#' + new THREE.Color(ROBE[robeId]).multiplyScalar(1.7).getHexString();
   const f = new THREE.Vector3(fwd.x, 0, fwd.z).normalize();
   const right = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
   const P = (o: THREE.Vector3): P => [o.x, o.y, o.z];
@@ -219,16 +221,17 @@ export function buildSelf(robeId: RobeId, hands: 'rest' | 'hold-slips' | 'write'
   const E = (a: number, d: number, r: number) => eye.clone().addScaledVector(f, a).addScaledVector(down, d).addScaledVector(right, r);
   const hand = (w: THREE.Vector3, dir: THREE.Vector3, s: number) => {
     const hc = w.clone().addScaledVector(dir, 0.05);
-    b.geo(new THREE.SphereGeometry(1, 8, 6), trs(hc.x, hc.y, hc.z, 0, 0, 0, 0.046, 0.03, 0.05), SKIN, { ao: false });
-    const fc = hc.clone().addScaledVector(dir, 0.045).addScaledVector(right, -s * 0.012);
-    b.geo(new THREE.BoxGeometry(0.05, 0.018, 0.06), trs(fc.x, fc.y, fc.z, 0, 0, 0), SKIN, { ao: false });
+    const yaw = (Math.atan2(-dir.z, dir.x) * 180) / Math.PI;
+    b.geo(new THREE.SphereGeometry(1, 8, 6), trs(hc.x, hc.y, hc.z, 0, yaw, 0, 0.045, 0.022, 0.036), SKIN, { ao: false });
+    const fc = hc.clone().addScaledVector(dir, 0.04).addScaledVector(right, -s * 0.01);
+    b.geo(new THREE.BoxGeometry(0.045, 0.012, 0.04), trs(fc.x, fc.y - 0.004, fc.z, 0, yaw, -12), SKIN, { ao: false });
   };
   if (hands === 'rest') {
     // 오른손이 무릎(또는 제 서안 모서리) 위에 놓인 소매: 화면 오른쪽 아래 모서리
-    const e = E(0.2, 0.46, 0.34);
-    const w = E(0.62, 0.36, 0.17);
-    cone(b, P(E(-0.05, 0.25, 0.22)), P(e), 0.075, 0.09, robe, 10);
-    cone(b, P(e), P(w), 0.09, 0.15, robe, 12);
+    const e = E(0.2, 0.48, 0.34);
+    const w = E(0.6, 0.38, 0.19);
+    cone(b, P(E(-0.05, 0.25, 0.22)), P(e), 0.07, 0.085, robe, 10);
+    cone(b, P(e), P(w), 0.085, 0.125, robe, 12);
     cone(b, P(e.clone().lerp(w, 0.5)), P(e.clone().lerp(w, 0.6).addScaledVector(down, 0.2)), 0.12, 0.07, robe, 9);
     hand(w, w.clone().sub(e).normalize(), 1);
     // 무릎 위 옷자락
@@ -245,15 +248,15 @@ export function buildSelf(robeId: RobeId, hands: 'rest' | 'hold-slips' | 'write'
       hand(w, w.clone().sub(e).normalize(), s);
     }
     if (hands === 'hold-slips') {
-      // 여섯 장의 종이 조각을 부채꼴로 쥔다 — 종이 면이 눈을 향하게 세움
-      const toEye = eye.clone().sub(T).normalize();
+      // 여섯 장의 종이 조각을 두 손 사이에 부채꼴로 쥔다(거의 눕힘, 먼 끝이 조금 들림)
+      const yaw = Math.atan2(-f.z, f.x);
       for (let i = 0; i < 6; i++) {
-        const c = T.clone().addScaledVector(right, (i - 2.5) * 0.036).addScaledVector(f, 0.05 + Math.abs(i - 2.5) * -0.006).add(new THREE.Vector3(0, 0.06, 0));
-        const g = new THREE.BoxGeometry(0.075, 0.24, 0.003);
-        const m = new THREE.Matrix4().lookAt(c, c.clone().add(toEye), new THREE.Vector3(0, 1, 0));
-        m.multiply(new THREE.Matrix4().makeRotationZ(((i - 2.5) * -5 * Math.PI) / 180));
-        m.setPosition(c.addScaledVector(toEye, i * 0.004));
-        b.geo(g, m, i % 2 ? '#e8dcbc' : PAPER, { ao: false });
+        const c = T.clone().addScaledVector(right, (i - 2.5) * 0.03).addScaledVector(f, 0.06 - Math.abs(i - 2.5) * 0.008).add(new THREE.Vector3(0, 0.012 * i, 0));
+        const m = new THREE.Matrix4()
+          .makeTranslation(c.x, c.y, c.z)
+          .multiply(new THREE.Matrix4().makeRotationY(yaw + ((i - 2.5) * 5 * Math.PI) / 180))
+          .multiply(new THREE.Matrix4().makeRotationZ((16 * Math.PI) / 180));
+        b.geo(new THREE.BoxGeometry(0.25, 0.003, 0.07), m, i % 2 ? '#e8dcbc' : PAPER, { ao: false });
       }
     }
   }

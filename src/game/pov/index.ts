@@ -9,7 +9,8 @@ import type { PovPerf, PovSpec } from './types';
 
 export type * from './types';
 export { getFigureHitboxes, povCamera, project, sunAt, povInternalSize, parseTime } from './camera';
-export { ROOM_EP1, SLIP_SPOTS, occluders, isOccluded, seatEye, slipTop } from './room';
+export { ROOM_EP1, SLIP_SPOTS, ADDRESS_ALLOWED, occluders, isOccluded, seatEye, slipTop, validatePovSpec } from './room';
+import { validatePovSpec } from './room';
 export { MOOD, MEMORY_PALETTE, ERASED_PALETTE, moodCssVars } from './palette';
 
 const cache = new Map<string, Promise<HTMLCanvasElement>>();
@@ -21,6 +22,7 @@ export function renderPovCut(spec: PovSpec): Promise<HTMLCanvasElement> {
   const key = specKey(spec);
   const hit = cache.get(key);
   if (hit) return hit;
+  if (import.meta.env?.DEV) for (const e of validatePovSpec(spec)) console.warn('[pov]', e);
   const p = (async () => {
     const t0 = performance.now();
     const { render3d } = await import('./render3d');

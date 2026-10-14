@@ -193,8 +193,7 @@ export function buildHall(props: PovProps = {}): HallParts {
     for (const [dx, dy, dz, r] of [[0.2, 3.4, 0, 1.4], [0.9, 2.7, 0.4, 1.0], [-0.4, 2.5, -0.3, 0.9], [0.5, 4.0, -0.2, 0.9]] as const)
       outB.geo(new THREE.SphereGeometry(r * s, 7, 4), trs(px + dx * s, dy * s, pz + dz * s, 0, rnd() * 90, 0, 1, 0.38, 0.8), C.pine, { ao: false, jitter: 0.2 });
   };
-  pine(-7, D + 17, 1.2);
-  pine(20, D + 18, 1.0);
+  void pine; // 마당 나무는 문 축에서 낭독자 머리 뒤에 겹쳐 실루엣을 해친다 → 두지 않는다
 
   // ── 병풍(윗자리) ─────────────────────────────────────
   const sc = R.screen;
@@ -230,9 +229,9 @@ export function buildHall(props: PovProps = {}): HallParts {
     b.geo(g.build(), trs(X, 0, Z, 0, rotY, 0), null, { ao: false });
   };
   desk(dk.x0, dk.x1, dk.y0, dk.y1, dk.h);
-  desk(-0.22, 0.22, -0.45, 0.45, 0.3, 0, 8.25, 3.75); // 홍귀달
-  desk(-0.45, 0.45, -0.22, 0.22, 0.3, 0, 6.0, 2.62); // 어세겸
-  desk(-0.45, 0.45, -0.22, 0.22, 0.3, 45, 10.72, 1.48); // 윤효손(구석)
+  desk(-0.22, 0.22, -0.45, 0.45, 0.3, 0, 8.25, 3.75); // W 윤효손
+  desk(-0.45, 0.45, -0.22, 0.22, 0.3, 0, 6.0, 2.62); // O 어세겸
+  desk(-0.45, 0.45, -0.22, 0.22, 0.3, 45, 10.72, 1.48); // H 홍귀달(구석)
 
   // 사초 더미: 묶음(한지 + 끈 + 작은 표), 꼭대기는 stack.top 을 넘지 않는다
   const st = R.stack;
@@ -276,7 +275,7 @@ export function buildHall(props: PovProps = {}): HallParts {
   paper(8.25, 3.95, 0.24, 0.34, 3, 90);
   paper(10.75, 1.5, 0.26, 0.36, 5, 45);
   paper(5.85, 2.6, 0.26, 0.34, 3, 0);
-  // 윤효손 책상의 책더미
+  // 홍귀달(구석) 책상의 책더미
   for (let k = 0; k < 4; k++) b.box(11.05, 0.3 + 0.03 + k * 0.045, 1.2, 0.2, 0.04, 0.28, k % 2 ? '#c4b18a' : '#3c4a52', 45 + (rnd() - 0.5) * 10, { ao: false });
 
   // 잘라 낸 종이 조각
@@ -291,10 +290,12 @@ export function buildHall(props: PovProps = {}): HallParts {
 
   // ── 방석 ─────────────────────────────────────────────
   const cushion = (x: number, z: number, col: string, rot: number) => b.box(x, 0.03, z, 0.62, 0.06, 0.62, col, rot, { ao: false, jitter: 0.1 });
-  cushion(R.seats.H.x, R.seats.H.y, C.cushionBlue, 0);
+  cushion(R.seats.W.x, R.seats.W.y, C.cushionBlue, 0);
   cushion(R.seats.Y.x, R.seats.Y.y, C.cushionRed, 0);
   cushion(R.seats.O.x, R.seats.O.y, C.cushionRed, 0);
-  cushion(R.seats.N.x, R.seats.N.y, C.cushionBlue, 45);
+  cushion(R.seats.H.x, R.seats.H.y, C.cushionBlue, 45);
+  cushion(R.seats.U.x, R.seats.U.y, C.cushionRed, 45);
+  cushion(R.seats.A.x, R.seats.A.y, C.cushionBlue, -45);
 
   // ── 등잔걸이(7월 오후: 불 없음) ───────────────────────
   const lampStand = (x: number, z: number) => {

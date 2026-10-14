@@ -12,14 +12,18 @@ export interface PlanPoint {
   h?: number;
 }
 
-/** 방 도면에 정의된 자리·지점 id(§4.2: H 홍귀달, Y 이극돈, O 어세겸, N 윤효손, B 낭독 자리, SP 봉함 자리) */
-export type SeatId = 'H' | 'Y' | 'O' | 'N' | 'B' | 'SP' | 'CL' | 'GJ';
+/**
+ * 방 도면에 정의된 자리·지점 id(DESIGN_V5 §4.2, §13 개정):
+ * W 윤효손(앞자리, 옛 H) · Y 이극돈(사초 서안 곁) · O 어세겸(윗자리) · H 홍귀달(구석 책상, 옛 N) ·
+ * U·A 「?」 두 관원(유순·안침 — 누가 어느 자리인지는 사료에 없다) · B 문 앞 낭독 · SP 봉함 자리 · M2 서안 앞 · CL 서리
+ */
+export type SeatId = 'W' | 'Y' | 'O' | 'H' | 'U' | 'A' | 'B' | 'SP' | 'M2' | 'CL';
 
 export type PovPose =
   | 'seated' // 책상다리, 손은 무릎 위
   | 'seated-reading' // 앉아서 종이를 든다
   | 'seated-writing' // 앉아서 서안 위로 손을 뻗는다
-  | 'seated-address' // 앉아서 몸을 앞으로 숙여 아뢴다
+  | 'seated-address' // 앉아서 몸을 앞으로 숙여 아뢴다(간언자만: §13-4)
   | 'standing'
   | 'standing-reading' // 서서 펼친 종이를 가슴 앞에
   | 'standing-carrying'; // 서서 꾸러미를 안는다
@@ -27,7 +31,7 @@ export type PovPose =
 export type Holding = 'none' | 'paper' | 'scroll' | 'bundle' | 'slips' | 'book';
 
 /** 옷 색은 증거가 아니다(DESIGN_V5 §6회 (4)). 화면 읽기용 구분일 뿐. */
-export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'messenger' | 'clerk' | 'young';
+export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'slate' | 'messenger' | 'clerk' | 'young';
 
 export type HatId = 'samo' | 'clerk-cap' | 'none';
 
@@ -92,6 +96,8 @@ export interface PovSpec {
   roll?: number;
   self?: SelfRig;
   props?: PovProps;
+  /** 노출(눈의 적응). 기본 1.08 */
+  exposure?: number;
   /** 내부 해상도(px). 기본 270×360 */
   size?: { w: number; h: number };
   /** 결정적 잡음 씨앗(기본: 스펙 해시) */

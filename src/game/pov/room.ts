@@ -36,15 +36,18 @@ export const ROOM_EP1 = {
   plinth: 0.75,
   /** 처마가 벽에서 나온 길이와 처마 끝 높이 */
   eave: { out: 1.9, h: 3.25 },
+  /** §13: 앉은 자리 좌표는 그대로, 주인만 바뀜(옛 H → W 윤효손, 옛 N 구석 → H 홍귀달) */
   seats: {
-    H: { x: 9.0, y: 3.75, facingDeg: 180 },
+    W: { x: 9.0, y: 3.75, facingDeg: 180 },
     Y: { x: 3.5, y: 3.75, facingDeg: 0 },
     O: { x: 6.0, y: 2.0, facingDeg: 90 },
-    N: { x: 11.2, y: 1.0, facingDeg: 135 },
+    H: { x: 11.2, y: 1.0, facingDeg: 135 },
+    U: { x: 2.6, y: 5.4, facingDeg: 45 },
+    A: { x: 9.8, y: 5.4, facingDeg: 135 },
     B: { x: 6.0, y: 8.6, facingDeg: 270 },
     SP: { x: 4.6, y: 3.8, facingDeg: 0 },
-    CL: { x: 8.6, y: 6.6, facingDeg: 225 },
-    GJ: { x: 8.0, y: 6.5, facingDeg: 315 },
+    M2: { x: 6.0, y: 5.2, facingDeg: 270 },
+    CL: { x: 1.4, y: 5.9, facingDeg: 0 },
   } satisfies Record<SeatId, Seat>,
   /** 큰 서안(x4.5–7.5, y3.0–4.5) */
   desk: { x0: 4.5, x1: 7.5, y0: 3.0, y1: 4.5, h: 0.36 },
@@ -54,7 +57,7 @@ export const ROOM_EP1 = {
   screen: { x0: 3.4, x1: 8.6, y: 0.45, h: 1.75, panels: 8 },
 } as const;
 
-/** 잘라 낸 종이 조각 여섯 장의 자리(서안 위, 'spread'). 마지막 한 장은 사초 더미 바로 앞 → 홍귀달 자리에서 가림. */
+/** 잘라 낸 종이 조각 여섯 장의 자리(서안 위, 'spread'). 마지막 한 장은 사초 더미 바로 앞 → W(윤효손) 자리에서 가림(§4.2 SP ← W). */
 export const SLIP_SPOTS: readonly { x: number; y: number; rot: number }[] = [
   { x: 4.72, y: 3.42, rot: 4 },
   { x: 4.86, y: 3.66, rot: -6 },
@@ -80,6 +83,26 @@ export const isSeatId = (s: unknown): s is SeatId => typeof s === 'string' && s 
 
 export function seatOf(id: SeatId): Seat {
   return ROOM_EP1.seats[id];
+}
+
+/**
+ * 아뢰는(간언) 포즈를 쓸 수 있는 사람(§13-4, kja_10407011_001 「實錄廳堂上李克墩、柳洵、尹孝孫、安琛啓」).
+ * 유순·안침은 「?」 두 관원(누가 U/A 인지 정하지 않는다) → personId 'unknown_ua'. 홍귀달·어세겸은 아뢰지 않는다.
+ */
+export const ADDRESS_ALLOWED: ReadonlySet<string> = new Set(['yi_geukdon', 'yun_hyoson', 'unknown_ua']);
+
+/** 화면에 그리지 않는 사람: 김일손은 그 방에 없다(§13-18, kja_10407012_002) */
+export const NEVER_DRAWN: ReadonlySet<string> = new Set(['kim_ilson']);
+
+/** 스펙 내용 규칙 검사(콘텐츠 검증용, 렌더는 막지 않는다). 위반 문장 목록 */
+export function validatePovSpec(spec: { figures: readonly { id: string; personId?: string; pose: PovPose }[] }): string[] {
+  const errs: string[] = [];
+  for (const f of spec.figures) {
+    if (f.pose === 'seated-address' && !(f.personId && ADDRESS_ALLOWED.has(f.personId)))
+      errs.push(`${f.id}: 아뢰는 포즈는 실록청 당상(이극돈·윤효손·「?」 둘)만 — ${f.personId ?? '(이름 없음)'}`);
+    if (f.personId && NEVER_DRAWN.has(f.personId)) errs.push(`${f.id}: ${f.personId} 는 그날 그 방에 없다`);
+  }
+  return errs;
 }
 
 export const isSeatedPose = (p: PovPose): boolean => p.startsWith('seated');

@@ -170,14 +170,15 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   if (spec.self && spec.self.hands !== 'none') {
     const at = spec.self.at ? new THREE.Vector3(spec.self.at.x, spec.self.at.h ?? R.desk.h + 0.08, spec.self.at.y) : undefined;
     const me = buildSelf(spec.self.robe, spec.self.hands, eyeV, fwdV, at);
+
     scene.add(me);
     disposables.push(me.geometry, me.material as THREE.Material);
   }
 
   // 이름표 꾸러미
   if (spec.props?.nameTag) {
-    const bx = 5.0;
-    const bz = 3.42;
+    const bx = 5.02;
+    const bz = 3.6;
     const bundle = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.22), new THREE.MeshLambertMaterial({ color: '#cbb78f' }));
     bundle.position.set(bx, R.desk.h + 0.035, bz);
     bundle.rotation.y = 0.08;
@@ -220,7 +221,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const doorSky = new THREE.PointLight('#f2e4c8', 9, 16, 1.5);
   doorSky.position.set(6, 1.7, 9.6);
   // 닫힌 분합문·창의 한지가 걸러 들이는 빛
-  const winL = new THREE.PointLight('#f1e2c2', 6, 8, 1.6);
+  const winL = new THREE.PointLight('#f1e2c2', 14, 12, 1.5);
   winL.position.set(11.2, 1.4, 4.0);
   const northL = new THREE.PointLight('#e8dcc0', 2.5, 9, 1.5);
   northL.position.set(6, 2.6, 0.6);
@@ -256,7 +257,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const t1 = performance.now();
   const r = getRenderer();
   r.setSize(w, h, false);
-  r.toneMappingExposure = 1.08;
+  r.toneMappingExposure = spec.exposure ?? 1.08;
   r.setClearColor(sky, 1);
   r.render(scene, camera);
   const gl = r.getContext();

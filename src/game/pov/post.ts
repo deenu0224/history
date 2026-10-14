@@ -105,6 +105,26 @@ export function postProcess(inp: PostInput): Uint8ClampedArray {
     }
   }
 
+  // 1b) 먹선: 거리가 크게 끊기는 곳의 가까운 쪽 픽셀을 어둡게(실루엣 윤곽 — 픽셀 아트의 외곽선 역할)
+  if (depth) {
+    const k = overlay === 'erased' ? 0.75 : 0.5;
+    const edge = new Uint8Array(N);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const d = depth[i];
+        if (!(d < 25)) continue;
+        const lim = d * 1.1 + 0.06;
+        if ((x + 1 < w && depth[i + 1] > lim) || (x > 0 && depth[i - 1] > lim) || (y + 1 < h && depth[i + w] > lim) || (y > 0 && depth[i - w] > lim)) edge[i] = 1;
+      }
+    for (let i = 0; i < N; i++)
+      if (edge[i]) {
+        R[i] *= k;
+        G[i] *= k;
+        B[i] *= k;
+      }
+  }
+
   // 2) 번짐: 밝은 곳(종이·문빛·등잔)만, 반 해상도에서 흐려 따뜻하게 더한다
   {
     const hw = Math.ceil(w / 2);

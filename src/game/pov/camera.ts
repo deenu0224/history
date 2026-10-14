@@ -33,10 +33,10 @@ export interface PovCamera {
 
 /** 증인별 기본 고개 기울임(도). 아주 작게 — 사람 눈은 수평계가 아니다. */
 const WITNESS_ROLL: Record<string, number> = {
-  hong_gwidal: -1.6,
+  yun_hyoson: -1.6,
   yi_geukdon: 1.2,
   eo_segyeom: -0.8,
-  yun_hyoson: 2.0,
+  hong_gwidal: 2.0,
 };
 
 /** 인물 위치(도면) */
