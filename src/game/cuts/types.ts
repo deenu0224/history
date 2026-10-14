@@ -51,6 +51,8 @@ export interface CutSpec {
   lights?: boolean;
   /** 기본 'memory' */
   overlay?: CutOverlay;
+  /** 정수 배율로 남는 띠를 레터박스 대신 카메라 바깥 장면으로 채운다(기본 false: 카메라 사각형만 보이고 나머지는 환경색 레터박스) */
+  fill?: boolean;
   /** 0..1 가장자리 어둠. 기본: memory 0.5 / erased 0.8 / none 0 */
   vignette?: number;
 }

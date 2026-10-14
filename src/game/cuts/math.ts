@@ -30,12 +30,23 @@ export function cameraToSource(cam: CutCamera): { sx: number; sy: number; sw: nu
 /**
  * 출력 레이아웃. 배율은 기기 px 기준 정수(최소 1)라 어떤 dpr 에서도 칸이 번지지 않는다.
  * outW/outH 는 CSS px, 결과는 기기 px.
+ * fill(+scene): 정수 배율 때문에 남는 띠를 레터박스 대신 카메라 바깥 장면으로 채운다(카메라가 가운데, 장면 밖은 레터박스).
  */
-export function computeLayout(cam: CutCamera, outW: number, outH: number, dpr = 1): CutLayout {
-  const { sx, sy, sw, sh } = cameraToSource(cam);
+export function computeLayout(cam: CutCamera, outW: number, outH: number, dpr = 1, scene?: { w: number; h: number }, fill = false): CutLayout {
+  let { sx, sy, sw, sh } = cameraToSource(cam);
   const pw = Math.max(1, Math.round(outW * dpr));
   const ph = Math.max(1, Math.round(outH * dpr));
   const scale = Math.max(1, Math.floor(Math.min(pw / sw, ph / sh)));
+  if (fill && scene) {
+    const maxW = scene.w * TILE;
+    const maxH = scene.h * TILE;
+    const w2 = Math.min(maxW, Math.max(sw, Math.floor(pw / scale)));
+    const h2 = Math.min(maxH, Math.max(sh, Math.floor(ph / scale)));
+    sx = Math.min(Math.max(0, Math.round(sx + sw / 2 - w2 / 2)), maxW - w2);
+    sy = Math.min(Math.max(0, Math.round(sy + sh / 2 - h2 / 2)), maxH - h2);
+    sw = w2;
+    sh = h2;
+  }
   const dw = sw * scale;
   const dh = sh * scale;
   return { sx, sy, sw, sh, scale, dx: Math.floor((pw - dw) / 2), dy: Math.floor((ph - dh) / 2), dw, dh, pw, ph };
@@ -90,7 +101,7 @@ export function computeHitboxes(spec: CutSpec, outW: number, outH: number, dpr =
   const figs = spec.figures ?? [];
   if (figs.length === 0) return [];
   const cam = sceneSize ? clampCamera(spec.camera, sceneSize.w, sceneSize.h) : spec.camera;
-  const L = computeLayout(cam, outW, outH, dpr);
+  const L = computeLayout(cam, outW, outH, dpr, sceneSize, spec.fill);
   const k = L.scale / dpr;
   const offX = L.dx / dpr;
   const offY = L.dy / dpr;

@@ -21,6 +21,7 @@ export const HALL: CutSpec[] = [
   {
     id: 'hall-back-tight',
     sceneId: 'obs001',
+    fill: true,
     camera: C(19, 5.9, T),
     time: 600,
     figures: [
@@ -31,7 +32,7 @@ export const HALL: CutSpec[] = [
   {
     id: 'hall-back-wide',
     sceneId: 'obs001',
-    camera: C(19.5, 6.4, 8.7),
+    camera: C(19.5, 6.4, 7.8),
     time: 600,
     figures: [
       { id: 'blue', spriteKey: 'npc_official_blue', x: 15, y: 5, facing: 'down' },
@@ -42,6 +43,7 @@ export const HALL: CutSpec[] = [
   },
   {
     id: 'hall-front',
+    fill: true,
     sceneId: 'obs001',
     camera: C(19, 9, M),
     time: 840,
@@ -53,6 +55,7 @@ export const HALL: CutSpec[] = [
   },
   {
     id: 'hall-dusk',
+    fill: true,
     sceneId: 'obs001',
     camera: C(25.5, 6, M),
     time: 1110,
@@ -65,20 +68,23 @@ export const HALL: CutSpec[] = [
 export const DECREE: CutSpec[] = [
   {
     id: 'decree-front',
+    fill: true,
     sceneId: 'sc_court_decree',
-    camera: C(9, 6.2, 8.7),
+    camera: C(9, 6.2, 7.8),
     time: 600,
     figures: [{ id: 'decree', spriteKey: 'pose_decree_red', x: 9, y: 4, highlight: 'unknown' }],
     hideStatic: ['pose_decree_red@9,4'],
   },
   {
     id: 'decree-rows',
+    fill: true,
     sceneId: 'sc_court_decree',
     camera: C(9, 7, M * 1.5),
     time: 600,
   },
   {
     id: 'decree-tight',
+    fill: true,
     sceneId: 'sc_court_decree',
     camera: C(6, 7, T),
     time: 600,
@@ -90,6 +96,7 @@ export const DECREE: CutSpec[] = [
 export const COUNCIL: CutSpec[] = [
   {
     id: 'council-side',
+    fill: true,
     sceneId: 'sc_council',
     camera: C(5, 5.2, M),
     time: 780,
@@ -98,6 +105,7 @@ export const COUNCIL: CutSpec[] = [
   },
   {
     id: 'council-sagwan',
+    fill: true,
     sceneId: 'sc_council',
     camera: C(7, 7, T),
     time: 780,
@@ -106,6 +114,7 @@ export const COUNCIL: CutSpec[] = [
   },
   {
     id: 'council-empty',
+    fill: true,
     sceneId: 'sc_council',
     camera: C(10, 6.2, M),
     time: 1110,
@@ -117,13 +126,15 @@ export const COUNCIL: CutSpec[] = [
 export const BED: CutSpec[] = [
   {
     id: 'bed-wide',
+    fill: true,
     sceneId: 'sc_daejojeon',
-    camera: C(7.5, 5.6, 8.7),
+    camera: C(7.5, 5.6, 7.8),
     time: 1260,
     lights: true,
   },
   {
     id: 'bed-kneel',
+    fill: true,
     sceneId: 'sc_daejojeon',
     camera: C(5.7, 6, T + 1.4),
     time: 1260,
@@ -136,6 +147,7 @@ export const BED: CutSpec[] = [
 export const PRINT: CutSpec[] = [
   {
     id: 'print-clerk',
+    fill: true,
     sceneId: 'sc_print_storage',
     camera: C(9.8, 6, M),
     time: 600,
@@ -145,6 +157,7 @@ export const PRINT: CutSpec[] = [
   },
   {
     id: 'print-shelves',
+    fill: true,
     sceneId: 'sc_print_storage',
     camera: C(5, 3.8, M),
     time: 600,
@@ -154,10 +167,11 @@ export const PRINT: CutSpec[] = [
 const OVERLAY_BASE: CutSpec = {
   id: 'ov',
   sceneId: 'sc_council',
-  camera: C(7, 5.5, 6.5),
+  camera: C(7, 7, 3.1),
+  fill: true,
   time: 780,
-  figures: [{ id: 'sagwan', spriteKey: 'char_sagwan', x: 7, y: 8, frame: 21 }],
-  hideStatic: ['char_sagwan@7,8'],
+  figures: [{ id: 'sagwan', spriteKey: 'char_sagwan', x: 7, y: 8, frame: 21 }, { id: 'seat', spriteKey: 'seat_council_blue', x: 4, y: 7, frame: 2 }],
+  hideStatic: ['char_sagwan@7,8', 'seat_council_green@4,7'],
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -265,7 +279,7 @@ function Dev() {
       <Strip title="대조전 (sc_daejojeon)" specs={BED} />
       <Strip title="인쇄 보관 (sc_print_storage)" specs={PRINT} />
       <Section title="오버레이 비교: none / memory / erased (180×240)">
-        <div style={{ display: 'flex', gap: 6, padding: '0 12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {(['none', 'memory', 'erased'] as const).map((ov) => (
             <div key={ov} style={{ width: 180, height: 240 }} data-overlay={ov}>
               <CutView spec={{ ...OVERLAY_BASE, id: `ov-${ov}`, overlay: ov }} />

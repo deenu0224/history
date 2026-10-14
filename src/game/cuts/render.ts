@@ -198,7 +198,7 @@ export function renderCut(spec: CutSpec, outW: number, outH: number, dpr: number
   const t0 = now();
   const baked = getBaked(spec.sceneId);
   const cam = clampCamera(spec.camera, baked.tw, baked.th);
-  const L = computeLayout(cam, outW, outH, dpr);
+  const L = computeLayout(cam, outW, outH, dpr, { w: baked.tw, h: baked.th }, spec.fill);
   const seed = parseInt(specHash(spec), 16) >>> 0;
 
   // 1) 원본 해상도 합성: 타일 조각 + 깊이순 사물/인물
