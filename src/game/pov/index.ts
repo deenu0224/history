@@ -96,7 +96,7 @@ export async function bakePovStyle(
   const { postPainted } = await import('./post-painted');
   const fov = povCamera({ ...spec, size }).fovDeg;
   const focalPx = raw.h / 2 / Math.tan((fov * Math.PI) / 360);
-  const rgba = postPainted({ w: raw.w, h: raw.h, rgba: raw.rgba, depth: raw.depth, normal: raw.normal, obj: raw.obj, objNames: raw.objNames, focusDepth: raw.focusDepth, focalPx, overlay: spec.overlay, seed, vignette: spec.vignette });
+  const rgba = postPainted({ w: raw.w, h: raw.h, rgba: raw.rgba, depth: raw.depth, normal: raw.normal, obj: raw.obj, objNames: raw.objNames, glow: raw.glow, focusDepth: raw.focusDepth, focalPx, overlay: spec.overlay, seed, vignette: spec.vignette });
   if (style === 'hd2d') {
     const ps = pixelSize ?? { w: Math.round(raw.w / 6), h: Math.round(raw.h / 6) };
     const { px } = await runPixel(ps);

@@ -17,17 +17,16 @@ import { hexToRgb, rgbToOklab } from './palette';
 import { mulberry32 } from './camera';
 import type { PovOverlay } from './types';
 
-/** 기억(따뜻함) 23색: 먹 4 · 나무 3 · 한지 3 · 호박 3 · 붉은 3 · 초록 2 · 남 2 · 피부 2 · 무명 1 */
+/** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 4 · 호박 3 · 붉은 3 · 초록 3 · 남 2 · 피부 2 */
 export const PIXEL_PALETTE: readonly string[] = [
   '#0d0b0a', '#1a1613', '#2a231e', '#3d332b',
   '#5a4130', '#7e5d40', '#a78360',
-  '#cdb68e', '#e8d8b2', '#f6ecd2',
+  '#b9a682', '#d8c7a1', '#ede0c0', '#f8f0dc',
   '#8e5a2a', '#c9873f', '#f0c27e',
   '#3e1a18', '#742f2a', '#a8473c',
-  '#22362f', '#4a6e5d',
+  '#22362f', '#38554a', '#5a7e6c',
   '#26323f', '#51677c',
   '#8a5e44', '#c99b74',
-  '#a9a291',
 ];
 
 /** 지워진 기억 10색: 청록 8 + 무채 2 */
@@ -88,34 +87,59 @@ function buildPal(pal: readonly string[]): Pal {
   const p1 = new Uint8Array(N);
   const p2 = new Uint8Array(N);
   const t = new Uint8Array(N);
+  const n = lab.length;
+  const dist = (q: number[], p: number[]) => {
+    const dl = (q[0] - p[0]) * 1.2;
+    const da = (q[1] - p[1]) * 2.2;
+    const db = (q[2] - p[2]) * 2.2;
+    return Math.sqrt(dl * dl + da * da + db * db);
+  };
+  // 섞어도 되는 짝: 색상이 가깝거나(같은 계열) 한쪽이 먹(무채) — 붉음과 초록을 섞어 잡색을 만들지 않는다
+  const pairs: [number, number, number[]][] = [];
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) {
+      const a = lab[i];
+      const b = lab[j];
+      const ci = Math.hypot(a[1], a[2]);
+      const cj = Math.hypot(b[1], b[2]);
+      const hueClose = Math.hypot(a[1] - b[1], a[2] - b[2]) < 0.045;
+      const neutral = (ci < 0.02 && a[0] < 0.3) || (cj < 0.02 && b[0] < 0.3);
+      if (!(hueClose || neutral)) continue;
+      if (Math.abs(a[0] - b[0]) > 0.22) continue; // 너무 먼 밝기는 섞지 않는다(지글거림)
+      if ((a[0] + b[0]) / 2 < 0.36) continue; // 어둠은 단색 띠(먹 속 체커는 지저분하다)
+      pairs.push([i, j, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]]);
+    }
   for (let r = 0; r < 32; r++)
     for (let g = 0; g < 32; g++)
       for (let b = 0; b < 32; b++) {
         const q = rgbToOklab((r << 3) | (r >> 2), (g << 3) | (g >> 2), (b << 3) | (b >> 2));
         let b1 = 0;
         let d1 = Infinity;
-        let b2 = 0;
-        let d2 = Infinity;
-        for (let i = 0; i < lab.length; i++) {
-          const p = lab[i];
-          const dl = (q[0] - p[0]) * 1.6;
-          const da = q[1] - p[1];
-          const db = q[2] - p[2];
-          const d = Math.sqrt(dl * dl + da * da + db * db);
+        for (let i = 0; i < n; i++) {
+          const d = dist(q, lab[i]);
           if (d < d1) {
-            b2 = b1;
-            d2 = d1;
-            b1 = i;
             d1 = d;
-          } else if (d < d2) {
-            b2 = i;
-            d2 = d;
+            b1 = i;
           }
         }
         const k = (r << 10) | (g << 5) | b;
         p1[k] = b1;
-        p2[k] = b2;
-        t[k] = Math.round((d1 / Math.max(1e-6, d1 + d2)) * 2 * 255);
+        p2[k] = b1;
+        // 50% 체커가 단색보다 확실히 가까울 때만 무늬
+        let bm = Infinity;
+        let pi = -1;
+        for (let m = 0; m < pairs.length; m++) {
+          const d = dist(q, pairs[m][2]);
+          if (d < bm) {
+            bm = d;
+            pi = m;
+          }
+        }
+        if (pi >= 0 && bm < d1 * 0.55 && d1 > 0.018) {
+          p1[k] = pairs[pi][0];
+          p2[k] = pairs[pi][1];
+          t[k] = 255;
+        }
       }
   const out = { rgb, lab: lab as [number, number, number][], p1, p2, t };
   palCache.set(key, out);
@@ -225,7 +249,9 @@ export function postPixel(inp: PixelInput): PixelOutput {
       let L = lum(r, g, b);
       if (!erased) {
         // 명암: 그늘 깊게, 밝음 한지로 — 컷보다 대비를 조금 더(작은 화면에서 띠가 읽히게)
-        const L2 = Math.pow(Math.min(1.2, L), 1.15);
+        let L2 = Math.pow(Math.min(1.2, L * 1.12), 1.08);
+        // 밝은 쪽 압축: 문빛·창빛 둘레가 동심원 띠 여러 겹이 되지 않게(띠 2~3단)
+        if (L2 > 0.55) L2 = 0.55 + (L2 - 0.55) * 0.72;
         const k = L > 1e-4 ? L2 / L : 0;
         r *= k;
         g *= k;
@@ -256,7 +282,7 @@ export function postPixel(inp: PixelInput): PixelOutput {
       const dx = (x / (w - 1) - 0.5) * 2;
       const dy = (y / (h - 1) - 0.48) * 2;
       const rr = Math.sqrt(dx * dx * 0.9 + dy * dy * 0.75);
-      const vig = 1 - vigK * Math.round(smooth(0.55, 1.3, rr) * 4) / 4;
+      const vig = 1 - vigK * smooth(0.55, 1.3, rr);
       R[i] = r * vig;
       G[i] = g * vig;
       B[i] = b * vig;
@@ -270,17 +296,36 @@ export function postPixel(inp: PixelInput): PixelOutput {
     const q = (c: number) => Math.max(0, Math.min(31, Math.round(c * 31)));
     return (q(r) << 10) | (q(g) << 5) | q(b);
   };
+  const nearCache = new Int16Array(32768).fill(-1);
+  const nearest = (r: number, g: number, b: number) => {
+    const k = idxOf(r, g, b);
+    if (nearCache[k] >= 0) return nearCache[k];
+    const q = rgbToOklab(((k >> 10) & 31) * 8.2, ((k >> 5) & 31) * 8.2, (k & 31) * 8.2);
+    let best = 0;
+    let bd = Infinity;
+    for (let j = 0; j < npal; j++) {
+      const p = pal.lab[j];
+      const d = ((q[0] - p[0]) * 1.2) ** 2 + ((q[1] - p[1]) * 2.2) ** 2 + ((q[2] - p[2]) * 2.2) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = j;
+      }
+    }
+    nearCache[k] = best;
+    return best;
+  };
   const ix = new Uint8Array(N);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const k = idxOf(R[i], G[i], B[i]);
-      const t = pal.t[k] / 255; // 0 = 바로 그 색, 1 = 두 색 한가운데
       const kd = kinds[obj[i]];
-      // 사람·종이는 셀(디더 없음), 방은 경계 35% 폭에서만 2×2 체커
-      const lo = kd >= 3 ? 2 : 0.62;
-      const pick2 = t > lo && ((x + y) & 1) === 1;
-      ix[i] = pick2 ? pal.p2[k] : pal.p1[k];
+      // 사람·종이는 셀(디더 없음: 가장 가까운 단색), 방은 두 색 한가운데일 때만 2×2 체커
+      if (kd >= 3) {
+        ix[i] = nearest(R[i], G[i], B[i]);
+        continue;
+      }
+      ix[i] = pal.t[k] && ((x + y) & 1) === 1 ? pal.p2[k] : pal.p1[k];
     }
 
   // 5) 색 고립 픽셀(디더 체커가 아닌 섬) 정리 ───────────────────

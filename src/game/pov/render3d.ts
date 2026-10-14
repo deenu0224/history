@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { buildHall, type HallParts } from './hall';
 import { povDetail, setPovDetail } from './geo';
+import { withPaint } from './paint';
 import { buildFigure } from './figure';
 import { buildSelf } from './self';
 import { buildProps } from './props';
@@ -22,6 +23,8 @@ export interface Raw3d {
   focusDepth?: number;
   buildMs: number;
   renderMs: number;
+  /** (painted) 빛줄기·먼지만 그린 가산 덧칠(sRGB RGBA) */
+  glow?: Uint8Array;
   /** (style ≠ current) 시점 공간 법선, 픽셀당 xyz(−1..1). 하늘 = 0 */
   normal?: Float32Array;
   /** (style ≠ current) 물체 번호(0 = 하늘·없음) + 번호별 이름(인물 id, 'slip:…', 'self', 'hall', 'prop') */
@@ -133,7 +136,7 @@ function hallFor(): HallParts {
 }
 
 /** 해가 남쪽 문으로 드는 빛줄기(가산 반투명 프리즘) + 먼지 */
-function sunShaft(dir: THREE.Vector3, seed: number, dust = { n: 70, size: 1, opacity: 0.55 }): THREE.Object3D[] {
+function sunShaft(dir: THREE.Vector3, seed: number, dustOpt = { n: 70, size: 1, opacity: 0.55 }, gain = 1): THREE.Object3D[] {
   const D = R.h;
   if (dir.z >= -0.05 || dir.y >= -0.05) return [];
   // 처마 끝을 스친 빛이 벽면(z=D)에 닿는 높이
@@ -160,8 +163,8 @@ function sunShaft(dir: THREE.Vector3, seed: number, dust = { n: 70, size: 1, opa
     tri(a, b, c, ka, kb, kc);
     tri(a, c, d, ka, kc, kd);
   };
-  const hi = 0.11;
-  const lo = 0.035;
+  const hi = 0.11 * gain;
+  const lo = 0.035 * gain;
   quad(B0, B1, C1, C0, hi, hi, lo, lo); // 윗면(빛의 경계)
   tri(A0, B0, C0, hi * 0.7, hi, lo); // 옆면
   tri(A1, B1, C1, hi * 0.7, hi, lo);
@@ -176,7 +179,7 @@ function sunShaft(dir: THREE.Vector3, seed: number, dust = { n: 70, size: 1, opa
   // 먼지: 빛 안의 작은 점
   const rnd = mulberry32(seed);
   const dp: number[] = [];
-  for (let i = 0; i < dust.n; i++) {
+  for (let i = 0; i < dustOpt.n; i++) {
     const x = x0 + rnd() * (x1 - x0);
     const y = rnd() * ytop;
     const p = P(x, y).addScaledVector(dir, (rnd() * -y) / dir.y);
@@ -184,7 +187,7 @@ function sunShaft(dir: THREE.Vector3, seed: number, dust = { n: 70, size: 1, opa
   }
   const dg = new THREE.BufferGeometry();
   dg.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3));
-  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#ffe2b0', size: dust.size, sizeAttenuation: false, transparent: true, opacity: dust.opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#ffe2b0', size: dustOpt.size, sizeAttenuation: false, transparent: true, opacity: dustOpt.opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
   dust.name = 'dust';
   return [shaft, dust];
 }
@@ -302,7 +305,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   sunL.shadow.bias = -0.0004;
   sunL.shadow.normalBias = 0.02;
   scene.add(sunL, sunL.target);
-  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', lp.hemi));
+  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', lp.hemi * (painted ? 1.9 : 1)));
   const bounce = new THREE.PointLight(lp.bounceColor, lp.bounce, 14, 1.6);
   bounce.position.set(6.4, 0.4, 7.4);
   const doorSky = new THREE.PointLight('#f2e4c8', lp.door, 16, 1.5);
@@ -331,12 +334,23 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
       scene.add(fl, pl);
     }
   }
-  const vol = painted ? sunShaft(lightDir, spec.seed ?? 7, { n: 320, size: Math.max(1, Math.round(w / 300)), opacity: 0.38 }) : sunShaft(lightDir, spec.seed ?? 7);
+  const vol = painted ? sunShaft(lightDir, spec.seed ?? 7, { n: 240, size: Math.max(1, Math.round(w / 260)), opacity: 0.6 }, 1.25) : sunShaft(lightDir, spec.seed ?? 7);
   for (const o of vol) {
     scene.add(o);
     const mo = o as THREE.Mesh;
     disposables.push(mo.geometry, mo.material as THREE.Material);
   }
+
+  // 회화풍: 재질에 절차적 결·주름(셰이더). 방 기하는 분할 배율별 캐시라 한 번만 붙인다
+  if (painted)
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mat = m.material as THREE.Material;
+      if (!(mat as THREE.MeshLambertMaterial).isMeshLambertMaterial || mat.userData.paint) return;
+      mat.userData.paint = true;
+      withPaint(mat, m.name.startsWith('fig_') || m.name === 'self' ? 'cloth' : 'wood');
+    });
 
   // 카메라 = 증인의 눈
   const camera = new THREE.PerspectiveCamera(cam.fovDeg, cam.aspect, NEAR, FAR);
@@ -395,7 +409,42 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   r.toneMappingExposure = spec.exposure ?? lp.exposure;
   r.setClearColor(sky, 1);
   r.clear();
+  // 회화풍: 빛줄기·먼지는 색 패스에서 빼고 따로 그려(가림 반영) 붓질 뒤에 얹는다 — 붓 필터가 먼지를 지우지 않게
+  if (painted) for (const o of vol) o.visible = false;
   r.render(scene, camera);
+  let glow: Uint8Array | undefined;
+  if (painted) {
+    const blackM = new THREE.MeshBasicMaterial({ color: '#000000' });
+    const sv = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || vol.includes(m)) return;
+      sv.set(m, m.material);
+      m.material = blackM;
+    });
+    for (const o of vol) o.visible = true;
+    for (const o of blobs) o.visible = false;
+    const bgS = scene.background;
+    const fogS = scene.fog;
+    scene.background = null;
+    scene.fog = null;
+    r.setClearColor(0x000000, 1);
+    r.clear();
+    r.render(scene, camera);
+    const gRaw = new Uint8Array(RW * h * 4);
+    r.getContext().readPixels(0, 0, RW, h, r.getContext().RGBA, r.getContext().UNSIGNED_BYTE, gRaw);
+    glow = remap(gRaw, true);
+    for (const [m, mat] of sv) m.material = mat;
+    for (const o of blobs) o.visible = true;
+    scene.background = bgS;
+    scene.fog = fogS;
+    blackM.dispose();
+    r.setClearColor(sky, 1);
+    // 색 패스 다시(위에서 덮어썼다)
+    for (const o of vol) o.visible = false;
+    r.clear();
+    r.render(scene, camera);
+  }
   const gl = r.getContext();
   const raw = new Uint8Array(RW * h * 4);
   gl.readPixels(0, 0, RW, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
@@ -509,5 +558,5 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   scene.remove(hall.group);
   for (const d of disposables) d.dispose();
   const t2 = performance.now();
-  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1, visible, ...(extras ? { normal, obj, objNames } : {}) };
+  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1, visible, ...(extras ? { normal, obj, objNames, glow } : {}) };
 }

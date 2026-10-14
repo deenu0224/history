@@ -15,6 +15,12 @@
  *   room-backdrop.webp  그날의 방 도면 뒤 흐린 배경(사람 없음)
  *   manifest.json       컷별 파일·탭 영역(0–1 정규 사각형, 390 폭에서 ≥44px)·보임 검사
  * 확인용: mockups/out/ep1-cuts-sheet.png
+ *
+ * 그림체 비교 시안(기본 출력·public/cuts 는 건드리지 않는다):
+ *   node scripts/render-cuts.mjs --compare                     # 4컷 × (current·pixel·painted·hd2d) → mockups/out/cut-style-compare.png
+ *                                                              #   + e2-1 휴대폰 1:1(390 폭) → mockups/out/cut-style-phone.png
+ *   node scripts/render-cuts.mjs --compare --cuts e1-5,e2-1 --styles pixel,painted
+ *   node scripts/render-cuts.mjs --style pixel [--only e2-1]   # 한 그림체로 컷들 → mockups/out/cut-style-pixel/*.png
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -54,6 +60,61 @@ page.on('console', (m) => m.type() === 'error' && console.error('ERR', m.text())
 await page.goto(new URL('pov-dev.html?bake', url).href);
 await page.waitForFunction(() => !!window.__povBake, null, { timeout: 120000 });
 const cuts = await page.evaluate(() => window.__povBake.cuts);
+
+const STYLE_LABEL = { current: 'CURRENT', pixel: 'A 픽셀아트', painted: 'B 일러스트', hd2d: 'A2 HD-2D' };
+const style = arg('--style');
+if (args.includes('--compare') || (style && style !== 'current')) {
+  const MOCK = join(ROOT, 'mockups/out');
+  mkdirSync(MOCK, { recursive: true });
+  const savePng = (path, dataUrl) => writeFileSync(path, Buffer.from(dataUrl.split(',')[1], 'base64'));
+  const bakeStyle = (id, v, st, outW = 390) => page.evaluate(([id, v, st, w]) => window.__povBake.bakeStyle(id, v, st, w), [id, v, st, outW]);
+  const visLine = (r) => Object.entries(r.visible).filter(([k, px]) => (k.startsWith('fig_') && px >= 10) || (k.startsWith('slip:') && px >= 1)).map(([k, px]) => `${k}:${px}`).join(' ');
+  if (style && !args.includes('--compare')) {
+    const dir = join(MOCK, `cut-style-${style}`);
+    mkdirSync(dir, { recursive: true });
+    for (const c of cuts) {
+      if (only && !only.includes(c.id)) continue;
+      for (const v of c.erasable ? ['memory', 'erased'] : ['memory']) {
+        const r = await bakeStyle(c.id, v, style);
+        savePng(join(dir, `${c.id}${v === 'erased' ? '.erased' : ''}.png`), r.full);
+        console.log(`${style} ${c.id} ${v}: ${r.ms.toFixed(0)}ms · ${visLine(r)}`);
+      }
+    }
+  } else {
+    const rowsSpec = (arg('--cuts') ?? 'e1-5,e2-1,e3-2,e3-2:erased,e4-5').split(',').map((s) => {
+      const [id, v] = s.split(':');
+      return { id, v: v ?? 'memory' };
+    });
+    const styles = (arg('--styles') ?? 'current,pixel,painted,hd2d').split(',');
+    const rows = [];
+    const phone = [];
+    for (const { id, v } of rowsSpec) {
+      const tiles = [];
+      for (const st of styles) {
+        const r = await bakeStyle(id, v, st, 390);
+        const slips = Object.entries(r.visible).filter(([k, px]) => k.startsWith('slip:') && px >= 1).length;
+        const figs = Object.entries(r.visible).filter(([k, px]) => k.startsWith('fig_') && px >= 10).length;
+        tiles.push({ dataUrl: r.dataUrl, caption: `${r.w}×${r.h} · 인물 ${figs}${slips ? ` · 조각 ${slips}` : ''} · ${(r.ms / 1000).toFixed(1)}s` });
+        console.log(`${st} ${id} ${v}: ${r.ms.toFixed(0)}ms · ${visLine(r)}`);
+        if (id === 'e2-1' && v === 'memory') phone.push({ dataUrl: r.dataUrl, caption: STYLE_LABEL[st] ?? st });
+        savePng(join(MOCK, `cut-style-${id}${v === 'erased' ? '.erased' : ''}-${st}.png`), r.full);
+      }
+      rows.push({ label: `${id}${v === 'erased' ? ' erased' : ''}`, tiles });
+    }
+    const cols = styles.map((s) => STYLE_LABEL[s] ?? s);
+    const sheet = await page.evaluate(([rows, cols]) => window.__povBake.compareSheet(rows, cols, 390, '그림체 비교 — 칸 = 휴대폰 390 CSS px 폭 1:1'), [rows, cols]);
+    savePng(join(MOCK, 'cut-style-compare.png'), sheet);
+    console.log('compare →', join(MOCK, 'cut-style-compare.png'));
+    if (phone.length) {
+      const ph = await page.evaluate(([tiles]) => window.__povBake.compareSheet([{ label: 'e2-1', tiles }], tiles.map((t) => t.caption), 390, 'e2-1 · 390 CSS px 폭 1:1(휴대폰 화면 크기)'), [phone]);
+      savePng(join(MOCK, 'cut-style-phone.png'), ph);
+      console.log('phone →', join(MOCK, 'cut-style-phone.png'));
+    }
+  }
+  await browser.close();
+  await server?.close();
+  process.exit(0);
+}
 
 mkdirSync(OUT, { recursive: true });
 const manifestPath = join(OUT, 'manifest.json');

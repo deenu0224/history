@@ -24,6 +24,8 @@ export interface PaintedInput {
   obj?: Uint16Array;
   objNames?: string[];
   focusDepth?: number;
+  /** 빛줄기·먼지 덧칠(가산, sRGB RGBA) — 붓질 뒤에 얹는다 */
+  glow?: Uint8Array | Uint8ClampedArray;
   /** 세로 초점 거리(px) — 가림 그늘 반경 계산 */
   focalPx: number;
   overlay: PovOverlay;
@@ -296,7 +298,7 @@ export function postPainted(inp: PaintedInput): Uint8ClampedArray {
   {
     const rad = new Uint8Array(N);
     const fd = inp.focusDepth;
-    const base = Math.max(2, Math.round(3.2 * scale));
+    const base = Math.max(2, Math.round(4.5 * scale));
     for (let i = 0; i < N; i++) {
       const d = depth[i];
       let r = base;
@@ -310,6 +312,93 @@ export function postPainted(inp: PaintedInput): Uint8ClampedArray {
     // 두 번째(작은 붓) — 붓 자국 가장자리를 다듬는다
     for (let i = 0; i < N; i++) rad[i] = Math.max(1, Math.round(rad[i] * 0.5));
     kuwahara(R, G, B, w, h, rad);
+  }
+
+  // 4b) 붓 결: 구조 텐서 방향(형태의 결)을 따라 흰 잡음을 선 적분(LIC) → 붓 자국 명암 ──────────
+  {
+    const L0 = new Float32Array(N);
+    for (let i = 0; i < N; i++) L0[i] = lum(R[i], G[i], B[i]);
+    gauss3(L0, w, h, 2 * scale);
+    const Jxx = new Float32Array(N);
+    const Jxy = new Float32Array(N);
+    const Jyy = new Float32Array(N);
+    for (let y = 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        const gx = (L0[i + 1] - L0[i - 1]) * 0.5;
+        const gy = (L0[i + w] - L0[i - w]) * 0.5;
+        Jxx[i] = gx * gx;
+        Jxy[i] = gx * gy;
+        Jyy[i] = gy * gy;
+      }
+    gauss3(Jxx, w, h, 4 * scale);
+    gauss3(Jxy, w, h, 4 * scale);
+    gauss3(Jyy, w, h, 4 * scale);
+    const tx = new Float32Array(N);
+    const ty = new Float32Array(N);
+    const defA = -0.55; // 결이 없는 넓은 면: 비스듬한 붓질
+    const cohK = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const a = Jxx[i];
+      const b = Jxy[i];
+      const c = Jyy[i];
+      const tr = a + c;
+      const disc = Math.sqrt(Math.max(0, (a - c) * (a - c) + 4 * b * b));
+      const coh = tr > 1e-9 ? disc / tr : 0;
+      const th = 0.5 * Math.atan2(2 * b, a - c) + Math.PI / 2; // 기울기에 수직 = 형태를 따라
+      const k = smooth(0.3, 0.75, coh) * smooth(1.5e-4, 1.5e-3, tr);
+      cohK[i] = k;
+      const vx = Math.cos(th) * k + Math.cos(defA) * (1 - k);
+      const vy = Math.sin(th) * k + Math.sin(defA) * (1 - k);
+      const l = Math.hypot(vx, vy) || 1;
+      tx[i] = vx / l;
+      ty[i] = vy / l;
+    }
+    // 잡음(붓 털 굵기 ≈ 1.5px@390)
+    const cell = Math.max(1, Math.round(1.2 * scale));
+    const nw = Math.ceil(w / cell) + 1;
+    const nh = Math.ceil(h / cell) + 1;
+    const noise = new Float32Array(nw * nh);
+    for (let i = 0; i < noise.length; i++) noise[i] = rnd() - 0.5;
+    const samp = (x: number, y: number) => noise[Math.min(nh - 1, Math.max(0, Math.floor(y / cell))) * nw + Math.min(nw - 1, Math.max(0, Math.floor(x / cell)))];
+    const steps = Math.round(9 * scale);
+    const st = new Float32Array(N);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        let acc = samp(x, y);
+        for (const sgn of [1, -1]) {
+          let px = x + 0.5;
+          let py = y + 0.5;
+          let i = y * w + x;
+          let lx = tx[i] * sgn;
+          let ly = ty[i] * sgn;
+          for (let s2 = 0; s2 < steps; s2++) {
+            px += lx;
+            py += ly;
+            const xi = px | 0;
+            const yi = py | 0;
+            if (xi < 0 || yi < 0 || xi >= w || yi >= h) break;
+            i = yi * w + xi;
+            let nx = tx[i];
+            let ny = ty[i];
+            if (nx * lx + ny * ly < 0) {
+              nx = -nx;
+              ny = -ny;
+            }
+            lx = nx;
+            ly = ny;
+            acc += samp(px, py);
+          }
+        }
+        st[y * w + x] = acc / Math.sqrt(2 * steps + 1);
+      }
+    for (let i = 0; i < N; i++) {
+      const L = lum(R[i], G[i], B[i]);
+      const k = 1 + st[i] * (0.03 + 0.06 * cohK[i]) * (0.4 + smooth(0.03, 0.3, L) - 0.6 * smooth(0.55, 0.95, L));
+      R[i] *= k;
+      G[i] *= k;
+      B[i] *= k;
+    }
   }
 
   // 5) 먹 번짐 가장자리(물체·거리 경계) + 물감 고임(DoG) ───────────────
@@ -340,6 +429,74 @@ export function postPainted(inp: PaintedInput): Uint8ClampedArray {
       R[i] *= kk;
       G[i] *= kk * 0.98 + 0.02 * (1 - soft[i]);
       B[i] *= kk * 0.95 + 0.05 * (1 - soft[i]);
+    }
+  }
+
+  // 5b) 먹선(수묵채색의 윤곽): 사람·가까운 물체 실루엣에 굵기가 변하는 붓 선 ───────────
+  if (inp.obj && inp.objNames) {
+    const obj = inp.obj;
+    const isFig = inp.objNames.map((n) => n.startsWith('fig_') || n === 'self');
+    const line = new Float32Array(N);
+    const nz = valueNoise(inp.seed + 101);
+    for (let y = 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        const d = depth[i];
+        if (!(d < 40)) continue;
+        let e = 0;
+        for (const j of [i - 1, i + 1, i - w, i + w]) {
+          if (depth[j] > d * 1.06 + 0.03) e = Math.max(e, isFig[obj[i]] ? 1 : 0.55);
+          else if (isFig[obj[i]] && obj[j] !== obj[i] && depth[j] > d) e = Math.max(e, 0.8);
+        }
+        if (!e) continue;
+        // 굵기: 붓 압력(잡음) × 가까울수록 굵게
+        const press = nz(x / (14 * scale), y / (14 * scale));
+        const r = (0.4 + 1.6 * press * press) * scale * (0.7 + 0.6 * smooth(6, 1, d));
+        const ri = Math.ceil(r);
+        for (let yy = -ri; yy <= ri; yy++)
+          for (let xx = -ri; xx <= ri; xx++) {
+            const xa = x + xx;
+            const ya = y + yy;
+            if (xa < 0 || ya < 0 || xa >= w || ya >= h) continue;
+            const dd = Math.hypot(xx, yy);
+            if (dd > r + 0.5) continue;
+            const j = ya * w + xa;
+            // 선은 가까운 쪽(물체 안)으로만 번진다
+            if (depth[j] > d * 1.06 + 0.03) continue;
+            const a = e * Math.min(1, r + 0.5 - dd);
+            if (a > line[j]) line[j] = a;
+          }
+      }
+    gauss3(line, w, h, 0.5 * scale);
+    for (let i = 0; i < N; i++) {
+      const a = Math.min(1, line[i]) * 0.78;
+      if (a <= 0) continue;
+      R[i] += (0.07 - R[i]) * a;
+      G[i] += (0.06 - G[i]) * a;
+      B[i] += (0.055 - B[i]) * a;
+    }
+  }
+
+  // 5c) 빛줄기·먼지: 붓질 뒤에 가산(먼지는 작은 번짐 + 심지), 빛줄기는 부드럽게 ─────────
+  if (inp.glow) {
+    const gR = new Float32Array(N);
+    const gG = new Float32Array(N);
+    const gB = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      gR[i] = inp.glow[i * 4] / 255;
+      gG[i] = inp.glow[i * 4 + 1] / 255;
+      gB[i] = inp.glow[i * 4 + 2] / 255;
+    }
+    const hR = gR.slice();
+    const hG = gG.slice();
+    const hB = gB.slice();
+    gauss3(hR, w, h, 2.5 * scale);
+    gauss3(hG, w, h, 2.5 * scale);
+    gauss3(hB, w, h, 2.5 * scale);
+    for (let i = 0; i < N; i++) {
+      R[i] += gR[i] * 0.4 + hR[i] * 0.75;
+      G[i] += gG[i] * 0.36 + hG[i] * 0.66;
+      B[i] += gB[i] * 0.28 + hB[i] * 0.48;
     }
   }
 
@@ -413,9 +570,11 @@ export function postPainted(inp: PaintedInput): Uint8ClampedArray {
         g += hi * 0.015;
         b -= hi * 0.02;
         // 검은 바닥을 먹색으로 들어 올림(순흑 금지)
-        r = 0.035 + r * 0.965;
-        g = 0.03 + g * 0.97;
-        b = 0.027 + b * 0.973;
+        // 그늘 들어 올림(따뜻한 갈색 먹 — 깎아지른 검정이 아니라 칠한 어둠)
+        const lift = 1 - smooth(0, 0.25, L);
+        r = 0.035 + r * 0.965 + lift * 0.035;
+        g = 0.03 + g * 0.97 + lift * 0.024;
+        b = 0.027 + b * 0.973 + lift * 0.018;
       } else {
         // 물감이 빠져 종이가 드러나는 지워짐: 대비를 줄이고 청록으로 씻는다
         const c = Math.pow(Math.min(1, L), 0.9);
