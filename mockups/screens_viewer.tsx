@@ -8,12 +8,12 @@ const eyes2: EyeItem[] = [
   { state: 'never', label: '열리지 않음' },
 ];
 
-export function ViewerScreen({ w = 390, h = 844, sat = 47, sab = 34 }: { w?: number; h?: number; sat?: number; sab?: number }) {
+export function ViewerScreen({ w = 390, h = 844, sat = 47, sab = 34, noDevice }: { w?: number; h?: number; sat?: number; sab?: number; noDevice?: boolean }) {
   const bottom = 14 + 56 + 8 + sab;
   const area = { w: w - 8, h: h - bottom };
   const specs = e1Cuts(area, { tagged: true });
   return (
-    <Screen w={w} h={h} sat={sat} sab={sab}>
+    <Screen w={w} h={h} sat={sat} sab={sab} noDevice={noDevice}>
       <Viewer
         w={w} h={h} sat={sat} sab={sab} eyes={eyes2} title="첫 번째 기억" time="11:40" specs={specs} index={1}
         nameTags={{ red: '이극돈' }}
