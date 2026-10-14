@@ -12,9 +12,16 @@
  *      방(기둥·서안) 은 거리가 끊기는 곳만 한 단 어둡게(선택 외곽선).
  *   7) 빛을 받는 윗가장자리 하이라이트 1px(인물 머리·어깨, 문빛 쪽).
  *   8) 지워짐: 위아래 눈꺼풀 띠(계단), 가로 찢김(행 밀기), 청록 팔레트.
+ *
+ * 출시 굽기 보강(약점 고침):
+ *   - 띠살: render3d 가 성긴 띠살을 세로살·가로 띠·한지로 따로 번호 매기면, 2×2 안 살 픽셀 수로 1px 줄을 고르게 찍는다(잡음 대신 고른 줄).
+ *   - 벽빛: 둥근 비네트 없음 + 방 면 밝은 쪽 압축 + 체커는 띠가 바뀌는 곳 2px 안에서만(과녁 동심원 없음). 채움광 감쇠는 render3d 에서 눅인다.
+ *   - 사람: 어두운 옷 한 단 들어 올림, 옷 픽셀은 그 옷 색 계열(+먹)로만, 역광 테 1px, 얼굴에 눈·눈썹 줄과 볼 그늘 몇 픽셀.
+ *   - 이름표 「金馹孫」: 8×9 픽셀 글자를 직접 찍는다(glyphs.ts).
  */
 import { hexToRgb, rgbToOklab } from './palette';
 import { mulberry32 } from './camera';
+import { NAME_TAG_GLYPHS_SMALL } from './glyphs';
 import type { PovOverlay } from './types';
 
 /** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 3 · 호박 3 · 붉은 3 · 초록 3 · 남 3 · 피부 2 */
@@ -46,11 +53,25 @@ export interface PixelInput {
   objNames: string[];
   overlay: PovOverlay;
   seed: number;
-  /** 비네트(기본 0.5) */
+  /** (쓰지 않음 — 픽셀아트는 화면 안 비네트를 그리지 않는다; UI 가 가장자리를 어둡게 한다) */
   vignette?: number;
+  /** 사람(물체 이름 → 옷 색 id: red · red-dark · green · blue · young · slate · messenger · clerk). 옷 픽셀을 그 색 계열(+먹)로만 —
+   *  따뜻한 빛에서 남색이 초록으로, 붉은 옷이 갈색으로 새지 않게 */
+  robes?: Record<string, string>;
   /** 초점 거리(m) — 초점 인물 둘레 외곽선을 조금 더 진하게 */
   focusDepth?: number;
 }
+
+/** 옷 색 계열(팔레트 색) — 먹 4색은 언제나 허용 */
+const ROBE_FAMILY: Record<string, readonly string[]> = {
+  red: ['#3e1a18', '#742f2a', '#a8473c'],
+  'red-dark': ['#3e1a18', '#742f2a', '#a8473c'],
+  green: ['#24352b', '#3a5643', '#5e7d61'],
+  blue: ['#26323f', '#384a60', '#556c84'],
+  young: ['#26323f', '#384a60', '#556c84'],
+  slate: ['#26323f', '#384a60', '#556c84', '#5a4130'],
+};
+const INKS = ['#0d0b0a', '#1a1613', '#2a231e', '#3d332b'];
 
 export interface PixelOutput {
   w: number;
@@ -148,6 +169,8 @@ function buildPal(pal: readonly string[]): Pal {
 
 /** 사람 픽셀 밝기 바닥(sRGB 휘도) — 가장 어두운 붉은·초록·남색 칸에 닿는 정도 */
 const FIG_FLOOR = 0.17;
+/** 피부(따뜻하고 중간 채도) — 얼굴·손은 옷 계열 제한에서 뺀다 */
+const isSkin = (r: number, g: number, b: number): boolean => r >= 0.2 && g / r > 0.55 && g / r < 0.92 && b / r < 0.78;
 const lum = (r: number, g: number, b: number): number => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 const smooth = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -290,7 +313,6 @@ export function postPixel(inp: PixelInput): PixelOutput {
   }
 
   // 3) 등급 + 비네트 + 밝기 띠 ─────────────────────────────
-  const vigK = inp.vignette ?? (erased ? 0.3 : 0.5);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -344,11 +366,8 @@ export function postPixel(inp: PixelInput): PixelOutput {
           b = lift + (b * k - lift) * sat;
         }
       }
-      // 비네트: 둥근 과녁(동심원 띠)이 아니라 네 모서리만 조금 — 화면 가장자리는 UI 의 비네트가 맡는다
-      const dx = Math.abs(x / (w - 1) - 0.5) * 2;
-      const dy = Math.abs(y / (h - 1) - 0.5) * 2;
-      const corner = smooth(0.7, 1, dx) * smooth(0.7, 1, dy);
-      const vig = 1 - vigK * 0.5 * corner;
+      // 비네트 없음: 둥근 비네트는 낮은 색 수에서 과녁·모서리 얼룩이 된다 — 화면 가장자리 어둠은 UI(.cutvig)가 맡는다
+      const vig = 1;
       R[i] = r * vig;
       G[i] = g * vig;
       B[i] = b * vig;
@@ -383,6 +402,27 @@ export function postPixel(inp: PixelInput): PixelOutput {
     nearCache[k] = best;
     return best;
   };
+  const palHex = (erased ? PIXEL_ERASED_PALETTE : PIXEL_PALETTE).map((x) => x.toLowerCase());
+  const famIdx: (number[] | null)[] = inp.objNames.map((name) => {
+    const fam = !erased && inp.robes ? ROBE_FAMILY[inp.robes[name]] : undefined;
+    if (!fam) return null;
+    return [...INKS, ...fam].map((x) => palHex.indexOf(x)).filter((j) => j >= 0);
+  });
+  const allIdx = Array.from({ length: npal }, (_, j) => j);
+  const nearestIn = (r: number, g: number, b: number, set: number[]): [number, number] => {
+    const q = rgbToOklab(r * 255, g * 255, b * 255);
+    let best = set[0];
+    let bd = Infinity;
+    for (const j of set) {
+      const p = pal.lab[j];
+      const d = ((q[0] - p[0]) * 1.2) ** 2 + ((q[1] - p[1]) * 1.5) ** 2 + ((q[2] - p[2]) * 1.5) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = j;
+      }
+    }
+    return [best, bd];
+  };
   const ix = new Uint8Array(N);
   /** 방 픽셀이 두 색 한가운데인지 + 그 두 색 */
   const tk = new Uint8Array(N);
@@ -394,6 +434,16 @@ export function postPixel(inp: PixelInput): PixelOutput {
       const k = idxOf(R[i], G[i], B[i]);
       const kd = kinds[obj[i]];
       // 사람·종이는 셀(디더 없음: 가장 가까운 단색), 방은 두 색 한가운데일 때만 2×2 체커
+      const fam = kd === 4 && famIdx[obj[i]];
+      if (fam && !isSkin(R[i], G[i], B[i])) {
+        // 옷 계열이 일반 최근접보다 크게 멀면(손에 든 종이·붓·띠) 일반 색 그대로
+        const [jf, df] = nearestIn(R[i], G[i], B[i], fam);
+        const [, dg] = nearestIn(R[i], G[i], B[i], allIdx);
+        if (df < dg * 2.2 + 0.0015) {
+          ix[i] = jf;
+          continue;
+        }
+      }
       if (kd >= 3 || panel[i]) {
         ix[i] = nearest(R[i], G[i], B[i], kd === 4);
         continue;
@@ -577,13 +627,7 @@ export function postPixel(inp: PixelInput): PixelOutput {
     const skin = new Uint8Array(N);
     for (let i = 0; i < N; i++) {
       if (kinds[obj[i]] !== 4 || inp.objNames[obj[i]] === 'self' || out[i] === INK) continue;
-      const r = R[i];
-      const g = G[i];
-      const b = B[i];
-      if (r < 0.2) continue;
-      const gr = g / r;
-      const br = b / r;
-      if (gr > 0.55 && gr < 0.92 && br < 0.78) skin[i] = 1;
+      if (isSkin(R[i], G[i], B[i])) skin[i] = 1;
     }
     const seen = new Uint8Array(N);
     const stack: number[] = [];
@@ -672,6 +716,66 @@ export function postPixel(inp: PixelInput): PixelOutput {
           while (x >= fx0 && x <= fx1 && !inC(x, y)) x += darkRight ? -1 : 1;
           if (inC(x, y)) out[y * w + x] = dk1[out[y * w + x]];
         }
+    }
+  }
+
+  // 7d) 이름표 「金馹孫」: 줄인 24px 글자는 뭉개진다 — 이름표 자리에 8×9 픽셀 글자를 직접 찍는다(종이 = 이름표의 가장 흔한 색)
+  {
+    const tagId = inp.objNames.indexOf('nametag');
+    if (tagId > 0) {
+      let x0 = w;
+      let x1 = -1;
+      let y0 = h;
+      let y1 = -1;
+      const hist = new Map<number, number>();
+      for (let i = 0; i < N; i++)
+        if (obj[i] === tagId) {
+          const x = i % w;
+          const y = (i / w) | 0;
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
+          hist.set(out[i], (hist.get(out[i]) ?? 0) + 1);
+        }
+      const GW = 8;
+      const GH = 9;
+      const rows = GH * 3;
+      if (x1 - x0 + 1 >= GW + 1 && y1 - y0 + 1 >= rows + 1) {
+        // 종이: 이름표에서 가장 흔한 (먹 아닌) 색 — 그늘이라 어두우면 한 단 밝게(글자와 대비)
+        let paper = -1;
+        let pc = -1;
+        for (const [c, n] of hist)
+          if (palLab[c][0] > 0.3 && n > pc) {
+            pc = n;
+            paper = c;
+          }
+        if (paper < 0) paper = br1[br1[1]];
+        if (palLab[paper][0] < 0.55) paper = br1[paper];
+        const top = y0 + Math.floor((y1 - y0 + 1 - rows) / 2);
+        const glyphs = [NAME_TAG_GLYPHS_SMALL['金'], NAME_TAG_GLYPHS_SMALL['馹'], NAME_TAG_GLYPHS_SMALL['孫']];
+        for (let y = y0; y <= y1; y++) {
+          let xa = w;
+          let xb = -1;
+          for (let x = x0; x <= x1; x++)
+            if (obj[y * w + x] === tagId) {
+              xa = Math.min(xa, x);
+              xb = Math.max(xb, x);
+            }
+          if (xb < 0) continue;
+          const gx = Math.round((xa + xb + 1) / 2 - GW / 2);
+          const gy = y - top;
+          const row = gy >= 0 && gy < rows ? glyphs[Math.floor(gy / GH)][gy % GH] : '';
+          for (let x = xa; x <= xb; x++) {
+            const i = y * w + x;
+            if (obj[i] !== tagId) continue;
+            const edge = obj[i - 1] !== tagId || obj[i + 1] !== tagId || obj[i - w] !== tagId || obj[i + w] !== tagId;
+            const g = row[x - gx];
+            if (g === '#') out[i] = 1;
+            else if (!edge) out[i] = paper;
+          }
+        }
+      }
     }
   }
 

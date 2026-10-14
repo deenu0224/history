@@ -86,7 +86,7 @@ export async function bakePovStyle(
   const runPixel = async (ps: { w: number; h: number }) => {
     const raw = await render3d({ ...spec, style: 'pixel', size: { w: ps.w * 2, h: ps.h * 2 } });
     const { postPixel } = await import('./post-pixel');
-    return { raw, px: postPixel({ w2: raw.w, h2: raw.h, rgba: raw.rgba, depth: raw.depth, normal: raw.normal!, obj: raw.obj!, objNames: raw.objNames!, overlay: spec.overlay, seed, focusDepth: raw.focusDepth }) };
+    return { raw, px: postPixel({ w2: raw.w, h2: raw.h, rgba: raw.rgba, depth: raw.depth, normal: raw.normal!, obj: raw.obj!, objNames: raw.objNames!, overlay: spec.overlay, seed, focusDepth: raw.focusDepth, robes: { ...Object.fromEntries(spec.figures.map((f) => [f.id, f.robe ?? 'blue'])), ...(spec.self ? { self: spec.self.robe } : {}) } }) };
   };
   if (style === 'pixel') {
     const { raw, px } = await runPixel(size);

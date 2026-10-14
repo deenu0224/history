@@ -64,7 +64,8 @@ function bundle(b: Builder, x: number, z: number, rot: number, col = '#8d7a58', 
   }
 }
 
-export function buildProps(p: PovProps): THREE.Object3D[] {
+/** pixelTag: 픽셀아트 굽기 — 이름표를 조금 넓게(8px 글자 셋이 들어가게; 이름표 크기는 재구성) */
+export function buildProps(p: PovProps, opts: { pixelTag?: boolean } = {}): THREE.Object3D[] {
   const out: THREE.Object3D[] = [];
   if (p.slips === 'spread') for (let i = 0; i < SLIP_SPOTS.length; i++) out.push(slipMesh(i));
   if (p.wrapSlips) {
@@ -100,7 +101,7 @@ export function buildProps(p: PovProps): THREE.Object3D[] {
     bundle(b, t.x, t.y, t.rot, '#cbb78f', false);
     const bm = b.mesh(new THREE.MeshLambertMaterial({ vertexColors: true }));
     bm.name = 'nametag-bundle';
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.29), new THREE.MeshLambertMaterial({ map: nameTagTexture() }));
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(opts.pixelTag ? 0.13 : 0.095, opts.pixelTag ? 0.31 : 0.29), new THREE.MeshLambertMaterial({ map: nameTagTexture() }));
     // 꾸러미 서쪽 면에 기대 세운 이름표: 앞면은 서쪽(Y 이극돈 자리)을 향한다. 한 면만 그려 동쪽(W)에서는 뒷면 — 글자가 보이지 않는다
     tag.position.set(t.x - 0.19, TOP + 0.13, t.y);
     tag.lookAt(tag.position.x - 1, tag.position.y + 0.5, tag.position.z);

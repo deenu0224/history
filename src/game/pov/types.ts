@@ -166,7 +166,7 @@ export interface PovSpec {
   vignette?: number;
   /** 결정적 잡음 씨앗(기본: 스펙 해시) */
   seed?: number;
-  /** 그림체(기본 'current'). 비교 시안 전용 — 굽기 기본 출력은 바뀌지 않는다 */
+  /** 그림체(기본 'current' = 런타임 renderPovCut). 출시 굽기(scripts/render-cuts.mjs)는 'pixel'(승인 시안 A) — bake.ts bakePixel */
   style?: PovStyle;
 }
 

@@ -267,7 +267,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   });
 
   // 소품
-  for (const o of buildProps(spec.props ?? {})) {
+  for (const o of buildProps(spec.props ?? {}, { pixelTag: pixel })) {
     scene.add(o);
     const mo = o as THREE.Mesh;
     if (mo.name.startsWith('slip:')) tagged.push(mo);
@@ -328,7 +328,9 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   }
   // 픽셀아트: 채움광의 거리 감쇠를 눅여 벽에 과녁 같은 동심원 띠가 생기지 않게(넓고 평평한 빛 + 해가 만든 모양 있는 빛 조각)
   if (pixel) {
+    // 벽에 바짝 붙은 채움광은 코사인 항만으로도 과녁을 그린다 — 방 안쪽으로 물린다
     northL.position.z = 2.2;
+    winL.position.x = 9.6;
     for (const l of fills) {
       l.decay *= PIXEL_FILL.decay;
       l.distance *= PIXEL_FILL.reach;
@@ -521,7 +523,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
       idMats.push(im);
       m.material = im;
     } else if (extras && m.isMesh && m.visible && objNames.length < 255) {
-      objNames.push(hallMeshes.has(m) ? (m.name === 'hanji' || m.name.startsWith('lattice') ? m.name : 'hall') : m.name === 'self' ? 'self' : 'prop');
+      objNames.push(hallMeshes.has(m) ? (m.name === 'hanji' || m.name.startsWith('lattice') ? m.name : 'hall') : m.name === 'self' || m.name === 'nametag' ? m.name : 'prop');
       const im = idMaterial(objNames.length - 1);
       idMats.push(im);
       m.material = im;
