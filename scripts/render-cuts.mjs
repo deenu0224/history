@@ -61,7 +61,7 @@ const manifest = existsSync(manifestPath) && only ? JSON.parse(readFileSync(mani
 const out = manifest ?? {
   episode: 'ep1',
   provenance: 'reconstructed',
-  note: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선).',
+  note: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).',
   css: CSS,
   sizes: { dpr3: { w: DPR3.w * DPR3.scale, h: DPR3.h * DPR3.scale, internal: [DPR3.w, DPR3.h] }, dpr2: { w: DPR2.w * DPR2.scale, h: DPR2.h * DPR2.scale, internal: [DPR2.w, DPR2.h] } },
   minTouchCss: MIN_TOUCH,
@@ -99,7 +99,7 @@ let total = 0;
 for (const c of cuts) {
   if (only && !only.includes(c.id)) continue;
   const variants = c.erasable ? ['memory', 'erased'] : ['memory'];
-  const entry = { files: {}, figures: [], slipsVisible: 0 };
+  const entry = { witness: c.witnessId, time: c.time, files: {}, figures: [], slipsVisible: 0 };
   for (const v of variants) {
     const r3 = await bake(c.id, v, DPR3);
     const r2 = await bake(c.id, v, DPR2);
@@ -113,7 +113,7 @@ for (const c of cuts) {
     if (v === 'memory') {
       const figs = Object.entries(r3.visible).filter(([k, vis]) => k.startsWith('fig_') && vis.px >= MIN_PX);
       entry.figures = figs
-        .map(([id, vis]) => ({ id, ...hitbox(vis, r3.w, r3.h), px: vis.px }))
+        .map(([id, vis]) => ({ id, ...hitbox(vis, r3.w, r3.h), px: vis.px, listed: c.listed.includes(id) }))
         .sort((a, b) => b.w * b.h - a.w * a.h);
       entry.slipsVisible = Object.keys(r3.visible).filter((k) => k.startsWith('slip:') && r3.visible[k].px >= 2).length;
       entry.slipPx = Object.fromEntries(Object.entries(r3.visible).filter(([k]) => k.startsWith('slip:')).map(([k, vv]) => [k, vv.px]));

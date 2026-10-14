@@ -1,14 +1,13 @@
+/// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { EP1_CUTS, EP1_ROOM_BACKDROP } from '@/data/cuts/ep1';
 import { CUT_IDS, CUT_TIMES, FIGURE_IDS } from '@/data/v5/ids';
 import { ROOM } from '@/data/v5/room';
 import { ROOM_EP1, validatePovSpec } from '@/game/pov/room';
 
-const OUT = join(__dirname, '../../public/cuts/ep1');
-const manifestPath = join(OUT, 'manifest.json');
-const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
+const baked = import.meta.glob('../../public/cuts/ep1/*.{webp,json}', { eager: true, import: 'default' });
+const onDisk = new Set(Object.keys(baked).map((k) => k.split('/').pop()!));
+const manifest = baked['../../public/cuts/ep1/manifest.json'] as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 /** 눈 번호 → 주인(personId)·앞쪽 덮개 소매 색(ART_DIRECTION_V5 §5) */
 const EYES = {
@@ -96,11 +95,11 @@ describe.runIf(manifest)('baked ep1 cuts (public/cuts/ep1/manifest.json)', () =>
       expect(Object.keys(e.files).sort()).toEqual(variants.sort());
       for (const v of variants)
         for (const f of [e.files[v].dpr3, e.files[v].dpr2]) {
-          expect(existsSync(join(OUT, f)), f).toBe(true);
-          bytes += statSync(join(OUT, f)).size;
+          expect(onDisk.has(f), f).toBe(true);
         }
+      for (const v of variants) bytes += e.files[v].bytes.dpr3 + e.files[v].bytes.dpr2;
     }
-    expect(existsSync(join(OUT, manifest.backdrop.file))).toBe(true);
+    expect(onDisk.has(manifest.backdrop.file)).toBe(true);
     expect(manifest.sizes.dpr3).toMatchObject({ w: 1170, h: 1560 });
     expect(manifest.sizes.dpr2).toMatchObject({ w: 780, h: 1040 });
     expect(bytes).toBeLessThan(3 * 1024 * 1024);

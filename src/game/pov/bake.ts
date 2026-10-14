@@ -89,12 +89,12 @@ async function sheet(items: { label: string; dataUrl: string }[], cols: number, 
 declare global {
   interface Window {
     __povBake?: {
-      cuts: { id: string; erasable: boolean }[];
+      cuts: { id: string; erasable: boolean; listed: string[]; witnessId: string; time: string }[];
       bake: typeof bake;
       sheet: typeof sheet;
     };
   }
 }
 
-window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable })), bake, sheet };
+window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, sheet };
 document.body.dataset.bakeReady = '1';

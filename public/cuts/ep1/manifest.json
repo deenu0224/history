@@ -1,7 +1,7 @@
 {
  "episode": "ep1",
  "provenance": "reconstructed",
- "note": "미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선).",
+ "note": "미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).",
  "css": {
   "w": 390,
   "h": 520
@@ -27,6 +27,8 @@
  "minTouchCss": 44,
  "cuts": {
   "e1-1": {
+   "witness": "yun_hyoson",
+   "time": "09:10",
    "files": {
     "memory": {
      "dpr3": "e1-1.webp",
@@ -44,7 +46,8 @@
      "y": 0.0256,
      "w": 0.4744,
      "h": 0.8045,
-     "px": 10474
+     "px": 10474,
+     "listed": true
     },
     {
      "id": "fig_yi",
@@ -52,7 +55,8 @@
      "y": 0.4103,
      "w": 0.1453,
      "h": 0.141,
-     "px": 997
+     "px": 997,
+     "listed": true
     },
     {
      "id": "fig_u",
@@ -60,7 +64,8 @@
      "y": 0.4231,
      "w": 0.1197,
      "h": 0.1506,
-     "px": 697
+     "px": 697,
+     "listed": false
     }
    ],
    "slipsVisible": 0,
@@ -72,6 +77,8 @@
    }
   },
   "e1-2": {
+   "witness": "yun_hyoson",
+   "time": "11:40",
    "files": {
     "memory": {
      "dpr3": "e1-2.webp",
@@ -89,7 +96,8 @@
      "y": 0.3878,
      "w": 0.2863,
      "h": 0.2821,
-     "px": 3811
+     "px": 3811,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -99,6 +107,8 @@
    }
   },
   "e1-3": {
+   "witness": "yun_hyoson",
+   "time": "13:20",
    "files": {
     "memory": {
      "dpr3": "e1-3.webp",
@@ -115,6 +125,8 @@
    "visiblePx": {}
   },
   "e1-4": {
+   "witness": "yun_hyoson",
+   "time": "14:00",
    "files": {
     "memory": {
      "dpr3": "e1-4.webp",
@@ -132,7 +144,8 @@
      "y": 0.2885,
      "w": 0.1752,
      "h": 0.3045,
-     "px": 2401
+     "px": 2401,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -142,6 +155,8 @@
    }
   },
   "e1-5": {
+   "witness": "yun_hyoson",
+   "time": "15:00",
    "files": {
     "memory": {
      "dpr3": "e1-5.webp",
@@ -159,7 +174,8 @@
      "y": 0.2244,
      "w": 0.3376,
      "h": 0.3237,
-     "px": 5289
+     "px": 5289,
+     "listed": true
     }
    ],
    "slipsVisible": 5,
@@ -175,6 +191,8 @@
    }
   },
   "e2-1": {
+   "witness": "yi_geukdon",
+   "time": "11:45",
    "files": {
     "memory": {
      "dpr3": "e2-1.webp",
@@ -192,7 +210,8 @@
      "y": 0.25,
      "w": 0.2607,
      "h": 0.4295,
-     "px": 3285
+     "px": 3285,
+     "listed": true
     },
     {
      "id": "fig_a",
@@ -200,7 +219,8 @@
      "y": 0.4263,
      "w": 0.2308,
      "h": 0.2436,
-     "px": 2170
+     "px": 2170,
+     "listed": false
     },
     {
      "id": "fig_yun",
@@ -208,7 +228,8 @@
      "y": 0.4071,
      "w": 0.2222,
      "h": 0.2179,
-     "px": 1935
+     "px": 1935,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -220,6 +241,8 @@
    }
   },
   "e2-2": {
+   "witness": "yi_geukdon",
+   "time": "13:20",
    "files": {
     "memory": {
      "dpr3": "e2-2.webp",
@@ -237,7 +260,8 @@
      "y": 0.3782,
      "w": 0.3462,
      "h": 0.359,
-     "px": 4133
+     "px": 4133,
+     "listed": true
     },
     {
      "id": "fig_clerk",
@@ -245,7 +269,8 @@
      "y": 0.4071,
      "w": 0.1453,
      "h": 0.1571,
-     "px": 757
+     "px": 757,
+     "listed": true
     },
     {
      "id": "fig_yun",
@@ -253,7 +278,8 @@
      "y": 0.4231,
      "w": 0.1538,
      "h": 0.1442,
-     "px": 869
+     "px": 869,
+     "listed": true
     },
     {
      "id": "fig_hong",
@@ -261,7 +287,8 @@
      "y": 0.4295,
      "w": 0.1128,
      "h": 0.1186,
-     "px": 394
+     "px": 394,
+     "listed": false
     }
    ],
    "slipsVisible": 0,
@@ -274,6 +301,8 @@
    }
   },
   "e2-3": {
+   "witness": "yi_geukdon",
+   "time": "14:05",
    "files": {
     "memory": {
      "dpr3": "e2-3.webp",
@@ -291,7 +320,8 @@
      "y": 0.4327,
      "w": 0.1795,
      "h": 0.1763,
-     "px": 1167
+     "px": 1167,
+     "listed": true
     },
     {
      "id": "fig_yun",
@@ -299,7 +329,8 @@
      "y": 0.4199,
      "w": 0.1239,
      "h": 0.1571,
-     "px": 781
+     "px": 781,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -310,6 +341,8 @@
    }
   },
   "e2-4": {
+   "witness": "yi_geukdon",
+   "time": "14:40",
    "files": {
     "memory": {
      "dpr3": "e2-4.webp",
@@ -327,7 +360,8 @@
      "y": 0.3077,
      "w": 0.1966,
      "h": 0.3846,
-     "px": 3899
+     "px": 3899,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -337,6 +371,8 @@
    }
   },
   "e2-5": {
+   "witness": "yi_geukdon",
+   "time": "15:00",
    "files": {
     "memory": {
      "dpr3": "e2-5.webp",
@@ -354,7 +390,8 @@
      "y": 0,
      "w": 0.2479,
      "h": 0.5449,
-     "px": 4313
+     "px": 4313,
+     "listed": true
     },
     {
      "id": "fig_a",
@@ -362,7 +399,8 @@
      "y": 0.1538,
      "w": 0.1496,
      "h": 0.1603,
-     "px": 736
+     "px": 736,
+     "listed": false
     },
     {
      "id": "fig_yun",
@@ -370,7 +408,8 @@
      "y": 0.1442,
      "w": 0.1368,
      "h": 0.1474,
-     "px": 892
+     "px": 892,
+     "listed": false
     },
     {
      "id": "fig_hong",
@@ -378,7 +417,8 @@
      "y": 0.1474,
      "w": 0.1128,
      "h": 0.1314,
-     "px": 277
+     "px": 277,
+     "listed": false
     }
    ],
    "slipsVisible": 6,
@@ -398,6 +438,8 @@
    }
   },
   "e3-1": {
+   "witness": "eo_segyeom",
+   "time": "13:40",
    "files": {
     "memory": {
      "dpr3": "e3-1.webp",
@@ -423,7 +465,8 @@
      "y": 0.1186,
      "w": 0.3803,
      "h": 0.5513,
-     "px": 8793
+     "px": 8793,
+     "listed": true
     },
     {
      "id": "fig_a",
@@ -431,7 +474,8 @@
      "y": 0.4006,
      "w": 0.2778,
      "h": 0.25,
-     "px": 2065
+     "px": 2065,
+     "listed": false
     }
    ],
    "slipsVisible": 0,
@@ -443,6 +487,8 @@
    }
   },
   "e3-2": {
+   "witness": "eo_segyeom",
+   "time": "14:00",
    "files": {
     "memory": {
      "dpr3": "e3-2.webp",
@@ -468,7 +514,8 @@
      "y": 0.2853,
      "w": 0.1538,
      "h": 0.3045,
-     "px": 2480
+     "px": 2480,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -478,6 +525,8 @@
    }
   },
   "e3-3": {
+   "witness": "eo_segyeom",
+   "time": "14:05",
    "files": {
     "memory": {
      "dpr3": "e3-3.webp",
@@ -503,7 +552,8 @@
      "y": 0.4359,
      "w": 0.1128,
      "h": 0.1186,
-     "px": 356
+     "px": 356,
+     "listed": false
     },
     {
      "id": "fig_u",
@@ -511,7 +561,8 @@
      "y": 0.4808,
      "w": 0.1128,
      "h": 0.0962,
-     "px": 297
+     "px": 297,
+     "listed": true
     },
     {
      "id": "fig_a",
@@ -519,7 +570,8 @@
      "y": 0.4808,
      "w": 0.1128,
      "h": 0.0897,
-     "px": 244
+     "px": 244,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -533,6 +585,8 @@
    }
   },
   "e3-4": {
+   "witness": "eo_segyeom",
+   "time": "14:20",
    "files": {
     "memory": {
      "dpr3": "e3-4.webp",
@@ -558,7 +612,8 @@
      "y": 0.2724,
      "w": 0.2564,
      "h": 0.5064,
-     "px": 6835
+     "px": 6835,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -568,6 +623,8 @@
    }
   },
   "e3-5": {
+   "witness": "eo_segyeom",
+   "time": "15:40",
    "files": {
     "memory": {
      "dpr3": "e3-5.webp",
@@ -593,7 +650,8 @@
      "y": 0.3173,
      "w": 0.2521,
      "h": 0.391,
-     "px": 4761
+     "px": 4761,
+     "listed": true
     },
     {
      "id": "fig_hong",
@@ -601,7 +659,8 @@
      "y": 0.3654,
      "w": 0.2009,
      "h": 0.2981,
-     "px": 2247
+     "px": 2247,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -612,6 +671,8 @@
    }
   },
   "e4-1": {
+   "witness": "hong_gwidal",
+   "time": "13:50",
    "files": {
     "memory": {
      "dpr3": "e4-1.webp",
@@ -628,6 +689,8 @@
    "visiblePx": {}
   },
   "e4-2": {
+   "witness": "hong_gwidal",
+   "time": "14:00",
    "files": {
     "memory": {
      "dpr3": "e4-2.webp",
@@ -645,7 +708,8 @@
      "y": 0.4006,
      "w": 0.2863,
      "h": 0.2788,
-     "px": 3236
+     "px": 3236,
+     "listed": false
     },
     {
      "id": "fig_a",
@@ -653,7 +717,8 @@
      "y": 0.4006,
      "w": 0.2393,
      "h": 0.2179,
-     "px": 2050
+     "px": 2050,
+     "listed": false
     },
     {
      "id": "fig_msg",
@@ -661,7 +726,8 @@
      "y": 0.3654,
      "w": 0.1128,
      "h": 0.1731,
-     "px": 634
+     "px": 634,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -673,6 +739,8 @@
    }
   },
   "e4-3": {
+   "witness": "hong_gwidal",
+   "time": "14:50",
    "files": {
     "memory": {
      "dpr3": "e4-3.webp",
@@ -690,7 +758,8 @@
      "y": 0.375,
      "w": 0.1923,
      "h": 0.3654,
-     "px": 2775
+     "px": 2775,
+     "listed": false
     },
     {
      "id": "fig_msg",
@@ -698,7 +767,8 @@
      "y": 0.3045,
      "w": 0.1838,
      "h": 0.2564,
-     "px": 1482
+     "px": 1482,
+     "listed": true
     },
     {
      "id": "fig_yi",
@@ -706,7 +776,8 @@
      "y": 0.4391,
      "w": 0.1282,
      "h": 0.1122,
-     "px": 610
+     "px": 610,
+     "listed": false
     },
     {
      "id": "fig_u",
@@ -714,7 +785,8 @@
      "y": 0.4391,
      "w": 0.1128,
      "h": 0.1026,
-     "px": 439
+     "px": 439,
+     "listed": false
     },
     {
      "id": "fig_eo",
@@ -722,7 +794,8 @@
      "y": 0.5875,
      "w": 0.1128,
      "h": 0.0846,
-     "px": 160
+     "px": 160,
+     "listed": false
     }
    ],
    "slipsVisible": 0,
@@ -736,6 +809,8 @@
    }
   },
   "e4-4": {
+   "witness": "hong_gwidal",
+   "time": "15:20",
    "files": {
     "memory": {
      "dpr3": "e4-4.webp",
@@ -753,7 +828,8 @@
      "y": 0.3974,
      "w": 0.2906,
      "h": 0.3109,
-     "px": 3416
+     "px": 3416,
+     "listed": false
     },
     {
      "id": "fig_a",
@@ -761,7 +837,8 @@
      "y": 0.3974,
      "w": 0.2179,
      "h": 0.2404,
-     "px": 2349
+     "px": 2349,
+     "listed": false
     },
     {
      "id": "fig_msg",
@@ -769,7 +846,8 @@
      "y": 0.3526,
      "w": 0.1128,
      "h": 0.2051,
-     "px": 417
+     "px": 417,
+     "listed": true
     }
    ],
    "slipsVisible": 0,
@@ -781,6 +859,8 @@
    }
   },
   "e4-5": {
+   "witness": "hong_gwidal",
+   "time": "16:10",
    "files": {
     "memory": {
      "dpr3": "e4-5.webp",
@@ -798,7 +878,8 @@
      "y": 0,
      "w": 0.688,
      "h": 1,
-     "px": 38436
+     "px": 38436,
+     "listed": true
     },
     {
      "id": "fig_a",
@@ -806,7 +887,8 @@
      "y": 0.3974,
      "w": 0.235,
      "h": 0.2147,
-     "px": 1963
+     "px": 1963,
+     "listed": false
     }
    ],
    "slipsVisible": 0,

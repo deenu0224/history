@@ -24,7 +24,7 @@ export function renderPovCut(spec: PovSpec): Promise<HTMLCanvasElement> {
   const key = specKey(spec);
   const hit = cache.get(key);
   if (hit) return hit;
-  if (import.meta.env?.DEV) for (const e of validatePovSpec(spec)) console.warn('[pov]', e);
+  if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) for (const e of validatePovSpec(spec)) console.warn('[pov]', e);
   const p = (async () => {
     const t0 = performance.now();
     const { render3d } = await import('./render3d');
