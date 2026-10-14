@@ -1,0 +1,553 @@
+/**
+ * 화면별 보기(셀렉터) — UI_STYLE_GUIDE §1 화면 목록에 맞춘다. 모두 (ep, state) → 순수한 보기 객체.
+ * 원칙: 정답·숨은 정체를 내보내지 않는다(이름은 붙인 뒤에만, 연도·장소는 복원 뒤에만).
+ */
+import { geometry, claimById, claimHeld } from '@/core/contradiction';
+import { appearances, heldEvidence, idx, type Appearance } from '@/core/ep';
+import { cutAvailability, eyeLabel, eyeState, ownerKnown, type CutAvailability, type EyeState } from '@/core/eyes';
+import { view as messengerView, type MessengerView } from '@/core/messenger';
+import { alteredView, articleView, figureRestoredLabel, homeView, visibleFacts, type AlteredView, type ArticlePartView } from '@/core/reality';
+import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slotOptions, type LineRender, type LineResult, type SlotOption } from '@/core/rewrite';
+import { posOf, sameMoment } from '@/core/room';
+import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
+import type { Episode, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
+import { knowledge, RESTORE_STEPS, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
+import type { PersistedState, SearchLogEntry } from './state';
+
+const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
+
+// ── 눈 줄 ────────────────────────────────────────────────────────
+export interface EyeView {
+  eyeId: Id;
+  order: number;
+  state: EyeState;
+  /** 열림 + 이름 모름 */
+  ownerUnknown: boolean;
+  label: string;
+  current: boolean;
+}
+
+export function selectEyes(ep: Episode, s: PersistedState): EyeView[] {
+  const k = knowledge(s);
+  return [...ep.eyes]
+    .sort((a, b) => a.order - b.order)
+    .map((e) => {
+      const st = eyeState(ep, k, e);
+      return {
+        eyeId: e.id,
+        order: e.order,
+        state: st,
+        ownerUnknown: st === 'open' && !ownerKnown(ep, k, e),
+        label: st === 'never' ? (s.restored ? `${idx(ep).card.get(e.personId)?.name}의 눈` : '열리지 않음') : st === 'unopened' ? '' : eyeLabel(ep, k, e),
+        current: s.viewer?.eyeId === e.id,
+      };
+    });
+}
+
+// ── 홈 ───────────────────────────────────────────────────────────
+export type HomeButton = 'memories' | 'rewrite' | 'restored';
+
+export function selectHome(ep: Episode, s: PersistedState) {
+  const sum = resumeSummary(ep, s);
+  const buttons: HomeButton[] = ['memories'];
+  if (rewriteAvailable(s) && !s.restored) buttons.push('rewrite');
+  if (s.restored) buttons.push('restored');
+  return {
+    clock: s.clock,
+    card: homeView(ep.home, world(s)),
+    eyes: selectEyes(ep, s),
+    buttons,
+    resume: { eyesOpen: sum.eyesOpen, contradictionsLeft: sum.contradictionsLeft },
+    unread: messengerView(s.messenger, 0, s.restored).unread,
+    started: s.started,
+  };
+}
+
+// ── 컷 ───────────────────────────────────────────────────────────
+export interface FigureView {
+  figureId: Id;
+  label: string;
+  named: boolean;
+  anonymous: boolean;
+  /** 이름 붙이기를 시작할 수 있다 */
+  tappable: boolean;
+  seatId: Id;
+  pose: string;
+  visibleTraits: string[];
+}
+
+export interface BubbleView {
+  lineId: Id;
+  text: string;
+  garbled: boolean;
+  speaker: string;
+  volume: 'whisper' | 'talk' | 'read';
+  terms: string[];
+  glosses: Gloss[];
+  /** 플레이 중엔 출처 배지 없음 — 복원 뒤 열람 모드에서만 */
+  provenance?: string;
+  sources?: SourceRef[];
+}
+
+export interface CutView {
+  id: Id;
+  eyeId: Id;
+  n: number;
+  time: Hhmm;
+  availability: CutAvailability;
+  alt: string;
+  figures: FigureView[];
+  bubbles: BubbleView[];
+  details: { id: Id; label: string; terms: string[] }[];
+  /** 닫힌 눈의 안 본 컷 */
+  lostText?: string;
+}
+
+function figureLabel(ep: Episode, s: PersistedState, figureId: Id): { label: string; named: boolean } {
+  const I = idx(ep);
+  const named = s.named[figureId];
+  if (named) return { label: I.card.get(named)?.name ?? '?', named: true };
+  const rl = figureRestoredLabel(ep, figureId, world(s));
+  if (rl) return { label: rl, named: false };
+  return { label: I.figure.get(figureId)?.label ?? '?', named: false };
+}
+
+export function selectCut(ep: Episode, s: PersistedState, cutId: Id): CutView | null {
+  const I = idx(ep);
+  const c = I.cut.get(cutId);
+  if (!c) return null;
+  const av = cutAvailability(ep, knowledge(s), cutId);
+  const base = { id: c.id, eyeId: c.eyeId, n: c.n, time: c.time, availability: av };
+  if (av === 'lost' || av === 'locked')
+    return { ...base, alt: '', figures: [], bubbles: [], details: [], ...(av === 'lost' ? { lostText: '볼 수 없다 — 이 사람의 그날 기록이 지워졌다' } : {}) };
+  const showProv = s.restored && s.settings.showProvenance;
+  return {
+    ...base,
+    alt: c.alt,
+    figures: c.figures.map((f) => {
+      const fig = I.figure.get(f.figureId)!;
+      const l = figureLabel(ep, s, f.figureId);
+      return {
+        figureId: f.figureId,
+        label: l.label,
+        named: l.named,
+        anonymous: !!fig.anonymous,
+        tappable: !l.named && !s.restored,
+        seatId: f.seatId,
+        pose: f.pose,
+        visibleTraits: f.visibleTraits,
+      };
+    }),
+    bubbles: c.heard.map((h) => {
+      const l = I.line.get(h.lineId)!;
+      let speaker: string;
+      if ('groupId' in l.speaker) {
+        const gid = l.speaker.groupId;
+        const g = ep.groups.find((x) => x.id === gid)!;
+        speaker = s.restored ? g.restoredLabel : g.label;
+      } else speaker = figureLabel(ep, s, l.speaker.figureId).label;
+      return {
+        lineId: l.id,
+        text: h.clarity === 'garbled' ? (h.garbledText ?? '……') : l.text,
+        garbled: h.clarity === 'garbled',
+        speaker,
+        volume: l.volume,
+        terms: h.clarity === 'garbled' ? [] : (l.terms ?? []),
+        glosses: h.clarity === 'garbled' ? [] : (l.glosses ?? []),
+        ...(showProv ? { provenance: l.provenance, sources: l.sources } : {}),
+      };
+    }),
+    details: c.details.map((d) => {
+      const det = I.detail.get(d)!;
+      return { id: det.id, label: det.label, terms: det.terms ?? [] };
+    }),
+  };
+}
+
+export function selectViewer(ep: Episode, s: PersistedState) {
+  const v = s.viewer;
+  if (!v) return null;
+  const eye = idx(ep).eye.get(v.eyeId)!;
+  const cutId = eye.cuts[v.index];
+  return {
+    eyeId: v.eyeId,
+    eyeLabel: eyeLabel(ep, knowledge(s), eye),
+    index: v.index,
+    total: eye.cuts.length,
+    cut: selectCut(ep, s, cutId),
+    /** 아래 점(●○○○○): 본 컷 */
+    dots: eye.cuts.map((id) => ({ cutId: id, viewed: s.viewedCuts.includes(id), current: id === cutId })),
+    eyes: selectEyes(ep, s),
+    canOpenRoom: roomUnlocked(s),
+  };
+}
+
+// ── 이름 붙이기 시트 ─────────────────────────────────────────────
+export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figureId: Id, cardId?: Id) {
+  const I = idx(ep);
+  const k = knowledge(s);
+  return {
+    figure: figureLabel(ep, s, figureId),
+    cards: cardOrder(ep, k).map((id) => {
+      const c = I.card.get(id)!;
+      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, roomAnchored: c.roomAnchored };
+    }),
+    selectedCard: cardId,
+    evidence: (cardId ? evidenceOptions(ep, k, { cutId, figureId }, cardId) : []) as EvidenceOption[],
+  };
+}
+
+// ── 인물 카드 ────────────────────────────────────────────────────
+export interface CardView {
+  id: Id;
+  name: string;
+  hanja: string;
+  lifespan?: string;
+  facts: { id: Id; text: string; source: SourceRef }[];
+  altered: AlteredView[];
+  eyeLine: string;
+  eyeExtra: { text: string; source: SourceRef }[];
+  roomAnchored: boolean;
+}
+
+export function selectCard(ep: Episode, s: PersistedState, cardId: Id): CardView | null {
+  const I = idx(ep);
+  const c = I.card.get(cardId);
+  if (!c || !s.cardsFound.includes(cardId)) return null;
+  const k = knowledge(s);
+  let eyeLine = '눈: 아직 모름';
+  let eyeExtra: CardView['eyeExtra'] = [];
+  if (c.eye.never) {
+    eyeLine = `눈: 열리지 않음 — ${c.eye.never.reason}`;
+    if (s.restored) eyeExtra = c.eye.never.restoredLines ?? [];
+  } else if (c.eye.eyeId) {
+    const e = I.eye.get(c.eye.eyeId)!;
+    const st = eyeState(ep, k, e);
+    if (st === 'closed') eyeLine = '눈: 닫힘';
+    else if (st === 'open' && ownerKnown(ep, k, e)) eyeLine = '눈: 열림';
+  }
+  return {
+    id: c.id,
+    name: c.name,
+    hanja: c.hanja,
+    lifespan: c.lifespan,
+    facts: visibleFacts(c, world(s)).map((f) => ({ id: f.id, text: f.text, source: f.source })),
+    altered: (c.altered ?? []).map((a) => alteredView(a, world(s))),
+    eyeLine,
+    eyeExtra,
+    roomAnchored: c.roomAnchored,
+  };
+}
+
+// ── 그날의 방 ────────────────────────────────────────────────────
+export interface RoomMarker {
+  /** 등장 키들(겹치면 여럿) */
+  keys: string[];
+  posId: Id;
+  x: number;
+  y: number;
+  /** 성 한 글자 · 「?」 · (복원 뒤) 짝 이름 */
+  label: string;
+  merged: boolean;
+  count: number;
+  cutIds: Id[];
+  /** 이 표시의 사람을 태그할 수 있는 컷 속 figure(있으면) */
+  figure?: { cutId: Id; figureId: Id };
+  kind: 'person' | 'mention';
+}
+
+export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
+  const I = idx(ep);
+  const k = knowledge(s);
+  const chips = timeChips(ep, s.viewedCuts);
+  const t = time ? (chipFor(ep, s.viewedCuts, time) ?? time) : (s.roomTime ?? chips[chips.length - 1]);
+  const apps = t ? appearances(ep, s.viewedCuts).filter((a) => sameMoment(a.time, t)) : [];
+  const byPos = new Map<Id, Appearance[]>();
+  for (const a of apps) byPos.set(a.posId, [...(byPos.get(a.posId) ?? []), a]);
+  const markers: RoomMarker[] = [];
+  const mergedKeys = new Set(s.merges.flat());
+  for (const [posId, list] of byPos) {
+    const p = posOf(ep.room, posId);
+    const isMerged = list.length > 1 && list.every((a) => mergedKeys.has(a.key));
+    const groups = isMerged ? [list] : list.map((a) => [a]);
+    for (const g of groups) {
+      let label = '?';
+      for (const a of g) {
+        if (a.kind === 'figure') {
+          const n = s.named[a.figureId];
+          if (n) label = (I.card.get(n)?.name ?? '?')[0];
+          else if (s.restored) label = figureRestoredLabel(ep, a.figureId, world(s)) ?? label;
+        } else if (a.kind === 'owner') {
+          const e = I.eye.get(a.eyeId)!;
+          if (ownerKnown(ep, k, e)) label = (I.card.get(e.personId)?.name ?? '?')[0];
+        }
+      }
+      const fig = g.find((a): a is Extract<Appearance, { kind: 'figure' }> => a.kind === 'figure');
+      markers.push({
+        keys: g.map((a) => a.key),
+        posId,
+        x: p.x,
+        y: p.y,
+        label,
+        merged: isMerged,
+        count: g.length,
+        cutIds: [...new Set(g.map((a) => a.cutId))],
+        ...(fig ? { figure: { cutId: fig.cutId, figureId: fig.figureId } } : {}),
+        kind: g.every((a) => a.kind === 'mention') ? 'mention' : 'person',
+      });
+    }
+  }
+  const eyes = [...ep.eyes]
+    .filter((e) => e.seatId && (s.openedEyes.includes(e.id) || s.closedEyes.includes(e.id)))
+    .map((e) => {
+      const seat = posOf(ep.room, e.seatId!);
+      const facing = ep.room.seats.find((x) => x.id === e.seatId)?.facingDeg ?? 0;
+      return {
+        eyeId: e.id,
+        x: seat.x,
+        y: seat.y,
+        facingDeg: facing,
+        halfAngleDeg: ep.room.sight.halfAngleDeg,
+        state: eyeState(ep, k, e),
+        label: eyeLabel(ep, k, e),
+        selected: s.viewer?.eyeId === e.id,
+        /** 이 시각의 그 눈의 컷 */
+        cutId: e.cuts.find((cid) => s.viewedCuts.includes(cid) && t && sameMoment(I.cut.get(cid)!.time, t)),
+      };
+    });
+  return {
+    unlocked: roomUnlocked(s),
+    w: ep.room.w,
+    h: ep.room.h,
+    walls: ep.room.walls,
+    doors: ep.room.doors,
+    screen: ep.room.screen,
+    furniture: ep.room.furniture,
+    chips,
+    time: t ?? null,
+    eyes,
+    markers,
+    contradictions: selectContradictions(ep, s).filter((x) => x.status !== 'hidden'),
+  };
+}
+
+// ── 모순 ─────────────────────────────────────────────────────────
+export function selectContradictions(ep: Episode, s: PersistedState) {
+  const k = knowledge(s);
+  return ep.contradictions.map((x) => {
+    const winner = s.resolved[x.id];
+    return {
+      id: x.id,
+      status: winner ? ('resolved' as const) : s.revealed.includes(x.id) ? ('revealed' as const) : ('hidden' as const),
+      claims: x.claims.map((cid) => {
+        const c = claimById(ep, cid);
+        return {
+          id: cid,
+          label: c.label,
+          held: claimHeld(ep, k, c),
+          lost: !!winner && winner !== cid,
+          lostLabel: winner && winner !== cid ? x.loserLabel : undefined,
+          lostNote: winner && winner !== cid ? x.loserNote : undefined,
+        };
+      }),
+      buttons: x.buttons,
+    };
+  });
+}
+
+export function selectContradictionView(ep: Episode, s: PersistedState, id: Id) {
+  const x = ep.contradictions.find((y) => y.id === id);
+  if (!x || !s.revealed.includes(id)) return null;
+  return {
+    id,
+    heading: '근거끼리 모순된다',
+    resolved: !!s.resolved[id],
+    buttons: x.claims.map((cid, i) => ({ claimId: cid, text: x.buttons[i] })),
+    geometry: geometry(ep, knowledge(s), x),
+  };
+}
+
+// ── 찾기 ─────────────────────────────────────────────────────────
+export interface SearchResultView {
+  kind: 'person' | 'record' | 'log';
+  id: Id;
+  title: string;
+  subtitle: string;
+  lines: string[];
+  tag?: string;
+}
+
+export function resultView(ep: Episode, s: PersistedState, r: { kind: 'person' | 'record' | 'log'; id: Id }): SearchResultView | null {
+  if (r.kind === 'person') {
+    const c = selectCard(ep, s, r.id);
+    if (!c) return null;
+    return { kind: 'person', id: c.id, title: `${c.name} ${c.hanja}`, subtitle: c.lifespan ?? '', lines: [...c.altered.filter((a) => a.state !== 'erased').map((a) => a.text), c.eyeLine] };
+  }
+  if (r.kind === 'record') {
+    const rec = ep.records.find((x) => x.id === r.id);
+    if (!rec) return null;
+    return { kind: 'record', id: rec.id, title: rec.title, subtitle: rec.lines[0]?.source.title ?? '', lines: rec.lines.map((l) => l.text), ...(rec.tag ? { tag: rec.tag } : {}) };
+  }
+  const d = ep.docs.find((x) => x.id === r.id);
+  if (!d) return null;
+  return { kind: 'log', id: d.id, title: `${d.code} · ${d.when} · ${d.officer}`, subtitle: d.result, lines: [...d.fields.map((f) => `${f.label}: ${f.value}`), `소견: "${d.note}"`] };
+}
+
+export function selectSearch(ep: Episode, s: PersistedState) {
+  const I = idx(ep);
+  const terms: string[] = [];
+  for (const cutId of s.viewedCuts) {
+    const c = I.cut.get(cutId)!;
+    for (const h of c.heard) if (h.clarity === 'clear') for (const t of I.line.get(h.lineId)?.terms ?? []) if (!terms.includes(t)) terms.push(t);
+    for (const d of c.details) for (const t of I.detail.get(d)?.terms ?? []) if (!terms.includes(t)) terms.push(t);
+  }
+  const last: SearchLogEntry | undefined = s.searchLog[s.searchLog.length - 1];
+  const teaser = s.epilogueDone ? resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }) : null;
+  return {
+    terms,
+    last: last ? { ...last, views: last.results.map((r) => resultView(ep, s, r)).filter((x): x is SearchResultView => !!x) } : null,
+    log: s.searchLog,
+    /** 예고: 찾기 결과 맨 아래 새 줄 */
+    footer: teaser,
+  };
+}
+
+export function selectRecord(ep: Episode, s: PersistedState, id: Id) {
+  const rec = ep.records.find((x) => x.id === id);
+  if (!rec || ((rec.afterRestore || rec.erasedBeforeRestore) && !s.restored)) return null;
+  return rec;
+}
+
+// ── 내 관측 로그 ─────────────────────────────────────────────────
+export function selectLog(ep: Episode, s: PersistedState) {
+  const I = idx(ep);
+  const k = knowledge(s);
+  return {
+    cuts: s.viewedCuts.map((id) => {
+      const c = I.cut.get(id)!;
+      const e = I.eye.get(c.eyeId)!;
+      return { cutId: id, eyeId: e.id, eyeLabel: eyeLabel(ep, k, e), time: c.time, closedEye: s.closedEyes.includes(e.id) };
+    }),
+    evidence: heldEvidence(ep, k).map((id) => ({ id, text: I.line.get(id)?.text ?? I.detail.get(id)?.label ?? '' })),
+    witness: s.rewrite.lines
+      .filter((l) => s.rewrite.results[l.id] === 'witness')
+      .map((l) => ({ lineId: l.id, text: ep.pieces.find((p) => p.id === l.pieceId)?.label ?? '', note: ep.epilogue.witnessLogLabel })),
+    docs: s.docs.map((d) => resultView(ep, s, { kind: 'log', id: d })).filter(Boolean) as SearchResultView[],
+    searches: s.searchLog.map((e) => ({ clock: e.clock, query: e.query, status: e.status, text: e.status === 'no_article' ? '해당 기사 없음' : `${e.results.length}건` })),
+  };
+}
+
+// ── 메신저 ───────────────────────────────────────────────────────
+export function selectMessenger(_ep: Episode, s: PersistedState, now: number): MessengerView {
+  return messengerView(s.messenger, now, s.restored);
+}
+
+// ── 기록 다시 쓰기 ───────────────────────────────────────────────
+export interface RewriteLineView {
+  id: Id;
+  pieceId: Id;
+  label: string;
+  witnessOnly: boolean;
+  render: LineRender;
+  result?: LineResult;
+  resultText?: string;
+  slots: { kind: SlotKind; value?: string; contested?: Id }[];
+}
+
+const RESULT_TEXT: Record<LineResult, string> = {
+  restored: '',
+  witness: '실록이 적지 않은 일 — 내 관측 로그에만 남는다',
+  not_recorded: '이 줄은 기록이 되지 않았다',
+  incomplete: '빈 칸이 있다',
+};
+
+export function selectRewrite(ep: Episode, s: PersistedState) {
+  const k = knowledge(s);
+  const cs = { revealed: s.revealed, resolved: s.resolved, slotsOpened: s.slotsOpened };
+  const order = (pid: Id) => ep.pieces.find((p) => p.id === pid)?.time ?? '99:99';
+  const lines: RewriteLineView[] = [...s.rewrite.lines]
+    .sort((a, b) => order(a.pieceId).localeCompare(order(b.pieceId)))
+    .map((l) => {
+      const piece = ep.pieces.find((p) => p.id === l.pieceId)!;
+      const sent = sentenceOf(ep, piece.sentenceId);
+      const result = s.rewrite.results[l.id];
+      return {
+        id: l.id,
+        pieceId: l.pieceId,
+        label: pieceLabel(ep, piece, cs),
+        witnessOnly: !!piece.witnessOnly,
+        render: renderLine(ep, l, result),
+        ...(result ? { result, resultText: RESULT_TEXT[result] } : {}),
+        slots: sent
+          ? sentenceSlots(sent).map((sl) => {
+              const opt = slotOptions(ep, k, sl.kind, cs).find((o) => o.value === l.values[sl.kind]);
+              return { kind: sl.kind, value: l.values[sl.kind], ...(opt?.contested ? { contested: opt.contested } : {}) };
+            })
+          : [],
+      };
+    });
+  const placed = new Set(s.rewrite.lines.map((l) => l.pieceId));
+  return {
+    available: rewriteAvailable(s),
+    open: s.rewrite.open,
+    code: ep.home.code,
+    lines,
+    pieces: availablePieces(ep, k)
+      .filter((p) => !placed.has(p.id))
+      .map((p) => ({ id: p.id, label: pieceLabel(ep, p, cs), time: p.time, witnessOnly: !!p.witnessOnly })),
+    complete: s.rewrite.complete,
+    restored: s.restored,
+    submits: s.rewrite.submits,
+  };
+}
+
+export function selectSlotOptions(ep: Episode, s: PersistedState, kind: SlotKind): SlotOption[] {
+  return slotOptions(ep, knowledge(s), kind, { revealed: s.revealed, resolved: s.resolved, slotsOpened: s.slotsOpened });
+}
+
+// ── 복원 ─────────────────────────────────────────────────────────
+export function selectRestoration(ep: Episode, s: PersistedState) {
+  if (!s.restored) return null;
+  const written = s.rewrite.lines
+    .filter((l) => s.rewrite.results[l.id] === 'restored')
+    .map((l) => ep.pieces.find((p) => p.id === l.pieceId)?.sentenceId)
+    .filter((x): x is Id => !!x);
+  const before = homeView(ep.home, { restored: false, closures: s.closures });
+  const after = homeView(ep.home, world(s));
+  const cards = ep.cards
+    .filter((c) => (c.altered ?? []).length)
+    .map((c) => ({
+      cardId: c.id,
+      name: c.name,
+      changes: (c.altered ?? []).map((a) => ({
+        label: a.label,
+        before: alteredView(a, { restored: false, closures: s.closures }),
+        after: alteredView(a, world(s)),
+      })),
+    }));
+  const messages = s.messenger.log.filter((m) => m.restored).map((m) => ({ id: m.id, from: m.from, before: m.text, after: m.restored! }));
+  const pair = ep.figures.find((f) => f.revealOnRestore)?.revealOnRestore;
+  const kim = ep.cards.find((c) => c.eye.never);
+  return {
+    step: RESTORE_STEPS[s.restoreStep],
+    stepIndex: s.restoreStep,
+    steps: RESTORE_STEPS,
+    article: { citation: ep.article.citation, source: ep.article.source, parts: articleView(ep, written) as ArticlePartView[] },
+    home: { before, after },
+    cards,
+    messages,
+    room: pair ? { pairLabel: pair.pairLabel, source: pair.source } : null,
+    neverEye: kim ? { name: kim.name, reason: kim.eye.never!.reason, lines: kim.eye.never!.restoredLines ?? [] } : null,
+    /** 관측 로그만은 그대로(부재의 증거) */
+    absence: s.searchLog.filter((e) => e.status === 'no_article').map((e) => ({ clock: e.clock, query: e.query, text: '해당 기사 없음' })),
+    witnessLines: selectLog(ep, s).witness,
+    monologue: ep.epilogue.monologue,
+    teaser: resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }),
+    asides: ep.records.filter((r) => r.aside).map((r) => ({ id: r.id, when: r.aside!, title: r.title, lines: r.lines, tag: r.tag })),
+    epilogueDone: s.epilogueDone,
+  };
+}
+
+export function selectAboutScene(ep: Episode) {
+  return ep.epilogue.aboutScene;
+}

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Builder, trs } from './geo';
 import { PROP_SPOTS, ROOM_EP1 as R, SLIP_SIZE, SLIP_SPOTS } from './room';
 import type { PovProps } from './types';
+import { NAME_TAG_GLYPHS } from './glyphs';
 
 const TOP = R.desk.h;
 
@@ -27,29 +28,33 @@ function slipMesh(i: number): THREE.Mesh {
   return m;
 }
 
-/** 「金馹孫」 이름표(재구성: 이름표 형태는 일반형). 작은 캔버스 텍스처 하나 */
+/** 「金馹孫」 이름표(재구성: 이름표 형태는 일반형). 코드로 정의한 글자 비트맵을 작은 캔버스 텍스처로 */
 function nameTagTexture(): THREE.CanvasTexture {
+  const S = 24;
   const c = document.createElement('canvas');
-  c.width = 48;
-  c.height = 144;
+  c.width = S + 6;
+  c.height = S * 3 + 8;
   const g = c.getContext('2d')!;
   g.fillStyle = '#ece0c0';
-  g.fillRect(0, 0, 48, 144);
-  g.strokeStyle = '#b8a67e';
-  g.lineWidth = 2;
-  g.strokeRect(2, 2, 44, 140);
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#c4b28a';
+  g.fillRect(0, 0, c.width, 1);
+  g.fillRect(0, c.height - 1, c.width, 1);
   g.fillStyle = '#17120f';
-  g.font = '600 38px "Nanum Myeongjo", "Noto Serif CJK KR", "Noto Serif KR", serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  ['金', '馹', '孫'].forEach((ch, i) => g.fillText(ch, 24, 27 + i * 45));
+  (['金', '馹', '孫'] as const).forEach((ch, i) =>
+    NAME_TAG_GLYPHS[ch].forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] === '#') g.fillRect(3 + x, 2 + i * S + y, 1, 1);
+    }),
+  );
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.magFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
   return tex;
 }
 
-function bundle(b: Builder, x: number, z: number, rot: number, col = '#cbb78f', blankTag = true): void {
+function bundle(b: Builder, x: number, z: number, rot: number, col = '#8d7a58', blankTag = true): void {
   b.box(x, TOP + 0.035, z, 0.3, 0.07, 0.22, col, rot, { ao: false, jitter: 0.08 });
   b.box(x, TOP + 0.036, z, 0.305, 0.074, 0.016, '#2a2320', rot, { ao: false });
   if (blankTag) {
@@ -95,10 +100,10 @@ export function buildProps(p: PovProps): THREE.Object3D[] {
     bundle(b, t.x, t.y, t.rot, '#cbb78f', false);
     const bm = b.mesh(new THREE.MeshLambertMaterial({ vertexColors: true }));
     bm.name = 'nametag-bundle';
-    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.24), new THREE.MeshLambertMaterial({ map: nameTagTexture() }));
-    // 눕혀서 글자 위쪽이 동쪽(+x): 서쪽(Y 이극돈 자리)에서 바로 읽힌다
-    tag.rotation.set(-Math.PI / 2, -Math.PI / 2 + (t.rot * Math.PI) / 180, 0, 'YXZ');
-    tag.position.set(t.x - 0.02, TOP + 0.073, t.y + 0.01);
+    const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.29), new THREE.MeshLambertMaterial({ map: nameTagTexture() }));
+    // 꾸러미 서쪽 면에 기대 세운 이름표: 앞면은 서쪽(Y 이극돈 자리)을 향한다. 한 면만 그려 동쪽(W)에서는 뒷면 — 글자가 보이지 않는다
+    tag.position.set(t.x - 0.19, TOP + 0.13, t.y);
+    tag.lookAt(tag.position.x - 1, tag.position.y + 0.5, tag.position.z);
     tag.receiveShadow = true;
     tag.name = 'nametag';
     out.push(bm, tag);
@@ -113,7 +118,7 @@ export function buildProps(p: PovProps): THREE.Object3D[] {
       [5.85, 3.55, 7],
     ];
     const b = new Builder(614);
-    spots.slice(0, p.bundles).forEach(([x, z, r], i) => bundle(b, x, z, r, i % 2 ? '#c2ad84' : '#cfbb93'));
+    spots.slice(0, p.bundles).forEach(([x, z, r], i) => bundle(b, x, z, r, i % 2 ? '#7d6a4c' : '#8d7a58'));
     const m = b.mesh(new THREE.MeshLambertMaterial({ vertexColors: true }));
     m.name = 'bundles';
     out.push(m);

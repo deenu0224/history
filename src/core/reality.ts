@@ -1,0 +1,66 @@
+/**
+ * 현실 층(순수): 소실 세계 ↔ 복원 뒤 세계. DESIGN_V5 §4.9.
+ * 소실 세계의 줄(fictional 변조)은 복원 때 검증 문장으로 다시 쓰인다. 단말에는 표식이 없다 — 다시 쓰인 것을 아는 것은 나뿐.
+ */
+import { idx } from './ep';
+import type { AlteredField, Episode, Fact, HomeCard, Id, PersonCard, RestoredPart, SourceRef } from './types';
+
+export interface WorldFlags {
+  restored: boolean;
+  /** 06:00 재계산에서 지워진 변조 줄(사건 id) */
+  closures: readonly Id[];
+}
+
+export type AlteredState = 'altered' | 'erased' | 'restored';
+
+export interface AlteredView {
+  id: Id;
+  label: string;
+  state: AlteredState;
+  text: string;
+  provenance: 'fictional' | 'verified';
+  source?: SourceRef;
+}
+
+export function alteredView(a: AlteredField, w: WorldFlags): AlteredView {
+  if (w.restored) return { id: a.id, label: a.label, state: 'restored', text: a.restoredText, provenance: 'verified', source: a.restoredSource };
+  if (a.erasedByClosure && w.closures.includes(a.erasedByClosure)) return { id: a.id, label: a.label, state: 'erased', text: '', provenance: 'fictional' };
+  return { id: a.id, label: a.label, state: 'altered', text: a.display, provenance: 'fictional' };
+}
+
+export const visibleFacts = (card: PersonCard, w: WorldFlags): Fact[] => card.facts.filter((f) => w.restored || !f.afterRestore);
+
+export function homeView(home: HomeCard, w: WorldFlags) {
+  return {
+    code: home.code,
+    date: w.restored ? home.date.after : home.date.before,
+    place: w.restored ? home.place.after : home.place.before,
+    placeSource: w.restored ? home.place.source : undefined,
+    placeNote: w.restored ? home.place.note : undefined,
+    task: home.task,
+    detection: home.detection,
+    status: w.restored ? home.status.after : home.status.before,
+  };
+}
+
+/** 「?」 figure 의 표시: 복원 뒤 짝 이름 */
+export function figureRestoredLabel(ep: Episode, figureId: Id, w: WorldFlags): string | undefined {
+  const f = idx(ep).figure.get(figureId);
+  return w.restored && f?.revealOnRestore ? f.revealOnRestore.pairLabel : undefined;
+}
+
+export interface ArticlePartView extends RestoredPart {
+  /** 내가 써서 돌아온 줄 / 실록이 채운 줄(옅은 먹) */
+  by: 'me' | 'sillok';
+  /** 오역 줄은 「……」로 접혀 보인다 */
+  display: string;
+}
+
+/** 복원 전문: 내가 쓴 줄과 실록이 채운 줄 */
+export function articleView(ep: Episode, writtenSentenceIds: readonly Id[]): ArticlePartView[] {
+  return ep.article.parts.map((p) => ({
+    ...p,
+    by: p.sentenceId && writtenSentenceIds.includes(p.sentenceId) && !p.folded && !p.header ? 'me' : 'sillok',
+    display: p.folded ? '……' : p.text,
+  }));
+}

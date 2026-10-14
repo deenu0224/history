@@ -18,6 +18,8 @@ export interface PostInput {
   focusDepth?: number;
   overlay: PovOverlay;
   seed: number;
+  /** 비네트 세기 덮어쓰기(기본: 기억 0.62, 지워짐 0.35) — 넓은 시야에서 가장자리 사람을 살릴 때 */
+  vignette?: number;
 }
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16 - 0.5);
@@ -206,7 +208,7 @@ export function postProcess(inp: PostInput): Uint8ClampedArray {
       const dx = (x / (w - 1) - 0.5) * 2;
       const dy = (v - 0.48) * 2;
       const rr = Math.sqrt(dx * dx * 0.9 + dy * dy * 0.75);
-      let vig = 1 - (erased ? 0.35 : 0.62) * smooth(0.5, 1.25, rr);
+      let vig = 1 - (inp.vignette ?? (erased ? 0.35 : 0.62)) * smooth(0.5, 1.25, rr);
       if (erased) {
         const jag = (Math.sin(x * 0.37 + inp.seed) + Math.sin(x * 0.11 + 2.0)) * 0.012;
         const lid = smooth(0.02 + jag, 0.2 + jag, v) * smooth(0.02 - jag, 0.17 - jag, 1 - v);
@@ -249,7 +251,7 @@ export function postProcess(inp: PostInput): Uint8ClampedArray {
 
   // 5) 양자화: Bayer 4×4 + 5비트 조회표
   const { lut, rgb } = lutFor(overlay);
-  const spread = erased ? 0.1 : 0.075;
+  const spread = erased ? 0.11 : 0.09;
   const out = new Uint8ClampedArray(N * 4);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {

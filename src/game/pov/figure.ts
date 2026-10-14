@@ -179,8 +179,9 @@ function robeBody(b: Builder, color: string, dy: number, mode: 'stand' | 'seat' 
   }
 }
 
-function hat(b: Builder, kind: HatId, hy: number, m: THREE.Matrix4): void {
+function hat(b: Builder, kind: HatId, hy0: number, m: THREE.Matrix4): void {
   if (kind === 'none') return;
+  const hy = hy0 + 0.028;
   const hb = new Builder(5);
   if (kind === 'samo') {
     hb.geo(new THREE.CylinderGeometry(0.098, 0.103, 0.075, 16), trs(0.004, hy + 0.06, 0, 0, 0, 0, 1.05, 1, 0.86), HAT, { ao: false });
@@ -189,7 +190,7 @@ function hat(b: Builder, kind: HatId, hy: number, m: THREE.Matrix4): void {
     // 앞 띠(살짝 밝은 능선: 사모의 형태가 어둠에서 읽히게)
     hb.geo(new THREE.TorusGeometry(0.1, 0.006, 4, 18), trs(0.004, hy + 0.025, 0, 90, 0, 0, 1.05, 0.86, 1), '#2a2622', { ao: false });
     for (const s of [-1, 1]) {
-      hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.075, hy + 0.13, s * 0.17, 0, 0, s * 8, 0.012, 0.044, 0.11), HAT, { ao: false });
+      hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.075, hy + 0.125, s * 0.165, 0, 0, s * 6, 0.01, 0.034, 0.095), HAT, { ao: false });
       hb.geo(new THREE.CylinderGeometry(0.006, 0.006, 0.07, 4), trs(-0.075, hy + 0.13, s * 0.075, 90, 0, 0), HAT, { ao: false });
     }
   } else {

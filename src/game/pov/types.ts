@@ -127,6 +127,13 @@ export interface PovSpec {
   exposure?: number;
   /** 내부 해상도(px). 기본 270×360 */
   size?: { w: number; h: number };
+  /**
+   * 원통(파노라마) 투영: 가로 시야각(도). 넓은 시야(DESIGN_V5 시야 반각 50°)를 사람 비율을 지키며 담을 때.
+   * 세로는 같은 초점거리로 정해진다(fov 무시). 탭 영역은 굽기의 id 패스로만 계산한다(getFigureHitboxes 는 직선 투영).
+   */
+  pano?: { hfov: number };
+  /** 비네트 세기(0..1). 기본 0.62(기억) */
+  vignette?: number;
   /** 결정적 잡음 씨앗(기본: 스펙 해시) */
   seed?: number;
 }

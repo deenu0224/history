@@ -1,113 +1,109 @@
-import { mergeModules } from '@/core/content';
-import type { ContentBundle } from '@/core/types';
-import { hasYear, solveReport, validateContent } from '@/core/validate';
-import { content, modules } from '@/data';
+import { describe, expect, it } from 'vitest';
+import { validateEpisode, quotedFrom, type ValidateExtras } from '@/core/validate';
+import { CUT_IDS, CUT_TIMES, EP1, KIM_ALLOWED_BURSTS, MISTRANSLATED_0711 } from '@/data/v5';
+import type { Episode } from '@/core/types';
 
-export const ANSWER_WORDS = ['김일손', '이극돈', '무오', '연산', '1498'];
+const X: ValidateExtras = { cutIds: CUT_IDS, cutTimes: CUT_TIMES, kimAllowedBursts: KIM_ALLOWED_BURSTS, mistranslated: MISTRANSLATED_0711 };
+const clone = (): Episode => structuredClone(EP1);
+const rules = (ep: Episode) => validateEpisode(ep, X).map((i) => i.rule);
 
-const clone = (): ContentBundle => structuredClone(content);
-const codes = (c: ContentBundle) => validateContent(c, { historical: modules.historical, answerWords: ANSWER_WORDS }).errors.map((e) => e.code);
-
-describe('validator — registry (v3)', () => {
-  it('passes with no errors', () => {
-    const r = validateContent(content, { historical: modules.historical, answerWords: ANSWER_WORDS });
-    expect(r.errors).toEqual([]);
+describe('validator — EP1 passes all 11 rules', () => {
+  it('has no issues', () => {
+    expect(validateEpisode(EP1, X)).toEqual([]);
   });
-
-  it('every report blank is solvable from data and only the answer confirms 누구', () => {
-    const s = solveReport('rep_c2217', content);
-    expect(s.solved).toEqual({ when: true, who: true, what: true, result: true });
-    expect(s.candidateConfirms).toEqual(['per_yi_geukdon']);
+  it('episode scale per DESIGN_V5 §0/§4: 8 people, 4 eyes + never-opening, 20 cuts, 2 contradictions, 4 (+3) lines', () => {
+    expect(EP1.figures).toHaveLength(8);
+    expect(EP1.eyes.filter((e) => e.openWhen.kind !== 'never')).toHaveLength(4);
+    expect(EP1.eyes.filter((e) => e.openWhen.kind === 'never')).toHaveLength(1);
+    expect(EP1.cuts).toHaveLength(20);
+    expect(EP1.contradictions.map((x) => x.id)).toEqual(['X1', 'X2']);
+    expect(EP1.sentences.filter((s) => !s.optional)).toHaveLength(4);
+    expect(EP1.sentences.filter((s) => s.optional)).toHaveLength(3);
+    expect(EP1.figures.filter((f) => f.revealOnRestore)).toHaveLength(2);
   });
-
-  it('year detector ignores coordinate codes', () => {
-    expect(hasYear('#C-2217 · 일시 ####')).toBe(false);
-    expect(hasYear('사망 1498년')).toBe(true);
+  it('quotedFrom checks ellipsis chunks in order', () => {
+    expect(quotedFrom('가나…라마', '가나다라마')).toBe(true);
+    expect(quotedFrom('라마…가나', '가나다라마')).toBe(false);
   });
 });
 
 describe('validator — catches broken content', () => {
-  it('verified without source / fictional in historical', () => {
-    const c = clone();
-    c.sources[0]!.sources = [];
-    expect(codes(c)).toContain('verified_without_source');
-    const bad = mergeModules({ ...modules.historical, places: [{ id: 'x', provenance: 'fictional', name: 'x', summary: '' }] });
-    expect(validateContent(bad, { historical: { places: bad.places } }).errors.map((e) => e.code)).toContain('fictional_in_historical');
+  it('① hiding a ledger fact from a card (to fake uniqueness)', () => {
+    const ep = clone();
+    const hong = ep.cards.find((c) => c.id === 'hong_gwidal')!;
+    hong.facts = hong.facts.filter((f) => !f.keys.includes('sillokcheong_staff'));
+    hong.roomAnchored = false;
+    expect(rules(ep)).toContain('①');
   });
-
-  it('year leak in the assignment, answer leak in hints, archaic 졸 in DB', () => {
-    const c = clone();
-    c.assignments[0]!.header[1]!.value = '1498';
-    c.messages.find((m) => m.hint)!.text = '이극돈이야';
-    c.records[0]!.fields[0]!.value = '졸';
-    const k = codes(c);
-    expect(k).toEqual(expect.arrayContaining(['year_leak', 'answer_leak', 'archaic_term']));
+  it('① evidence that points at several people (compiled_sejo_sillok)', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_e1_2a')!.keys = ['compiled_sejo_sillok'];
+    expect(validateEpisode(ep, X).some((i) => i.rule === '①' && i.message.includes('유일'))).toBe(true);
   });
-
-  it('unsolvable blank and indistinguishable candidate', () => {
-    const c = clone();
-    c.clues = c.clues.filter((x) => x.id !== 'cl_veteran');
-    expect(codes(c)).toContain('blank_unsolvable');
-    const d = clone();
-    d.persons.find((p) => p.id === 'per_eo_segyeom')!.facts.push(
-      { kind: 'office', value: '실록청 당상' },
-      { kind: 'event', value: '『세조실록』 편찬 참여' },
-    );
-    expect(codes(d)).toContain('indistinguishable');
+  it('② a clear bubble outside the hearing radius', () => {
+    const ep = clone();
+    ep.cuts.find((c) => c.id === 'e4-2')!.heard[0].clarity = 'clear';
+    expect(rules(ep)).toContain('②');
   });
-
-  it('unindexed chips, unsatisfiable clue, restored content must be verified', () => {
-    const c = clone();
-    c.npcs[0]!.dialogue[1]!.grants = { terms: ['없는 칩'] };
-    c.clues.find((x) => x.id === 'cl_alive')!.frame = { heard: ['b5', 'm2'] };
-    c.sources.find((s) => s.id === 'src_verdict')!.provenance = 'reconstructed';
-    c.records.find((r) => r.id === 'rec_alt_kwon_obok')!.provenance = 'verified';
-    expect(codes(c)).toEqual(
-      expect.arrayContaining(['term_not_indexed', 'clue_unsatisfiable', 'restored_not_verified', 'altered_not_fictional']),
-    );
+  it('② counting slips through the 사초 더미', () => {
+    const ep = clone();
+    delete ep.details.find((d) => d.id === 'd_slips_five')!.occludedView;
+    expect(rules(ep)).toContain('②');
   });
-});
-
-describe('validator — v4 근무·건', () => {
-  const caseIn = (c: ContentBundle, id: string) => c.cases.find((x) => x.id === id)!;
-
-  it('fails on shipped placeholders (TODO_VERIFY)', () => {
-    const c = clone();
-    caseIn(c, 'case_a0412').verification = 'TODO_VERIFY';
-    expect(codes(c)).toContain('placeholder_shipped');
-    const d = clone();
-    caseIn(d, 'case_a0419').title = 'TODO_VERIFY 확인 필요';
-    expect(codes(d)).toContain('placeholder_shipped');
+  it('③ contradiction winner must equal the verified sentence value', () => {
+    const ep = clone();
+    const l4 = ep.sentences.find((s) => s.id === 'L4')!;
+    l4.segments.find((g) => g.slot?.kind === 'count')!.slot!.accepts = '5';
+    expect(rules(ep)).toContain('③');
   });
-
-  it('distortion must be pairable, different, and the expected verdict must follow the data', () => {
-    const c = clone();
-    caseIn(c, 'case_a0419').pairs = caseIn(c, 'case_a0419').pairs.filter((p) => p.record !== 'a0419_yi');
-    caseIn(c, 'case_a0412').expected = ['correct'];
-    caseIn(c, 'case_a0431').record!.distortion!.text = '3월';
-    expect(codes(c)).toEqual(expect.arrayContaining(['distortion_unpaired', 'expected_mismatch', 'distortion_same']));
+  it('④ two-route rule: a required value only inside the closing eye', () => {
+    const ep = clone();
+    const c = ep.claims.find((x) => x.id === 'c_scope_all')!;
+    c.from = ['l_order2'];
+    expect(rules(ep)).toContain('④');
   });
-
-  it('observed segments must spell the heard line; routine originals need url sources; no year on card heads', () => {
-    const c = clone();
-    caseIn(c, 'case_a0423').observed[0]!.segments[0]!.text = '다른 말';
-    caseIn(c, 'case_a0412').record!.sources = [];
-    caseIn(c, 'case_a0412').record!.citation = '『성종실록』 1494년 12월 24일';
-    expect(codes(c)).toEqual(expect.arrayContaining(['observed_mismatch', 'record_without_source', 'year_leak']));
+  it('⑤ a year in an observation line', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_e1_1')!.text = '1498년 꾸러미입니다.';
+    expect(rules(ep)).toContain('⑤');
   });
-
-  it('warning reasons, rules and the interview never carry the #C-2217 answer; routine hints never name the fix', () => {
-    const c = clone();
-    caseIn(c, 'case_a0423').explain = { correct: '무오년의 일이다.' };
-    c.interviews[0]!.closing[0]!.text = '7월 11일을 봐.';
-    c.messages.find((m) => m.id === 'h_inspect_2')!.text = '이극돈 쪽을 봐.';
-    expect(codes(c).filter((x) => x === 'answer_leak').length).toBeGreaterThanOrEqual(3);
+  it('⑥ a name in a hint, a long bubble, polite 한 선임', () => {
+    const ep = clone();
+    ep.ladders[1].steps[0].text = '이극돈 카드 봐.';
+    expect(rules(ep)).toContain('⑥');
+    const ep2 = clone();
+    (ep2.bursts[0].steps[2] as { text: string }).text = '야근이네요.';
+    expect(rules(ep2)).toContain('⑥');
   });
-
-  it('one new rule per shift after the first; queues fit their night without replays', () => {
-    const c = clone();
-    c.workShifts[1]!.newRules.push('rule_5');
-    c.workShifts[2]!.length = 60;
-    expect(codes(c)).toEqual(expect.arrayContaining(['one_rule_per_shift', 'queue_too_long']));
+  it('⑦ verified text must match the 국역; mistranslation forbidden', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_order1')!.text = '김일손의 사초를 다 가져오라.';
+    expect(rules(ep)).toContain('⑦');
+    const ep2 = clone();
+    ep2.lines.find((l) => l.id === 'l_propose')!.text = '…일손의 사초가 과연 조종조의 일에 범하여 그른 점이 있다는 것은 신들도 들어 아는 바이므로,';
+    expect(rules(ep2)).toContain('⑦');
+  });
+  it('⑧ 홍귀달 may not be drawn remonstrating', () => {
+    const ep = clone();
+    ep.cuts.find((c) => c.id === 'e3-1')!.figures[0].pose = 'remonstrate';
+    expect(rules(ep)).toContain('⑧');
+  });
+  it('⑨ the given eye never hears its owner named', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_e1_1')!.text = '윤 대감, 꾸러미입니다.';
+    expect(rules(ep)).toContain('⑨');
+  });
+  it('⑩ no evidence may point at a 「?」 figure', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_e1_2b')!.refers = { figureId: 'fig_u' };
+    expect(rules(ep)).toContain('⑩');
+  });
+  it('⑪ ban words', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_e1_2a')!.text = '저 영감께선 선왕 승하하실 무렵 이조 판서셨지요.';
+    expect(rules(ep)).toContain('⑪');
+  });
+  it('cut ids must exist in CUT_IDS', () => {
+    expect(validateEpisode(EP1, { ...X, cutIds: CUT_IDS.filter((c) => c !== 'e2-3') }).map((i) => i.rule)).toContain('cut_ids');
   });
 });

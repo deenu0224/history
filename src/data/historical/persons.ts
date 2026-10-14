@@ -1,7 +1,7 @@
 // 실존 인물. 사실(facts)은 docs/HISTORICAL_SOURCES.md 1장에서 '확정'인 것만.
 // summary 는 '두 현실 모두에서 참'인 검증된 사실만 둔다(말소된 세계에서도 보이므로 무오사화 관련 서술을 넣지 않는다).
 // 무오사화 관련 사실은 복원된 사료·사건·도감 필드(restoredBy)·복원 레코드로만 보인다.
-import type { HistoricalPerson } from '@/core/types';
+import type { HistoricalPerson } from '@/core/legacyTypes';
 import { FACT } from './facts';
 import { REF } from './refs';
 
@@ -48,7 +48,7 @@ export const persons: HistoricalPerson[] = [
     born: 1435,
     died: 1503,
     summary:
-      '조선 전기의 문신. 본관 광주(廣州), 자 사고. 1457년 문과 급제. 『세조실록』 편찬에 편수관으로 참여했고, ' +
+      '조선 전기의 문신. 본관 광주(廣州), 자 사고. 1457년 문과 급제. 『세조실록』 찬수에 동지관사로 참여했고, ' +
       '1495년 지관사로서 『성종실록』 편찬을 맡아 실록청 당상으로 사초를 정리했다.',
     facts: [
       FACT.nameYiGeukdon,
@@ -111,7 +111,7 @@ export const persons: HistoricalPerson[] = [
     facts: [
       { kind: 'name', value: '어세겸' },
       { kind: 'trait', value: '『성종실록』 편찬의 명을 받음' },
-      { kind: 'trait', value: '사화 뒤 수사관으로서 파면됨' },
+      { kind: 'trait', value: '사화 뒤 수사관으로서 파직됨' },
     ],
     sources: [REF.sillokCompileOrder, REF.muoSahwa],
     relatedIds: ['evt_seongjong_sillok', 'evt_muo_sahwa'],

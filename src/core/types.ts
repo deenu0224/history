@@ -434,6 +434,8 @@ export interface Burst {
   spontaneous?: true;
   /** 같은 사건이 다시 와도 보낸다(기본 한 번만) */
   repeatable?: true;
+  /** 복원 뒤에만 오는 묶음 */
+  postRestore?: true;
 }
 
 // ── 힌트 사다리 ──────────────────────────────────────────────────
@@ -446,6 +448,7 @@ export interface Cond {
   roomOpened?: boolean;
   revealed?: Id[];
   unresolved?: Id[];
+  resolved?: Id[];
   closureDone?: boolean;
   rewriteOpen?: boolean;
   allRestored?: boolean;
@@ -507,6 +510,8 @@ export interface Episode {
   implies: Record<FactKey, FactKey[]>;
   /** 검증기 전용 원장 */
   ledger: Record<Id, LedgerEntry[]>;
+  /** 원장의 사람 이름(성씨 키 계산) */
+  ledgerNames: Record<Id, string>;
   /** 그날 그 방에 있던 실명 인물(유일성 대상) */
   roomPersons: Id[];
   /** 성씨 → 사실 키 */

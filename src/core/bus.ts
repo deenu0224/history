@@ -1,67 +1,37 @@
-import type { AppId, Id } from './types';
+import type { Id } from './types';
+
+export type ModalKind = 'tag' | 'card' | 'room' | 'search' | 'messenger' | 'rewrite' | 'restore' | 'settings';
 
 /**
- * 결록 단말 이벤트 계약. 상태 변경은 스토어로, 버스는 '일어난 일' 알림과 화면 간 요청에만 쓴다.
- * 걷기 폐지로 interact / scene:* / world:* 이벤트는 제거되었다.
+ * 결록 단말 이벤트 계약(v5). 상태 변경은 스토어로, 버스는 '일어난 일' 알림과 화면 간 요청에만 쓴다.
  */
-export type ModalKind = 'evidence' | 'deduction' | 'collection' | 'settings' | 'save' | 'help' | 'sequence';
-
 export interface BusEvents {
-  /** 아무 쪽 → 셸: 앱을 열거나 앱 안의 대상으로 이동(예: 배정 카드의 참조 → DB 기록) */
-  'app:open': { app: AppId; target?: Id };
-  /** 관측 뷰어(Phaser) → React: 텍스처·씬 준비 완료 */
-  'viewer:ready': { timelineId: Id };
-  /** 관측 뷰어 → React: store.tapHotspot 을 호출한 뒤 결과 패널을 띄우라는 알림(결과는 store.lastTap) */
-  'viewer:tapped': { hotspotId: Id };
-  /** React → 관측 뷰어: 카메라를 대상(핫스팟 id 또는 타일 좌표)으로 이동 */
-  'viewer:focus': { hotspotId?: Id; x?: number; y?: number };
-  /** 셸 → 화면 불안정 연출(좌표 재계산·관측 진입/종료). intensity 0~1 */
-  glitch: { intensity: number; ms: number };
-  /** 촉각 피드백 요청(소리·도장·진동). 코드표는 src/data/feedback.ts */
+  /** 촉각 피드백 요청(소리·진동·애니). 코드표는 src/data/feedback.ts */
   feedback: { kind: FeedbackKind };
-  /** 토스트 알림 */
+  /** 위쪽 한 줄 배너(새 메시지 등) */
   notify: { text: string; tone?: 'info' | 'discover' | 'success' | 'warning' };
   'ui:open': { modal: ModalKind; id?: Id };
   'ui:close': { modal?: ModalKind };
 }
 
+/** UI_STYLE_GUIDE §7 */
 export type FeedbackKind =
   | 'tap'
+  | 'swipe'
+  | 'tag_ok'
+  | 'tag_no'
+  | 'eye_open'
+  | 'eye_close'
+  | 'merge'
+  | 'contradiction'
+  | 'resolve'
+  | 'message'
+  | 'write'
+  | 'write_grey'
+  | 'write_fail'
+  | 'restore'
   | 'search_hit'
   | 'search_miss'
-  | 'scrub_tick'
-  /** 대사가 처음 들림 */
-  | 'hear'
-  /** 셔터(캡처) / 필름이 가득 참 */
-  | 'shutter'
-  | 'capture_full'
-  /** 체크리스트 도장 / 도장이 아직 안 눌림 / 시스템의 회색 자동 분류 도장 */
-  | 'stamp'
-  | 'stamp_miss'
-  | 'stamp_auto'
-  /** 보고서 칸 판정 */
-  | 'verdict_confirmed'
-  | 'verdict_partial'
-  | 'verdict_wrong'
-  | 'message'
-  /** 합의된 현실의 다시 쓰기: 복원(따뜻한 먹 번짐) / 말소(차갑게, 무음, 명도 한 칸) */
-  | 'restore'
-  | 'erase'
-  // ── v4 「근무」 ──
-  /** 정정 도장(파랑) / 서랍의 불일치 도장(빨강) */
-  | 'stamp_correct'
-  | 'stamp_red'
-  /** 프린터가 종이를 뱉는다(규정·근무 보고) / 빨간 경고장 */
-  | 'printer'
-  | 'warning'
-  /** 검사 모드: 빨간 실(다름) / 노란 깜빡임(표기 차이) / 연결 없음 */
-  | 'inspect_link'
-  | 'inspect_notation'
-  | 'inspect_none'
-  /** 다음 건이 책상에 올라온다 / 근무 종료 */
-  | 'queue_next'
-  | 'shift_end'
-  /** 규정집·카드 넘김 */
   | 'page';
 
 type Handler<T> = (payload: T) => void;

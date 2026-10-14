@@ -1,5 +1,5 @@
 // 실존 장소. 관측 #001 의 건물 배치는 재구성이며 여기 적지 않는다(world/maps.ts 참고).
-import type { Place } from '@/core/types';
+import type { Place } from '@/core/legacyTypes';
 import { REF } from './refs';
 
 export const places: Place[] = [

@@ -1,5 +1,5 @@
 // 실존 유물. 특징은 공식 데이터(국가유산청)·백과사전에서 '확정'인 것만. 암호·숨은 문양·장치 금지(CLAUDE.md 5).
-import type { HistoricalArtifact } from '@/core/types';
+import type { HistoricalArtifact } from '@/core/legacyTypes';
 import { REF } from './refs';
 
 export const artifacts: HistoricalArtifact[] = [

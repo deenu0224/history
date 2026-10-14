@@ -49,9 +49,9 @@ export function lightProfile(time: string | number) {
     door: 9 - 3 * morning + 1 * late,
     bounce: 11 * (1 - 0.7 * morning) + 3 * late,
     bounceColor: late > 0.3 ? '#ffb877' : '#ffcf9a',
-    hemi: 0.3 + 0.08 * morning,
+    hemi: 0.55 + 0.1 * morning,
     sky: morning > 0.5 ? '#e4e2d6' : late > 0.3 ? '#ecd2a6' : '#e6dcc6',
-    exposure: 1.08 + 0.06 * morning + 0.04 * late,
+    exposure: 1.16 + 0.08 * morning + 0.04 * late,
   };
 }
 
@@ -238,7 +238,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   doorSky.position.set(6, 1.7, 9.6);
   const winL = new THREE.PointLight(lp.windowColor, lp.window, 12, 1.5);
   winL.position.set(11.2, 1.4, 4.0);
-  const northL = new THREE.PointLight('#e8dcc0', 2.5, 9, 1.5);
+  const northL = new THREE.PointLight('#e8dcc0', 4.5, 10, 1.5);
   northL.position.set(6, 2.6, 0.6);
   scene.add(bounce, doorSky, winL, northL);
   for (const x of [2, 10]) {
@@ -269,12 +269,65 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   camera.quaternion.setFromRotationMatrix(rot);
   camera.updateMatrixWorld(true);
 
+  /**
+   * 그리기: 보통은 한 번. spec.pano 이면 원통 투영 — 세로 띠 여러 장을 각각 수직축으로 돌린 카메라로 그려 잇는다
+   * (넓은 시야에서 가장자리 사람이 옆으로 늘어나지 않게). 같은 띠 배치를 색·거리·id 세 패스가 함께 쓴다.
+   */
+  const drawPass = (rr: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget | null = null) => {
+    if (!spec.pano) {
+      rr.render(scene, camera);
+      return;
+    }
+    const n = 13;
+    const Rpx = w / ((spec.pano.hfov * Math.PI) / 180);
+    const vfov = (2 * Math.atan(h / 2 / Rpx) * 180) / Math.PI;
+    const right0 = new THREE.Vector3(...cam.right);
+    const up0 = new THREE.Vector3(...cam.up);
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    // 렌더 타깃에는 타깃 자신의 viewport·scissor 가 쓰인다(three r15x~)
+    if (target) target.scissorTest = true;
+    else rr.setScissorTest(true);
+    let x0 = 0;
+    for (let i = 0; i < n; i++) {
+      const x1 = Math.round(((i + 1) * w) / n);
+      const sw = x1 - x0;
+      const a = ((x0 + sw / 2 - w / 2) / Rpx);
+      const q = new THREE.Quaternion().setFromAxisAngle(yAxis, -a);
+      const f = fwdV.clone().applyQuaternion(q);
+      const rgt = right0.clone().applyQuaternion(q);
+      const u = up0.clone().applyQuaternion(q);
+      const c = new THREE.PerspectiveCamera(vfov, sw / h, NEAR, FAR);
+      c.position.copy(eyeV);
+      c.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rgt, u, f.clone().negate()));
+      c.updateMatrixWorld(true);
+      if (target) {
+        target.viewport.set(x0, 0, sw, h);
+        target.scissor.set(x0, 0, sw, h);
+        rr.setRenderTarget(target);
+      } else {
+        rr.setViewport(x0, 0, sw, h);
+        rr.setScissor(x0, 0, sw, h);
+      }
+      rr.render(scene, c);
+      x0 = x1;
+    }
+    if (target) {
+      target.scissorTest = false;
+      target.viewport.set(0, 0, w, h);
+      target.scissor.set(0, 0, w, h);
+    } else {
+      rr.setScissorTest(false);
+      rr.setViewport(0, 0, w, h);
+    }
+  };
+
   const t1 = performance.now();
   const r = getRenderer();
   r.setSize(w, h, false);
   r.toneMappingExposure = spec.exposure ?? lp.exposure;
   r.setClearColor(sky, 1);
-  r.render(scene, camera);
+  r.clear();
+  drawPass(r);
   const gl = r.getContext();
   const raw = new Uint8Array(w * h * 4);
   gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
@@ -293,7 +346,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   r.setRenderTarget(rt);
   r.setClearColor(0xffffff, 1);
   r.clear();
-  r.render(scene, camera);
+  drawPass(r, rt);
   const dbuf = new Uint8Array(w * h * 4);
   r.readRenderTargetPixels(rt, 0, 0, w, h, dbuf);
   scene.overrideMaterial = null;
@@ -323,7 +376,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   r.setRenderTarget(rt);
   r.setClearColor(0x000000, 1);
   r.clear();
-  r.render(scene, camera);
+  drawPass(r, rt);
   const ibuf = new Uint8Array(w * h * 4);
   r.readRenderTargetPixels(rt, 0, 0, w, h, ibuf);
   r.setRenderTarget(null);

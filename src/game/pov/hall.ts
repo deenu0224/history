@@ -247,7 +247,7 @@ export function buildHall(): HallParts {
         const th = Math.min(0.055, st.top - y);
         if (th < 0.02) break;
         const rot = (rnd() - 0.5) * 14;
-        const col = new THREE.Color(C.hanjiOld).multiplyScalar(0.8 + rnd() * 0.25);
+        const col = new THREE.Color(C.hanjiOld).multiplyScalar(0.6 + rnd() * 0.22);
         b.box(cx + (rnd() - 0.5) * 0.03, y + th / 2, cz + (rnd() - 0.5) * 0.03, 0.26, th, 0.3, col, rot, { ao: false, shade: (_x, yy) => 0.8 + 0.2 * Math.min(1, (yy - top) / 0.15) });
         b.box(cx, y + th / 2, cz, 0.27, th + 0.004, 0.018, C.ink, rot, { ao: false });
         y += th;

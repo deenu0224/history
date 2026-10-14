@@ -6,7 +6,7 @@
  *  - grants.terms: 보고 들은 그대로의 표현 → 검색어 수첩(칩).
  *  - 탁영금은 DB 자료로만 등장한다(과거 장면에 두지 않음: 각자 시기 미확인).
  */
-import type { Interactable } from '@/core/types';
+import type { Interactable } from '@/core/legacyTypes';
 import { REF } from '@/data/historical/refs';
 
 const R = 'reconstructed' as const;

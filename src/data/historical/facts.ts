@@ -6,7 +6,7 @@
  * 그래서 확인되지 않은 사항이 '모순'으로 잘못 판정되지 않도록, 근거가 약한 인물에게는
  * 해당 kind 의 사실을 아예 넣지 않는다(→ '확인할 수 없음'으로 판정됨).
  */
-import type { Fact } from '@/core/types';
+import type { HistoricalFact as Fact } from '@/core/legacyTypes';
 
 export const FACT = {
   // 누구 칸(붉은 관복의 당상)의 핵심 사실

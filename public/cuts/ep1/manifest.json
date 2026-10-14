@@ -1,0 +1,828 @@
+{
+ "episode": "ep1",
+ "provenance": "reconstructed",
+ "note": "미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선).",
+ "css": {
+  "w": 390,
+  "h": 520
+ },
+ "sizes": {
+  "dpr3": {
+   "w": 1170,
+   "h": 1560,
+   "internal": [
+    234,
+    312
+   ]
+  },
+  "dpr2": {
+   "w": 780,
+   "h": 1040,
+   "internal": [
+    195,
+    260
+   ]
+  }
+ },
+ "minTouchCss": 44,
+ "cuts": {
+  "e1-1": {
+   "files": {
+    "memory": {
+     "dpr3": "e1-1.webp",
+     "dpr2": "e1-1.2x.webp",
+     "bytes": {
+      "dpr3": 36098,
+      "dpr2": 24830
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_clerk",
+     "x": 0,
+     "y": 0.0256,
+     "w": 0.4744,
+     "h": 0.8045,
+     "px": 10474
+    },
+    {
+     "id": "fig_yi",
+     "x": 0.7607,
+     "y": 0.4103,
+     "w": 0.1453,
+     "h": 0.141,
+     "px": 997
+    },
+    {
+     "id": "fig_u",
+     "x": 0.4573,
+     "y": 0.4231,
+     "w": 0.1197,
+     "h": 0.1506,
+     "px": 697
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_clerk": 10474,
+    "fig_yi": 997,
+    "fig_u": 697
+   }
+  },
+  "e1-2": {
+   "files": {
+    "memory": {
+     "dpr3": "e1-2.webp",
+     "dpr2": "e1-2.2x.webp",
+     "bytes": {
+      "dpr3": 33334,
+      "dpr2": 22792
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_yi",
+     "x": 0.3761,
+     "y": 0.3878,
+     "w": 0.2863,
+     "h": 0.2821,
+     "px": 3811
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_yi": 3811
+   }
+  },
+  "e1-3": {
+   "files": {
+    "memory": {
+     "dpr3": "e1-3.webp",
+     "dpr2": "e1-3.2x.webp",
+     "bytes": {
+      "dpr3": 24754,
+      "dpr2": 16668
+     }
+    }
+   },
+   "figures": [],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {}
+  },
+  "e1-4": {
+   "files": {
+    "memory": {
+     "dpr3": "e1-4.webp",
+     "dpr2": "e1-4.2x.webp",
+     "bytes": {
+      "dpr3": 38338,
+      "dpr2": 26754
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.4615,
+     "y": 0.2885,
+     "w": 0.1752,
+     "h": 0.3045,
+     "px": 2401
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 2401
+   }
+  },
+  "e1-5": {
+   "files": {
+    "memory": {
+     "dpr3": "e1-5.webp",
+     "dpr2": "e1-5.2x.webp",
+     "bytes": {
+      "dpr3": 31492,
+      "dpr2": 21734
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_yi",
+     "x": 0.3376,
+     "y": 0.2244,
+     "w": 0.3376,
+     "h": 0.3237,
+     "px": 5289
+    }
+   ],
+   "slipsVisible": 5,
+   "slipPx": {
+    "slip:0": 73,
+    "slip:2": 73,
+    "slip:1": 87,
+    "slip:4": 87,
+    "slip:3": 86
+   },
+   "visiblePx": {
+    "fig_yi": 5289
+   }
+  },
+  "e2-1": {
+   "files": {
+    "memory": {
+     "dpr3": "e2-1.webp",
+     "dpr2": "e2-1.2x.webp",
+     "bytes": {
+      "dpr3": 31714,
+      "dpr2": 21780
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_clerk",
+     "x": 0.5214,
+     "y": 0.25,
+     "w": 0.2607,
+     "h": 0.4295,
+     "px": 3285
+    },
+    {
+     "id": "fig_a",
+     "x": 0.7692,
+     "y": 0.4263,
+     "w": 0.2308,
+     "h": 0.2436,
+     "px": 2170
+    },
+    {
+     "id": "fig_yun",
+     "x": 0.2436,
+     "y": 0.4071,
+     "w": 0.2222,
+     "h": 0.2179,
+     "px": 1935
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_clerk": 3285,
+    "fig_yun": 1935,
+    "fig_a": 2170
+   }
+  },
+  "e2-2": {
+   "files": {
+    "memory": {
+     "dpr3": "e2-2.webp",
+     "dpr2": "e2-2.2x.webp",
+     "bytes": {
+      "dpr3": 29832,
+      "dpr2": 20684
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_eo",
+     "x": 0,
+     "y": 0.3782,
+     "w": 0.3462,
+     "h": 0.359,
+     "px": 4133
+    },
+    {
+     "id": "fig_clerk",
+     "x": 0.6581,
+     "y": 0.4071,
+     "w": 0.1453,
+     "h": 0.1571,
+     "px": 757
+    },
+    {
+     "id": "fig_yun",
+     "x": 0.8248,
+     "y": 0.4231,
+     "w": 0.1538,
+     "h": 0.1442,
+     "px": 869
+    },
+    {
+     "id": "fig_hong",
+     "x": 0.4115,
+     "y": 0.4295,
+     "w": 0.1128,
+     "h": 0.1186,
+     "px": 394
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_eo": 4133,
+    "fig_clerk": 757,
+    "fig_yun": 869,
+    "fig_hong": 394
+   }
+  },
+  "e2-3": {
+   "files": {
+    "memory": {
+     "dpr3": "e2-3.webp",
+     "dpr2": "e2-3.2x.webp",
+     "bytes": {
+      "dpr3": 29154,
+      "dpr2": 20168
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_a",
+     "x": 0.4872,
+     "y": 0.4327,
+     "w": 0.1795,
+     "h": 0.1763,
+     "px": 1167
+    },
+    {
+     "id": "fig_yun",
+     "x": 0.1624,
+     "y": 0.4199,
+     "w": 0.1239,
+     "h": 0.1571,
+     "px": 781
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_yun": 781,
+    "fig_a": 1167
+   }
+  },
+  "e2-4": {
+   "files": {
+    "memory": {
+     "dpr3": "e2-4.webp",
+     "dpr2": "e2-4.2x.webp",
+     "bytes": {
+      "dpr3": 36304,
+      "dpr2": 25056
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.4231,
+     "y": 0.3077,
+     "w": 0.1966,
+     "h": 0.3846,
+     "px": 3899
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 3899
+   }
+  },
+  "e2-5": {
+   "files": {
+    "memory": {
+     "dpr3": "e2-5.webp",
+     "dpr2": "e2-5.2x.webp",
+     "bytes": {
+      "dpr3": 31112,
+      "dpr2": 21532
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.7521,
+     "y": 0,
+     "w": 0.2479,
+     "h": 0.5449,
+     "px": 4313
+    },
+    {
+     "id": "fig_a",
+     "x": 0.6709,
+     "y": 0.1538,
+     "w": 0.1496,
+     "h": 0.1603,
+     "px": 736
+    },
+    {
+     "id": "fig_yun",
+     "x": 0.3632,
+     "y": 0.1442,
+     "w": 0.1368,
+     "h": 0.1474,
+     "px": 892
+    },
+    {
+     "id": "fig_hong",
+     "x": 0,
+     "y": 0.1474,
+     "w": 0.1128,
+     "h": 0.1314,
+     "px": 277
+    }
+   ],
+   "slipsVisible": 6,
+   "slipPx": {
+    "slip:5": 70,
+    "slip:3": 776,
+    "slip:1": 832,
+    "slip:4": 806,
+    "slip:0": 896,
+    "slip:2": 902
+   },
+   "visiblePx": {
+    "fig_msg": 4313,
+    "fig_yun": 892,
+    "fig_hong": 277,
+    "fig_a": 736
+   }
+  },
+  "e3-1": {
+   "files": {
+    "memory": {
+     "dpr3": "e3-1.webp",
+     "dpr2": "e3-1.2x.webp",
+     "bytes": {
+      "dpr3": 34532,
+      "dpr2": 23326
+     }
+    },
+    "erased": {
+     "dpr3": "e3-1.erased.webp",
+     "dpr2": "e3-1.erased.2x.webp",
+     "bytes": {
+      "dpr3": 37490,
+      "dpr2": 25648
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_hong",
+     "x": 0.3419,
+     "y": 0.1186,
+     "w": 0.3803,
+     "h": 0.5513,
+     "px": 8793
+    },
+    {
+     "id": "fig_a",
+     "x": 0.0726,
+     "y": 0.4006,
+     "w": 0.2778,
+     "h": 0.25,
+     "px": 2065
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_hong": 8793,
+    "fig_a": 2065,
+    "fig_yun": 10
+   }
+  },
+  "e3-2": {
+   "files": {
+    "memory": {
+     "dpr3": "e3-2.webp",
+     "dpr2": "e3-2.2x.webp",
+     "bytes": {
+      "dpr3": 32050,
+      "dpr2": 22458
+     }
+    },
+    "erased": {
+     "dpr3": "e3-2.erased.webp",
+     "dpr2": "e3-2.erased.2x.webp",
+     "bytes": {
+      "dpr3": 34990,
+      "dpr2": 24244
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.4231,
+     "y": 0.2853,
+     "w": 0.1538,
+     "h": 0.3045,
+     "px": 2480
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 2480
+   }
+  },
+  "e3-3": {
+   "files": {
+    "memory": {
+     "dpr3": "e3-3.webp",
+     "dpr2": "e3-3.2x.webp",
+     "bytes": {
+      "dpr3": 33764,
+      "dpr2": 22982
+     }
+    },
+    "erased": {
+     "dpr3": "e3-3.erased.webp",
+     "dpr2": "e3-3.erased.2x.webp",
+     "bytes": {
+      "dpr3": 36658,
+      "dpr2": 24950
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.4607,
+     "y": 0.4359,
+     "w": 0.1128,
+     "h": 0.1186,
+     "px": 356
+    },
+    {
+     "id": "fig_u",
+     "x": 0.8872,
+     "y": 0.4808,
+     "w": 0.1128,
+     "h": 0.0962,
+     "px": 297
+    },
+    {
+     "id": "fig_a",
+     "x": 0,
+     "y": 0.4808,
+     "w": 0.1128,
+     "h": 0.0897,
+     "px": 244
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 356,
+    "fig_a": 244,
+    "fig_u": 297,
+    "fig_clerk": 25,
+    "fig_yi": 3
+   }
+  },
+  "e3-4": {
+   "files": {
+    "memory": {
+     "dpr3": "e3-4.webp",
+     "dpr2": "e3-4.2x.webp",
+     "bytes": {
+      "dpr3": 32904,
+      "dpr2": 22656
+     }
+    },
+    "erased": {
+     "dpr3": "e3-4.erased.webp",
+     "dpr2": "e3-4.erased.2x.webp",
+     "bytes": {
+      "dpr3": 36568,
+      "dpr2": 24784
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_msg",
+     "x": 0.3761,
+     "y": 0.2724,
+     "w": 0.2564,
+     "h": 0.5064,
+     "px": 6835
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 6835
+   }
+  },
+  "e3-5": {
+   "files": {
+    "memory": {
+     "dpr3": "e3-5.webp",
+     "dpr2": "e3-5.2x.webp",
+     "bytes": {
+      "dpr3": 34312,
+      "dpr2": 23288
+     }
+    },
+    "erased": {
+     "dpr3": "e3-5.erased.webp",
+     "dpr2": "e3-5.erased.2x.webp",
+     "bytes": {
+      "dpr3": 41538,
+      "dpr2": 26606
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_clerk",
+     "x": 0.4316,
+     "y": 0.3173,
+     "w": 0.2521,
+     "h": 0.391,
+     "px": 4761
+    },
+    {
+     "id": "fig_hong",
+     "x": 0.2479,
+     "y": 0.3654,
+     "w": 0.2009,
+     "h": 0.2981,
+     "px": 2247
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_clerk": 4761,
+    "fig_hong": 2247
+   }
+  },
+  "e4-1": {
+   "files": {
+    "memory": {
+     "dpr3": "e4-1.webp",
+     "dpr2": "e4-1.2x.webp",
+     "bytes": {
+      "dpr3": 31248,
+      "dpr2": 21450
+     }
+    }
+   },
+   "figures": [],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {}
+  },
+  "e4-2": {
+   "files": {
+    "memory": {
+     "dpr3": "e4-2.webp",
+     "dpr2": "e4-2.2x.webp",
+     "bytes": {
+      "dpr3": 38420,
+      "dpr2": 26308
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_yun",
+     "x": 0.4231,
+     "y": 0.4006,
+     "w": 0.2863,
+     "h": 0.2788,
+     "px": 3236
+    },
+    {
+     "id": "fig_a",
+     "x": 0.0128,
+     "y": 0.4006,
+     "w": 0.2393,
+     "h": 0.2179,
+     "px": 2050
+    },
+    {
+     "id": "fig_msg",
+     "x": 0.4436,
+     "y": 0.3654,
+     "w": 0.1128,
+     "h": 0.1731,
+     "px": 634
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 634,
+    "fig_a": 2050,
+    "fig_yun": 3236
+   }
+  },
+  "e4-3": {
+   "files": {
+    "memory": {
+     "dpr3": "e4-3.webp",
+     "dpr2": "e4-3.2x.webp",
+     "bytes": {
+      "dpr3": 32940,
+      "dpr2": 22570
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_yun",
+     "x": 0,
+     "y": 0.375,
+     "w": 0.1923,
+     "h": 0.3654,
+     "px": 2775
+    },
+    {
+     "id": "fig_msg",
+     "x": 0.2821,
+     "y": 0.3045,
+     "w": 0.1838,
+     "h": 0.2564,
+     "px": 1482
+    },
+    {
+     "id": "fig_yi",
+     "x": 0.7308,
+     "y": 0.4391,
+     "w": 0.1282,
+     "h": 0.1122,
+     "px": 610
+    },
+    {
+     "id": "fig_u",
+     "x": 0.5868,
+     "y": 0.4391,
+     "w": 0.1128,
+     "h": 0.1026,
+     "px": 439
+    },
+    {
+     "id": "fig_eo",
+     "x": 0.8872,
+     "y": 0.5875,
+     "w": 0.1128,
+     "h": 0.0846,
+     "px": 160
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 1482,
+    "fig_yun": 2775,
+    "fig_u": 439,
+    "fig_yi": 610,
+    "fig_eo": 160
+   }
+  },
+  "e4-4": {
+   "files": {
+    "memory": {
+     "dpr3": "e4-4.webp",
+     "dpr2": "e4-4.2x.webp",
+     "bytes": {
+      "dpr3": 38688,
+      "dpr2": 26186
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_yun",
+     "x": 0.453,
+     "y": 0.3974,
+     "w": 0.2906,
+     "h": 0.3109,
+     "px": 3416
+    },
+    {
+     "id": "fig_a",
+     "x": 0,
+     "y": 0.3974,
+     "w": 0.2179,
+     "h": 0.2404,
+     "px": 2349
+    },
+    {
+     "id": "fig_msg",
+     "x": 0.4885,
+     "y": 0.3526,
+     "w": 0.1128,
+     "h": 0.2051,
+     "px": 417
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_msg": 417,
+    "fig_a": 2349,
+    "fig_yun": 3416
+   }
+  },
+  "e4-5": {
+   "files": {
+    "memory": {
+     "dpr3": "e4-5.webp",
+     "dpr2": "e4-5.2x.webp",
+     "bytes": {
+      "dpr3": 31142,
+      "dpr2": 21402
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_clerk",
+     "x": 0.312,
+     "y": 0,
+     "w": 0.688,
+     "h": 1,
+     "px": 38436
+    },
+    {
+     "id": "fig_a",
+     "x": 0.1197,
+     "y": 0.3974,
+     "w": 0.235,
+     "h": 0.2147,
+     "px": 1963
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_clerk": 38436,
+    "fig_a": 1963,
+    "fig_yun": 3
+   }
+  }
+ },
+ "backdrop": {
+  "file": "room-backdrop.webp",
+  "w": 390,
+  "h": 520,
+  "bytes": 4068,
+  "note": "흐린 방(사람 없음) — 그날의 방 도면 뒤 배경"
+ }
+}

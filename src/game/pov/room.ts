@@ -76,7 +76,7 @@ export const SLIP_SPOTS: readonly { x: number; y: number; rot: number }[] = [
 export const PROP_SPOTS = {
   cloth: { x: 4.86, y: 3.78, half: 0.42 },
   cord: { x: 5.2, y: 4.3 },
-  nameTag: { x: 5.55, y: 3.33, rot: 6 },
+  nameTag: { x: 5.5, y: 3.34, rot: 6 },
 } as const;
 
 export const SLIP_SIZE = { w: 0.09, l: 0.26 } as const;

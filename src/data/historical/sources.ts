@@ -1,5 +1,5 @@
 // 사료(실록 기사·문헌). excerpt 는 국사편찬위원회 국역 페이지에 표시된 문장 그대로(…은 생략).
-import type { HistoricalSource } from '@/core/types';
+import type { HistoricalSource } from '@/core/legacyTypes';
 import { REF } from './refs';
 import { GLOSS } from '@/data/glossary';
 

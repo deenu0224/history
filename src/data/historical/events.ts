@@ -1,5 +1,5 @@
 // 실존 사건.
-import type { HistoricalEvent } from '@/core/types';
+import type { HistoricalEvent } from '@/core/legacyTypes';
 import { REF } from './refs';
 
 export const events: HistoricalEvent[] = [
@@ -28,7 +28,7 @@ export const events: HistoricalEvent[] = [
     summary:
       '『성종실록』 편찬 중 실록청 당상 이극돈이 김일손의 사초에 실린 김종직의 「조의제문」을 문제 삼아 유자광에게 알렸고, ' +
       '유자광이 이를 왕에게 고하면서 시작되었다. 7월 11일 왕이 사초를 대내로 들이게 했고, 7월 12일부터 26일까지 신문한 끝에 ' +
-      '김일손 등이 처형되고 김종직은 부관참시되었다. 관련된 여러 관원이 곤장을 맞고 유배되었으며, 사초를 보고도 고하지 않은 수사관들은 파면되었다. ' +
+      '김일손 등이 처형되고 김종직은 부관참시되었다. 관련된 여러 관원이 곤장을 맞고 유배되었으며, 사초를 보고도 즉시 아뢰지 않은 수사관들은 파직·좌천되었다. ' +
       '‘戊午史禍’로도 적는다.',
     sources: [REF.muoSahwa, REF.seongjongSillok, REF.sillokSachoOrder, REF.sillokVerdict, REF.sillokProclaim],
   },

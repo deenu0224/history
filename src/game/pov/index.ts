@@ -6,10 +6,12 @@
 import { postProcess } from './post';
 import { fnv1a, internalSize, specKey } from './camera';
 import type { PovPerf, PovSpec } from './types';
+import type { PovVisibility } from './render3d';
+export type { PovVisibility } from './render3d';
 
 export type * from './types';
 export { getFigureHitboxes, povCamera, project, sunAt, povInternalSize, parseTime } from './camera';
-export { ROOM_EP1, SLIP_SPOTS, ADDRESS_ALLOWED, occluders, isOccluded, seatEye, slipTop, validatePovSpec } from './room';
+export { ROOM_EP1, SLIP_SPOTS, PROP_SPOTS, ADDRESS_ALLOWED, occluders, isOccluded, seatEye, slipTop, validatePovSpec } from './room';
 import { validatePovSpec } from './room';
 export { MOOD, MEMORY_PALETTE, ERASED_PALETTE, moodCssVars } from './palette';
 
@@ -36,6 +38,7 @@ export function renderPovCut(spec: PovSpec): Promise<HTMLCanvasElement> {
       focusDepth: raw.focusDepth,
       overlay: spec.overlay,
       seed: spec.seed ?? fnv1a(key),
+      vignette: spec.vignette,
     });
     const c = document.createElement('canvas');
     c.width = raw.w;
@@ -49,6 +52,17 @@ export function renderPovCut(spec: PovSpec): Promise<HTMLCanvasElement> {
   p.catch(() => cache.delete(key));
   if (cache.size > MAX) cache.delete(cache.keys().next().value as string);
   return p;
+}
+
+/**
+ * 굽기용(scripts/render-cuts.mjs → pov-dev.html?bake): 후처리까지 끝난 픽셀 + 실제 보이는 인물·종이 조각(id 패스).
+ * 캐시하지 않는다.
+ */
+export async function bakePovCut(spec: PovSpec): Promise<{ w: number; h: number; rgba: Uint8ClampedArray; visible: Record<string, PovVisibility> }> {
+  const { render3d } = await import('./render3d');
+  const raw = await render3d(spec);
+  const rgba = postProcess({ w: raw.w, h: raw.h, rgba: raw.rgba, depth: raw.depth, focusDepth: raw.focusDepth, overlay: spec.overlay, seed: spec.seed ?? fnv1a(specKey(spec)), vignette: spec.vignette });
+  return { w: raw.w, h: raw.h, rgba, visible: raw.visible };
 }
 
 export function clearPovCache(): void {
