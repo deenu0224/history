@@ -1,0 +1,73 @@
+/* 앱 셸: 세로 전용. 폰은 전체 화면(안전 영역 반영), 넓은 화면은 가운데 세로 컬럼. */
+.phone-backdrop {
+  --app-h: 100vh;
+  --app-w: 100vw;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  background: #07090c;
+}
+@supports (height: 100dvh) {
+  .phone-backdrop {
+    --app-h: 100dvh;
+  }
+}
+.phone-frame {
+  position: relative;
+  width: var(--app-w);
+  height: var(--app-h);
+  max-height: 100%;
+  overflow: hidden;
+  background: #14161c;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+.phone-frame > * {
+  height: 100%;
+}
+@media (min-width: 521px) {
+  .phone-backdrop {
+    --app-w: min(480px, calc(var(--app-h) * 9 / 19.5));
+    align-items: center;
+    background:
+      radial-gradient(ellipse at 50% 45%, rgba(40, 52, 66, 0.28) 0%, rgba(7, 9, 12, 0) 60%),
+      radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.7) 100%), #07090c;
+  }
+  .phone-frame {
+    transform: translateZ(0); /* position:fixed 자손도 틀 안에 가둔다 */
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 0 60px 6px rgba(0, 0, 0, 0.7);
+  }
+}
+.rotate-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #07090c;
+  color: #e8dfc8;
+  font-family: 'Galmuri11', 'Pretendard', system-ui, sans-serif;
+  text-align: center;
+}
+.rotate-guard__icon {
+  color: #d99a3c;
+  animation: rotate-guard-tilt 2.4s ease-in-out infinite;
+}
+.rotate-guard__msg {
+  margin: 0;
+  font-size: 18px;
+}
+@keyframes rotate-guard-tilt {
+  0%, 25% { transform: rotate(90deg); }
+  60%, 100% { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-guard__icon { animation: none; }
+}
