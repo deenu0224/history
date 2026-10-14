@@ -8,9 +8,10 @@
  *   node scripts/render-cuts.mjs --url http://localhost:5173/   # 이미 떠 있는 dev 서버 사용
  *
  * 과정: vite dev 서버 → Playwright Chromium(SwiftShader WebGL) → pov-dev.html?bake → window.__povBake.bake()
+ * 그림체: 기본 픽셀아트(--bake-style pixel, 승인 시안 A). 예전 그림체는 --bake-style current.
  * 결과(public/cuts/ep1/):
- *   {id}.webp           1170×1560 (390×520 CSS @3x, 내부 234×312 ×5, 무손실)
- *   {id}.2x.webp        780×1040  (@2x, 내부 195×260 ×4, 무손실)
+ *   {id}.webp           1170×1560 (390×520 CSS @3x; pixel = 내부 130×174 ×9 에서 아래 6행 자름 · current = 234×312 ×5; 무손실)
+ *   {id}.2x.webp        780×1040  (@2x; pixel = 130×174 ×6 에서 아래 4행 자름 · current = 195×260 ×4)
  *   {id}.erased[.2x].webp  닫히는 눈(E3) 컷의 06:00 뒤 지워진 기억
  *   room-backdrop.webp  그날의 방 도면 뒤 흐린 배경(사람 없음)
  *   manifest.json       컷별 파일·탭 영역(0–1 정규 사각형, 390 폭에서 ≥44px)·보임 검사
@@ -31,12 +32,17 @@ const OUT = join(ROOT, 'public/cuts/ep1');
 const SHEET = join(ROOT, 'mockups/out/ep1-cuts-sheet.png');
 const CSS = { w: 390, h: 520 };
 const MIN_TOUCH = 44;
-/** 탭 대상이 되려면 내부 해상도(234×312)에서 보이는 픽셀이 이만큼은 있어야 한다 */
-const MIN_PX = 40;
 const DPR3 = { w: 234, h: 312, scale: 5 };
 const DPR2 = { w: 195, h: 260, scale: 4 };
 
 const args = process.argv.slice(2);
+function arg0(k) {
+  const i = args.indexOf(k);
+  return i >= 0 ? args[i + 1] : undefined;
+}
+const bakeStyle0 = arg0('--bake-style') ?? 'pixel';
+/** 탭 대상이 되려면 id 패스 해상도에서 보이는 픽셀이 이만큼은 있어야 한다(current 234×312 에서 40 = 픽셀아트 2배 렌더 260×348 에서 50) */
+const MIN_PX = bakeStyle0 === 'pixel' ? 50 : 40;
 const arg = (k) => {
   const i = args.indexOf(k);
   return i >= 0 ? args[i + 1] : undefined;
@@ -124,7 +130,11 @@ const out = manifest ?? {
   provenance: 'reconstructed',
   note: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).',
   css: CSS,
-  sizes: { dpr3: { w: DPR3.w * DPR3.scale, h: DPR3.h * DPR3.scale, internal: [DPR3.w, DPR3.h] }, dpr2: { w: DPR2.w * DPR2.scale, h: DPR2.h * DPR2.scale, internal: [DPR2.w, DPR2.h] } },
+  style: bakeStyle0,
+  sizes:
+    bakeStyle0 === 'pixel'
+      ? { dpr3: { w: 1170, h: 1560, internal: [130, 174], scale: 9 }, dpr2: { w: 780, h: 1040, internal: [130, 174], scale: 6 } }
+      : { dpr3: { w: DPR3.w * DPR3.scale, h: DPR3.h * DPR3.scale, internal: [DPR3.w, DPR3.h] }, dpr2: { w: DPR2.w * DPR2.scale, h: DPR2.h * DPR2.scale, internal: [DPR2.w, DPR2.h] } },
   minTouchCss: MIN_TOUCH,
   cuts: {},
 };
@@ -134,14 +144,20 @@ const write = (name, dataUrl) => {
   writeFileSync(join(OUT, name), buf);
   return buf.length;
 };
-const bake = (id, variant, s, fmt = 'image/webp') => page.evaluate(([id, v, w, h, sc, f]) => window.__povBake.bake(id, v, w, h, sc, f, 1), [id, variant, s.w, s.h, s.scale, fmt]);
+const bake =
+  bakeStyle0 === 'pixel'
+    ? (id, variant, s) => page.evaluate(([id, v, ow, oh]) => window.__povBake.bakePixel(id, v, ow, oh), [id, variant, s.w * s.scale, s.h * s.scale])
+    : (id, variant, s, fmt = 'image/webp') =>
+        page.evaluate(([id, v, w, h, sc, f]) => window.__povBake.bake(id, v, w, h, sc, f, 1), [id, variant, s.w, s.h, s.scale, fmt]).then((r) => ({ ...r, visW: r.w, visH: r.h }));
 
 /** 내부 px 경계 → 0..1 사각형, CSS 390×520 에서 최소 44px 로 키움 */
 function hitbox(v, w, h) {
   let x0 = v.x0 / w;
   let x1 = (v.x1 + 1) / w;
   let y0 = v.y0 / h;
-  let y1 = (v.y1 + 1) / h;
+  if (y0 >= 1) return null;
+  let y1 = Math.min(1, (v.y1 + 1) / h);
+  x1 = Math.min(1, x1);
   const grow = (a, b, min) => {
     if (b - a >= min) return [a, b];
     const c = (a + b) / 2;
@@ -174,7 +190,9 @@ for (const c of cuts) {
     if (v === 'memory') {
       const figs = Object.entries(r3.visible).filter(([k, vis]) => k.startsWith('fig_') && vis.px >= MIN_PX);
       entry.figures = figs
-        .map(([id, vis]) => ({ id, ...hitbox(vis, r3.w, r3.h), px: vis.px, listed: c.listed.includes(id) }))
+        .map(([id, vis]) => ({ id, box: hitbox(vis, r3.visW, r3.visH), px: vis.px, listed: c.listed.includes(id) }))
+        .filter((f) => f.box)
+        .map(({ box, ...f }) => ({ id: f.id, ...box, px: f.px, listed: f.listed }))
         .sort((a, b) => b.w * b.h - a.w * a.h);
       entry.slipsVisible = Object.keys(r3.visible).filter((k) => k.startsWith('slip:') && r3.visible[k].px >= 2).length;
       entry.slipPx = Object.fromEntries(Object.entries(r3.visible).filter(([k]) => k.startsWith('slip:')).map(([k, vv]) => [k, vv.px]));
@@ -186,7 +204,7 @@ for (const c of cuts) {
   out.cuts[c.id] = entry;
 }
 if (!only) {
-  const bd = await bake('room', 'backdrop', { w: 195, h: 260, scale: 2 });
+  const bd = await bake('room', 'backdrop', bakeStyle0 === 'pixel' ? { w: 130, h: 520 / 3, scale: 3 } : { w: 195, h: 260, scale: 2 });
   const b = write('room-backdrop.webp', bd.dataUrl);
   total += b;
   out.backdrop = { file: 'room-backdrop.webp', w: 390, h: 520, bytes: b, note: '흐린 방(사람 없음) — 그날의 방 도면 뒤 배경' };
@@ -195,7 +213,7 @@ if (!only) {
 writeFileSync(manifestPath, JSON.stringify(out, null, 1) + '\n');
 
 if (!noSheet && sheetItems.length) {
-  const png = await page.evaluate(([items]) => window.__povBake.sheet(items, 5, 300, 400), [sheetItems]);
+  const png = await page.evaluate(([items]) => window.__povBake.sheet(items, 5, 260, 347), [sheetItems]);
   mkdirSync(dirname(SHEET), { recursive: true });
   writeFileSync(SHEET, Buffer.from(png.split(',')[1], 'base64'));
   console.log('sheet →', SHEET);

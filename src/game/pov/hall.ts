@@ -49,7 +49,7 @@ const W = R.w;
 const D = R.h;
 
 /** 띠살 한지 문/창 한 칸: 틀은 builder 에, 한지 판은 glow builder 에 */
-function latticePanel(frame: Builder, glow: Builder, x0: number, x1: number, y0: number, y1: number, z: number, axis: 'x' | 'z', rnd: () => number): void {
+function latticePanel(frame: Builder, glow: Builder, x0: number, x1: number, y0: number, y1: number, z: number, axis: 'x' | 'z', rnd: () => number, lat?: Lattice): void {
   const t = 0.05;
   const len = x1 - x0;
   const hgt = y1 - y0;
@@ -67,6 +67,14 @@ function latticePanel(frame: Builder, glow: Builder, x0: number, x1: number, y0:
   boxA(len / 2, y1 - t / 2, len, t, 0.07, C.wood, frame);
   boxA(t / 2, y0 + hgt / 2, t, hgt, 0.07, C.wood, frame);
   boxA(len - t / 2, y0 + hgt / 2, t, hgt, 0.07, C.wood, frame);
+  if (lat) {
+    // 픽셀아트용 성긴 띠살: 살을 줄이고 굵게(낮은 해상도에서 잡음 대신 고른 줄) — 세로살·가로 띠를 따로 번호 매긴다
+    const n = Math.max(3, Math.round(len / 0.2));
+    for (let i = 1; i < n; i++) boxA((len * i) / n, y0 + hgt / 2, 0.04, hgt, 0.03, C.wood, lat.v);
+    for (const f of [0.14, 0.5, 0.86]) boxA(len / 2, y0 + hgt * f, len, 0.07, 0.03, C.wood, lat.h);
+    boxA(len / 2, y0 + 0.16, len - t, 0.28, 0.04, C.woodLacquer, frame);
+    return;
+  }
   // 띠살: 촘촘한 세로살 + 위·가운데·아래 가로 띠
   const n = Math.max(3, Math.round(len / 0.085));
   for (let i = 1; i < n; i++) boxA((len * i) / n, y0 + hgt / 2, 0.016, hgt, 0.03, C.wood, frame);
@@ -75,11 +83,22 @@ function latticePanel(frame: Builder, glow: Builder, x0: number, x1: number, y0:
   boxA(len / 2, y0 + 0.16, len - t, 0.28, 0.04, C.woodLacquer, frame);
 }
 
-export function buildHall(): HallParts {
+/** 픽셀아트용 성긴 띠살 빌더(세로살·가로 띠) */
+interface Lattice {
+  v: Builder;
+  h: Builder;
+}
+
+/**
+ * coarse = 픽셀아트 굽기용: 띠살을 성기게, 세로살('lattice')·가로 띠('lattice-h')·한지('hanji')를 따로 메시로 둔다
+ * (후처리가 띠살 칸을 고른 줄무늬로 다시 그린다). 기본은 기존 출력 그대로.
+ */
+export function buildHall(opts: { coarse?: boolean } = {}): HallParts {
   const rnd = mulberry32(1498711);
   const group = new THREE.Group();
   const b = new Builder(7);
   const glowB = new Builder(9);
+  const lat: Lattice | undefined = opts.coarse ? { v: new Builder(13), h: new Builder(15) } : undefined;
   const outB = new Builder(11); // 바깥(그림자 받기만)
 
   // ── 우물마루 ────────────────────────────────────────────
@@ -101,15 +120,15 @@ export function buildHall(): HallParts {
   // 북벽: 머름 + 회벽 + 고창
   b.box(W / 2, 0.25, -0.08, W, 0.5, 0.16, C.woodLacquer);
   b.box(W / 2, 1.45, -0.1, W, 1.9, 0.12, C.plaster, 0, { shade: plasterShade, ao: false });
-  for (let bay = 0; bay < 3; bay++) latticePanel(b, glowB, bay * 4 + 0.35, bay * 4 + 3.65, 2.45, 2.92, -0.05, 'x', rnd);
+  for (let bay = 0; bay < 3; bay++) latticePanel(b, glowB, bay * 4 + 0.35, bay * 4 + 3.65, 2.45, 2.92, -0.05, 'x', rnd, lat);
   // 동벽: 회벽 + 창
   const win = R.window;
   b.box(W + 0.08, 0.25, D / 2, 0.16, 0.5, D, C.woodLacquer);
   b.box(W + 0.1, (win.sill + 0.5) / 2, (win.y0 + win.y1) / 2, 0.12, win.sill - 0.5, win.y1 - win.y0, C.plaster, 0, { ao: false });
   for (const [z0, z1] of [[0, win.y0], [win.y1, D]] as const) b.box(W + 0.1, 1.7, (z0 + z1) / 2, 0.12, 2.4, z1 - z0, C.plaster, 0, { shade: plasterShade, ao: false });
   b.box(W + 0.1, (win.top + 2.9) / 2, (win.y0 + win.y1) / 2, 0.12, 2.9 - win.top, win.y1 - win.y0, C.plaster, 0, { ao: false });
-  latticePanel(b, glowB, win.y0, (win.y0 + win.y1) / 2, win.sill, win.top, W + 0.02, 'z', rnd);
-  latticePanel(b, glowB, (win.y0 + win.y1) / 2, win.y1, win.sill, win.top, W + 0.02, 'z', rnd);
+  latticePanel(b, glowB, win.y0, (win.y0 + win.y1) / 2, win.sill, win.top, W + 0.02, 'z', rnd, lat);
+  latticePanel(b, glowB, (win.y0 + win.y1) / 2, win.y1, win.sill, win.top, W + 0.02, 'z', rnd, lat);
   // 서벽: 회벽 + 곳간 판문
   const sd = R.storeDoor;
   b.box(-0.08, 0.25, D / 2, 0.16, 0.5, D, C.woodLacquer);
@@ -120,7 +139,7 @@ export function buildHall(): HallParts {
   // 남벽: 양쪽 두 칸은 닫힌 분합문, 가운데 두 칸은 엶
   const dr = R.door;
   for (const x0 of [0, dr.x1]) {
-    for (let i = 0; i < 4; i++) latticePanel(b, glowB, x0 + i, x0 + i + 1, 0, dr.top, D + 0.02, 'x', rnd);
+    for (let i = 0; i < 4; i++) latticePanel(b, glowB, x0 + i, x0 + i + 1, 0, dr.top, D + 0.02, 'x', rnd, lat);
   }
   // 문 위 인방·회벽
   b.box(W / 2, (dr.top + 2.95) / 2, D + 0.06, W, 2.95 - dr.top, 0.14, C.plaster, 0, { ao: false });
@@ -316,6 +335,14 @@ export function buildHall(): HallParts {
   const glowMesh = new THREE.Mesh(glowB.build(), new THREE.MeshBasicMaterial({ vertexColors: true }));
   glowMesh.castShadow = true;
   group.add(glowMesh);
+  if (lat) {
+    glowMesh.name = 'hanji';
+    for (const [lb, name] of [[lat.v, 'lattice'], [lat.h, 'lattice-h']] as const) {
+      const lm = lb.mesh(mat);
+      lm.name = name;
+      group.add(lm);
+    }
+  }
 
   return { group, glow: [glowMesh], volumetric: [] };
 }

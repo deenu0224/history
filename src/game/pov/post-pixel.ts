@@ -17,15 +17,15 @@ import { hexToRgb, rgbToOklab } from './palette';
 import { mulberry32 } from './camera';
 import type { PovOverlay } from './types';
 
-/** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 4 · 호박 3 · 붉은 3 · 초록 3 · 남 2 · 피부 2 */
+/** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 3 · 호박 3 · 붉은 3 · 초록 3 · 남 3 · 피부 2 */
 export const PIXEL_PALETTE: readonly string[] = [
   '#0d0b0a', '#1a1613', '#2a231e', '#3d332b',
   '#5a4130', '#7e5d40', '#a78360',
-  '#b9a682', '#d8c7a1', '#ede0c0', '#f8f0dc',
+  '#b9a682', '#d8c7a1', '#ede0c0',
   '#8e5a2a', '#c9873f', '#f0c27e',
   '#3e1a18', '#742f2a', '#a8473c',
-  '#22362f', '#38554a', '#5a7e6c',
-  '#26323f', '#51677c',
+  '#24352b', '#3a5643', '#5e7d61',
+  '#26323f', '#384a60', '#556c84',
   '#8a5e44', '#c99b74',
 ];
 
@@ -146,6 +146,8 @@ function buildPal(pal: readonly string[]): Pal {
   return out;
 }
 
+/** 사람 픽셀 밝기 바닥(sRGB 휘도) — 가장 어두운 붉은·초록·남색 칸에 닿는 정도 */
+const FIG_FLOOR = 0.17;
 const lum = (r: number, g: number, b: number): number => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 const smooth = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -153,6 +155,8 @@ const smooth = (a: number, b: number, x: number): number => {
 };
 
 type Kind = 0 | 1 | 2 | 3 | 4; // 0 하늘 · 1 방 · 2 소품 · 3 종이 조각 · 4 사람(인물·내 몸)
+/** 띠살 칸의 역할: 1 한지 · 2 세로살 · 3 가로 띠 (render3d 가 style 'pixel' 에서 따로 번호 매긴다) */
+const panelRole = (name: string | undefined): number => (name === 'hanji' ? 1 : name === 'lattice' ? 2 : name === 'lattice-h' ? 3 : 0);
 const kindOf = (name: string | undefined): Kind =>
   !name ? 0 : name === 'hall' ? 1 : name.startsWith('slip:') ? 3 : name.startsWith('fig_') || name === 'self' ? 4 : 2;
 
@@ -164,6 +168,10 @@ export function postPixel(inp: PixelInput): PixelOutput {
   const N = w * h;
   const kinds = inp.objNames.map(kindOf);
   kinds[0] = 0;
+  const roles = inp.objNames.map(panelRole);
+  const hanjiId = inp.objNames.indexOf('hanji');
+  /** 띠살 칸 픽셀: 0 아님 · 1 한지 · 2 살(나무) — 고른 줄무늬로 다시 그린 결과 */
+  const panel = new Uint8Array(N);
 
   // 1) 2×2 다수결 축소 ───────────────────────────────────
   const R = new Float32Array(N);
@@ -218,6 +226,49 @@ export function postPixel(inp: PixelInput): PixelOutput {
       NZ[i * 3 + 1] = ny / nl;
       NZ[i * 3 + 2] = nz / nl;
       obj[i] = best;
+      // 띠살 칸: 2×2 안의 살 픽셀 수로 1px 줄을 고르게(경계에 걸친 살은 왼쪽/위 칸 하나에만)
+      if (hanjiId > 0) {
+        let cp = 0;
+        let cv = 0;
+        let ch = 0;
+        for (const s of idx) {
+          const ro = roles[inp.obj[s]];
+          if (ro === 1) cp++;
+          else if (ro === 2) cv++;
+          else if (ro === 3) ch++;
+        }
+        if (cp + cv + ch >= 3 || (roles[best] > 0 && cp + cv + ch >= 2)) {
+          const left = x > 0 ? panel[i - 1] : 0;
+          const up = y > 0 ? panel[i - w] : 0;
+          const wood = ch >= 2 || (ch === 1 && up !== 3) || cv >= 2 || (cv === 1 && left !== 2);
+          const want = wood ? (ch >= 1 && (ch >= 2 || up !== 3) ? 3 : 2) : 1;
+          let n2 = 0;
+          let r2 = 0;
+          let g2 = 0;
+          let b2 = 0;
+          for (const s of idx) {
+            const ro = roles[inp.obj[s]];
+            if (wood ? ro >= 2 : ro === 1) {
+              n2++;
+              r2 += inp.rgba[s * 4];
+              g2 += inp.rgba[s * 4 + 1];
+              b2 += inp.rgba[s * 4 + 2];
+            }
+          }
+          if (n2) {
+            R[i] = r2 / n2 / 255;
+            G[i] = g2 / n2 / 255;
+            B[i] = b2 / n2 / 255;
+          }
+          if (wood && !n2) {
+            R[i] *= 0.4;
+            G[i] *= 0.36;
+            B[i] *= 0.32;
+          }
+          panel[i] = want;
+          obj[i] = hanjiId;
+        }
+      }
     }
 
   // 2) 물체 번호 고립 픽셀 정리(사방이 같은 다른 물체면 그 물체로) ──
@@ -227,7 +278,7 @@ export function postPixel(inp: PixelInput): PixelOutput {
       for (let x = 1; x < w - 1; x++) {
         const i = y * w + x;
         const a = obj[i - 1];
-        if (obj[i] !== a && obj[i + 1] === a && obj[i - w] === a && obj[i + w] === a && kinds[obj[i]] < 3) {
+        if (obj[i] !== a && obj[i + 1] === a && obj[i - w] === a && obj[i + w] === a && kinds[obj[i]] < 3 && !panel[i]) {
           o2[i] = a;
           R[i] = (R[i - 1] + R[i + 1]) / 2;
           G[i] = (G[i - 1] + G[i + 1]) / 2;
@@ -251,7 +302,8 @@ export function postPixel(inp: PixelInput): PixelOutput {
         // 명암: 그늘 깊게, 밝음 한지로 — 컷보다 대비를 조금 더(작은 화면에서 띠가 읽히게)
         let L2 = Math.pow(Math.min(1.2, L * 1.12), 1.08);
         // 밝은 쪽 압축: 문빛·창빛 둘레가 동심원 띠 여러 겹이 되지 않게(띠 2~3단)
-        if (L2 > 0.55) L2 = 0.55 + (L2 - 0.55) * 0.72;
+        // 방 면은 더 납작하게(채움광 기울기가 띠 여러 겹이 되지 않게 — 넓은 면 2~3단)
+        if (L2 > 0.55) L2 = 0.55 + (L2 - 0.55) * (kinds[obj[i]] === 1 ? 0.55 : 0.72);
         const k = L > 1e-4 ? L2 / L : 0;
         r *= k;
         g *= k;
@@ -278,11 +330,25 @@ export function postPixel(inp: PixelInput): PixelOutput {
         g = c;
         b = c;
       }
-      // 비네트(계단 — 띠 4단)
-      const dx = (x / (w - 1) - 0.5) * 2;
-      const dy = (y / (h - 1) - 0.48) * 2;
-      const rr = Math.sqrt(dx * dx * 0.9 + dy * dy * 0.75);
-      const vig = 1 - vigK * smooth(0.55, 1.3, rr);
+      // 사람: 역광의 어두운 옷이 먹 덩어리가 되지 않게 한 단 들어 올림(색상 유지, 채도 약간) — 모자·머리털(무채 먹)은 거의 그대로
+      if (kinds[obj[i]] === 4) {
+        const Lf = lum(r, g, b);
+        const chroma = (Math.max(r, g, b) - Math.min(r, g, b)) / Math.max(1e-4, Lf);
+        const neutral = chroma < 0.3;
+        const lift = Math.max(Lf, Math.min(neutral ? FIG_FLOOR * 0.65 : FIG_FLOOR, Lf * (neutral ? 2 : 3)));
+        if (Lf > 1e-4 && lift > Lf) {
+          const k = lift / Lf;
+          const sat = neutral ? 1 : 1.15;
+          r = lift + (r * k - lift) * sat;
+          g = lift + (g * k - lift) * sat;
+          b = lift + (b * k - lift) * sat;
+        }
+      }
+      // 비네트: 둥근 과녁(동심원 띠)이 아니라 네 모서리만 조금 — 화면 가장자리는 UI 의 비네트가 맡는다
+      const dx = Math.abs(x / (w - 1) - 0.5) * 2;
+      const dy = Math.abs(y / (h - 1) - 0.5) * 2;
+      const corner = smooth(0.7, 1, dx) * smooth(0.7, 1, dy);
+      const vig = 1 - vigK * 0.5 * corner;
       R[i] = r * vig;
       G[i] = g * vig;
       B[i] = b * vig;
@@ -296,16 +362,19 @@ export function postPixel(inp: PixelInput): PixelOutput {
     const q = (c: number) => Math.max(0, Math.min(31, Math.round(c * 31)));
     return (q(r) << 10) | (q(g) << 5) | q(b);
   };
-  const nearCache = new Int16Array(32768).fill(-1);
-  const nearest = (r: number, g: number, b: number) => {
+  const nearCaches = [new Int16Array(32768).fill(-1), new Int16Array(32768).fill(-1)];
+  /** hue = 사람 옷: 색상을 더 무겁게(남색이 초록·먹으로 새지 않게) */
+  const nearest = (r: number, g: number, b: number, hue = false) => {
     const k = idxOf(r, g, b);
+    const nearCache = nearCaches[hue ? 1 : 0];
+    const cw = hue ? 3.6 : 2.2;
     if (nearCache[k] >= 0) return nearCache[k];
     const q = rgbToOklab(((k >> 10) & 31) * 8.2, ((k >> 5) & 31) * 8.2, (k & 31) * 8.2);
     let best = 0;
     let bd = Infinity;
     for (let j = 0; j < npal; j++) {
       const p = pal.lab[j];
-      const d = ((q[0] - p[0]) * 1.2) ** 2 + ((q[1] - p[1]) * 2.2) ** 2 + ((q[2] - p[2]) * 2.2) ** 2;
+      const d = ((q[0] - p[0]) * 1.2) ** 2 + ((q[1] - p[1]) * cw) ** 2 + ((q[2] - p[2]) * cw) ** 2;
       if (d < bd) {
         bd = d;
         best = j;
@@ -315,17 +384,42 @@ export function postPixel(inp: PixelInput): PixelOutput {
     return best;
   };
   const ix = new Uint8Array(N);
+  /** 방 픽셀이 두 색 한가운데인지 + 그 두 색 */
+  const tk = new Uint8Array(N);
+  const p1k = new Uint8Array(N);
+  const p2k = new Uint8Array(N);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
       const k = idxOf(R[i], G[i], B[i]);
       const kd = kinds[obj[i]];
       // 사람·종이는 셀(디더 없음: 가장 가까운 단색), 방은 두 색 한가운데일 때만 2×2 체커
-      if (kd >= 3) {
-        ix[i] = nearest(R[i], G[i], B[i]);
+      if (kd >= 3 || panel[i]) {
+        ix[i] = nearest(R[i], G[i], B[i], kd === 4);
         continue;
       }
-      ix[i] = pal.t[k] && ((x + y) & 1) === 1 ? pal.p2[k] : pal.p1[k];
+      ix[i] = nearest(R[i], G[i], B[i]);
+      tk[i] = pal.t[k] ? 1 : 0;
+      p1k[i] = pal.p1[k];
+      p2k[i] = pal.p2[k];
+    }
+  // 4b) 방·소품: 넓은 면은 단색 띠. 두 색 한가운데(체커)는 띠가 바뀌는 곳 가까이(2px 안에 한가운데가 아닌 픽셀)만 —
+  //     평평한 벽 전체가 체커가 되지 않고, 띠 경계에만 짧은 무늬가 생긴다
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!tk[i]) continue;
+      const o = obj[i];
+      let edge = false;
+      for (let yy = Math.max(0, y - 2); yy <= Math.min(h - 1, y + 2) && !edge; yy++)
+        for (let xx = Math.max(0, x - 2); xx <= Math.min(w - 1, x + 2); xx++) {
+          const j = yy * w + xx;
+          if (obj[j] === o && !tk[j]) {
+            edge = true;
+            break;
+          }
+        }
+      ix[i] = edge ? (((x + y) & 1) === 1 ? p2k[i] : p1k[i]) : ix[i];
     }
 
   // 5) 색 고립 픽셀(디더 체커가 아닌 섬) 정리 ───────────────────
@@ -335,6 +429,7 @@ export function postPixel(inp: PixelInput): PixelOutput {
       for (let x = 1; x < w - 1; x++) {
         const i = y * w + x;
         const v = ix[i];
+        if (panel[i]) continue;
         const nb = [ix[i - 1], ix[i + 1], ix[i - w], ix[i + w]];
         if (nb.includes(v)) continue;
         // 대각선이 같은 색이면 체커 무늬 — 둔다
@@ -451,6 +546,135 @@ export function postPixel(inp: PixelInput): PixelOutput {
       const Lh = palLab[ix[i]][0];
       if (Lh > 0.42 && NZ[i * 3 + 1] > 0.2) out[i] = br1[ix[i]];
     }
+  // 7b) 역광 테: 외곽선(먹) 바로 안쪽 1px — 그 바깥 배경이 밝으면 한 단(아주 어두우면 두 단) 밝게.
+  //     어두운 옷이 밝은 한지·벽 앞에서 모자·소매·손 모양을 잃지 않게. 빛의 출처는 뒤의 밝은 면이다.
+  {
+    const bgL = (j: number) => palLab[out[j]][0];
+    const rim = out.slice();
+    for (let y = 2; y < h - 2; y++)
+      for (let x = 2; x < w - 2; x++) {
+        const i = y * w + x;
+        const o = obj[i];
+        if (kinds[o] !== 4 || inp.objNames[o] === 'self' || out[i] === INK) continue;
+        let best = 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const j1 = i + dy * w + dx;
+          const j2 = j1 + dy * w + dx;
+          if (obj[j1] !== o || out[j1] !== INK) continue;
+          if (obj[j2] === o || kinds[obj[j2]] === 4) continue;
+          best = Math.max(best, bgL(j2));
+        }
+        if (best > 0.72) {
+          const L0 = palLab[out[i]][0];
+          rim[i] = L0 < 0.36 && best > 0.8 ? br1[br1[out[i]]] : br1[out[i]];
+        }
+      }
+    out.set(rim);
+  }
+
+  // 7c) 얼굴: 피부 덩어리에 몇 픽셀만 — 눈썹·눈 줄(한 단/두 단 어둡게), 빛 반대쪽 볼 그늘. 웃는 얼굴·눈동자 없음.
+  if (!erased) {
+    const skin = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      if (kinds[obj[i]] !== 4 || inp.objNames[obj[i]] === 'self' || out[i] === INK) continue;
+      const r = R[i];
+      const g = G[i];
+      const b = B[i];
+      if (r < 0.2) continue;
+      const gr = g / r;
+      const br = b / r;
+      if (gr > 0.55 && gr < 0.92 && br < 0.78) skin[i] = 1;
+    }
+    const seen = new Uint8Array(N);
+    const stack: number[] = [];
+    for (let s0 = 0; s0 < N; s0++) {
+      if (!skin[s0] || seen[s0]) continue;
+      const comp: number[] = [];
+      stack.push(s0);
+      seen[s0] = 1;
+      while (stack.length) {
+        const i = stack.pop()!;
+        comp.push(i);
+        const x = i % w;
+        for (const j of [i - 1, i + 1, i - w, i + w]) {
+          if (j < 0 || j >= N || seen[j] || !skin[j] || obj[j] !== obj[s0]) continue;
+          if ((j === i - 1 && x === 0) || (j === i + 1 && x === w - 1)) continue;
+          seen[j] = 1;
+          stack.push(j);
+        }
+      }
+      let fx0 = w;
+      let fx1 = 0;
+      let fy0 = h;
+      let fy1 = 0;
+      for (const i of comp) {
+        const x = i % w;
+        const y = (i / w) | 0;
+        fx0 = Math.min(fx0, x);
+        fx1 = Math.max(fx1, x);
+        fy0 = Math.min(fy0, y);
+        fy1 = Math.max(fy1, y);
+      }
+      const fw = fx1 - fx0 + 1;
+      const fh = fy1 - fy0 + 1;
+      if (fw < 3 || fh < 3 || comp.length < 7) continue;
+      // 머리: 덩어리 위가 같은 사람의 어두운 모자·머리털이어야 한다(손·목 제외)
+      let capped = 0;
+      for (let x = fx0; x <= fx1; x++) {
+        const j = (fy0 - 1) * w + x;
+        if (fy0 > 0 && obj[j] === obj[s0] && palLab[out[j]][0] < 0.3) capped++;
+      }
+      if (capped < Math.ceil(fw / 2)) continue;
+      const inC = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && skin[y * w + x] && seen[y * w + x] && obj[y * w + x] === obj[s0];
+      // 빛 쪽: 왼쪽 반과 오른쪽 반의 평균 밝기
+      let lL = 0;
+      let nL = 0;
+      let lR = 0;
+      let nR = 0;
+      const mid = (fx0 + fx1) / 2;
+      for (const i of comp) {
+        const x = i % w;
+        const Lq = lum(R[i], G[i], B[i]);
+        if (x < mid) {
+          lL += Lq;
+          nL++;
+        } else if (x > mid) {
+          lR += Lq;
+          nR++;
+        }
+      }
+      const darkRight = nL && nR ? lR / nR < lL / nL : false;
+      // 얼굴 높이: 행 폭이 최대 폭의 반 이상인 첫 행부터, 목(좁아짐) 전까지
+      const rowW = Array.from({ length: fh }, (_, k) => {
+        let n = 0;
+        for (let x = fx0; x <= fx1; x++) if (inC(x, fy0 + k)) n++;
+        return n;
+      });
+      const maxW = Math.max(...rowW);
+      let top = 0;
+      while (top < fh - 1 && rowW[top] < maxW * 0.5) top++;
+      let bot = top;
+      while (bot + 1 < fh && rowW[bot + 1] >= maxW * 0.6) bot++;
+      const faceH = bot - top + 1;
+      if (faceH < 3) continue;
+      // 눈썹·눈 줄: 얼굴 위에서 3할쯤
+      const ey = fy0 + top + Math.max(1, Math.round(faceH * 0.3));
+      if (fw >= 5) {
+        for (const ex of [fx0 + Math.round((fw - 1) * 0.28), fx1 - Math.round((fw - 1) * 0.28)]) if (inC(ex, ey)) out[ey * w + ex] = dk2[out[ey * w + ex]];
+        if (faceH >= 7) for (const ex of [fx0 + Math.round((fw - 1) * 0.28), fx1 - Math.round((fw - 1) * 0.28)]) if (inC(ex, ey - 1)) out[(ey - 1) * w + ex] = dk1[out[(ey - 1) * w + ex]];
+      } else {
+        for (let x = fx0 + 1; x < fx1; x++) if (inC(x, ey)) out[ey * w + x] = dk1[out[ey * w + x]];
+      }
+      // 빛 반대쪽 가장자리 세로 그늘(눈 줄 아래)
+      if (fw >= 4 && faceH >= 4)
+        for (let y = ey + 1; y <= fy0 + bot; y++) {
+          let x = darkRight ? fx1 : fx0;
+          while (x >= fx0 && x <= fx1 && !inC(x, y)) x += darkRight ? -1 : 1;
+          if (inC(x, y)) out[y * w + x] = dk1[out[y * w + x]];
+        }
+    }
+  }
+
   // 외곽선 바깥 1px 까지 인물 마스크 확장(hd2d 합성용)
   const fm2 = figMask.slice();
   for (let y = 1; y < h - 1; y++)

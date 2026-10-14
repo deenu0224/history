@@ -60,12 +60,53 @@ async function bake(id: string, variant: BakeVariant, w: number, h: number, scal
 }
 
 /**
+ * 출시 굽기(기본 그림체 = 픽셀아트, ART 승인 시안 A): 내부 130×174 → 정수 배율 최근접 확대 → 아래 넘치는 행을 잘라 outW×outH.
+ *   @3x 1170×1560 = ×9(1566 → 1560) · @2x 780×1040 = ×6(1044 → 1040).
+ * visible 은 픽셀아트가 실제로 그린 2배 렌더(260×348)의 id 패스. visW/visH 는 그 좌표를 출력 이미지 0..1 로 바꿀 때 나눌 값
+ * (잘린 아래 행 반영 — visH 는 출력 높이에 해당하는 렌더 행 수).
+ */
+export const PIXEL_SIZE = { w: 130, h: 174 } as const;
+
+async function bakePixel(id: string, variant: BakeVariant, outW: number, outH: number, format = 'image/webp'): Promise<BakeResult & { visW: number; visH: number; outW: number; outH: number }> {
+  const t0 = performance.now();
+  const backdrop = variant === 'backdrop';
+  const base = backdrop ? EP1_ROOM_BACKDROP : EP1_CUTS.find((c) => c.id === id)?.spec;
+  if (!base) throw new Error(`unknown cut ${id}`);
+  const r = await bakePovStyle({ ...base, overlay: backdrop ? 'memory' : variant, size: { ...PIXEL_SIZE }, style: 'pixel' } as PovSpec);
+  const scale = outW / r.w;
+  if (!Number.isInteger(scale) || r.h * scale < outH) throw new Error(`pixel bake ${id}: ${r.w}×${r.h} does not fill ${outW}×${outH} at an integer scale`);
+  const big = upscale(toCanvas(r.rgba, r.w, r.h), scale);
+  const out = document.createElement('canvas');
+  out.width = outW;
+  out.height = outH;
+  const g = out.getContext('2d')!;
+  g.imageSmoothingEnabled = false;
+  if (backdrop) g.filter = `blur(${Math.round(scale * 0.8)}px) brightness(0.55) saturate(0.7)`;
+  g.drawImage(big, 0, 0);
+  const vs = r.visibleScale;
+  return {
+    id: backdrop ? 'room-backdrop' : id,
+    variant,
+    w: r.w,
+    h: r.h,
+    scale,
+    dataUrl: out.toDataURL(format, 1),
+    visible: backdrop ? {} : r.visible,
+    ms: performance.now() - t0,
+    visW: r.w * vs,
+    visH: (outH / scale) * vs,
+    outW,
+    outH,
+  };
+}
+
+/**
  * 그림체 비교 시안 한 장: style 별 기본 해상도로 그려 outW 폭 이미지(PNG 데이터 URL)로. 굽기 기본 출력과 무관.
  * current = 내부 195×260(@2x 굽기와 같음) · pixel = 130×174(390 CSS 에서 3px 한 칸) · painted/hd2d = 780×1044.
  */
 export const STYLE_SIZE: Record<PovStyle, { w: number; h: number }> = {
   current: { w: 195, h: 260 },
-  pixel: { w: 130, h: 174 },
+  pixel: { ...PIXEL_SIZE },
   painted: { w: 780, h: 1044 },
   hd2d: { w: 780, h: 1044 },
 };
@@ -186,6 +227,7 @@ declare global {
     __povBake?: {
       cuts: { id: string; erasable: boolean; listed: string[]; witnessId: string; time: string }[];
       bake: typeof bake;
+      bakePixel: typeof bakePixel;
       sheet: typeof sheet;
       bakeStyle: typeof bakeStyle;
       compareSheet: typeof compareSheet;
@@ -193,5 +235,5 @@ declare global {
   }
 }
 
-window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, sheet, bakeStyle, compareSheet };
+window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, bakePixel, sheet, bakeStyle, compareSheet };
 document.body.dataset.bakeReady = '1';

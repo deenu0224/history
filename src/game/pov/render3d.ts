@@ -103,6 +103,9 @@ function panoParams(p: NonNullable<PovSpec['pano']>, cam: PovCamera, w: number, 
   return { Rp, yH, inv, half, level: { f, r }, selfCam };
 }
 
+/** 픽셀아트 채움광 보정(감쇠 지수·닿는 거리·세기 배율) */
+const PIXEL_FILL = { decay: 0.25, reach: 1.8, gain: 0.36 };
+
 let renderer: THREE.WebGLRenderer | null = null;
 const hallCache = new Map<string, HallParts>();
 
@@ -125,11 +128,11 @@ const depthMaterial = () =>
     side: THREE.DoubleSide,
   });
 
-function hallFor(): HallParts {
-  const key = `hall:${povDetail()}`;
+function hallFor(coarse = false): HallParts {
+  const key = `hall:${povDetail()}${coarse ? ':coarse' : ''}`;
   let h = hallCache.get(key);
   if (!h) {
-    h = buildHall();
+    h = buildHall({ coarse });
     hallCache.set(key, h);
   }
   return h;
@@ -232,7 +235,8 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   scene.background = sky;
   scene.fog = new THREE.Fog('#d9cdb3', 16, 46);
 
-  const hall = hallFor();
+  const pixel = style === 'pixel';
+  const hall = hallFor(pixel);
   scene.add(hall.group);
 
   const disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
@@ -315,10 +319,21 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   const northL = new THREE.PointLight('#e8dcc0', 4.5, 10, 1.5);
   northL.position.set(6, 2.6, 0.6);
   scene.add(bounce, doorSky, winL, northL);
+  const fills: THREE.PointLight[] = [bounce, doorSky, winL, northL];
   for (const x of [2, 10]) {
     const pl = new THREE.PointLight('#efdcb8', 1.6 * (spec.latticeGlow ?? 1), 6 + 2 * ((spec.latticeGlow ?? 1) - 1), 1.8);
     pl.position.set(x, 1.3, 8.4);
     scene.add(pl);
+    fills.push(pl);
+  }
+  // 픽셀아트: 채움광의 거리 감쇠를 눅여 벽에 과녁 같은 동심원 띠가 생기지 않게(넓고 평평한 빛 + 해가 만든 모양 있는 빛 조각)
+  if (pixel) {
+    northL.position.z = 2.2;
+    for (const l of fills) {
+      l.decay *= PIXEL_FILL.decay;
+      l.distance *= PIXEL_FILL.reach;
+      l.intensity *= PIXEL_FILL.gain;
+    }
   }
   for (const bl of spec.bounces ?? []) {
     const pl = new THREE.PointLight(bl.color ?? '#ffcf96', bl.intensity, bl.distance ?? 1.2, 2);
@@ -506,7 +521,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
       idMats.push(im);
       m.material = im;
     } else if (extras && m.isMesh && m.visible && objNames.length < 255) {
-      objNames.push(hallMeshes.has(m) ? 'hall' : m.name === 'self' ? 'self' : 'prop');
+      objNames.push(hallMeshes.has(m) ? (m.name === 'hanji' || m.name.startsWith('lattice') ? m.name : 'hall') : m.name === 'self' ? 'self' : 'prop');
       const im = idMaterial(objNames.length - 1);
       idMats.push(im);
       m.material = im;
