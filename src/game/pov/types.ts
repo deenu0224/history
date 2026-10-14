@@ -26,9 +26,15 @@ export type PovPose =
   | 'seated-address' // 앉아서 몸을 앞으로 숙여 아뢴다(간언자만: §13-4)
   | 'standing'
   | 'standing-reading' // 서서 펼친 종이를 가슴 앞에
-  | 'standing-carrying'; // 서서 꾸러미를 안는다
+  | 'standing-carrying' // 서서 꾸러미를 안는다
+  | 'standing-placing' // 서서 몸을 숙여 서안 모서리에 물건을 내려놓는다
+  | 'standing-reach' // 서서 두 손을 앞으로 내밀어 받으려 한다
+  | 'seated-folding' // 앉아서 서안 위 종이를 두 손으로 가려 접는다
+  | 'kneel' // 무릎 꿇고 앉음(서리)
+  | 'kneel-whisper' // 무릎 꿇고 몸을 기울여 손을 입가에(귓속말, 서리만)
+  | 'kneel-point'; // 무릎 꿇고 한 손으로 가리킨다(서리)
 
-export type Holding = 'none' | 'paper' | 'scroll' | 'bundle' | 'slips' | 'book';
+export type Holding = 'none' | 'paper' | 'paper-folded' | 'scroll' | 'bundle' | 'sealed' | 'slips' | 'book';
 
 /** 옷 색은 증거가 아니다(DESIGN_V5 §6회 (4)). 화면 읽기용 구분일 뿐. */
 export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'slate' | 'messenger' | 'clerk' | 'young';
@@ -51,15 +57,32 @@ export interface PovFigure {
   hat?: HatId;
   /** 0..1 수염(나이 든 관원). 기본: samo 인 관원 0.8, 그 밖 0 */
   beard?: number;
+  /** 몸 크기 배율(기본 1). 사람마다 조금씩 다르게 — 실루엣 구분용 */
+  build?: number;
+  /** 몸통 앞 기울기 덮어쓰기(도) */
+  lean?: number;
+  /** 머리 돌림(도, +는 왼쪽). 귓속말·듣기 */
+  headYaw?: number;
 }
 
 /** 눈의 주인 자신의 몸(앞쪽 덮개). */
 export interface SelfRig {
   robe: RobeId;
-  /** rest: 화면 아래 모서리의 소매·손 / hold-slips: 두 손이 종이 조각을 쥠 / write: 붓을 쥔 손 */
-  hands: 'rest' | 'hold-slips' | 'write' | 'none';
-  /** 손이 닿는 도면 점(hold-slips·write). 없으면 시선 앞 0.5m */
+  /**
+   * rest: 화면 아래 오른쪽 모서리의 소매·손 / rest-left: 왼쪽 모서리 / rest-both: 두 소매가 아래 양쪽 /
+   * hold-slips: 두 손이 종이 조각을 쥠 / write: 붓을 쥔 오른손 + 종이를 누르는 왼손 /
+   * read: 두 손이 펼친 책 양쪽을 잡음 / seal: 두 손이 보자기 모서리를 접는다
+   */
+  hands: 'rest' | 'rest-left' | 'rest-both' | 'hold-slips' | 'write' | 'read' | 'seal' | 'none';
+  /** 손이 닿는 도면 점(hold-slips·write·read·seal). 없으면 시선 앞 0.5m */
   at?: PlanPoint;
+  /**
+   * 눈의 주인마다 다른 손의 표지(실루엣 구분용, 증거 아님): brush 붓 · sheet 종이 한 장 · book 책 모서리 · none.
+   * write 에서는 붓, read 에서는 펼친 책, write-sheet 는 종이 위 교정.
+   */
+  item?: 'brush' | 'sheet' | 'book' | 'none';
+  /** 덮개가 차지하는 크기 배율(기본 1) */
+  scale?: number;
 }
 
 export type PovOverlay = 'memory' | 'erased';
@@ -74,6 +97,10 @@ export interface PovProps {
   nameTag?: boolean;
   /** 등잔에 불(기본 false: 7월 오후) */
   lamps?: boolean;
+  /** 서안 위 이름표 달린 꾸러미들(이름표는 멀어 안 읽힘, 글자 없음) — 아침에 들어온 꾸러미 */
+  bundles?: number;
+  /** 2-5: 여섯 장을 보자기 위에 펼쳐 놓고 싸는 중(손 앞 클로즈업) */
+  wrapSlips?: boolean;
 }
 
 export interface PovSpec {

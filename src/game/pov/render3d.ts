@@ -4,8 +4,10 @@
  */
 import * as THREE from 'three';
 import { buildHall, type HallParts } from './hall';
-import { buildFigure, buildSelf } from './figure';
-import { FAR, NEAR, figureFacing, figureHeight, figurePos, internalSize, povCamera, sunAt } from './camera';
+import { buildFigure } from './figure';
+import { buildSelf } from './self';
+import { buildProps } from './props';
+import { FAR, NEAR, figureFacing, figureHeight, figurePos, internalSize, parseTime, povCamera, sunAt } from './camera';
 import { ROOM_EP1 as R } from './room';
 import { mulberry32 } from './camera';
 import type { PovSpec } from './types';
@@ -18,6 +20,39 @@ export interface Raw3d {
   focusDepth?: number;
   buildMs: number;
   renderMs: number;
+  /** id 패스: 인물·종이 조각별 실제로 보이는 픽셀 수와 경계(내부 px, 끝 포함). 안 보이면 없음 */
+  visible: Record<string, PovVisibility>;
+}
+
+export interface PovVisibility {
+  px: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * 시각별 빛(재구성 연출). 방향은 sunAt, 세기·색은 여기서.
+ * 아침: 동창 한지가 주인공, 서늘한 흰빛 · 한낮: 짧은 빛줄기 · 14~15시: 문빛 · 15:20 이후: 낮고 따뜻한 빛, 긴 빛줄기.
+ */
+export function lightProfile(time: string | number) {
+  const m = parseTime(time);
+  const k = (a: number, b: number) => Math.max(0, Math.min(1, (m - a) / (b - a)));
+  const morning = 1 - k(600, 690); // 10:00 까지 아침
+  const late = k(900, 990); // 15:00 → 16:30 늦은 오후
+  return {
+    sun: 3.4 * (1 - 0.75 * morning) + 0.5 * late,
+    sunTint: morning > 0.5 ? '#f4efe2' : late > 0.3 ? '#ffbf78' : undefined,
+    window: 14 + 16 * morning - 5 * late,
+    windowColor: morning > 0.5 ? '#eef0e6' : '#f1e2c2',
+    door: 9 - 3 * morning + 1 * late,
+    bounce: 11 * (1 - 0.7 * morning) + 3 * late,
+    bounceColor: late > 0.3 ? '#ffb877' : '#ffcf9a',
+    hemi: 0.3 + 0.08 * morning,
+    sky: morning > 0.5 ? '#e4e2d6' : late > 0.3 ? '#ecd2a6' : '#e6dcc6',
+    exposure: 1.08 + 0.06 * morning + 0.04 * late,
+  };
 }
 
 const DEPTH_RANGE = 64;
@@ -44,33 +79,11 @@ const depthMaterial = () =>
     side: THREE.DoubleSide,
   });
 
-/** 「金馹孫」 이름표(재구성: 이름표 형태는 일반형). 작은 캔버스 텍스처 하나 */
-function nameTagMesh(): THREE.Mesh {
-  const c = document.createElement('canvas');
-  c.width = 40;
-  c.height = 120;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#ece0c0';
-  g.fillRect(0, 0, 40, 120);
-  g.fillStyle = '#1c1714';
-  g.font = '30px "Nanum Myeongjo", "Noto Serif CJK KR", "Noto Serif KR", serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  ['金', '馹', '孫'].forEach((ch, i) => g.fillText(ch, 20, 22 + i * 36));
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.magFilter = THREE.LinearFilter;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.18), new THREE.MeshLambertMaterial({ map: tex }));
-  m.name = 'nametag';
-  return m;
-}
-
-function hallFor(spec: PovSpec): HallParts {
-  const key = JSON.stringify(spec.props ?? {});
-  let h = hallCache.get(key);
+function hallFor(): HallParts {
+  let h = hallCache.get('hall');
   if (!h) {
-    h = buildHall(spec.props);
-    hallCache.set(key, h);
+    h = buildHall();
+    hallCache.set('hall', h);
   }
   return h;
 }
@@ -132,74 +145,78 @@ function sunShaft(dir: THREE.Vector3, seed: number): THREE.Object3D[] {
   return [shaft, dust];
 }
 
+const idMaterial = (id: number) =>
+  new THREE.ShaderMaterial({
+    uniforms: { idv: { value: id / 255 } },
+    vertexShader: `void main(){ gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `uniform float idv; void main(){ gl_FragColor = vec4(idv, 0.0, 0.0, 1.0); }`,
+  });
+
 export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const t0 = performance.now();
   const { w, h } = internalSize(spec);
   const cam = povCamera(spec);
   const sun = sunAt(spec.time);
+  const lp = lightProfile(spec.time);
   const scene = new THREE.Scene();
-  const sky = new THREE.Color('#e6dcc6');
+  const sky = new THREE.Color(lp.sky);
   scene.background = sky;
   scene.fog = new THREE.Fog('#d9cdb3', 16, 46);
 
-  const hall = hallFor(spec);
+  const hall = hallFor();
   scene.add(hall.group);
 
+  const disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
+  /** id 패스 대상: 인물 + 종이 조각 */
+  const tagged: THREE.Mesh[] = [];
+
   // 사람
-  const disposables: (THREE.BufferGeometry | THREE.Material)[] = [];
   const shadowMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.38, depthWrite: false });
   disposables.push(shadowMat);
+  const blobs: THREE.Mesh[] = [];
   spec.figures.forEach((f, i) => {
     const m = buildFigure(f, 31 + i);
     const p = figurePos(f);
     m.position.set(p.x, 0, p.y);
     m.rotation.y = (-figureFacing(f, spec.figures) * Math.PI) / 180;
     scene.add(m);
+    tagged.push(m);
     disposables.push(m.geometry, m.material as THREE.Material);
-    const s = new THREE.Mesh(new THREE.CircleGeometry(f.pose.startsWith('seated') ? 0.5 : 0.32, 16), shadowMat);
+    const s = new THREE.Mesh(new THREE.CircleGeometry(f.pose.startsWith('seated') || f.pose.startsWith('kneel') ? 0.5 : 0.32, 16), shadowMat);
     s.rotation.x = -Math.PI / 2;
     s.position.set(p.x, 0.004, p.y);
     s.renderOrder = 1;
     scene.add(s);
+    blobs.push(s);
     disposables.push(s.geometry);
   });
+
+  // 소품
+  for (const o of buildProps(spec.props ?? {})) {
+    scene.add(o);
+    const mo = o as THREE.Mesh;
+    if (mo.name.startsWith('slip:')) tagged.push(mo);
+    disposables.push(mo.geometry, mo.material as THREE.Material);
+    const map = (mo.material as THREE.MeshLambertMaterial).map;
+    if (map) disposables.push(map);
+  }
 
   // 눈의 주인 자신
   const eyeV = new THREE.Vector3(...cam.eye);
   const fwdV = new THREE.Vector3(...cam.forward);
   if (spec.self && spec.self.hands !== 'none') {
     const at = spec.self.at ? new THREE.Vector3(spec.self.at.x, spec.self.at.h ?? R.desk.h + 0.08, spec.self.at.y) : undefined;
-    const me = buildSelf(spec.self.robe, spec.self.hands, eyeV, fwdV, at);
-
+    const me = buildSelf(spec.self, cam, at);
     scene.add(me);
     disposables.push(me.geometry, me.material as THREE.Material);
-  }
-
-  // 이름표 꾸러미
-  if (spec.props?.nameTag) {
-    const bx = 5.02;
-    const bz = 3.6;
-    const bundle = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.22), new THREE.MeshLambertMaterial({ color: '#cbb78f' }));
-    bundle.position.set(bx, R.desk.h + 0.035, bz);
-    bundle.rotation.y = 0.08;
-    bundle.castShadow = bundle.receiveShadow = true;
-    const cord = new THREE.Mesh(new THREE.BoxGeometry(0.305, 0.074, 0.016), new THREE.MeshLambertMaterial({ color: '#2a2320' }));
-    cord.position.copy(bundle.position);
-    cord.rotation.y = 0.08;
-    const tag = nameTagMesh();
-    // 눕혀서(x −90°) 글자 위쪽이 동쪽(+x)을 향하게(y −90°): 서쪽 자리에서 바로 읽힌다
-    tag.rotation.set(-Math.PI / 2, -Math.PI / 2 + 0.08, 0, 'YXZ');
-    tag.position.set(bx - 0.03, R.desk.h + 0.073, bz + 0.02);
-    tag.receiveShadow = true;
-    scene.add(bundle, cord, tag);
-    for (const o of [bundle, cord, tag]) disposables.push(o.geometry, o.material as THREE.Material);
   }
 
   // 빛 ───────────────────────────────────────────────
   const toSun = new THREE.Vector3(...sun.toSun);
   const lightDir = toSun.clone().negate();
   const sunCol = new THREE.Color('#fff1d8').lerp(new THREE.Color('#ffc883'), sun.warmth);
-  const sunL = new THREE.DirectionalLight(sunCol, 3.4);
+  if (lp.sunTint) sunCol.lerp(new THREE.Color(lp.sunTint), 0.5);
+  const sunL = new THREE.DirectionalLight(sunCol, lp.sun);
   sunL.position.set(6 + toSun.x * 40, toSun.y * 40, 6 + toSun.z * 40);
   sunL.target.position.set(6, 0, 6);
   sunL.castShadow = true;
@@ -214,14 +231,12 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   sunL.shadow.bias = -0.0004;
   sunL.shadow.normalBias = 0.02;
   scene.add(sunL, sunL.target);
-  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', 0.3));
-  // 햇빛 고인 마루가 되쏘는 빛(문 안쪽 바닥) + 문 바깥 하늘빛
-  const bounce = new THREE.PointLight('#ffcf9a', 11, 14, 1.6);
+  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', lp.hemi));
+  const bounce = new THREE.PointLight(lp.bounceColor, lp.bounce, 14, 1.6);
   bounce.position.set(6.4, 0.4, 7.4);
-  const doorSky = new THREE.PointLight('#f2e4c8', 9, 16, 1.5);
+  const doorSky = new THREE.PointLight('#f2e4c8', lp.door, 16, 1.5);
   doorSky.position.set(6, 1.7, 9.6);
-  // 닫힌 분합문·창의 한지가 걸러 들이는 빛
-  const winL = new THREE.PointLight('#f1e2c2', 14, 12, 1.5);
+  const winL = new THREE.PointLight(lp.windowColor, lp.window, 12, 1.5);
   winL.position.set(11.2, 1.4, 4.0);
   const northL = new THREE.PointLight('#e8dcc0', 2.5, 9, 1.5);
   northL.position.set(6, 2.6, 0.6);
@@ -257,7 +272,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const t1 = performance.now();
   const r = getRenderer();
   r.setSize(w, h, false);
-  r.toneMappingExposure = spec.exposure ?? 1.08;
+  r.toneMappingExposure = spec.exposure ?? lp.exposure;
   r.setClearColor(sky, 1);
   r.render(scene, camera);
   const gl = r.getContext();
@@ -270,6 +285,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true });
   const dm = depthMaterial();
   for (const o of vol) o.visible = false;
+  for (const o of blobs) o.visible = false;
   const bg = scene.background;
   scene.background = null;
   scene.fog = null;
@@ -280,15 +296,53 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   r.render(scene, camera);
   const dbuf = new Uint8Array(w * h * 4);
   r.readRenderTargetPixels(rt, 0, 0, w, h, dbuf);
-  r.setRenderTarget(null);
   scene.overrideMaterial = null;
-  scene.background = bg;
   const depth = new Float32Array(w * h);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = ((h - 1 - y) * w + x) * 4;
       const d = ((dbuf[i] + dbuf[i + 1] / 255) / 255) * DEPTH_RANGE;
       depth[y * w + x] = dbuf[i] >= 254 ? Infinity : d;
+    }
+
+  // id 패스: 인물·종이 조각이 실제로 보이는 픽셀(가림·화면 밖 반영) → 탭 영역·보임 검사
+  const saved = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+  const black = idMaterial(0);
+  const idMats: THREE.Material[] = [black];
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh && !(o as THREE.Points).isPoints) return;
+    saved.set(m, m.material);
+    const k = tagged.indexOf(m);
+    if (k >= 0) {
+      const im = idMaterial(k + 1);
+      idMats.push(im);
+      m.material = im;
+    } else m.material = black;
+  });
+  r.setRenderTarget(rt);
+  r.setClearColor(0x000000, 1);
+  r.clear();
+  r.render(scene, camera);
+  const ibuf = new Uint8Array(w * h * 4);
+  r.readRenderTargetPixels(rt, 0, 0, w, h, ibuf);
+  r.setRenderTarget(null);
+  for (const [m, mat] of saved) m.material = mat;
+  for (const im of idMats) im.dispose();
+  scene.background = bg;
+  for (const o of blobs) o.visible = true;
+  const visible: Record<string, PovVisibility> = {};
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const k = ibuf[((h - 1 - y) * w + x) * 4];
+      if (k === 0 || k > tagged.length) continue;
+      const id = tagged[k - 1].name;
+      const v = (visible[id] ??= { px: 0, x0: x, y0: y, x1: x, y1: y });
+      v.px++;
+      if (x < v.x0) v.x0 = x;
+      if (x > v.x1) v.x1 = x;
+      if (y < v.y0) v.y0 = y;
+      if (y > v.y1) v.y1 = y;
     }
   rt.dispose();
   dm.dispose();
@@ -301,9 +355,10 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
     const c = new THREE.Vector3(p.x, figureHeight(ff) * 0.6, p.y).sub(eyeV);
     focusDepth = c.dot(fwdV);
   } else if (spec.focus === 'self') focusDepth = 0.55;
+  else if (spec.focus === 'desk') focusDepth = new THREE.Vector3(...cam.target).sub(eyeV).dot(fwdV);
 
   scene.remove(hall.group);
   for (const d of disposables) d.dispose();
   const t2 = performance.now();
-  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1 };
+  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1, visible };
 }

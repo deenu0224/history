@@ -6,9 +6,8 @@
  */
 import * as THREE from 'three';
 import { Builder, trs } from './geo';
-import { ROOM_EP1 as R, SLIP_SPOTS, SLIP_SIZE } from './room';
+import { ROOM_EP1 as R } from './room';
 import { mulberry32 } from './camera';
-import type { PovProps } from './types';
 
 /** 재질 색(sRGB). 꼭짓점 색이므로 빛을 받아 어두워진다 — 기본값은 밝은 쪽 */
 export const C = {
@@ -76,7 +75,7 @@ function latticePanel(frame: Builder, glow: Builder, x0: number, x1: number, y0:
   boxA(len / 2, y0 + 0.16, len - t, 0.28, 0.04, C.woodLacquer, frame);
 }
 
-export function buildHall(props: PovProps = {}): HallParts {
+export function buildHall(): HallParts {
   const rnd = mulberry32(1498711);
   const group = new THREE.Group();
   const b = new Builder(7);
@@ -277,16 +276,6 @@ export function buildHall(props: PovProps = {}): HallParts {
   paper(5.85, 2.6, 0.26, 0.34, 3, 0);
   // 홍귀달(구석) 책상의 책더미
   for (let k = 0; k < 4; k++) b.box(11.05, 0.3 + 0.03 + k * 0.045, 1.2, 0.2, 0.04, 0.28, k % 2 ? '#c4b18a' : '#3c4a52', 45 + (rnd() - 0.5) * 10, { ao: false });
-
-  // 잘라 낸 종이 조각
-  if (props.slips === 'spread') {
-    for (const s of SLIP_SPOTS) b.box(s.x, top + 0.003, s.y, SLIP_SIZE.w, 0.004, SLIP_SIZE.l, C.hanji, s.rot, { ao: false });
-  }
-  if (props.sealedBundle) {
-    b.box(5.3, top + 0.06, 4.1, 0.34, 0.12, 0.26, '#7a6a4c', 6, { ao: false });
-    b.box(5.3, top + 0.06, 4.1, 0.35, 0.125, 0.03, C.ink, 6, { ao: false });
-    b.box(5.3, top + 0.06, 4.1, 0.03, 0.125, 0.27, C.ink, 6, { ao: false });
-  }
 
   // ── 방석 ─────────────────────────────────────────────
   const cushion = (x: number, z: number, col: string, rot: number) => b.box(x, 0.03, z, 0.62, 0.06, 0.62, col, rot, { ao: false, jitter: 0.1 });
