@@ -40,7 +40,8 @@ const SHOTS: Shot[] = [
     spec: {
       witnessId: 'hong_gwidal',
       seatId: 'H',
-      lookAt: { x: 6.0, y: 8.4, h: 0.95 },
+      lookAt: { x: 6.3, y: 8.2, h: 0.5 },
+      fov: 60,
       time: '14:00',
       focus: 'reader',
       figures: without('H'),
@@ -58,7 +59,8 @@ const SHOTS: Shot[] = [
     spec: {
       witnessId: 'yi_geukdon',
       seatId: 'Y',
-      lookAt: { x: 6.2, y: 8.3, h: 0.95 },
+      lookAt: { x: 6.0, y: 8.2, h: 0.5 },
+      fov: 60,
       time: '14:00',
       focus: 'reader',
       figures: without('Y'),
@@ -76,7 +78,8 @@ const SHOTS: Shot[] = [
     spec: {
       witnessId: 'yun_hyoson',
       seatId: 'N',
-      lookAt: { x: 6.3, y: 8.2, h: 0.85 },
+      lookAt: { x: 6.6, y: 7.6, h: 0.4 },
+      fov: 60,
       time: '14:00',
       focus: 'reader',
       figures: without('N'),
@@ -94,7 +97,8 @@ const SHOTS: Shot[] = [
     spec: {
       witnessId: 'eo_segyeom',
       seatId: 'O',
-      lookAt: { x: 6.0, y: 8.6, h: 0.8 },
+      lookAt: { x: 6.0, y: 8.6, h: 0.45 },
+      fov: 60,
       time: '14:00',
       focus: 'reader',
       figures: without('O'),
@@ -113,7 +117,7 @@ const SHOTS: Shot[] = [
       witnessId: 'yi_geukdon',
       seatId: 'Y',
       eye: { x: 4.12, y: 3.78, h: 0.86 },
-      lookAt: { x: 4.85, y: 3.72, h: 0.34 },
+      lookAt: { x: 4.8, y: 3.74, h: 0.4 },
       fov: 44,
       time: '15:00',
       focus: 'self',

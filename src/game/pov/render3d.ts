@@ -213,20 +213,20 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   sunL.shadow.bias = -0.0004;
   sunL.shadow.normalBias = 0.02;
   scene.add(sunL, sunL.target);
-  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', 0.55));
+  scene.add(new THREE.HemisphereLight('#b5a68c', '#4a3524', 0.3));
   // 햇빛 고인 마루가 되쏘는 빛(문 안쪽 바닥) + 문 바깥 하늘빛
-  const bounce = new THREE.PointLight('#ffcf9a', 16, 16, 1.3);
+  const bounce = new THREE.PointLight('#ffcf9a', 11, 14, 1.6);
   bounce.position.set(6.4, 0.4, 7.4);
-  const doorSky = new THREE.PointLight('#f2e4c8', 18, 18, 1.2);
+  const doorSky = new THREE.PointLight('#f2e4c8', 9, 16, 1.5);
   doorSky.position.set(6, 1.7, 9.6);
   // 닫힌 분합문·창의 한지가 걸러 들이는 빛
-  const winL = new THREE.PointLight('#f1e2c2', 7, 9, 1.4);
+  const winL = new THREE.PointLight('#f1e2c2', 6, 8, 1.6);
   winL.position.set(11.2, 1.4, 4.0);
   const northL = new THREE.PointLight('#e8dcc0', 2.5, 9, 1.5);
   northL.position.set(6, 2.6, 0.6);
   scene.add(bounce, doorSky, winL, northL);
   for (const x of [2, 10]) {
-    const pl = new THREE.PointLight('#efdcb8', 4, 8, 1.5);
+    const pl = new THREE.PointLight('#efdcb8', 1.6, 6, 1.8);
     pl.position.set(x, 1.3, 8.4);
     scene.add(pl);
   }
@@ -256,7 +256,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const t1 = performance.now();
   const r = getRenderer();
   r.setSize(w, h, false);
-  r.toneMappingExposure = 1.15;
+  r.toneMappingExposure = 1.08;
   r.setClearColor(sky, 1);
   r.render(scene, camera);
   const gl = r.getContext();

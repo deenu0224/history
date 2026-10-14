@@ -160,7 +160,7 @@ export function postProcess(inp: PostInput): Uint8ClampedArray {
       let L = lum(r, g, b);
       if (!erased) {
         // 명암(키아로스쿠로): 그늘은 더 깊게, 밝음은 한지까지
-        const L2 = Math.pow(Math.min(1.2, L), 1.18);
+        const L2 = Math.pow(Math.min(1.2, L), 1.22);
         const k = L > 1e-4 ? L2 / L : 0;
         r *= k;
         g *= k;

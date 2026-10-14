@@ -225,23 +225,23 @@ export function buildSelf(robeId: RobeId, hands: 'rest' | 'hold-slips' | 'write'
   };
   if (hands === 'rest') {
     // 오른손이 무릎(또는 제 서안 모서리) 위에 놓인 소매: 화면 오른쪽 아래 모서리
-    const e = E(0.12, 0.52, 0.34);
-    const w = E(0.55, 0.5, 0.2);
+    const e = E(0.2, 0.46, 0.34);
+    const w = E(0.62, 0.36, 0.17);
     cone(b, P(E(-0.05, 0.25, 0.22)), P(e), 0.075, 0.09, robe, 10);
     cone(b, P(e), P(w), 0.09, 0.15, robe, 12);
     cone(b, P(e.clone().lerp(w, 0.5)), P(e.clone().lerp(w, 0.6).addScaledVector(down, 0.2)), 0.12, 0.07, robe, 9);
     hand(w, w.clone().sub(e).normalize(), 1);
     // 무릎 위 옷자락
-    ellipsoid(b, P(E(0.35, 0.78, 0.0)), [0.34, 0.1, 0.36], robe, 0, 12);
+    ellipsoid(b, P(E(0.42, 0.74, 0.0)), [0.34, 0.1, 0.36], robe, 0, 12);
   } else {
     const T = at ?? E(0.45, 0.4, 0);
     for (const s of [-1, 1]) {
       if (hands === 'write' && s < 0) continue;
       const w = T.clone().addScaledVector(right, s * (hands === 'write' ? 0.04 : 0.12)).addScaledVector(f, -0.05);
-      const e = E(0.12, 0.5, s * 0.3);
-      cone(b, P(E(-0.08, 0.26, s * 0.22)), P(e), 0.075, 0.09, robe, 10);
-      cone(b, P(e), P(w), 0.09, 0.14, robe, 12);
-      cone(b, P(e.clone().lerp(w, 0.45)), P(e.clone().lerp(w, 0.55).addScaledVector(down, 0.16)), 0.11, 0.06, robe, 9);
+      const e = E(0.16, 0.62, s * 0.3);
+      cone(b, P(E(-0.08, 0.3, s * 0.22)), P(e), 0.06, 0.07, robe, 10);
+      cone(b, P(e), P(w), 0.07, 0.105, robe, 12);
+      cone(b, P(e.clone().lerp(w, 0.4)), P(e.clone().lerp(w, 0.5).addScaledVector(down, 0.12)), 0.08, 0.04, robe, 9);
       hand(w, w.clone().sub(e).normalize(), s);
     }
     if (hands === 'hold-slips') {
@@ -249,10 +249,9 @@ export function buildSelf(robeId: RobeId, hands: 'rest' | 'hold-slips' | 'write'
       const toEye = eye.clone().sub(T).normalize();
       for (let i = 0; i < 6; i++) {
         const c = T.clone().addScaledVector(right, (i - 2.5) * 0.036).addScaledVector(f, 0.05 + Math.abs(i - 2.5) * -0.006).add(new THREE.Vector3(0, 0.06, 0));
-        const g = new THREE.PlaneGeometry(0.075, 0.24);
+        const g = new THREE.BoxGeometry(0.075, 0.24, 0.003);
         const m = new THREE.Matrix4().lookAt(c, c.clone().add(toEye), new THREE.Vector3(0, 1, 0));
         m.multiply(new THREE.Matrix4().makeRotationZ(((i - 2.5) * -5 * Math.PI) / 180));
-        m.multiply(new THREE.Matrix4().makeRotationY(Math.PI));
         m.setPosition(c.addScaledVector(toEye, i * 0.004));
         b.geo(g, m, i % 2 ? '#e8dcbc' : PAPER, { ao: false });
       }
