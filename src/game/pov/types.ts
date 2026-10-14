@@ -74,7 +74,7 @@ export interface SelfRig {
    * read: 두 손이 펼친 책 양쪽을 잡음 / seal: 두 손이 보자기 모서리를 접는다
    */
   hands: 'rest' | 'rest-left' | 'rest-both' | 'hold-slips' | 'write' | 'read' | 'seal' | 'none';
-  /** 손이 닿는 도면 점(hold-slips·write·read·seal). 없으면 시선 앞 0.5m */
+  /** 손이 닿는 도면 점(hold-slips·write·read·seal; rest-both 이면 맞잡은 두 소매를 얹는 자리). 없으면 시선 앞 0.5m */
   at?: PlanPoint;
   /**
    * 눈의 주인마다 다른 손의 표지(실루엣 구분용, 증거 아님): brush 붓 · sheet 종이 한 장 · book 책 모서리 · none.
@@ -83,6 +83,11 @@ export interface SelfRig {
   item?: 'brush' | 'sheet' | 'book' | 'none';
   /** 덮개가 차지하는 크기 배율(기본 1) */
   scale?: number;
+  /**
+   * 내 손·소매의 테 빛이 오는 장면 안 광원 자리(기본: 낮에는 남쪽 문, 아침에는 동쪽 창). 그늘 속 손이 휴대폰에서
+   * 읽히도록 실루엣 가장자리만 밝힌다(화면 문법 — 소매 색 한 단 밝힘과 같은 예외).
+   */
+  rimFrom?: PlanPoint;
 }
 
 export type PovOverlay = 'memory' | 'erased';
@@ -128,10 +133,28 @@ export interface PovSpec {
   /** 내부 해상도(px). 기본 270×360 */
   size?: { w: number; h: number };
   /**
-   * 원통(파노라마) 투영: 가로 시야각(도). 넓은 시야(DESIGN_V5 시야 반각 50°)를 사람 비율을 지키며 담을 때.
-   * 세로는 같은 초점거리로 정해진다(fov 무시). 탭 영역은 굽기의 id 패스로만 계산한다(getFigureHitboxes 는 직선 투영).
+   * 넓은 시야(DESIGN_V5 시야 반각 50°)를 사람 비율을 지키며 담는 파니니 계열 투영: 가로 시야각(도).
+   * 가로는 파니니(d), 세로는 직선(수평 고정) → 세로선은 곧고, 시선과 나란하지 않은 가로선(서안 가장자리·마루 귀틀)도 곧다.
+   * d = 0.5 이면 수평선 근처가 거의 등각(가장자리 사람이 늘어나지 않고 오히려 조금 커진다). d = 0 은 직선 투영과 같다.
+   * horizon = 수평선이 놓일 화면 높이(0 위 … 1 아래, 렌즈 이동 — 고개를 숙이지 않으므로 세로선이 기울지 않는다).
+   * 세로 시야는 가로에서 정해진다(fov 무시). 탭 영역은 굽기의 id 패스로만 계산한다(getFigureHitboxes 는 직선 투영).
    */
-  pano?: { hfov: number };
+  pano?: { hfov: number; d?: number; horizon?: number };
+  /**
+   * 남쪽 닫힌 띠살문(양옆 칸) 한지가 걸러 들이는 빛의 세기 배율(기본 1). 장면 안 광원이다 — 문 곁에 앉은 사람의
+   * 등·어깨를 비춰 실루엣을 읽히게 할 때(재구성 연출).
+   */
+  latticeGlow?: number;
+  /**
+   * 사람 실루엣의 테 빛: 장면 안 광원 자리(문·띠살문·창)를 등진 사람의 가장자리를 밝힌다. ids 없으면 모든 사람.
+   * 빛의 출처는 반드시 장면 안 광원이다(ART_DIRECTION_V5 §11).
+   */
+  rim?: { from: PlanPoint; strength?: number; ids?: string[] };
+  /**
+   * 장면 안 반사광·작은 광원(예: 창빛을 받은 책상 위 종이가 얼굴로 되비치는 빛). 위치·색·세기·닿는 거리(m).
+   * 장면 밖 조명이 아니라 그 자리에 실제로 있는 밝은 면을 대신한다(재구성 연출).
+   */
+  bounces?: { at: PlanPoint; color?: string; intensity: number; distance?: number }[];
   /** 비네트 세기(0..1). 기본 0.62(기억) */
   vignette?: number;
   /** 결정적 잡음 씨앗(기본: 스펙 해시) */

@@ -254,8 +254,8 @@ export function buildHall(): HallParts {
       }
     }
   // 서안 위 다른 것들: 펼친 책, 종이 묶음, 벼루, 붓, 연적
-  const paper = (x: number, z: number, w: number, l: number, n: number, rot: number) => {
-    for (let k = 0; k < n; k++) b.box(x + (rnd() - 0.5) * 0.02, top + 0.004 + k * 0.006, z + (rnd() - 0.5) * 0.02, w, 0.006, l, C.hanji, rot + (rnd() - 0.5) * 6, { ao: false, jitter: 0.12 });
+  const paper = (x: number, z: number, w: number, l: number, n: number, rot: number, h0: number = top) => {
+    for (let k = 0; k < n; k++) b.box(x + (rnd() - 0.5) * 0.02, h0 + 0.004 + k * 0.006, z + (rnd() - 0.5) * 0.02, w, 0.006, l, C.hanji, rot + (rnd() - 0.5) * 6, { ao: false, jitter: 0.12 });
   };
   paper(5.55, 3.35, 0.3, 0.42, 4, 8);
   paper(6.15, 4.15, 0.28, 0.38, 6, -5);
@@ -271,9 +271,10 @@ export function buildHall(): HallParts {
   inkstone(8.25, 3.45, 0.3, 90);
   inkstone(6.3, 2.62, 0.3, 0);
   inkstone(10.6, 1.38, 0.3, 45);
-  paper(8.25, 3.95, 0.24, 0.34, 3, 90);
-  paper(10.75, 1.5, 0.26, 0.36, 5, 45);
-  paper(5.85, 2.6, 0.26, 0.34, 3, 0);
+  // 작은 책상(높이 0.3) 위 종이 — 큰 서안 높이로 떠 있지 않게 책상 높이를 준다
+  paper(8.25, 3.95, 0.24, 0.34, 3, 90, 0.3);
+  paper(10.75, 1.5, 0.26, 0.36, 5, 45, 0.3);
+  paper(5.85, 2.6, 0.26, 0.34, 3, 0, 0.3);
   // 홍귀달(구석) 책상의 책더미
   for (let k = 0; k < 4; k++) b.box(11.05, 0.3 + 0.03 + k * 0.045, 1.2, 0.2, 0.04, 0.28, k % 2 ? '#c4b18a' : '#3c4a52', 45 + (rnd() - 0.5) * 10, { ao: false });
 

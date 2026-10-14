@@ -45,7 +45,10 @@ export class Builder {
     if (color !== null) _c.set(color);
     const j = o.jitter ? 1 + (this.rnd() - 0.5) * o.jitter : 1;
     const ao = o.ao !== false;
-    for (let i = 0; i < p.count; i++) {
+    // 거울 변환(행렬식 < 0, 예: 왼손 기저)은 삼각형 감김을 뒤집는다 → 꼭짓점 순서를 바꿔 앞면을 바깥으로 유지
+    const mirror = m.determinant() < 0;
+    for (let ii = 0; ii < p.count; ii++) {
+      const i = mirror ? ii - (ii % 3) + [0, 2, 1][ii % 3] : ii;
       _v.fromBufferAttribute(p, i).applyMatrix4(m);
       _n.fromBufferAttribute(n, i).applyMatrix3(_nm).normalize();
       this.pos.push(_v.x, _v.y, _v.z);

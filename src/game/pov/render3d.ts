@@ -7,7 +7,8 @@ import { buildHall, type HallParts } from './hall';
 import { buildFigure } from './figure';
 import { buildSelf } from './self';
 import { buildProps } from './props';
-import { FAR, NEAR, figureFacing, figureHeight, figurePos, internalSize, parseTime, povCamera, sunAt } from './camera';
+import { withRim } from './rim';
+import { FAR, NEAR, type PovCamera, figureFacing, figureHeight, figurePos, internalSize, parseTime, povCamera, sunAt } from './camera';
 import { ROOM_EP1 as R } from './room';
 import { mulberry32 } from './camera';
 import type { PovSpec } from './types';
@@ -56,6 +57,42 @@ export function lightProfile(time: string | number) {
 }
 
 const DEPTH_RANGE = 64;
+
+/**
+ * 파니니 계열 투영 매개변수(PovSpec.pano). x = R·P(θ), P(θ) = (d+1)·sinθ / (d+cosθ) (θ = 수평 시선각),
+ * y = yH − R·(높이차 / 가운데 시선 방향 깊이). P'(0) = 1 이라 가운데 배율 R 은 가로·세로가 같다.
+ */
+function panoParams(p: NonNullable<PovSpec['pano']>, cam: PovCamera, w: number, h: number) {
+  const d = p.d ?? 0.5;
+  const P = (t: number) => ((d + 1) * Math.sin(t)) / (d + Math.cos(t));
+  const half = (p.hfov * Math.PI) / 360;
+  const Rp = w / 2 / P(half);
+  const inv = (x: number) => {
+    let lo = -Math.PI / 2 + 1e-4;
+    let hi = Math.PI / 2 - 1e-4;
+    for (let i = 0; i < 40; i++) {
+      const m = (lo + hi) / 2;
+      if (P(m) < x) lo = m;
+      else hi = m;
+    }
+    return (lo + hi) / 2;
+  };
+  const f = new THREE.Vector3(cam.forward[0], 0, cam.forward[2]).normalize();
+  const r = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
+  const pitchTan = cam.forward[1] / Math.hypot(cam.forward[0], cam.forward[2]);
+  const yH = p.horizon !== undefined ? p.horizon * h : h / 2 + Rp * pitchTan;
+  /** 앞쪽 덮개(내 소매)는 가운데 근처의 직선 투영으로 놓는다: 같은 Rp, 같은 수평선 */
+  const selfCam: PovCamera = {
+    ...cam,
+    forward: [f.x, f.y, f.z],
+    right: [r.x, r.y, r.z],
+    up: [0, 1, 0],
+    fovDeg: (2 * Math.atan(h / 2 / Rp) * 180) / Math.PI,
+    aspect: w / h,
+    shiftTan: (yH - h / 2) / Rp,
+  };
+  return { Rp, yH, inv, half, level: { f, r }, selfCam };
+}
 
 let renderer: THREE.WebGLRenderer | null = null;
 const hallCache = new Map<string, HallParts>();
@@ -156,6 +193,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const t0 = performance.now();
   const { w, h } = internalSize(spec);
   const cam = povCamera(spec);
+  const pano = spec.pano ? panoParams(spec.pano, cam, w, h) : null;
   const sun = sunAt(spec.time);
   const lp = lightProfile(spec.time);
   const scene = new THREE.Scene();
@@ -176,6 +214,8 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const blobs: THREE.Mesh[] = [];
   spec.figures.forEach((f, i) => {
     const m = buildFigure(f, 31 + i);
+    if (spec.rim && (!spec.rim.ids || spec.rim.ids.includes(f.id)))
+      withRim(m.material as THREE.MeshLambertMaterial, { from: new THREE.Vector3(spec.rim.from.x, spec.rim.from.h ?? 1.2, spec.rim.from.y), strength: spec.rim.strength ?? 0.9, power: 2.0 });
     const p = figurePos(f);
     m.position.set(p.x, 0, p.y);
     m.rotation.y = (-figureFacing(f, spec.figures) * Math.PI) / 180;
@@ -206,7 +246,9 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const fwdV = new THREE.Vector3(...cam.forward);
   if (spec.self && spec.self.hands !== 'none') {
     const at = spec.self.at ? new THREE.Vector3(spec.self.at.x, spec.self.at.h ?? R.desk.h + 0.08, spec.self.at.y) : undefined;
-    const me = buildSelf(spec.self, cam, at);
+    const me = buildSelf(spec.self, pano ? pano.selfCam : cam, at);
+    const rf = spec.self.rimFrom ?? (parseTime(spec.time) < 600 ? { x: 12.2, y: 4.0, h: 1.4 } : { x: 6.0, y: 9.4, h: 1.3 });
+    withRim(me.material as THREE.MeshLambertMaterial, { from: new THREE.Vector3(rf.x, rf.h ?? 1.2, rf.y), strength: 1.2, power: 2.2, wrap: 0.32 });
     scene.add(me);
     disposables.push(me.geometry, me.material as THREE.Material);
   }
@@ -242,8 +284,13 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   northL.position.set(6, 2.6, 0.6);
   scene.add(bounce, doorSky, winL, northL);
   for (const x of [2, 10]) {
-    const pl = new THREE.PointLight('#efdcb8', 1.6, 6, 1.8);
+    const pl = new THREE.PointLight('#efdcb8', 1.6 * (spec.latticeGlow ?? 1), 6 + 2 * ((spec.latticeGlow ?? 1) - 1), 1.8);
     pl.position.set(x, 1.3, 8.4);
+    scene.add(pl);
+  }
+  for (const bl of spec.bounces ?? []) {
+    const pl = new THREE.PointLight(bl.color ?? '#ffcf96', bl.intensity, bl.distance ?? 1.2, 2);
+    pl.position.set(bl.at.x, bl.at.h ?? 0.5, bl.at.y);
     scene.add(pl);
   }
   if (spec.props?.lamps) {
@@ -270,72 +317,63 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   camera.updateMatrixWorld(true);
 
   /**
-   * 그리기: 보통은 한 번. spec.pano 이면 원통 투영 — 세로 띠 여러 장을 각각 수직축으로 돌린 카메라로 그려 잇는다
-   * (넓은 시야에서 가장자리 사람이 옆으로 늘어나지 않게). 같은 띠 배치를 색·거리·id 세 패스가 함께 쓴다.
+   * 파노라마(spec.pano): 세로는 이미 가운데 시선의 직선 투영(수평 고정 + 렌즈 이동)과 같으므로, 넓은 직선 투영으로 한 번 그린 뒤
+   * 열(column)만 옮겨 가로를 파니니로 바꾼다 — 이음매 없음. 색·거리·id 세 패스가 같은 열 대응을 쓴다.
    */
-  const drawPass = (rr: THREE.WebGLRenderer, target: THREE.WebGLRenderTarget | null = null) => {
-    if (!spec.pano) {
-      rr.render(scene, camera);
-      return;
-    }
-    const n = 13;
-    const Rpx = w / ((spec.pano.hfov * Math.PI) / 180);
-    const vfov = (2 * Math.atan(h / 2 / Rpx) * 180) / Math.PI;
-    const right0 = new THREE.Vector3(...cam.right);
-    const up0 = new THREE.Vector3(...cam.up);
-    const yAxis = new THREE.Vector3(0, 1, 0);
-    // 렌더 타깃에는 타깃 자신의 viewport·scissor 가 쓰인다(three r15x~)
-    if (target) target.scissorTest = true;
-    else rr.setScissorTest(true);
-    let x0 = 0;
-    for (let i = 0; i < n; i++) {
-      const x1 = Math.round(((i + 1) * w) / n);
-      const sw = x1 - x0;
-      const a = ((x0 + sw / 2 - w / 2) / Rpx);
-      const q = new THREE.Quaternion().setFromAxisAngle(yAxis, -a);
-      const f = fwdV.clone().applyQuaternion(q);
-      const rgt = right0.clone().applyQuaternion(q);
-      const u = up0.clone().applyQuaternion(q);
-      const c = new THREE.PerspectiveCamera(vfov, sw / h, NEAR, FAR);
-      c.position.copy(eyeV);
-      c.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(rgt, u, f.clone().negate()));
-      c.updateMatrixWorld(true);
-      if (target) {
-        target.viewport.set(x0, 0, sw, h);
-        target.scissor.set(x0, 0, sw, h);
-        rr.setRenderTarget(target);
-      } else {
-        rr.setViewport(x0, 0, sw, h);
-        rr.setScissor(x0, 0, sw, h);
+  let RW = w;
+  let colSrc: Float32Array | null = null;
+  if (pano) {
+    const tanMax = Math.tan(pano.half);
+    RW = Math.ceil(2 * tanMax * pano.Rp);
+    const sx = RW / (2 * tanMax);
+    colSrc = new Float32Array(w);
+    for (let x = 0; x < w; x++) colSrc[x] = Math.max(0, Math.min(RW - 1, RW / 2 + Math.tan(pano.inv((x + 0.5 - w / 2) / pano.Rp)) * sx - 0.5));
+    camera.position.copy(eyeV);
+    camera.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(pano.level.r, new THREE.Vector3(0, 1, 0), pano.level.f.clone().negate()));
+    camera.updateMatrixWorld(true);
+    camera.projectionMatrix.makePerspective(-tanMax * NEAR, tanMax * NEAR, (pano.yH / pano.Rp) * NEAR, (-(h - pano.yH) / pano.Rp) * NEAR, NEAR, FAR);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  }
+  /** 읽어 낸 버퍼(RW×h, 아래가 0행) → 출력(w×h, 위가 0행). lerp = 색만 가로 보간 */
+  const remap = (src: Uint8Array, lerp: boolean): Uint8Array => {
+    const out = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      const row = (h - 1 - y) * RW * 4;
+      for (let x = 0; x < w; x++) {
+        const o = (y * w + x) * 4;
+        if (!colSrc) {
+          for (let c = 0; c < 4; c++) out[o + c] = src[row + x * 4 + c];
+          continue;
+        }
+        const fx = colSrc[x];
+        const x0 = Math.floor(fx);
+        if (!lerp) {
+          const xi = Math.round(fx) * 4;
+          for (let c = 0; c < 4; c++) out[o + c] = src[row + xi + c];
+          continue;
+        }
+        const t = fx - x0;
+        const x1 = Math.min(RW - 1, x0 + 1);
+        for (let c = 0; c < 4; c++) out[o + c] = Math.round(src[row + x0 * 4 + c] * (1 - t) + src[row + x1 * 4 + c] * t);
       }
-      rr.render(scene, c);
-      x0 = x1;
     }
-    if (target) {
-      target.scissorTest = false;
-      target.viewport.set(0, 0, w, h);
-      target.scissor.set(0, 0, w, h);
-    } else {
-      rr.setScissorTest(false);
-      rr.setViewport(0, 0, w, h);
-    }
+    return out;
   };
 
   const t1 = performance.now();
   const r = getRenderer();
-  r.setSize(w, h, false);
+  r.setSize(RW, h, false);
   r.toneMappingExposure = spec.exposure ?? lp.exposure;
   r.setClearColor(sky, 1);
   r.clear();
-  drawPass(r);
+  r.render(scene, camera);
   const gl = r.getContext();
-  const raw = new Uint8Array(w * h * 4);
-  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
-  const rgba = new Uint8Array(w * h * 4);
-  for (let y = 0; y < h; y++) rgba.set(raw.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+  const raw = new Uint8Array(RW * h * 4);
+  gl.readPixels(0, 0, RW, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
+  const rgba = remap(raw, true);
 
   // 거리 패스
-  const rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true });
+  const rt = new THREE.WebGLRenderTarget(RW, h, { depthBuffer: true });
   const dm = depthMaterial();
   for (const o of vol) o.visible = false;
   for (const o of blobs) o.visible = false;
@@ -346,14 +384,15 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   r.setRenderTarget(rt);
   r.setClearColor(0xffffff, 1);
   r.clear();
-  drawPass(r, rt);
-  const dbuf = new Uint8Array(w * h * 4);
-  r.readRenderTargetPixels(rt, 0, 0, w, h, dbuf);
+  r.render(scene, camera);
+  const dbufRaw = new Uint8Array(RW * h * 4);
+  r.readRenderTargetPixels(rt, 0, 0, RW, h, dbufRaw);
+  const dbuf = remap(dbufRaw, false);
   scene.overrideMaterial = null;
   const depth = new Float32Array(w * h);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      const i = ((h - 1 - y) * w + x) * 4;
+      const i = (y * w + x) * 4;
       const d = ((dbuf[i] + dbuf[i + 1] / 255) / 255) * DEPTH_RANGE;
       depth[y * w + x] = dbuf[i] >= 254 ? Infinity : d;
     }
@@ -376,9 +415,10 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   r.setRenderTarget(rt);
   r.setClearColor(0x000000, 1);
   r.clear();
-  drawPass(r, rt);
-  const ibuf = new Uint8Array(w * h * 4);
-  r.readRenderTargetPixels(rt, 0, 0, w, h, ibuf);
+  r.render(scene, camera);
+  const ibufRaw = new Uint8Array(RW * h * 4);
+  r.readRenderTargetPixels(rt, 0, 0, RW, h, ibufRaw);
+  const ibuf = remap(ibufRaw, false);
   r.setRenderTarget(null);
   for (const [m, mat] of saved) m.material = mat;
   for (const im of idMats) im.dispose();
@@ -387,7 +427,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const visible: Record<string, PovVisibility> = {};
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      const k = ibuf[((h - 1 - y) * w + x) * 4];
+      const k = ibuf[(y * w + x) * 4];
       if (k === 0 || k > tagged.length) continue;
       const id = tagged[k - 1].name;
       const v = (visible[id] ??= { px: 0, x0: x, y0: y, x1: x, y1: y });

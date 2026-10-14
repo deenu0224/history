@@ -29,6 +29,8 @@ export interface PovCamera {
   forward: V3;
   fovDeg: number;
   aspect: number;
+  /** 렌즈 이동: 화면 가운데가 가리키는 세로 tan(앞쪽 덮개 배치용, 파노라마에서만 0 이 아니다) */
+  shiftTan?: number;
 }
 
 /** 증인별 기본 고개 기울임(도). 아주 작게 — 사람 눈은 수평계가 아니다. */

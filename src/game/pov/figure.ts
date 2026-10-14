@@ -64,8 +64,9 @@ function ellBasis(b: Builder, c: THREE.Vector3, f: THREE.Vector3, n: THREE.Vecto
 /**
  * 손: 손등 방향 n, 손가락 방향 f(손목 → 손끝), side = +1 오른손 / −1 왼손(엄지 쪽 결정).
  * curl 0 = 편 손, 1 = 쥔 손. scale 은 가까운 앞쪽 덮개에서 1.
+ * spread > 0 이면 손가락을 부채꼴로 벌리고 사이에 그늘 틈을 둔다(가까운 내 손이 덩어리로 읽히지 않게). 기본 0 = 예전 그대로.
  */
-export function hand(b: Builder, wrist: THREE.Vector3, fIn: THREE.Vector3, nIn: THREE.Vector3, side: number, curl = 0.35, scale = 1, skin = SKIN): void {
+export function hand(b: Builder, wrist: THREE.Vector3, fIn: THREE.Vector3, nIn: THREE.Vector3, side: number, curl = 0.35, scale = 1, skin = SKIN, spread = 0): void {
   const f = fIn.clone().normalize();
   const n = nIn.clone().sub(f.clone().multiplyScalar(nIn.dot(f))).normalize();
   const s = new THREE.Vector3().crossVectors(f, n).normalize().multiplyScalar(side);
@@ -80,17 +81,26 @@ export function hand(b: Builder, wrist: THREE.Vector3, fIn: THREE.Vector3, nIn: 
   // 손가락 넷(마디 둘): 굽힘은 손바닥 쪽(−n)
   const knuck = pc.clone().addScaledVector(f, 0.045 * k);
   const lens = [0.03, 0.034, 0.033, 0.026];
+  const tip = '#' + new THREE.Color(skin).multiplyScalar(1.12).getHexString();
   for (let i = 0; i < 4; i++) {
-    const off = (i - 1.5) * 0.019 * k;
+    const off = (i - 1.5) * 0.019 * k * (1 + 0.18 * spread);
+    // 부채꼴: 바깥 손가락일수록 옆으로 벌어진다
+    const ff = f.clone().addScaledVector(s, -(i - 1.5) * 0.14 * spread).normalize();
     const c0 = knuck.clone().addScaledVector(s, -off).addScaledVector(f, i === 3 || i === 0 ? -0.005 * k : 0);
     const a1 = curl * 0.9 + i * 0.05;
-    const d1 = f.clone().multiplyScalar(Math.cos(a1)).addScaledVector(n, -Math.sin(a1));
+    const d1 = ff.clone().multiplyScalar(Math.cos(a1)).addScaledVector(n, -Math.sin(a1));
     const c1 = c0.clone().addScaledVector(d1, lens[i] * k);
     const a2 = a1 + curl * 1.0 + 0.15;
-    const d2 = f.clone().multiplyScalar(Math.cos(a2)).addScaledVector(n, -Math.sin(a2));
+    const d2 = ff.clone().multiplyScalar(Math.cos(a2)).addScaledVector(n, -Math.sin(a2));
     const c2 = c1.clone().addScaledVector(d2, lens[i] * 0.8 * k);
-    cone(b, tp(c0), tp(c1), 0.0095 * k, 0.0085 * k, skin, 6);
-    cone(b, tp(c1), tp(c2), 0.0085 * k, 0.0068 * k, i % 2 ? skin : SKIN_DARK, 6);
+    const rr = spread > 0 ? 0.92 : 1;
+    cone(b, tp(c0), tp(c1), 0.0095 * k * rr, 0.0085 * k * rr, skin, 6);
+    cone(b, tp(c1), tp(c2), 0.0085 * k * rr, 0.0068 * k * rr, spread > 0 ? tip : i % 2 ? skin : SKIN_DARK, 6);
+    // 마디 그늘(첫 마디 사이 틈): 손가락이 갈라져 읽히게
+    if (spread > 0 && i < 3) {
+      const g0 = c0.clone().addScaledVector(s, -0.0095 * k).addScaledVector(n, 0.002 * k);
+      cone(b, tp(g0), tp(g0.clone().addScaledVector(d1, lens[i] * 0.55 * k)), 0.0035 * k, 0.002 * k, SKIN_DARK, 4);
+    }
   }
   // 엄지: 손목 가까이 옆에서 앞·아래로
   const t0 = pc.clone().addScaledVector(s, 0.034 * k).addScaledVector(f, -0.022 * k).addScaledVector(n, -0.008 * k);
