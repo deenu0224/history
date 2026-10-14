@@ -1,3 +1,4 @@
+// @ts-expect-error — @types/node 없이 파일 존재만 본다(vitest 는 node 에서 돈다)
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EP1 } from '@/data/v5';

@@ -329,6 +329,7 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'restore-home');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-cards')).toBeVisible();
+    await page.waitForTimeout(2600); // 먹 번짐(글자가 굳는 시간)
     await shot(page, 'restore-cards');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-messages')).toBeVisible();
@@ -344,6 +345,7 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'restore-log');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-monologue')).toContainText('그의 눈은 끝내 열리지 않았다');
+    await page.waitForTimeout(4500);
     await shot(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-teaser')).toBeVisible();
@@ -392,6 +394,7 @@ test.describe('v5 눈 닫힘과 잃은 컷', () => {
       st().tag('fig_hong', 'hong_gwidal', 'l_e3_1', 'e3-1');
       for (let i = 0; i < 5; i++) st().viewCut('E4', i);
       st().closeViewer();
+      st().closeRoom();
     });
     await page.locator('[data-eye="E3"]').waitFor();
     await expect(page.locator('[data-eye="E3"]')).toHaveAttribute('data-state', 'closed');
@@ -402,7 +405,7 @@ test.describe('v5 눈 닫힘과 잃은 컷', () => {
     await page.screenshot({ path: `${SHOTS}/90-closed-eye-erased.png` });
     // 안 본 컷은 볼 수 없다
     await tid(page, 'dot-3-3').click();
-    await expect(tid(page, 'lost-text')).toHaveText('볼 수 없다');
+    await expect(page.locator('[data-cut="e3-3"] [data-testid="lost-text"]')).toHaveText('볼 수 없다');
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${SHOTS}/91-closed-eye-lost.png` });
     expect(errs, errs.join('\n')).toEqual([]);
@@ -461,6 +464,6 @@ test.describe('v5 틀', () => {
     await expect(tid(page, 'assign-card')).toBeVisible();
     await expect(page.locator('[data-eye="E1"]')).toHaveAttribute('data-state', 'open');
     const viewed = await page.evaluate(() => (window as unknown as { __STORE__: { getState: () => { viewedCuts: string[] } } }).__STORE__.getState().viewedCuts);
-    expect(viewed).toEqual(['e1-1', 'e1-2', 'e1-3']);
+    expect(viewed).toEqual(['e1-1', 'e1-3']); // 점으로 1 → 3 으로 건너뛰었다
   });
 });
