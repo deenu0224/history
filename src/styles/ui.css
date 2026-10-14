@@ -576,18 +576,14 @@
   background: radial-gradient(ellipse 70% 62% at 50% 52%, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.42) 100%);
 }
 .cutnote {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 10px;
-  padding: 8px 12px;
+  margin: 0 12px 8px;
+  padding: 6px 12px;
   border-radius: 10px;
-  background: rgba(11, 10, 9, 0.78);
-  border: 1px solid rgba(92, 154, 149, 0.45);
-  color: var(--teal);
+  background: rgba(92, 154, 149, 0.1);
+  border-left: 3px solid var(--teal);
+  color: #8fc2bd;
   font-size: var(--fs-m);
   line-height: var(--lh-m);
-  pointer-events: none;
 }
 .lostpane {
   width: 100%;
@@ -687,8 +683,8 @@
   color: #6b5e45;
 }
 .bubble.garbled {
-  background: rgba(239, 229, 203, 0.6);
-  color: #988a68;
+  background: rgba(239, 229, 203, 0.78);
+  color: #7d6f4f;
 }
 .bubble .txt {
   font-size: var(--fs-b);
@@ -767,9 +763,11 @@
 }
 .toast {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: max-content;
   top: 112px;
-  transform: translateX(-50%);
   z-index: 60;
   max-width: calc(100% - 32px);
   display: flex;
@@ -798,11 +796,11 @@
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -6px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: none;
   }
 }
 .banner {
@@ -1214,6 +1212,17 @@
   animation: toast-in 0.4s var(--ease);
   pointer-events: none;
   transform: translateX(-50%);
+  animation: tagpop 0.4s var(--ease);
+}
+@keyframes tagpop {
+  from {
+    opacity: 0;
+    margin-top: -6px;
+  }
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
 }
 .planwrap {
   position: relative;
@@ -1825,4 +1834,22 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+.plan text.lbl {
+  paint-order: stroke;
+  stroke: #0d0f10;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+.wlist {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.wlist li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-height: 26px;
 }

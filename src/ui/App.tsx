@@ -3,6 +3,7 @@ import { MUSIC } from '@/data/feedback';
 import { installAudioUnlock, setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { Director } from './Director';
+import { installFeedback } from './lib/fx';
 import { CardDetail } from './parts/CardDetail';
 import { DocSheet, LogSheet } from './parts/LogSheets';
 import { RoomSheet } from './parts/RoomSheet';
@@ -78,6 +79,7 @@ export function App() {
   const reduce = useGameStore((s) => s.settings.reduceMotion);
   const music = useGameStore((s) => s.settings.music);
 
+  useEffect(() => installFeedback(), []);
   useEffect(() => {
     try {
       installAudioUnlock();

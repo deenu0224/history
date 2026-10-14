@@ -130,7 +130,6 @@ function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
 // ── 컷 한 장 ──
 function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: string; entry: CutEntry | undefined; box: { w: number; h: number }; active: boolean; eyeClosed: boolean; selected: string | null }) {
   const cut = useView((ep, s) => selectCut(ep, s, cutId), [cutId]);
-  const closure = EPISODE.closures.find((c) => c.eyeId === cut?.eyeId);
   if (!cut) return null;
   if (cut.availability === 'lost')
     return (
@@ -161,7 +160,6 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
         <img className="cutimg" {...(closedLook ? erased : memory)} sizes={`${box.w}px`} alt="" draggable={false} data-testid={`cut-img-${cutId}`} />
         {closedLook ? <img className="cutimg top" {...memory} sizes={`${box.w}px`} alt="" draggable={false} /> : null}
         <div className="cutvig" />
-        {eyeClosed && closure ? <div className="cutnote">{closure.systemLine}</div> : null}
         {(entry?.figures ?? []).map((b) => {
           const f = cut.figures.find((x) => x.figureId === b.id);
           if (!f) return null;
@@ -227,6 +225,7 @@ export function Viewer() {
   const eyeId = v?.eyeId;
   const eye = useMemo(() => EPISODE.eyes.find((e) => e.id === eyeId), [eyeId]);
   const eyeClosed = !!v && v.eyes.find((e) => e.eyeId === v.eyeId)?.state === 'closed';
+  const closureLine = EPISODE.closures.find((c) => c.eyeId === eyeId)?.systemLine;
 
   const index = v?.index ?? 0;
   const total = v?.total ?? 0;
@@ -343,7 +342,7 @@ export function Viewer() {
         <div className="l2">
           <EyeRow
             eyes={v.eyes}
-            size={22}
+            size={24}
             onPick={(id) => {
               if (id === v.eyeId) return;
               const g = useGameStore.getState();
@@ -364,6 +363,11 @@ export function Viewer() {
             </button>
           ) : null}
         </div>
+        {eyeClosed && closureLine ? (
+          <div className="cutnote" data-testid="closure-note">
+            {closureLine}
+          </div>
+        ) : null}
       </div>
 
       <div

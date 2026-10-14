@@ -2,11 +2,11 @@
  * 연출 감독(렌더 없음): 시간 흘리기(tick) · 재개 · 자동 저장 · 엔진 fx 큐 → 소리·진동·토스트·배너 · 장면별 음악.
  * 엔진은 fx 를 쌓기만 하고, 보여 주는 쪽(여기)이 비운다(ackFx).
  */
-import { useEffect } from 'react';
-import { saveGame } from '@/core/save';
+import { useEffect, useState } from 'react';
 import { setMusic, setVolume } from '@/game/audio';
 import { PERSISTED_KEYS, pickPersisted, useGameStore } from '@/store/gameStore';
 import type { Fx } from '@/store/gameStore';
+import { LANDSCAPE_TOUCH_QUERY } from '@/shell/orientation';
 import { fx } from './lib/fx';
 import { FROM_LABEL } from './lib/format';
 import { topScreen, useUi } from './uiStore';
@@ -62,11 +62,22 @@ function handle(f: Fx) {
 }
 
 export function Director() {
+  // 가로로 눕히면 「세로로 돌려 주세요」 만 보인다: 시간·소리를 멈춘다(돌아오면 그대로)
+  const [landscape, setLandscape] = useState(() => typeof matchMedia === 'function' && matchMedia(LANDSCAPE_TOUCH_QUERY).matches);
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const mq = matchMedia(LANDSCAPE_TOUCH_QUERY);
+    const on = () => setLandscape(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+
   // 시간: 메신저 배달·힌트·닫히는 눈
   useEffect(() => {
+    if (landscape) return;
     const id = setInterval(() => useGameStore.getState().tick(), TICK_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [landscape]);
 
   // 숨김 → 저장, 돌아옴 → 재개(오래 떠나 있었으면 한 선임이 한마디)
   useEffect(() => {
@@ -97,7 +108,7 @@ export function Director() {
       const now = snap();
       if (now === last) return;
       last = now;
-      void saveGame('auto', pickPersisted(useGameStore.getState())).catch(() => {});
+      void useGameStore.getState().save('auto').catch(() => {});
     }, SAVE_MS);
     return () => clearInterval(id);
   }, []);
@@ -118,11 +129,11 @@ export function Director() {
   const roomOpen = useGameStore((s) => s.ui.roomOpen);
   useEffect(() => {
     try {
-      setVolume(volume);
+      setVolume(landscape ? 0 : volume);
     } catch {
       /* 오디오 없음 */
     }
-  }, [volume]);
+  }, [volume, landscape]);
   useEffect(() => {
     if (top === 'restore') return; // 복원 화면이 직접 고른다
     try {

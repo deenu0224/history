@@ -31,6 +31,7 @@ function cone(x: number, y: number, facing: number, half: number, r: number) {
   return `M${cx},${cy} L${cx + rr * Math.cos(a0)},${cy + rr * Math.sin(a0)} A${rr},${rr} 0 0 1 ${cx + rr * Math.cos(a1)},${cy + rr * Math.sin(a1)} Z`;
 }
 
+const WORD: Record<string, string> = { clear: '또렷', garbled: '흐림', none: '안 들림', countable: '셀 수 있음', occluded: '가려짐', far: '멀다', out_of_view: '시야 밖' };
 const ownerChar = (label: string) => (label.endsWith('의 기억') ? label[0]! : '?');
 
 function Base({ room, children }: { room: ReturnType<typeof selectRoom>; children?: React.ReactNode }) {
@@ -158,7 +159,7 @@ function Conflict({ geo, room, focusClaim }: { geo: ContradictionGeometry; room:
   const sx = P(geo.source.x);
   const sy = P(geo.source.y);
   const col = (s: string) => (s === 'clear' || s === 'countable' ? TEAL2 : s === 'garbled' || s === 'far' ? AMBER : ALERT);
-  const word = (s: string) => ({ clear: '또렷', garbled: '흐림', none: '안 들림', countable: '셀 수 있음', occluded: '가려짐', far: '멀다', out_of_view: '시야 밖' })[s as 'clear'] ?? s;
+  const word = (s: string) => WORD[s] ?? s;
   return (
     <svg className="plan" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="모순 도면" data-testid="conflict-plan">
       <Base room={room}>
@@ -184,14 +185,14 @@ function Conflict({ geo, room, focusClaim }: { geo: ContradictionGeometry; room:
           <g key={`${w.eyeId}${w.claimId ?? ''}`} opacity={on ? 1 : 0.35} data-testid={`witness-${w.eyeId}`} data-status={w.status}>
             {geo.kind === 'sight' ? <line x1={P(w.x)} y1={P(w.y)} x2={sx} y2={sy} stroke={col(w.status)} strokeWidth="1.3" strokeDasharray={w.status === 'countable' ? undefined : '4 4'} /> : null}
             <PersonMark x={w.x} y={w.y} label={name(w.eyeId)} eye alert={w.status === 'none' || w.status === 'occluded'} sel={!!focusClaim && w.claimId === focusClaim} />
-            <text x={P(w.x)} y={P(w.y) + 34} textAnchor="middle" fill={col(w.status)} fontSize="16" fontWeight="600">
-              {word(w.status)} {w.distance.toFixed(1)}칸
+            <text className="lbl" x={Math.max(34, Math.min(W - 34, P(w.x)))} y={P(w.y) + 34} textAnchor="middle" fill={col(w.status)} fontSize="16" fontWeight="600">
+              {word(w.status)}
             </text>
           </g>
         );
       })}
       <circle cx={sx} cy={sy} r="9" fill="#0b0a09" stroke={AMBER} strokeWidth="2.2" strokeDasharray="2 3" />
-      <text x={sx} y={sy - 15} textAnchor="middle" fill={AMBER} fontSize="16" fontWeight="600">
+      <text className="lbl" x={sx} y={geo.kind === 'hearing' ? sy - 15 : sy + 30} textAnchor="middle" fill={AMBER} fontSize="16" fontWeight="600">
         {geo.kind === 'hearing' ? '말한 자리' : '세어 본 자리'}
       </text>
     </svg>
@@ -351,6 +352,15 @@ export function RoomSheet() {
             <div className="t-m" style={{ marginTop: 8 }}>
               {view.geometry.kind === 'hearing' ? `${view.geometry.time} · 말이 닿은 거리` : `${view.geometry.time} · 세어 볼 수 있었는가`}
             </div>
+            <ul className="wlist t-m" data-testid="witness-list">
+              {view.geometry.witnesses.map((w) => (
+                <li key={`${w.eyeId}${w.claimId ?? ''}`}>
+                  <span style={{ color: 'var(--hanji)' }}>{ownerChar(room.eyes.find((e) => e.eyeId === w.eyeId)?.label ?? '')}</span>
+                  <span>{WORD[w.status] ?? w.status}</span>
+                  <span className="clock">{w.distance.toFixed(1)}칸</span>
+                </li>
+              ))}
+            </ul>
             {retry ? (
               <div className="fb" role="status" data-testid="retry-text">
                 <span className="t-b">{retry}</span>
