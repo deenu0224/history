@@ -1,8 +1,15 @@
 import { createRoot } from 'react-dom/client';
-import { SPRITES, toDataURL, OS_KEYS } from '../src/game/art';
-const keys = [...OS_KEYS.apps, ...OS_KEYS.appsSmall, ...OS_KEYS.avatars, ...OS_KEYS.statusIcons, ...OS_KEYS.exhibits, 'os_wallpaper_portrait', 'os_badge','os_badge_dot', 'os_btn_primary', ...OS_KEYS.overlays, ...OS_KEYS.notebook];
+import type { ComponentType } from 'react';
+import { ViewerScreen } from './screens_viewer';
+
+export interface Def { id: string; name: string; title: string; w: number; h: number; vw?: number; vh?: number; C: ComponentType }
+export const SCREENS: Def[] = [
+  { id: '03', name: 'viewer', title: '그 사람의 기억', w: 390, h: 844, C: () => <ViewerScreen /> },
+];
+(window as unknown as { __SCREENS: unknown }).__SCREENS = SCREENS.map(({ C: _c, ...r }) => r);
+
+const hash = location.hash.replace('#/', '');
+const def = SCREENS.find((s) => s.id === hash);
 createRoot(document.getElementById('root')!).render(
-  <div style={{ color: '#dde3e7', font: '11px sans-serif', padding: 10, background:'#182130', display:'flex', flexWrap:'wrap', gap:8 }}>
-    {keys.map((k) => { const s = SPRITES[k]; if(!s) return <div key={k}>missing {k}</div>; return <div key={k} style={{textAlign:'center', maxWidth:110}}><img src={toDataURL(k,0, s.w>100?1:3)} style={{imageRendering:'pixelated', maxWidth:100}}/><div>{k} {s.w}x{s.h}</div></div>; })}
-  </div>,
+  def ? <def.C /> : <div style={{ padding: 20, color: '#dde3e7' }}>{SCREENS.map((s) => <p key={s.id}><a style={{ color: '#86c4bd' }} href={`#/${s.id}`} onClick={() => setTimeout(() => location.reload())}>{s.id} {s.title}</a></p>)}</div>,
 );

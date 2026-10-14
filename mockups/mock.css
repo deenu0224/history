@@ -1,3 +1,161 @@
-@font-face { font-family: 'Galmuri11'; src: url('/fonts/Galmuri11.woff2') format('woff2'); font-weight: 400; }
-@font-face { font-family: 'Galmuri11'; src: url('/fonts/Galmuri11-Bold.woff2') format('woff2'); font-weight: 700; }
-html, body { margin: 0; background: #07090d; }
+/* 결록 v5 목업 — UI_STYLE_GUIDE 토큰. 목업 전용(src/ 미변경). */
+@import url('/mockups/fonts/myeongjo.css');
+@font-face { font-family: 'Pretendard'; src: url('/mockups/fonts/Pretendard-Regular.woff2') format('woff2'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Pretendard'; src: url('/mockups/fonts/Pretendard-Medium.woff2') format('woff2'); font-weight: 500; font-display: block; }
+@font-face { font-family: 'Pretendard'; src: url('/mockups/fonts/Pretendard-SemiBold.woff2') format('woff2'); font-weight: 600; font-display: block; }
+@font-face { font-family: 'Galmuri11'; src: url('/fonts/Galmuri11.woff2') format('woff2'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Galmuri11'; src: url('/fonts/Galmuri11-Bold.woff2') format('woff2'); font-weight: 700; font-display: block; }
+
+:root {
+  /* 현대(단말) */
+  --bg: #0f141c;
+  --surface: #182130;
+  --surface-2: #243046;
+  --line: #34445e;
+  --text: #dde3e7;
+  --muted: #93a3b4;
+  --accent: #4a9795;
+  --accent-strong: #86c4bd;
+  --alert: #d98a7a;
+  --cold: #6f8196;
+  --backdrop: #07090d;
+  --card-paper: #dde3e7;
+  --card-ink: #1e2024;
+  /* 과거(컷) */
+  --hanji0: #efe5cb;
+  --hanji1: #dccfae;
+  --hanji2: #c0b08a;
+  --hanji3: #988a68;
+  --ink2: #25211e;
+  --lamp1: #ffd27a;
+  --lamp2: #e9a04a;
+  --vig: #14110f;
+  /* 한지(다시 쓰기·복원) */
+  --paper: #efe5cb;
+  --ink: #3a342f;
+  --ink-restored: #25211e;
+  --ink-witness: #6b5e45;
+  --seal: #a04540;
+
+  --f-ui: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --f-read: 'Nanum Myeongjo', 'Noto Serif KR', 'AppleMyungjo', serif;
+  --f-pixel: 'Galmuri11', 'Pretendard', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--backdrop); }
+body { font-family: var(--f-ui); color: var(--text); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; }
+
+/* ───── 세 단계 글자 ───── */
+.t-h { font-size: 22px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em; }
+.t-b { font-size: 17px; line-height: 27px; font-weight: 400; }
+.t-m { font-size: 16px; line-height: 24px; font-weight: 400; color: var(--muted); }
+.t-b.strong { font-weight: 600; }
+.pixel { font-family: var(--f-pixel); }
+
+/* ───── 화면 틀 ───── */
+.screen {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--f-ui);
+  isolation: isolate;
+}
+.devbar {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 90; pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 26px 8px; color: rgba(221,227,231,.92);
+  font: 600 15px/1 var(--f-ui);
+}
+.devbar .icons { display: flex; gap: 6px; align-items: center; }
+.homebar {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 90; pointer-events: none;
+  width: 134px; height: 5px; border-radius: 3px; background: rgba(221,227,231,.55);
+}
+
+/* ───── 버튼 ───── */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 56px; padding: 0 20px; border-radius: 14px; border: 1px solid transparent;
+  font-size: 17px; line-height: 27px; font-weight: 600; letter-spacing: -0.01em; cursor: pointer;
+  width: 100%;
+}
+.btn.primary { background: var(--accent); color: #0a1218; box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 1px 0 rgba(0,0,0,.4); }
+.btn.secondary { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+.btn.ghost { background: transparent; color: var(--muted); font-weight: 500; }
+.btn.outline { background: rgba(74,151,149,.08); border-color: var(--accent); color: var(--accent-strong); font-weight: 500; min-height: 52px; justify-content: flex-start; text-align: left; }
+.icon-btn {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 0; background: transparent; color: var(--text); padding: 0;
+}
+
+/* ───── 시트 ───── */
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--surface); border-radius: 22px 22px 0 0;
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -18px 40px rgba(0,0,0,.55);
+  padding-bottom: var(--sab);
+}
+.sheet .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: 9px auto 0; }
+
+/* ───── 인물 카드 ───── */
+.pcard {
+  position: relative; flex: 0 0 auto; width: 112px; height: 148px;
+  background: var(--card-paper); color: var(--card-ink);
+  border-radius: 10px; padding: 12px 12px 10px; display: flex; flex-direction: column;
+  box-shadow: 0 1px 0 #fff inset, 0 6px 14px rgba(0,0,0,.38);
+  transition: transform .2s;
+}
+.pcard::before { /* 모서리 구멍 */
+  content: ''; position: absolute; top: 9px; right: 10px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--surface); box-shadow: inset 0 1px 2px rgba(0,0,0,.5);
+}
+.pcard .nm { font-size: 22px; line-height: 30px; font-weight: 600; margin-top: 14px; }
+.pcard .hj { font-size: 16px; line-height: 24px; color: #4b5561; }
+.pcard .ft { margin-top: auto; font-size: 16px; line-height: 24px; color: #3c4650; border-top: 1px solid #b3bcc4; padding-top: 6px; }
+.pcard.sel { transform: translateY(-8px); box-shadow: 0 0 0 3px var(--accent-strong), 0 10px 18px rgba(0,0,0,.45); }
+.pcard.dim { opacity: .5; }
+
+/* ───── 한지 ───── */
+.hanji {
+  background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(120,98,60,.045) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(0deg, rgba(120,98,60,.04) 0 1px, transparent 1px 9px),
+    radial-gradient(120% 90% at 30% 10%, rgba(255,255,255,.35), transparent 60%),
+    radial-gradient(100% 100% at 50% 110%, rgba(150,120,70,.22), transparent 55%);
+}
+.read { font-family: var(--f-read); }
+
+/* ───── 슬롯(칸) ───── */
+.slot {
+  display: inline-block; padding: 0 7px; margin: 0 1px; border: 1.5px dashed #8a7a58; border-radius: 6px;
+  background: rgba(160,130,80,.12); color: var(--ink); line-height: 25px; vertical-align: 1px;
+}
+.slot.warn { border-color: #a04540; background: rgba(160,69,64,.12); color: #7a2f2f; border-style: solid; }
+.slot.empty { color: #8a7a58; }
+
+/* 말풍선(컷 위, 과거 언어) */
+.bubble-past {
+  position: absolute; background: rgba(239,229,203,.96); color: var(--ink2);
+  border: 1.5px solid #988a68; border-radius: 12px; padding: 10px 14px 11px;
+  box-shadow: 0 3px 0 rgba(20,17,15,.35), 0 10px 22px rgba(0,0,0,.35);
+}
+.bubble-past .tail {
+  position: absolute; width: 14px; height: 14px; background: rgba(239,229,203,.96);
+  border: 1.5px solid #988a68; border-top: 0; border-left: 0; transform: rotate(45deg);
+}
+.term { border-bottom: 2px solid #a04540; padding-bottom: 0; }
+
+/* 숨쉬기(정지 프레임용 힌트 링) */
+.breath { box-shadow: 0 0 0 4px rgba(134,196,189,.22), 0 0 24px 2px rgba(134,196,189,.22); }
+
+.scrollx { display: flex; gap: 10px; overflow: hidden; }
+.chip {
+  display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 22px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 16px; line-height: 24px; white-space: nowrap;
+}
+.chip.on { background: rgba(74,151,149,.2); border-color: var(--accent); color: var(--accent-strong); }
+.divider { height: 1px; background: var(--line); }
