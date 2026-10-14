@@ -6,7 +6,7 @@
  * 지역 좌표: 앞 = +x, 오른쪽 = +z, 위 = +y, 원점 = 바닥 위 몸 중심.
  */
 import * as THREE from 'three';
-import { Builder, trs } from './geo';
+import { Builder, segs, trs } from './geo';
 import type { HatId, Holding, PovFigure, PovPose, RobeId } from './types';
 
 export const ROBE: Record<RobeId, string> = {
@@ -43,14 +43,14 @@ export function cone(b: Builder, a: P, c: P, r0: number, r1: number, color: stri
   const dir = Cc.clone().sub(A);
   const len = dir.length();
   if (len < 1e-5) return;
-  const g = new THREE.CylinderGeometry(r1, r0, len, seg, 2, false);
+  const g = new THREE.CylinderGeometry(r1, r0, len, segs(seg), 2, false);
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
   const m = new THREE.Matrix4().compose(A.clone().add(Cc).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1));
   b.geo(g, m, color, { ao: false, shade });
 }
 
 export function ellipsoid(b: Builder, c: P, r: P, color: string, ry = 0, seg = 10, half = false, jitter = 0): void {
-  const g = new THREE.SphereGeometry(1, seg, half ? 4 : Math.max(5, Math.round(seg * 0.6)), 0, Math.PI * 2, 0, half ? Math.PI / 2 : Math.PI);
+  const g = new THREE.SphereGeometry(1, segs(seg), segs(half ? 4 : Math.max(5, Math.round(seg * 0.6))), 0, Math.PI * 2, 0, half ? Math.PI / 2 : Math.PI);
   b.geo(g, trs(c[0], c[1], c[2], 0, ry, 0, r[0], r[1], r[2]), color, { ao: false, jitter });
 }
 
@@ -58,7 +58,7 @@ export function ellipsoid(b: Builder, c: P, r: P, color: string, ry = 0, seg = 1
 function ellBasis(b: Builder, c: THREE.Vector3, f: THREE.Vector3, n: THREE.Vector3, s: THREE.Vector3, rf: number, rn: number, rs: number, color: string, seg = 8): void {
   const m = new THREE.Matrix4().makeBasis(f.clone().multiplyScalar(rf), n.clone().multiplyScalar(rn), s.clone().multiplyScalar(rs));
   m.setPosition(c);
-  b.geo(new THREE.SphereGeometry(1, seg, Math.max(4, Math.round(seg * 0.7))), m, color, { ao: false });
+  b.geo(new THREE.SphereGeometry(1, segs(seg), segs(Math.max(4, Math.round(seg * 0.7)))), m, color, { ao: false });
 }
 
 /**
@@ -177,7 +177,7 @@ function robeBody(b: Builder, color: string, dy: number, mode: 'stand' | 'seat' 
     mode === 'stand'
       ? [[0.34, 0.0], [0.33, 0.05], [0.3, 0.3], [0.27, 0.55], [0.222, 0.84], ...top]
       : [[0.222, 0.8], ...top];
-  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r * build, y + dy)), 20);
+  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r * build, y + dy)), segs(20));
   g.computeVertexNormals();
   b.geo(g, trs(0, 0, 0, 0, 0, 0, 0.62, 1, 1), color, { ao: false, shade: (_x, y) => 0.8 + 0.2 * Math.min(1, Math.max(0, (y - dy - 0.7) / 0.6)) });
   // 앞섶 여밈 선(단령의 오른쪽 여밈: 깃에서 옆구리로) — 실루엣 안의 작은 명암

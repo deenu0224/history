@@ -92,6 +92,13 @@ export interface SelfRig {
 
 export type PovOverlay = 'memory' | 'erased';
 
+/**
+ * 컷 그림체(비교용 시안). 없거나 'current' 이면 지금 출력 그대로(굽기 기본값).
+ * pixel = 저해상도 진짜 픽셀아트(작은 팔레트·띠 명암·1px 외곽선) · painted = 고해상도 회화풍 ·
+ * hd2d = 회화풍 배경 위 픽셀 인물.
+ */
+export type PovStyle = 'current' | 'pixel' | 'painted' | 'hd2d';
+
 /** 서안 위 소품 상태(시각별). */
 export interface PovProps {
   /** 잘라 낸 종이 조각: none / spread(서안 위 SP 근처에 여섯 장, 한 장은 사초 더미 그늘) / held(손에) */
@@ -159,6 +166,8 @@ export interface PovSpec {
   vignette?: number;
   /** 결정적 잡음 씨앗(기본: 스펙 해시) */
   seed?: number;
+  /** 그림체(기본 'current'). 비교 시안 전용 — 굽기 기본 출력은 바뀌지 않는다 */
+  style?: PovStyle;
 }
 
 /** CSS px 단위 탭 영역 */

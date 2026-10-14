@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { buildHall, type HallParts } from './hall';
+import { povDetail, setPovDetail } from './geo';
 import { buildFigure } from './figure';
 import { buildSelf } from './self';
 import { buildProps } from './props';
@@ -21,6 +22,11 @@ export interface Raw3d {
   focusDepth?: number;
   buildMs: number;
   renderMs: number;
+  /** (style ≠ current) 시점 공간 법선, 픽셀당 xyz(−1..1). 하늘 = 0 */
+  normal?: Float32Array;
+  /** (style ≠ current) 물체 번호(0 = 하늘·없음) + 번호별 이름(인물 id, 'slip:…', 'self', 'hall', 'prop') */
+  obj?: Uint16Array;
+  objNames?: string[];
   /** id 패스: 인물·종이 조각별 실제로 보이는 픽셀 수와 경계(내부 px, 끝 포함). 안 보이면 없음 */
   visible: Record<string, PovVisibility>;
 }
@@ -117,16 +123,17 @@ const depthMaterial = () =>
   });
 
 function hallFor(): HallParts {
-  let h = hallCache.get('hall');
+  const key = `hall:${povDetail()}`;
+  let h = hallCache.get(key);
   if (!h) {
     h = buildHall();
-    hallCache.set('hall', h);
+    hallCache.set(key, h);
   }
   return h;
 }
 
 /** 해가 남쪽 문으로 드는 빛줄기(가산 반투명 프리즘) + 먼지 */
-function sunShaft(dir: THREE.Vector3, seed: number): THREE.Object3D[] {
+function sunShaft(dir: THREE.Vector3, seed: number, dust = { n: 70, size: 1, opacity: 0.55 }): THREE.Object3D[] {
   const D = R.h;
   if (dir.z >= -0.05 || dir.y >= -0.05) return [];
   // 처마 끝을 스친 빛이 벽면(z=D)에 닿는 높이
@@ -169,7 +176,7 @@ function sunShaft(dir: THREE.Vector3, seed: number): THREE.Object3D[] {
   // 먼지: 빛 안의 작은 점
   const rnd = mulberry32(seed);
   const dp: number[] = [];
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < dust.n; i++) {
     const x = x0 + rnd() * (x1 - x0);
     const y = rnd() * ytop;
     const p = P(x, y).addScaledVector(dir, (rnd() * -y) / dir.y);
@@ -177,10 +184,17 @@ function sunShaft(dir: THREE.Vector3, seed: number): THREE.Object3D[] {
   }
   const dg = new THREE.BufferGeometry();
   dg.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3));
-  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#ffe2b0', size: 1, sizeAttenuation: false, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#ffe2b0', size: dust.size, sizeAttenuation: false, transparent: true, opacity: dust.opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
   dust.name = 'dust';
   return [shaft, dust];
 }
+
+const normalMaterial = () =>
+  new THREE.ShaderMaterial({
+    vertexShader: `varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `varying vec3 vN; void main(){ vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n; gl_FragColor = vec4(n * 0.5 + 0.5, 1.0); }`,
+    side: THREE.DoubleSide,
+  });
 
 const idMaterial = (id: number) =>
   new THREE.ShaderMaterial({
@@ -190,6 +204,20 @@ const idMaterial = (id: number) =>
   });
 
 export async function render3d(spec: PovSpec): Promise<Raw3d> {
+  const style = spec.style ?? 'current';
+  if (style === 'current') return render3dInner(spec, style);
+  const prev = povDetail();
+  setPovDetail(style === 'painted' || style === 'hd2d' ? 2 : 1);
+  try {
+    return await render3dInner(spec, style);
+  } finally {
+    setPovDetail(prev);
+  }
+}
+
+async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>): Promise<Raw3d> {
+  const extras = style !== 'current';
+  const painted = style === 'painted' || style === 'hd2d';
   const t0 = performance.now();
   const { w, h } = internalSize(spec);
   const cam = povCamera(spec);
@@ -249,6 +277,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
     const me = buildSelf(spec.self, pano ? pano.selfCam : cam, at);
     const rf = spec.self.rimFrom ?? (parseTime(spec.time) < 600 ? { x: 12.2, y: 4.0, h: 1.4 } : { x: 6.0, y: 9.4, h: 1.3 });
     withRim(me.material as THREE.MeshLambertMaterial, { from: new THREE.Vector3(rf.x, rf.h ?? 1.2, rf.y), strength: 1.2, power: 2.2, wrap: 0.32 });
+    if (extras) me.name = 'self';
     scene.add(me);
     disposables.push(me.geometry, me.material as THREE.Material);
   }
@@ -262,7 +291,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   sunL.position.set(6 + toSun.x * 40, toSun.y * 40, 6 + toSun.z * 40);
   sunL.target.position.set(6, 0, 6);
   sunL.castShadow = true;
-  sunL.shadow.mapSize.set(2048, 2048);
+  sunL.shadow.mapSize.set(painted ? 4096 : 2048, painted ? 4096 : 2048);
   const sc = sunL.shadow.camera as THREE.OrthographicCamera;
   sc.left = -16;
   sc.right = 16;
@@ -302,7 +331,7 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
       scene.add(fl, pl);
     }
   }
-  const vol = sunShaft(lightDir, spec.seed ?? 7);
+  const vol = painted ? sunShaft(lightDir, spec.seed ?? 7, { n: 320, size: Math.max(1, Math.round(w / 300)), opacity: 0.38 }) : sunShaft(lightDir, spec.seed ?? 7);
   for (const o of vol) {
     scene.add(o);
     const mo = o as THREE.Mesh;
@@ -388,6 +417,20 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const dbufRaw = new Uint8Array(RW * h * 4);
   r.readRenderTargetPixels(rt, 0, 0, RW, h, dbufRaw);
   const dbuf = remap(dbufRaw, false);
+  let normal: Float32Array | undefined;
+  if (extras) {
+    const nm = normalMaterial();
+    scene.overrideMaterial = nm;
+    r.setClearColor(0x808080, 1);
+    r.clear();
+    r.render(scene, camera);
+    const nRaw = new Uint8Array(RW * h * 4);
+    r.readRenderTargetPixels(rt, 0, 0, RW, h, nRaw);
+    const nb = remap(nRaw, false);
+    normal = new Float32Array(w * h * 3);
+    for (let i = 0; i < w * h; i++) for (let c = 0; c < 3; c++) normal[i * 3 + c] = nb[i * 4 + c] / 127.5 - 1;
+    nm.dispose();
+  }
   scene.overrideMaterial = null;
   const depth = new Float32Array(w * h);
   for (let y = 0; y < h; y++)
@@ -401,6 +444,9 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   const saved = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
   const black = idMaterial(0);
   const idMats: THREE.Material[] = [black];
+  /** (extras) 표시 안 된 물체도 번호를 받는다(외곽선용). 번호 > tagged.length 는 보임 검사에서 무시된다 */
+  const objNames: string[] = ['', ...tagged.map((m) => m.name)];
+  const hallMeshes = new Set<THREE.Object3D>(hall.group.children);
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh && !(o as THREE.Points).isPoints) return;
@@ -408,6 +454,11 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
     const k = tagged.indexOf(m);
     if (k >= 0) {
       const im = idMaterial(k + 1);
+      idMats.push(im);
+      m.material = im;
+    } else if (extras && m.isMesh && m.visible && objNames.length < 255) {
+      objNames.push(hallMeshes.has(m) ? 'hall' : m.name === 'self' ? 'self' : 'prop');
+      const im = idMaterial(objNames.length - 1);
       idMats.push(im);
       m.material = im;
     } else m.material = black;
@@ -425,6 +476,11 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   scene.background = bg;
   for (const o of blobs) o.visible = true;
   const visible: Record<string, PovVisibility> = {};
+  let obj: Uint16Array | undefined;
+  if (extras) {
+    obj = new Uint16Array(w * h);
+    for (let i = 0; i < w * h; i++) obj[i] = ibuf[i * 4];
+  }
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const k = ibuf[(y * w + x) * 4];
@@ -453,5 +509,5 @@ export async function render3d(spec: PovSpec): Promise<Raw3d> {
   scene.remove(hall.group);
   for (const d of disposables) d.dispose();
   const t2 = performance.now();
-  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1, visible };
+  return { w, h, rgba, depth, focusDepth, buildMs: t1 - t0, renderMs: t2 - t1, visible, ...(extras ? { normal, obj, objNames } : {}) };
 }

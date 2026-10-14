@@ -14,6 +14,18 @@ export interface AddOpts {
   shade?: (x: number, y: number, z: number) => number;
 }
 
+/**
+ * 곡면 분할 배율(스타일 'painted' 에서 2 — 원기둥·타원체·회전체가 각지지 않게). 기본 1 = 기존 출력 그대로.
+ * 렌더 하나 동안만 바꾼다(render3d 가 설정·복원).
+ */
+let DETAIL = 1;
+export const setPovDetail = (k: number): void => {
+  DETAIL = k;
+};
+export const povDetail = (): number => DETAIL;
+/** 분할 수에 배율 적용 */
+export const segs = (n: number): number => (DETAIL === 1 ? n : Math.max(n, Math.round(n * DETAIL)));
+
 const _c = new THREE.Color();
 /** 이미 선형인 꼭짓점 색을 다시 변환하지 않도록 setRGB 는 작업 색공간(선형)으로 받는다 */
 const _v = new THREE.Vector3();
@@ -91,7 +103,7 @@ export class Builder {
 
   /** 세로 원기둥 */
   cyl(x: number, y0: number, z: number, r0: number, r1: number, h: number, color: THREE.ColorRepresentation, seg = 10, o?: AddOpts): this {
-    const g = new THREE.CylinderGeometry(r1, r0, h, seg);
+    const g = new THREE.CylinderGeometry(r1, r0, h, segs(seg));
     const m = new THREE.Matrix4().makeTranslation(x, y0 + h / 2, z);
     this.add(g, m, color, o);
     g.dispose();

@@ -3,7 +3,7 @@
  * 컷 하나 = 내부 해상도 렌더 → 후처리 → 정수 배율 최근접 확대 → WebP(무손실) 데이터 URL + 실제 보이는 인물(id 패스).
  * 프로덕션 번들에 들어가지 않는다(런타임은 미리 구운 이미지만 읽는다 — three 를 싣지 않는다).
  */
-import { bakePovCut, type PovSpec, type PovVisibility } from './index';
+import { bakePovCut, bakePovStyle, type PovSpec, type PovStyle, type PovVisibility } from './index';
 import { EP1_CUTS, EP1_ROOM_BACKDROP } from '@/data/cuts/ep1';
 
 export type BakeVariant = 'memory' | 'erased' | 'backdrop';
@@ -59,6 +59,101 @@ async function bake(id: string, variant: BakeVariant, w: number, h: number, scal
   return { id, variant, w, h, scale, dataUrl: big.toDataURL(format, quality), visible: r.visible, ms: performance.now() - t0 };
 }
 
+/**
+ * 그림체 비교 시안 한 장: style 별 기본 해상도로 그려 outW 폭 이미지(PNG 데이터 URL)로. 굽기 기본 출력과 무관.
+ * current = 내부 195×260(@2x 굽기와 같음) · pixel = 130×174(390 CSS 에서 3px 한 칸) · painted/hd2d = 780×1044.
+ */
+export const STYLE_SIZE: Record<PovStyle, { w: number; h: number }> = {
+  current: { w: 195, h: 260 },
+  pixel: { w: 130, h: 174 },
+  painted: { w: 780, h: 1044 },
+  hd2d: { w: 780, h: 1044 },
+};
+
+async function bakeStyle(id: string, variant: 'memory' | 'erased', style: PovStyle, outW = 390, size?: { w: number; h: number }) {
+  const t0 = performance.now();
+  const cut = EP1_CUTS.find((c) => c.id === id);
+  if (!cut) throw new Error(`unknown cut ${id}`);
+  const sz = size ?? STYLE_SIZE[style];
+  const r = await bakePovStyle({ ...cut.spec, overlay: variant, size: sz, style } as PovSpec, STYLE_SIZE.pixel);
+  const src = toCanvas(r.rgba, r.w, r.h);
+  const outH = Math.round((outW * 4) / 3);
+  const c = document.createElement('canvas');
+  c.width = outW;
+  c.height = outH;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#0b0a09';
+  g.fillRect(0, 0, outW, outH);
+  // 픽셀 계열은 정수 배율 최근접 확대(넘치는 행은 아래에서 자름), 회화는 부드럽게 축소
+  const pixelish = style === 'pixel' || style === 'current';
+  if (pixelish && outW % r.w === 0) {
+    g.imageSmoothingEnabled = false;
+    const k = outW / r.w;
+    g.drawImage(src, 0, 0, r.w * k, r.h * k);
+  } else if (pixelish) {
+    // 정수 배율로 먼저 키운 뒤 부드럽게 줄인다(가장자리 계단이 고르게)
+    const k = Math.ceil(outW / r.w) * 2;
+    const big = upscale(src, k);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(big, 0, 0, outW, (r.h * outW) / r.w);
+  } else {
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, 0, 0, outW, (r.h * outW) / r.w);
+  }
+  const vis = Object.fromEntries(Object.entries(r.visible).map(([k, v]) => [k, Math.round(v.px / (r.visibleScale * r.visibleScale))]));
+  return { id, variant, style, w: r.w, h: r.h, dataUrl: c.toDataURL('image/png'), full: style === 'painted' || style === 'hd2d' ? src.toDataURL('image/png') : upscale(src, Math.max(1, Math.round(780 / r.w))).toDataURL('image/png'), visible: vis, ms: performance.now() - t0 };
+}
+
+/** 비교 모음: 행 = 컷, 열 = 그림체. 칸은 모두 같은 표시 크기(tileW). */
+async function compareSheet(rows: { label: string; tiles: { dataUrl: string; caption?: string }[] }[], cols: string[], tileW: number, title = ''): Promise<string> {
+  const tileH = Math.round((tileW * 4) / 3);
+  const pad = 14;
+  const left = 120;
+  const top = 64 + (title ? 34 : 0);
+  const cap = 24;
+  const c = document.createElement('canvas');
+  c.width = left + cols.length * (tileW + pad) + pad;
+  c.height = top + rows.length * (tileH + cap + pad) + pad;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#0b0a09';
+  g.fillRect(0, 0, c.width, c.height);
+  g.textBaseline = 'middle';
+  if (title) {
+    g.font = '600 20px Pretendard, sans-serif';
+    g.fillStyle = '#a39780';
+    g.fillText(title, pad, 26);
+  }
+  g.font = '700 22px Pretendard, sans-serif';
+  cols.forEach((t, k) => {
+    g.fillStyle = '#e9dfc6';
+    g.fillText(t, left + k * (tileW + pad) + 2, top - 22);
+  });
+  for (let rI = 0; rI < rows.length; rI++) {
+    const y = top + rI * (tileH + cap + pad);
+    g.font = '700 22px Pretendard, sans-serif';
+    g.fillStyle = rows[rI].label.includes('erased') ? '#5c9a95' : '#e2a85c';
+    const parts = rows[rI].label.split(' ');
+    parts.forEach((p, k) => g.fillText(p, pad, y + 20 + k * 26));
+    for (let k = 0; k < rows[rI].tiles.length; k++) {
+      const t = rows[rI].tiles[k];
+      const img = new Image();
+      img.src = t.dataUrl;
+      await img.decode();
+      const x = left + k * (tileW + pad);
+      g.imageSmoothingEnabled = false;
+      g.drawImage(img, x, y, tileW, tileH);
+      if (t.caption) {
+        g.font = '500 14px Pretendard, sans-serif';
+        g.fillStyle = '#a39780';
+        g.fillText(t.caption, x + 2, y + tileH + cap / 2 + 2);
+      }
+    }
+  }
+  return c.toDataURL('image/png');
+}
+
 /** 확인용 모음 이미지(PNG): 칸마다 이미지 + 아래 글자 */
 async function sheet(items: { label: string; dataUrl: string }[], cols: number, cellW: number, cellH: number): Promise<string> {
   const pad = 10;
@@ -92,9 +187,11 @@ declare global {
       cuts: { id: string; erasable: boolean; listed: string[]; witnessId: string; time: string }[];
       bake: typeof bake;
       sheet: typeof sheet;
+      bakeStyle: typeof bakeStyle;
+      compareSheet: typeof compareSheet;
     };
   }
 }
 
-window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, sheet };
+window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, sheet, bakeStyle, compareSheet };
 document.body.dataset.bakeReady = '1';
