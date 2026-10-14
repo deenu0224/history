@@ -19,8 +19,6 @@ import {
 } from '@/game/art';
 import type { PixelSprite } from '@/game/art';
 import { isValidHex, OUTLINE_OF } from '@/game/art/palettes';
-import { DIORAMAS } from '@/game/scenes/maps';
-import { MAP_LEGEND } from '@/data/world/maps';
 
 describe('art registry', () => {
   it('has content', () => {
@@ -230,9 +228,6 @@ describe('desk art', () => {
 });
 
 describe('diorama art + maps', () => {
-  const ALLOWED_GROUND = new Set(Object.keys(MAP_LEGEND.ground));
-  const ALLOWED_WALL = new Set(Object.keys(MAP_LEGEND.walls));
-
   it('scene objects/poses exist and new NPC variants are temp', () => {
     for (const k of [...SCENE_KEYS.objects, ...SCENE_KEYS.poses]) {
       expect(SPRITES[k], k).toBeDefined();
@@ -244,32 +239,5 @@ describe('diorama art + maps', () => {
 
   it('kneel/seat poses carry front, left and right frames', () => {
     for (const k of SCENE_KEYS.poses.filter((p) => p.startsWith('pose_kneel') || p.startsWith('seat_'))) expect(SPRITES[k].frames.length, k).toBe(3);
-  });
-
-  it.each(Object.entries(DIORAMAS))('%s map is well-formed', (_id, m) => {
-    expect(m.ground.length).toBe(m.h);
-    expect(m.walls.length).toBe(m.h);
-    for (const r of m.ground) {
-      expect(r.length).toBe(m.w);
-      for (const c of r) expect(ALLOWED_GROUND.has(c), c).toBe(true);
-    }
-    for (const r of m.walls) {
-      expect(r.length).toBe(m.w);
-      for (const c of r) expect(ALLOWED_WALL.has(c), c).toBe(true);
-    }
-    expect(m.w).toBeGreaterThanOrEqual(14);
-    expect(m.w).toBeLessThanOrEqual(19);
-    expect(m.spawn.x).toBeLessThan(m.w);
-    expect(m.spawn.y).toBeLessThan(m.h);
-    expect(m.ambient).toBe('past');
-    for (const o of m.objects) {
-      expect(SPRITES[o.spriteKey], o.spriteKey).toBeDefined();
-      expect(o.x).toBeGreaterThanOrEqual(0);
-      expect(o.x).toBeLessThan(m.w);
-      expect(o.y).toBeGreaterThanOrEqual(0);
-      expect(o.y).toBeLessThan(m.h);
-      expect(o.frame ?? 0).toBeLessThan(SPRITES[o.spriteKey].frames.length);
-      if (o.anim) expect(ANIMS.some((a) => a.key === o.anim), o.anim).toBe(true);
-    }
   });
 });

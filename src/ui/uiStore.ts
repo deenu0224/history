@@ -1,298 +1,120 @@
 /**
- * 화면 로컬 UI 상태(저장되지 않음). 게임 진행 상태는 store/gameStore 가 가진다.
- * 책상 위의 '보기'에 관한 것만 둔다: 열린 패널, 검사 모드, 알림, 메시지 전달 연출, 다시 쓰기 연출.
+ * 화면 이동·일시 표시(UI 전용 상태, 저장 안 함). 게임 상태는 store/gameStore.ts 가 갖는다.
+ *  - 화면은 스택: 바닥은 홈, 뷰어·찾기·메신저·다시 쓰기·복원·설정이 그 위에 쌓인다(뒤로 = 팝).
+ *  - 시트(이름 붙이기·그날의 방·인물 카드·로그·문서)는 스토어 ui(tagTarget, roomOpen)나 여기 값으로 연다.
  */
 import { create } from 'zustand';
-import type { AppId, Id } from '@/core/types';
-import type { ThreadKey } from './lib/text';
+import type { Id } from '@/core/types';
 
-/** 책상 위에 올라오는 패널. 앱(업무·관측·DB·메신저)과 규정집·설정·메뉴. */
-export type Panel = 'rules' | 'menu' | 'filing' | 'log' | 'db' | 'messenger' | 'settings';
-export type FilingTab = 'closed' | 'report';
+export type Screen = 'home' | 'viewer' | 'search' | 'messenger' | 'rewrite' | 'restore' | 'settings';
+export type BootStep = 'title' | 'prologue' | 'cold';
 
-export const APP_PANEL: Record<AppId, Panel> = { work: 'filing', viewer: 'log', db: 'db', messenger: 'messenger' };
-export const PANEL_APP: Partial<Record<Panel, AppId>> = { filing: 'work', log: 'viewer', db: 'db', messenger: 'messenger' };
-
-export interface Notice {
-  id: number;
-  app: AppId;
+export interface Toast {
+  key: number;
   text: string;
-  sub?: string;
-  thread?: ThreadKey;
+  tone: 'amber' | 'cold' | 'alert';
 }
-
-export interface RewritePlay {
-  tone: 'erase' | 'restore';
-  before: string;
-  after: string;
-}
-
-/** 카드 위에 잠깐 뜨는 안내(도장이 아직 안 눌림, 검사 결과) */
-export interface CardMsg {
+export interface Banner {
+  key: number;
+  from: string;
   text: string;
-  tone: 'info' | 'warn' | 'yellow' | 'red';
-  n: number;
 }
 
-interface UiLocal {
-  /** boot: 프롤로그/콜드 오픈/로그인, os: 책상 */
-  phase: 'boot' | 'os';
-  setPhase(p: 'boot' | 'os'): void;
+export interface UiStore {
+  phase: 'boot' | 'game';
+  boot: BootStep;
+  stack: Screen[];
+  /** 인물 카드 상세 */
+  card: { id: Id; picking?: boolean } | null;
+  /** 인물 카드 상세에서 「이 사람으로」 를 눌러 이름 붙이기 시트로 돌려보낸 카드 */
+  picked: Id | null;
+  logOpen: boolean;
+  docId: Id | null;
+  /** 그날의 방에서 열어 둘 모순 */
+  roomFocus: Id | null;
+  /** 찾기 입력 미리 채움 */
+  searchSeed: string | null;
+  toast: Toast | null;
+  banner: Banner | null;
+  /** 겹침 라벨을 보일 마감 시각(ms) */
+  mergeUntil: number;
+  /** 열린 눈에서 막 닫힘이 일어난 눈(연출용) */
+  closedFlash: Id | null;
 
-  panel: Panel | null;
-  openPanel(p: Panel | null): void;
-  filingTab: FilingTab;
-  setFilingTab(t: FilingTab): void;
-
-  /** 알림: banner 는 위에서 잠깐 내려온다(사람의 말만) */
-  notices: Notice[];
-  banner: Notice | null;
-  pushNotice(n: Omit<Notice, 'id'>, opts?: { banner?: boolean }): void;
-  dismissNotice(id: number): void;
-  clearBanner(id?: number): void;
-
-  /** DB 검색 프리필(밑줄 말 → 검색 앱) */
-  searchPrefill: { q: string; nonce: number } | null;
-  prefillSearch(q: string): void;
-
-  reportSeen: boolean;
-  markReportSeen(): void;
-
-  /** 메신저: 열린 대화와 전달 연출 */
-  thread: ThreadKey | null;
-  openThread(t: ThreadKey | null): void;
-  revealed: Id[];
-  reveal(ids: Id[]): void;
-  typing: { thread: ThreadKey; from: string } | null;
-  setTyping(t: { thread: ThreadKey; from: string } | null): void;
-
-  /** 다시 쓰기 연출 대기. key = 'message:<id>' | 'record:<id>' | 'assignment:<id>' | 'case:<id>' | 'warning:<id>' */
-  rewritePlay: Record<string, RewritePlay>;
-  queueRewrite(key: string, p: RewritePlay): void;
-  doneRewrite(key: string): void;
-  /** 복원 직후 번지는 먹 연출 */
-  inkBloom: number;
-  bloom(): void;
-
-  /** 실록 용어 한 줄 풀이(탭하면 아래에 잠깐) */
-  gloss: { term: string; text: string; nonce: number } | null;
-  showGloss(term: string, text: string): void;
-  hideGloss(): void;
-
-  /** 짧은 한 줄 알림(바닥의 작은 알약). 튜토리얼이 아니라 규정·상태 안내용 */
-  flash: { text: string; nonce: number } | null;
-  say(text: string): void;
-  clearFlash(): void;
-
-  // ── 책상 ──
-  /** 책상 위에 보이는 카드(방금 도장 찍은 카드 포함). 다음 건이 올라오면 바뀐다 */
-  shownCase: Id | null;
-  setShownCase(id: Id | null): void;
-  /** 검사 모드(기록 낱말 → 관측 낱말을 차례로 짚는다) */
-  inspect: boolean;
-  setInspect(v: boolean): void;
-  /** 검사 모드를 한 번이라도 켰는가(켜기 전까지는 검사 버튼이 숨 쉰다) */
-  inspectUsed: boolean;
-  /** 짚지 않고 정정을 눌렀다 → 검사 버튼이 한 번 크게 깜빡인다(글 팝업 없이) */
-  inspectNudge: number;
-  nudgeInspect(): void;
-  /** 도장이 책상을 내리친다(짧은 흔들림) */
-  shake: { n: number; heavy: boolean } | null;
-  doShake(heavy?: boolean): void;
-  /** 짚은 조각(기록 쪽 또는 관측 쪽). 반대쪽 조각을 누르면 실이 이어진다 */
-  sel: { side: 'rec' | 'obs'; id: Id } | null;
-  select(sel: { side: 'rec' | 'obs'; id: Id } | null): void;
-  /** 정정 직후: 바뀌어 있던 낱말이 번지며 원문으로 돌아오는 연출 */
-  ghost: { caseId: Id; segId: Id; from: string; at: number } | null;
-  setGhost(g: { caseId: Id; segId: Id; from: string } | null): void;
-  cardMsg: CardMsg | null;
-  cardSay(text: string, tone?: CardMsg['tone']): void;
-  clearCardMsg(): void;
-  /** 방금 막 만들어진 실(키 → 시각). 새 실만 번쩍이고, 나머지는 정지 상태로 그린다 */
-  bornLinks: Record<string, number>;
-  bornLink(key: string): void;
-  /** 카드가 뒤집혀 판정 이력을 보인다 */
-  flipped: boolean;
-  setFlipped(v: boolean): void;
-  /** 방금 찍은 도장 연출(건 id → 시각) */
-  freshStamp: { caseId: Id; at: number } | null;
-  stampFresh(caseId: Id): void;
-  /** 관측 창 확대 */
-  obsExpanded: boolean;
-  setObsExpanded(v: boolean): void;
-  /** 서랍을 처음 열었는가(마른 잉크 클로즈업) */
-  drawerSeen: boolean;
-  markDrawerSeen(): void;
-  /** 읽어야 하는 경고장(프린터에서 나온 뒤 탭해서 닫는다) */
-  slipReading: Id[];
-  readSlip(ids: Id[]): void;
-  closeSlip(): void;
-  /** 근무 보고 종이(근무가 끝난 직후) */
-  shiftReportFor: Id | null;
-  setShiftReportFor(id: Id | null): void;
-  /** 프린터 연출 */
-  printerNonce: number;
-  print(): void;
-  /** 이번 세션에서 읽은 규칙 안내(근무 명세를 한 번 접는다) */
-  briefingOpen: boolean;
-  setBriefingOpen(v: boolean): void;
-
-  /** 책상 위 상태만 비운다(근무가 새로 시작될 때) */
-  resetDesk(): void;
-  /** 불러오기·처음부터 뒤에 화면 쪽 상태를 비운다 */
-  resetSession(): void;
-
-  textScale: number;
-  setTextScale(n: number): void;
-  musicVolume: number;
-  sfxVolume: number;
-  setMusicVolume(n: number): void;
-  setSfxVolume(n: number): void;
+  setBoot(b: BootStep): void;
+  enterGame(): void;
+  push(s: Screen): void;
+  pop(): void;
+  go(s: Screen): void;
+  home(): void;
+  openCard(id: Id, picking?: boolean): void;
+  closeCard(): void;
+  setPicked(id: Id | null): void;
+  setLog(on: boolean): void;
+  setDoc(id: Id | null): void;
+  setRoomFocus(id: Id | null): void;
+  setSearchSeed(q: string | null): void;
+  showToast(text: string, tone?: Toast['tone']): void;
+  showBanner(from: string, text: string): void;
+  clearBanner(): void;
+  flashMerge(): void;
 }
 
-let noticeSeq = 1;
+let seq = 0;
 
-function readNum(key: string, fallback: number, ok?: (n: number) => boolean): number {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return fallback;
-    const v = Number(raw);
-    return Number.isFinite(v) && (!ok || ok(v)) ? v : fallback;
-  } catch {
-    return fallback;
-  }
-}
-function writeNum(key: string, v: number) {
-  try {
-    localStorage.setItem(key, String(v));
-  } catch {
-    /* 저장소 없음 */
-  }
-}
-
-const volOk = (n: number) => n >= 0 && n <= 1;
-
-const deskFresh = () => ({
-  shownCase: null as Id | null,
-  inspect: false,
-  sel: null as { side: 'rec' | 'obs'; id: Id } | null,
-  ghost: null as { caseId: Id; segId: Id; from: string; at: number } | null,
-  cardMsg: null as CardMsg | null,
-  bornLinks: {} as Record<string, number>,
-  flipped: false,
-  freshStamp: null as { caseId: Id; at: number } | null,
-  obsExpanded: false,
-  slipReading: [] as Id[],
-  shiftReportFor: null as Id | null,
-  briefingOpen: true,
-});
-
-export const useUi = create<UiLocal>()((set, get) => ({
+export const useUi = create<UiStore>()((set, get) => ({
   phase: 'boot',
-  setPhase: (phase) => set({ phase }),
-
-  panel: null,
-  openPanel: (panel) => set({ panel }),
-  filingTab: 'closed',
-  setFilingTab: (filingTab) => set({ filingTab }),
-
-  notices: [],
+  boot: 'title',
+  stack: ['home'],
+  card: null,
+  picked: null,
+  logOpen: false,
+  docId: null,
+  roomFocus: null,
+  searchSeed: null,
+  toast: null,
   banner: null,
-  pushNotice(n, opts) {
-    const notice: Notice = { ...n, id: noticeSeq++ };
-    set((s) => ({ notices: [...s.notices.slice(-4), notice], banner: opts?.banner === false ? s.banner : notice }));
+  mergeUntil: 0,
+  closedFlash: null,
+
+  setBoot: (boot) => set({ boot }),
+  enterGame: () => set({ phase: 'game', stack: ['home'] }),
+  push: (s) => {
+    const st = get().stack;
+    if (st[st.length - 1] !== s) set({ stack: [...st, s] });
   },
-  dismissNotice: (id) => set((s) => ({ notices: s.notices.filter((n) => n.id !== id), banner: s.banner?.id === id ? null : s.banner })),
-  clearBanner: (id) => set((s) => (id === undefined || s.banner?.id === id ? { banner: null } : s)),
-
-  searchPrefill: null,
-  prefillSearch: (q) => set({ searchPrefill: { q, nonce: Date.now() + Math.random() } }),
-
-  reportSeen: false,
-  markReportSeen: () => set({ reportSeen: true }),
-
-  thread: null,
-  openThread: (thread) => set({ thread }),
-  revealed: [],
-  reveal: (ids) => set((s) => ({ revealed: [...s.revealed, ...ids.filter((i) => !s.revealed.includes(i))] })),
-  typing: null,
-  setTyping: (typing) => set({ typing }),
-
-  rewritePlay: {},
-  queueRewrite: (key, p) => set((s) => ({ rewritePlay: { ...s.rewritePlay, [key]: p } })),
-  doneRewrite(key) {
-    if (!(key in get().rewritePlay)) return;
-    const { [key]: _drop, ...rest } = get().rewritePlay;
-    void _drop;
-    set({ rewritePlay: rest });
+  pop: () => {
+    const st = get().stack;
+    if (st.length > 1) set({ stack: st.slice(0, -1) });
   },
-  inkBloom: 0,
-  bloom: () => set((s) => ({ inkBloom: s.inkBloom + 1 })),
-
-  gloss: null,
-  showGloss: (term, text) => set({ gloss: { term, text, nonce: Date.now() + Math.random() } }),
-  hideGloss: () => set({ gloss: null }),
-
-  flash: null,
-  say: (text) => set({ flash: { text, nonce: Date.now() + Math.random() } }),
-  clearFlash: () => set({ flash: null }),
-
-  ...deskFresh(),
-  setShownCase: (shownCase) => set({ shownCase }),
-  setInspect: (inspect) => set((s) => ({ inspect, sel: null, inspectUsed: s.inspectUsed || inspect, inspectNudge: inspect ? 0 : s.inspectNudge })),
-  inspectUsed: false,
-  inspectNudge: 0,
-  nudgeInspect: () => set({ inspectNudge: Date.now() }),
-  shake: null,
-  doShake: (heavy = false) => set({ shake: { n: Date.now(), heavy } }),
-  select: (sel) => set({ sel }),
-  setGhost: (g) => set({ ghost: g ? { ...g, at: Date.now() } : null }),
-  cardSay: (text, tone = 'info') => set({ cardMsg: { text, tone, n: Date.now() + Math.random() } }),
-  clearCardMsg: () => set({ cardMsg: null }),
-  bornLink: (key) => set((s) => ({ bornLinks: { ...s.bornLinks, [key]: Date.now() } })),
-  setFlipped: (flipped) => set({ flipped }),
-  stampFresh: (caseId) => set({ freshStamp: { caseId, at: Date.now() } }),
-  setObsExpanded: (obsExpanded) => set({ obsExpanded }),
-  drawerSeen: false,
-  markDrawerSeen: () => set({ drawerSeen: true }),
-  readSlip: (ids) => set((s) => ({ slipReading: [...s.slipReading, ...ids.filter((i) => !s.slipReading.includes(i))] })),
-  closeSlip: () => set((s) => ({ slipReading: s.slipReading.slice(1) })),
-  setShiftReportFor: (shiftReportFor) => set({ shiftReportFor }),
-  printerNonce: 0,
-  print: () => set((s) => ({ printerNonce: s.printerNonce + 1 })),
-  setBriefingOpen: (briefingOpen) => set({ briefingOpen }),
-
-  resetDesk: () => set(deskFresh()),
-  resetSession: () =>
-    set({
-      panel: null,
-      notices: [],
-      banner: null,
-      filingTab: 'closed',
-      reportSeen: false,
-      thread: null,
-      revealed: [],
-      typing: null,
-      rewritePlay: {},
-      gloss: null,
-      flash: null,
-      drawerSeen: false,
-      ...deskFresh(),
-    }),
-
-  textScale: readNum('gyeollok.textScale', 1, (v) => v === 1 || v === 1.125 || v === 1.25 || v === 1.5),
-  setTextScale(n) {
-    writeNum('gyeollok.textScale', n);
-    set({ textScale: n });
+  go: (s) => set({ stack: s === 'home' ? ['home'] : ['home', s] }),
+  home: () => set({ stack: ['home'] }),
+  openCard: (id, picking) => set({ card: { id, picking } }),
+  closeCard: () => set({ card: null }),
+  setPicked: (picked) => set({ picked }),
+  setLog: (logOpen) => set({ logOpen }),
+  setDoc: (docId) => set({ docId }),
+  setRoomFocus: (roomFocus) => set({ roomFocus }),
+  setSearchSeed: (searchSeed) => set({ searchSeed }),
+  showToast: (text, tone = 'amber') => {
+    const key = ++seq;
+    set({ toast: { key, text, tone } });
+    setTimeout(() => {
+      if (get().toast?.key === key) set({ toast: null });
+    }, 2600);
   },
-  musicVolume: readNum('gyeollok.musicVolume', 0.8, volOk),
-  sfxVolume: readNum('gyeollok.sfxVolume', 1, volOk),
-  setMusicVolume(n) {
-    writeNum('gyeollok.musicVolume', n);
-    set({ musicVolume: n });
+  showBanner: (from, text) => {
+    const key = ++seq;
+    set({ banner: { key, from, text } });
+    setTimeout(() => {
+      if (get().banner?.key === key) set({ banner: null });
+    }, 2800);
   },
-  setSfxVolume(n) {
-    writeNum('gyeollok.sfxVolume', n);
-    set({ sfxVolume: n });
+  clearBanner: () => set({ banner: null }),
+  flashMerge: () => {
+    set({ mergeUntil: Date.now() + 1500 });
+    setTimeout(() => set({ mergeUntil: 0 }), 1550);
   },
 }));
+
+export const topScreen = (s: UiStore): Screen => s.stack[s.stack.length - 1];

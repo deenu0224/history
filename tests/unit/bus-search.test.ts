@@ -44,7 +44,9 @@ describe('search (찾기)', () => {
     expect(h.st().search('불살라').status).toBe('unknown');
     expect(h.st().search('명단').results).toEqual([{ kind: 'record', id: 'rec_r18' }]);
     expect(h.st().openRecord('rec_r18')).toBe(true);
-    expect(h.st().cardsFound).toEqual(expect.arrayContaining(['yun_hyoson', 'hong_gwidal', 'yu_sun', 'an_chim']));
+    expect(h.st().cardsFound).toEqual(expect.arrayContaining(['yu_sun', 'an_chim']));
+    expect(h.st().cardsFound).not.toContain('yun_hyoson'); // 「윤」 찾기 장면에서 얻는다
+    expect(h.st().cardsFound).not.toContain('hong_gwidal'); // 「국장 도감」 찾기 장면에서 얻는다
     expect(h.st().openRecord('rec_0711')).toBe(false);
     expect(h.st().search('#C-0408').status).toBe('unknown'); // 예고 문서는 아직 없다
     expect(h.st().messenger.fired).not.toContain('ev.search_kim');

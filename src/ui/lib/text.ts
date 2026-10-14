@@ -1,5 +1,5 @@
 /** 화면 글 처리(순수 함수). 시각 표기, 검색어 밑줄, 실록 용어 풀이, 스크램블, 연도 스텝. */
-import type { Gloss, Message } from '@/core/types';
+import type { Gloss } from '@/core/types';
 
 export const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -71,22 +71,6 @@ export const clampYear = (y: number) => Math.min(YEAR_MAX, Math.max(YEAR_MIN, Ma
 export const yearStepFor = (ticks: number) => (ticks < 5 ? 1 : ticks < 12 ? 5 : 10);
 
 // ── 메신저 스레드 ──────────────────────────────────────────────
-export type ThreadKey = 'chief' | 'senior' | 'system' | 'committee' | 'me';
-export const THREAD_ORDER: ThreadKey[] = ['chief', 'senior', 'system', 'committee', 'me'];
-export const THREAD_LABEL: Record<ThreadKey, string> = {
-  chief: '오 실장',
-  senior: '한 선임',
-  system: '시스템',
-  committee: '복원심의위원회',
-  me: '나',
-};
-
-/** 메시지가 속한 대화. 복원심의위원회의 승인 메시지는 시스템 스레드에서 따로 뽑는다. */
-export function threadOf(m: Pick<Message, 'thread' | 'text' | 'from'>): ThreadKey {
-  if (m.thread === 'system' && /^복원심의위원회/.test(m.text)) return 'committee';
-  return m.thread;
-}
-
 // ── 스크램블(다시 쓰기 연출) ─────────────────────────────────────
 const SCRAMBLE_GLYPHS = '가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허고노도로모보소오조초코토포호구누두루무부수우주';
 

@@ -12,7 +12,8 @@ export const RECORDS: RecordCard[] = [
     id: 'rec_r18',
     title: '실록청 총재관·당상 하사',
     provenance: 'verified',
-    personIds: ['sin_seungseon', 'eo_segyeom', 'yi_geukdon', 'yu_sun', 'hong_gwidal', 'yun_hyoson', 'an_chim'],
+    /* 윤효손·홍귀달은 여기서 주지 않는다 — 각자의 찾기 장면(「윤」, 「국장 도감」)에서 얻는다 */
+    personIds: ['sin_seungseon', 'eo_segyeom', 'yi_geukdon', 'yu_sun', 'an_chim'],
     lines: [
       {
         text: '연산 3년 12월 21일. 「실록청(實錄廳) 총재관(摠裁官) 신승선(愼承善)·어세겸(魚世謙)에게는 안장을 갖춘 말 한 필과 표리(表裏) 한 벌과 비단 한 필을 하사하고, 당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛)·허침(許琛)·조익정(趙益貞)·이육(李陸)·신종호(申從濩)에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',

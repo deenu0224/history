@@ -1,24 +1,83 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { MUSIC } from '@/data/feedback';
 import { installAudioUnlock, setMusic } from '@/game/audio';
-import { enableAutosave, useGameStore } from '@/store/gameStore';
-import { DeskShell } from './desk/DeskShell';
-import { Boot } from './os/Boot';
-import { deskCssVars, osCssVars } from './lib/art';
-import { installFeedback } from './lib/fx';
-import { enterOs } from './lib/session';
-import { useUi } from './uiStore';
+import { useGameStore } from '@/store/gameStore';
+import { Director } from './Director';
+import { CardDetail } from './parts/CardDetail';
+import { DocSheet, LogSheet } from './parts/LogSheets';
+import { RoomSheet } from './parts/RoomSheet';
+import { TagSheet } from './parts/TagSheet';
+import { Boot } from './screens/Boot';
+import { Home } from './screens/Home';
+import { Messenger } from './screens/Messenger';
+import { Restore } from './screens/Restore';
+import { Rewrite } from './screens/Rewrite';
+import { Search } from './screens/Search';
+import { Settings } from './screens/Settings';
+import { Viewer } from './screens/Viewer';
+import { topScreen, useUi } from './uiStore';
 
 const params = () => new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
+function Layers() {
+  const toast = useUi((s) => s.toast);
+  const banner = useUi((s) => s.banner);
+  return (
+    <>
+      {toast ? (
+        <div key={toast.key} className={`toast ${toast.tone === 'amber' ? '' : toast.tone}`} role="status" data-testid="toast">
+          <span className="t-b">{toast.text}</span>
+        </div>
+      ) : null}
+      {banner ? (
+        <button
+          key={banner.key}
+          className="banner"
+          data-testid="banner"
+          onClick={() => {
+            const ui = useUi.getState();
+            ui.clearBanner();
+            ui.push('messenger');
+          }}
+        >
+          <span className="from">{banner.from}</span>
+          <span className="txt t-b" style={{ flex: 1, minWidth: 0 }}>
+            {banner.text}
+          </span>
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function Game() {
+  const top = useUi(topScreen);
+  return (
+    <>
+      <Director />
+      {top === 'home' ? <Home /> : null}
+      {top === 'viewer' ? <Viewer /> : null}
+      {top === 'search' ? <Search /> : null}
+      {top === 'messenger' ? <Messenger /> : null}
+      {top === 'rewrite' ? <Rewrite /> : null}
+      {top === 'restore' ? <Restore /> : null}
+      {top === 'settings' ? <Settings /> : null}
+      <RoomSheet />
+      <TagSheet />
+      <LogSheet />
+      <DocSheet />
+      <CardDetail />
+      <Layers />
+    </>
+  );
+}
+
 export function App() {
   const phase = useUi((s) => s.phase);
-  const scale = useUi((s) => s.textScale);
-  const [ready, setReady] = useState(false);
-  const vars = useMemo(() => ({ ...osCssVars(), ...deskCssVars() }), []);
+  const textSize = useGameStore((s) => s.settings.textSize);
+  const reduce = useGameStore((s) => s.settings.reduceMotion);
+  const music = useGameStore((s) => s.settings.music);
 
-  useEffect(() => installFeedback(), []);
-  // 오디오: 어떤 제스처에서든 스스로 풀린다(한 번만 설치)
   useEffect(() => {
     try {
       installAudioUnlock();
@@ -26,35 +85,28 @@ export function App() {
       /* 오디오 없음 */
     }
   }, []);
-  // 부트·프롤로그의 음악(책상에 들어가면 책상의 감독이 이어받는다)
+  // 테스트: ?test=1 이면 부트를 건너뛰고 바로 홈(&boot=1 이면 부트 화면)
+  useEffect(() => {
+    const p = params();
+    if (p.get('test') === '1' && p.get('boot') !== '1') {
+      const g = useGameStore.getState();
+      g.startEpisode();
+      g.markPrologueSeen();
+      useUi.getState().enterGame();
+    }
+  }, []);
   useEffect(() => {
     if (phase !== 'boot') return;
     try {
-      setMusic(MUSIC.boot);
+      setMusic(music ? MUSIC.boot : 'none');
     } catch {
       /* 오디오 없음 */
     }
-  }, [phase]);
-  useEffect(() => {
-    document.documentElement.style.fontSize = `${16 * scale}px`;
-  }, [scale]);
-
-  // 테스트: ?test=1 이면 부트를 건너뛴다(&boot=1 로 부트 화면을 볼 수 있다)
-  useEffect(() => {
-    const p = params();
-    if (p.get('test') === '1' && p.get('boot') !== '1') useUi.getState().setPhase('os');
-  }, []);
-
-  useEffect(() => {
-    if (phase !== 'os') return;
-    enterOs();
-    setReady(true);
-    return enableAutosave(useGameStore);
-  }, [phase]);
+  }, [phase, music]);
 
   return (
-    <div className="os-root" style={vars}>
-      {phase === 'boot' ? <Boot /> : ready ? <DeskShell /> : null}
+    <div className="app" data-text={textSize} data-motion={reduce ? 'reduced' : undefined}>
+      {phase === 'boot' ? <Boot /> : <Game />}
     </div>
   );
 }
