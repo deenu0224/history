@@ -82,3 +82,11 @@ export function articleView(ep: Episode, writtenSentenceIds: readonly Id[]): Art
     display: p.folded ? '……' : p.text,
   }));
 }
+
+/** inline 풀이: 「군상(君上)」 → 「군상(君上, 임금)」. 데이터의 국역 글은 그대로, 화면에서만 붙인다 */
+export function glossInline(text: string, glosses: readonly { term: string; gloss: string; inline?: true }[]): string {
+  let out = text;
+  for (const g of glosses) if (g.inline) out = out.replace(new RegExp(`${g.term}\\(([^()]*)\\)`), (_m, h: string) => `${g.term}(${h}, ${g.gloss})`);
+  return out;
+}
+

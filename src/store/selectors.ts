@@ -7,7 +7,7 @@ import { geometry, claimById, claimHeld } from '@/core/contradiction';
 import { appearances, heldEvidence, idx, type Appearance } from '@/core/ep';
 import { cutAvailability, eyeLabel, eyeState, ownerKnown, type CutAvailability, type EyeState } from '@/core/eyes';
 import { view as messengerView, type MessengerView } from '@/core/messenger';
-import { alteredView, articleView, figureRestoredLabel, homeView, visibleFacts, type AlteredView, type ArticlePartView } from '@/core/reality';
+import { alteredView, articleView, figureRestoredLabel, glossInline, homeView, visibleFacts, type AlteredView, type ArticlePartView } from '@/core/reality';
 import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slotOptions, type LineRender, type LineResult, type SlotOption } from '@/core/rewrite';
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
@@ -196,7 +196,10 @@ export function selectViewer(ep: Episode, s: PersistedState) {
 export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figureId: Id, cardId?: Id) {
   const I = idx(ep);
   const k = knowledge(s);
-  const all = evidenceOptions(ep, k, { cutId, figureId }) as EvidenceOption[];
+  const all = (evidenceOptions(ep, k, { cutId, figureId }) as EvidenceOption[]).map((e) => {
+    const l = I.line.get(e.id);
+    return l?.glosses ? { ...e, text: glossInline(e.text, l.glosses) } : e;
+  });
   const cut = I.cut.get(cutId);
   return {
     figure: figureLabel(ep, s, figureId),

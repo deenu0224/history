@@ -138,11 +138,12 @@ test.describe('v5 전체 플레이', () => {
     // 에피소드 0 에는 찾기·그날의 방이 없다 — 버튼도 없다
     await expect(tid(page, 'dock-search')).toHaveCount(0);
     await expect(tid(page, 'btn-rewrite')).toHaveCount(0);
-    // Ep0 엔 찾기가 없다 — 손상된 실록 문장이 홈 카드에 그대로 뜬다(빈 칸은 청록 [ ? ])
+    // Ep0 엔 찾기가 없다 — 무너진 실록 단락이 홈 카드에 그대로 뜬다(국역 조각만 남고 나머지는 청록 구멍)
     await expect(tid(page, 'home-record')).toContainText('그날 실록');
-    await expect(tid(page, 'home-record-0')).toContainText('[ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를');
-    await expect(tid(page, 'home-record-1')).toContainText('같은 칸이 빈 기록');
-    await expect(tid(page, 'home-record-1')).toContainText('이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데');
+    await expect(tid(page, 'home-record-0')).toContainText(/\[ \? \] 소\(疏\)를 보고, \[ ─+ \] 설총\(薛聰\)의 \[ ─+ \] 운서\(韻書\)를 아느냐\. \[ ─+ \] 누가 이를 바로잡을 것이냐\./);
+    await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
+    await expect(tid(page, 'home-record-1')).toContainText('똑같이 무너진 옆 기록');
+    await expect(tid(page, 'home-record-1')).toContainText(/이달에 \[ \? \] 친히 \[ ─+ \] 그 글자가 \[ ─+ \]/);
     await shot0(page, 'home');
     // 설정에서 「메시지 빠르게」(시험을 짧게) — 이것도 실제 탭
     await tid(page, 'open-settings').click();
@@ -221,24 +222,33 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'card-link-gained');
     await tid(page, 'card-close').click();
 
-    // ── 이름 붙이기 T0b: 높은 자리 → 세종 (상소 첫 줄이 근거)
-    await toCut(page, 0, 3);
-    await figure(page, 'e0-3', 'fig_king').click();
+    // ── 이름 붙이기 T0b: 높은 자리 → 세종. 근거 = 그 사람이 자기를 「군상(君上, 임금)」이라 부르며 상소한 「너희들」을 꾸짖는 말
+    await toCut(page, 0, 2);
+    await expect(page.locator('[data-cut="e0-2"] [data-testid="bubble"]').last()).toContainText('군상(君上, 임금)', { timeout: 8000 });
+    await figure(page, 'e0-2', 'fig_king').click();
     await expect(tid(page, 'tag-sheet')).toBeVisible();
     await tid(page, 'card-sejong').click();
-    await tid(page, 'ev-l_e0_unseo').click(); // 임금의 말 자체는 사실을 담지 않는다
+    await tid(page, 'ev-l_e0_unseo').click(); // 운서 말은 사실을 담지 않는다
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-feedback')).toBeVisible();
     await tid(page, 'card-sejong').click();
-    await tid(page, 'ev-l_e0_memorial').click();
+    // 근거 목록을 끝까지 내려도 카드 줄은 위에 붙어 있다
+    await page.locator('[data-testid="tag-sheet"] .sbody').evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await page.waitForTimeout(200);
+    await expect(tid(page, 'card-sejong')).toBeInViewport();
+    await expect(tid(page, 'ev-l_e0_gunsang')).toContainText('군상(君上, 임금)');
+    await tid(page, 'ev-l_e0_gunsang').click();
     await shot0(page, 'tag-sheet-king');
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
-    await expect(figure(page, 'e0-3', 'fig_king')).toHaveAttribute('data-named', 'true');
+    await expect(figure(page, 'e0-2', 'fig_king')).toHaveAttribute('data-named', 'true');
 
     // ── 기록 다시 쓰기: 미리 놓인 한 줄, 칸 하나
     await tid(page, 'viewer-back').click();
     await expect(tid(page, 'btn-rewrite')).toBeVisible();
+    // 관측 중에는 구멍이 하나도 채워지지 않는다
+    await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
+    await expect(tid(page, 'home-record-0')).toContainText('[ ? ]');
     await shot0(page, 'home-rewrite-ready');
     await tid(page, 'btn-rewrite').click();
     await expect(tid(page, 'line-pc_R0')).toBeVisible();
@@ -274,8 +284,11 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-date')).toContainText('세종 26년 2월 20일', { timeout: 6000 });
     // 빈 칸이 채워진다
-    await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('임금이 소(疏)를 보고', { timeout: 6000 });
-    await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이달에 임금이 친히', { timeout: 6000 });
+    // 확정하는 순간 무너진 단락 전체가 한꺼번에 돌아온다
+    await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를', { timeout: 8000 });
+    await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('군상(君上)의 하는 일은 그르다', { timeout: 8000 });
+    await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데', { timeout: 8000 });
+    await expect(tid(page, 'restore-home')).not.toContainText('[ ? ]', { timeout: 8000 });
     await shot0(page, 'restore-home');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-messages')).toBeVisible();
@@ -287,6 +300,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-neighbour')).toBeVisible();
     await page.waitForTimeout(3200); // 먹 번짐(글자가 굳는 시간)
     await expect(tid(page, 'aside-rec0_eonmun28')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데');
+    await expect(tid(page, 'aside-rec0_eonmun28')).toContainText('세종 카드에 이 줄이 돌아왔다');
     await expectReadings(page, '이웃 기록');
     await shot0(page, 'restore-neighbour');
     await tid(page, 'restore-next').click();

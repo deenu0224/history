@@ -105,11 +105,15 @@ describe('store — Ep0 correct path', () => {
     expect(a.openedEyes).toEqual([]);
 
     // T0b: 세종 카드가 없다 → 최만리 카드의 줄 링크
-    expect(verdict(h.st().tag('fig_king', 'sejong', 'l_e0_memorial', 'e0-1'))).toBe('card_not_found');
+    expect(verdict(h.st().tag('fig_king', 'sejong', 'l_e0_gunsang', 'e0-2'))).toBe('card_not_found');
     // 최만리는 그 시각 줄 맨 앞에 있었다(이미 이름 붙임) → 한 사람이 두 자리에 있을 수 없다
-    expect(verdict(h.st().tag('fig_king', 'choi_manri', 'l_e0_memorial', 'e0-3'))).toBe('contradicts');
+    expect(verdict(h.st().tag('fig_king', 'choi_manri', 'l_e0_gunsang', 'e0-3'))).toBe('contradicts');
+    // 신하 카드(최만리·정창손·김문): 군상(임금)이라 자기를 부른 사람을 가리키지 않는다
+    expect(verdict(h.st().tag('fig_king', 'jeong_changson', 'l_e0_gunsang', 'e0-2'))).toBe('not_pointing');
     expect(h.st().messenger.fired).toContain('ev0.decoy.choi');
-    expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_memorial', 'e0-3'))).toBe('not_pointing');
+    expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_gunsang', 'e0-2'))).toBe('not_pointing');
+    // 상소 첫 줄(「언문을 제작하신」)은 그 사람을 가리키지만 판정 사실이 없다 — 누가 만들었는지는 지워진 사실, 다시 쓰기의 결론
+    expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_memorial', 'e0-1'))).toBe('not_pointing');
     // 다른 근거(왕의 말 자체)는 사실을 담지 않는다 — 찍기로 통과하지 않는다
     expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_unseo', 'e0-3'))).toBe('not_pointing');
     const card = selectCard(EP0, h.st(), 'choi_manri')!;
@@ -122,9 +126,17 @@ describe('store — Ep0 correct path', () => {
     expect(selectCard(EP0, h.st(), 'sejong')!.facts.map((f) => f.id)).toEqual(['f_sj_def', 'f_sj_name', 'f_sj_accede']);
     // 왕의 말(사실 없음)로는 안 된다 · 상소 첫 줄이면 된다
     expect(verdict(h.st().tag('fig_king', 'sejong', 'l_e0_unseo', 'e0-3'))).toBe('not_pointing');
-    const b = h.st().tag('fig_king', 'sejong', 'l_e0_memorial', 'e0-3');
+    expect(verdict(h.st().tag('fig_king', 'sejong', 'l_e0_memorial', 'e0-1'))).toBe('not_pointing');
+    // 시트의 근거 글: 군상(君上, 임금)
+    expect(selectTagSheet(EP0, h.st(), 'e0-2', 'fig_king', 'sejong').evidenceAll.find((e) => e.id === 'l_e0_gunsang')!.text).toBe(
+      '너희들이 설총은 옳다 하면서 군상(君上, 임금)의 하는 일은 그르다 하는 것은 무엇이냐.',
+    );
+    const b = h.st().tag('fig_king', 'sejong', 'l_e0_gunsang', 'e0-2');
     expect(verdict(b)).toBe('ok');
-    expect(b.matchedFacts).toEqual([{ cardId: 'choi_manri', factId: 'f_choi_exam' }]);
+    expect(b.matchedFacts).toEqual([
+      { cardId: 'sejong', factId: 'f_sj_def' },
+      { cardId: 'choi_manri', factId: 'f_choi_exam' },
+    ]);
     expect(selectCut(EP0, h.st(), 'e0-3')!.figures[0]).toMatchObject({ label: '세종', named: true });
 
     // 기록 다시 쓰기: 한 줄이 미리 놓인다, 칸 하나
@@ -144,7 +156,7 @@ describe('store — Ep0 correct path', () => {
     expect('complete' in sub && sub.complete).toBe(true);
     expect(h.st().clock).toBe('22:52');
     const done = selectRewrite(EP0, h.st()).lines[0];
-    expect(done.render.parts.map((p) => p.text).join('')).toBe('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐. …"');
+    expect(done.render.parts.map((p) => p.text).join('')).toBe('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. … 만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐. …"');
     expect(done.render.sourceUrl).toBe('https://sillok.history.go.kr/id/kda_12602020_001');
 
     // 복원: 홈 카드, 이웃 기록(是月), 동료의 말
@@ -205,7 +217,7 @@ describe('store — Ep0 correct path', () => {
     h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
     h.st().askHint();
     drainMessages(h, 1, 'none');
-    expect(texts(h.store)).toContain('높은 자리 사람은 카드에 없는 것 같은데.');
+    expect(texts(h.store)).toContain('그 사람이 자기를 뭐라고 불렀지?');
     h.st().askHint();
     drainMessages(h, 1, 'none');
     expect(texts(h.store)).toContain('최만리 카드를 펼쳐 봐.');

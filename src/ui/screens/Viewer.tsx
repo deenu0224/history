@@ -10,7 +10,7 @@ import { selectContradictions, selectCut, selectViewer, type CutView } from '@/s
 import { fx } from '../lib/fx';
 import { cutNo, VOLUME_LABEL } from '../lib/format';
 import { cutSrc, preloadCut, useManifest, type CutEntry } from '../lib/manifest';
-import { richSegments } from '../lib/text';
+import { glossInline, richSegments } from '../lib/text';
 import { EyeRow } from '../parts/EyeRow';
 import { IBack, IChevL, IChevR, IWarn } from '../parts/icons';
 import { useUi } from '../uiStore';
@@ -78,7 +78,7 @@ function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
   return (
     <div className="bubbles" aria-live="polite" onClick={() => shown < total && setShown(shown + 1)}>
       {visible.map((b) => {
-        const segs = richSegments(b.text, canSearch ? b.terms : [], b.glosses);
+        const segs = richSegments(glossInline(b.text, b.glosses), canSearch ? b.terms : [], b.glosses);
         const who = b.speaker && b.speaker !== '?' && !/\(/.test(b.speaker) ? `${b.speaker} · ${VOLUME_LABEL[b.volume]}` : VOLUME_LABEL[b.volume];
         return (
           <div key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}`} data-testid="bubble" data-line={b.lineId}>

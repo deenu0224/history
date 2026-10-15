@@ -25,6 +25,8 @@ export interface SourceRef {
 export interface Gloss {
   term: string;
   gloss: string;
+  /** 풀이를 괄호 안에 바로 붙여 보여 준다: 「군상(君上)」 → 「군상(君上, 임금)」(국역 글은 그대로 두고 화면에서만) */
+  inline?: true;
 }
 
 // ── 사실 키 ─────────────────────────────────────────────────────

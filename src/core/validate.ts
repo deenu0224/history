@@ -170,6 +170,7 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
     if (prov === 'verified' && !(sources ?? []).some((s) => /^https:\/\//.test(s.url))) bad('provenance', `${what}: verified 인데 URL 출처가 없다`);
   };
   for (const l of ep.lines) verifiedNeedsUrl(`대사 ${l.id}`, l.provenance, l.sources);
+  for (const l of ep.lines) for (const g of l.glosses ?? []) if (g.inline && !l.text.includes(`${g.term}(`)) bad('⑦', `${l.id}: 붙여 보일 풀이 「${g.term}(…)」 자리가 국역 글에 없다`);
   for (const d of ep.details) verifiedNeedsUrl(`본 것 ${d.id}`, d.provenance, d.sources);
   for (const c of ep.cards) {
     for (const f of c.facts) verifiedNeedsUrl(`카드 ${c.id}/${f.id}`, 'verified', [f.source]);

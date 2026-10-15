@@ -49,6 +49,8 @@ function split(text: string, words: readonly string[], min: number, key: 'term' 
   return out;
 }
 
+export { glossInline } from '@/core/reality';
+
 /** terms 중 text 에 나오는 말을 긴 것 우선·겹치지 않게 찾아 조각낸다. */
 export const splitTerms = (text: string, terms: readonly string[]): Seg[] => split(text, terms, 2, 'term');
 
