@@ -70,6 +70,8 @@ const ROBE_FAMILY: Record<string, readonly string[]> = {
   blue: ['#26323f', '#384a60', '#556c84'],
   young: ['#26323f', '#384a60', '#556c84'],
   slate: ['#26323f', '#384a60', '#556c84', '#5a4130'],
+  ink: ['#26323f', '#384a60'],
+  royal: ['#3e1a18', '#742f2a', '#a8473c'],
 };
 const INKS = ['#0d0b0a', '#1a1613', '#2a231e', '#3d332b'];
 

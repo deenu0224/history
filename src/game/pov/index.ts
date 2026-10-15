@@ -11,7 +11,7 @@ export type { PovVisibility } from './render3d';
 
 export type * from './types';
 export { getFigureHitboxes, povCamera, project, sunAt, povInternalSize, parseTime } from './camera';
-export { ROOM_EP1, SLIP_SPOTS, PROP_SPOTS, ADDRESS_ALLOWED, occluders, isOccluded, seatEye, slipTop, validatePovSpec } from './room';
+export { ROOM_EP1, ROOM_EP0, SLIP_SPOTS, PROP_SPOTS, ADDRESS_ALLOWED, occluders, isOccluded, seatEye, slipTop, validatePovSpec } from './room';
 import { validatePovSpec } from './room';
 export { MOOD, MEMORY_PALETTE, ERASED_PALETTE, moodCssVars } from './palette';
 

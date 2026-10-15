@@ -3,7 +3,7 @@
  * 검증된 도면은 없다. 일반형 대청(우물마루·기둥·분합문·병풍·서안)을 12×9칸에 앉힌 것.
  * 1칸 = 1m 로 놓는다(들림 반경 6칸 = 6m 가 자연스러운 규모). 순수 데이터 + 순수 기하(three 없음).
  */
-import type { PlanPoint, PovPose, SeatId } from './types';
+import type { Ep0SeatId, Ep1SeatId, PlanPoint, PovPose, SeatId } from './types';
 
 export interface Seat {
   x: number;
@@ -48,13 +48,45 @@ export const ROOM_EP1 = {
     SP: { x: 4.6, y: 3.8, facingDeg: 0 },
     M2: { x: 6.0, y: 5.2, facingDeg: 270 },
     CL: { x: 1.4, y: 5.9, facingDeg: 0 },
-  } satisfies Record<SeatId, Seat>,
+  } satisfies Record<Ep1SeatId, Seat>,
   /** 큰 서안(x4.5–7.5, y3.0–4.5) */
   desk: { x0: 4.5, x1: 7.5, y0: 3.0, y1: 4.5, h: 0.36 },
   /** 사초 더미(가림) x6.6–7.2, y3.2–4.2. top = 더미 꼭대기 높이 */
   stack: { x0: 6.6, x1: 7.2, y0: 3.2, y1: 4.2, top: 0.52 },
   /** 병풍(윗자리 표시) */
   screen: { x0: 3.4, x1: 8.6, y: 0.45, h: 1.75, panels: 8 },
+} as const;
+
+/**
+ * 에피소드 0 「하룻밤」 대전(1444년 2월 20일 친국 자리 — 어느 전각인지 기사에 없다, HISTORICAL_SOURCES §13.4-2).
+ * provenance: reconstructed. ROOM_EP1 과 같은 12×9칸 틀(우물마루·기둥·띠살문·연등천장)을 쓰되,
+ * 북쪽 가운데에 낮은 단(임금 자리)과 무늬 없는 가리개, 사방 띠살문은 닫혀 한지로 낮빛을 걸러 들인다.
+ * 일월오봉도·자모 모양은 그리지 않는다(근거 없음). 자리 배치도 재구성: 동쪽 줄은 단을 향해 비스듬히 앉고
+ * 하위지(부교리)는 그 줄 끝(남쪽)이다. 최만리는 줄에서 나와 단 앞 가운데에 엎드린다.
+ */
+export const ROOM_EP0 = {
+  id: 'ep0_hall',
+  provenance: 'reconstructed' as const,
+  w: 12,
+  h: 9,
+  wallH: 3.1,
+  ridgeH: 4.5,
+  plinth: 0.75,
+  eave: { out: 1.9, h: 3.25 },
+  /** 임금의 단(마루 위 높이 h) + 앞 디딤 한 단 */
+  dais: { x0: 4.3, x1: 7.7, y0: 0.35, y1: 2.15, h: 0.42, step: { y1: 2.55, h: 0.2 } },
+  /** 단 위 가리개(무늬 없는 비단 판 — 그림 내용을 주장하지 않는다) */
+  screen: { x0: 4.75, x1: 7.25, y: 0.55, h: 1.85, panels: 5 },
+  seats: {
+    K: { x: 6.0, y: 1.3, facingDeg: 90 },
+    C: { x: 6.05, y: 3.25, facingDeg: 270 },
+    R1: { x: 8.05, y: 3.05, facingDeg: 215 },
+    R2: { x: 8.25, y: 4.3, facingDeg: 220 },
+    R3: { x: 8.45, y: 5.55, facingDeg: 225 },
+    HW: { x: 8.65, y: 6.85, facingDeg: 230 },
+    R5: { x: 3.75, y: 3.6, facingDeg: 320 },
+    R6: { x: 3.55, y: 4.85, facingDeg: 315 },
+  } satisfies Record<Ep0SeatId, Seat>,
 } as const;
 
 /**
@@ -91,10 +123,11 @@ export function occluders(): Box3[] {
 export const EYE_SEATED = 0.85;
 export const EYE_STANDING = 1.5;
 
-export const isSeatId = (s: unknown): s is SeatId => typeof s === 'string' && s in ROOM_EP1.seats;
+export const isSeatId = (s: unknown): s is SeatId => typeof s === 'string' && (s in ROOM_EP1.seats || s in ROOM_EP0.seats);
 
+/** 자리 id → 자리(ep1·ep0 자리 id 는 겹치지 않는다) */
 export function seatOf(id: SeatId): Seat {
-  return ROOM_EP1.seats[id];
+  return id in ROOM_EP1.seats ? ROOM_EP1.seats[id as Ep1SeatId] : ROOM_EP0.seats[id as Ep0SeatId];
 }
 
 /**

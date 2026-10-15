@@ -48,7 +48,8 @@ export type PovPose =
   | 'seated-bow' // 앉아서 깊이 엎드린다 — 두 손을 앞 마루에(ep0 최만리)
   | 'seated-gesture'; // 앉아서 몸을 앞으로 기울이고 한 손을 앞으로 내밀어 말한다(ep0 임금)
 
-export type Holding = 'none' | 'paper' | 'paper-folded' | 'scroll' | 'bundle' | 'sealed' | 'slips' | 'book';
+/** memorial = 펼쳐 받쳐 든 긴 상소 종이(무늬·글자 없는 한지 + 뭉갠 먹 줄, ep0) */
+export type Holding = 'none' | 'paper' | 'paper-folded' | 'scroll' | 'bundle' | 'sealed' | 'slips' | 'book' | 'memorial';
 
 /** 옷 색은 증거가 아니다(DESIGN_V5 §6회 (4)). 화면 읽기용 구분일 뿐. */
 export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'slate' | 'messenger' | 'clerk' | 'young' | 'ink' | 'royal';

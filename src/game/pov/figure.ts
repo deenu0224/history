@@ -18,6 +18,10 @@ export const ROBE: Record<RobeId, string> = {
   messenger: '#3c3f40',
   clerk: '#bdb5a0',
   young: '#4a6376',
+  /** ep0 집현전 학사의 어두운 관복(재구성, 증거 아님) */
+  ink: '#2c3440',
+  /** ep0 임금의 붉은 포(곤룡포 계열 일반형, reconstructed — 문양 없음) */
+  royal: '#9b3229',
 };
 
 export const SKIN = '#c49a78';
@@ -203,6 +207,16 @@ function hat(b: Builder, kind: HatId, hy0: number, m: THREE.Matrix4): void {
       hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.075, hy + 0.125, s * 0.165, 0, 0, s * 6, 0.01, 0.034, 0.095), HAT, { ao: false });
       hb.geo(new THREE.CylinderGeometry(0.006, 0.006, 0.07, 4), trs(-0.075, hy + 0.13, s * 0.075, 90, 0, 0), HAT, { ao: false });
     }
+  } else if (kind === 'ikseon') {
+    // 익선관 윤곽(일반형, reconstructed): 앞이 낮고 뒤가 높은 둥근 모체 + 뒤에서 위로 곧추선 두 날개. 장식·문양 없음
+    hb.geo(new THREE.CylinderGeometry(0.1, 0.104, 0.08, 16), trs(0.004, hy + 0.06, 0, 0, 0, 0, 1.05, 1, 0.88), HAT, { ao: false });
+    hb.geo(new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), trs(-0.03, hy + 0.1, 0, 0, 0, 0, 0.082, 0.1, 0.078), HAT, { ao: false });
+    hb.geo(new THREE.TorusGeometry(0.102, 0.006, 4, 18), trs(0.004, hy + 0.026, 0, 90, 0, 0, 1.05, 0.86, 1), '#2a2622', { ao: false });
+    for (const s of [-1, 1]) {
+      // 날개: 얇은 타원 판, 뒤쪽에서 위로 서고 바깥으로 조금 벌어진다
+      hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.1, hy + 0.2, s * 0.05, s * 14, 0, 8, 0.012, 0.075, 0.045), HAT, { ao: false });
+      hb.geo(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 4), trs(-0.095, hy + 0.14, s * 0.045, 0, 0, 0), HAT, { ao: false });
+    }
   } else {
     hb.geo(new THREE.CylinderGeometry(0.088, 0.1, 0.1, 12), trs(-0.01, hy + 0.05, 0, 0, 0, -8, 1.05, 1, 0.88), HAT, { ao: false });
     hb.box(-0.09, hy + 0.04, 0, 0.02, 0.12, 0.1, HAT, 0, { ao: false });
@@ -250,6 +264,15 @@ function armPoses(pose: PovPose, sh: number): { L: ArmPose; R: ArmPose; lean: nu
       return { L: A(0.06, -0.26, -0.22, 0.24, -0.42, -0.1, { curl: 0.5 }), R: A(0.12, -0.2, 0.2, 0.17, 0.12, 0.05, { f: [0.1, 1, -0.3], n: [0, 0, 1], curl: 0.15 }), lean: 22 };
     case 'kneel-point':
       return { L: A(0.06, -0.26, -0.22, 0.24, -0.42, -0.1, { curl: 0.5 }), R: A(0.22, -0.16, 0.2, 0.5, -0.12, 0.1, { f: [1, 0.05, 0], curl: 0.1 }), lean: 12 };
+    case 'seated-present':
+      // 두 손으로 상소를 앞으로 받쳐 올린다(몸은 숙이고 팔은 가슴 높이로)
+      return { L: A(0.2, -0.2, -0.24, 0.46, -0.08, -0.2, { f: [0.4, 0.8, 0.2], n: [-1, 0.3, 0], curl: 0.3 }), R: A(0.2, -0.2, 0.24, 0.46, -0.08, 0.2, { f: [0.4, 0.8, -0.2], n: [-1, 0.3, 0], curl: 0.3 }), lean: 26 };
+    case 'seated-bow':
+      // 깊이 엎드림: 두 손을 앞 마루에 모은다(지역 좌표는 기울어진 윗몸 기준)
+      return { L: A(0.22, -0.13, -0.24, 0.47, -0.06, -0.1, { f: [0.85, 0.5, 0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), R: A(0.22, -0.13, 0.24, 0.47, -0.06, 0.1, { f: [0.85, 0.5, -0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), lean: 52 };
+    case 'seated-gesture':
+      // 왼손은 무릎, 오른손을 앞으로 내밀어 말한다(손바닥 아래·조금 펼침)
+      return { L: A(0.06, -0.26, -0.24, 0.26, -0.38, -0.12), R: A(0.2, -0.18, 0.28, 0.46, -0.06, 0.2, { f: [1, 0.15, -0.15], n: [0, 1, 0], curl: 0.12 }), lean: 12 };
   }
 }
 
@@ -289,6 +312,13 @@ function held(b: Builder, kind: Holding, L: ArmPose, R: ArmPose, standing: boole
       b.box(cx, cy + 0.03, cz, 0.2, 0.04, 0.28, '#3c4a52', 0, { ao: false });
       b.box(cx, cy + 0.03, cz, 0.19, 0.03, 0.29, '#d9caa6', 0, { ao: false });
       break;
+    case 'memorial': {
+      // 펼쳐 받쳐 든 상소(무늬 없는 한지). 글자·자모를 그리지 않는다 — 뭉갠 먹 줄 몇 개로만(HISTORICAL_SOURCES §13.4-7)
+      const wdt = Math.max(0.5, Math.abs(L.w[2] - R.w[2]) + 0.16);
+      b.geo(new THREE.BoxGeometry(0.006, 0.32, wdt), trs(cx + 0.02, cy + 0.1, cz, 0, 0, -18), PAPER, { ao: false });
+      for (const f of [-0.3, -0.12, 0.06, 0.24]) b.geo(new THREE.BoxGeometry(0.004, 0.22, 0.012), trs(cx + 0.026, cy + 0.1, cz + f * wdt, 0, 0, -18), '#a8987a', { ao: false });
+      break;
+    }
   }
 }
 

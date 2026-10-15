@@ -39,6 +39,7 @@ const WITNESS_ROLL: Record<string, number> = {
   yi_geukdon: 1.2,
   eo_segyeom: -0.8,
   hong_gwidal: 2.0,
+  ha_wiji: -1.0,
 };
 
 /** 인물 위치(도면) */
@@ -76,7 +77,7 @@ export function resolveLookAt(spec: PovSpec): V3 {
     const fig = spec.figures.find((f) => f.id === la);
     if (fig) {
       const p = figurePos(fig);
-      return [p.x, isSeatedPose(fig.pose) ? EYE_SEATED - 0.1 : EYE_STANDING - 0.25, p.y];
+      return [p.x, (fig.elev ?? 0) + (isSeatedPose(fig.pose) ? EYE_SEATED - 0.1 : EYE_STANDING - 0.25), p.y];
     }
     if (isSeatId(la)) {
       const s = seatOf(la);
@@ -132,8 +133,9 @@ export function figureCorners(f: PovFigure): V3[] {
   const p = figurePos(f);
   const r = figureRadius(f);
   const h = figureHeight(f);
+  const e = f.elev ?? 0;
   const out: V3[] = [];
-  for (const dx of [-r, r]) for (const dz of [-r, r]) for (const y of [0, h]) out.push([p.x + dx, y, p.y + dz]);
+  for (const dx of [-r, r]) for (const dz of [-r, r]) for (const y of [e, e + h]) out.push([p.x + dx, y, p.y + dz]);
   return out;
 }
 

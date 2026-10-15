@@ -89,6 +89,75 @@ interface Lattice {
   h: Builder;
 }
 
+/** 우물마루(장귀틀 + 청판). 판자마다 결정적 색 흔들림 */
+function floorPart(b: Builder, W: number, D: number): void {
+  const floorShade = (x: number, _y: number, z: number) => {
+    const edge = Math.min(x, W - x, z * 1.4, (D - z) * 3);
+    return 0.62 + 0.38 * Math.min(1, edge / 1.4);
+  };
+  for (let gz = 0; gz <= D + 0.01; gz += 1.5) b.box(W / 2, -0.03, gz, W, 0.06, 0.2, C.floorDark, 0, { ao: false, shade: floorShade });
+  for (let gz = 0; gz < D - 0.01; gz += 1.5) {
+    for (let gx = 0; gx < W; gx += 1.2) b.box(gx + 0.06, -0.03, gz + 0.75, 0.12, 0.06, 1.3, C.floorDark, 0, { ao: false, shade: floorShade });
+    for (let x = 0.12; x < W - 0.05; x += 0.3) {
+      if (Math.abs(((x - 0.12) % 1.2) - 1.08) < 0.05) continue;
+      b.box(x + 0.14, -0.028, gz + 0.75, 0.286, 0.056, 1.29, C.floor, 0, { jitter: 0.22, ao: false, shade: floorShade });
+    }
+  }
+
+}
+
+/** 초석 위 둥근 기둥(네 귀·4칸마다 + 옆벽 3·6칸) */
+function pillarPart(b: Builder, W: number, D: number, plinth: number): void {
+  const pillars: [number, number][] = [];
+  for (const x of [0, 4, 8, 12]) pillars.push([x, 0], [x, D]);
+  for (const z of [3, 6]) pillars.push([0, z], [W, z]);
+  for (const [x, z] of pillars) {
+    b.cyl(x, -plinth + 0.12, z, 0.18, 0.17, 3.1 + plinth - 0.12, C.pillar, 12, { ao: false, shade: (_x, y) => 0.7 + 0.3 * Math.min(1, (y + 0.5) / 2.5) });
+    b.cyl(x, -plinth - 0.05, z, 0.3, 0.27, 0.17, C.stone, 8, { ao: false });
+  }
+}
+
+/** 창방·대들보·도리·서까래(연등천장)·개판·기와·처마 단청. 돌려주는 roofPlane 은 바깥 지붕(행각)에도 쓴다 */
+function roofPart(b: Builder, W: number, D: number, dims: { wallH: number; ridgeH: number; eave: { out: number; h: number } }) {
+  const wallTop = dims.wallH;
+  b.box(W / 2, wallTop - 0.1, -0.02, W + 0.3, 0.22, 0.2, C.beamDark);
+  b.box(W / 2, wallTop - 0.1, D + 0.02, W + 0.3, 0.22, 0.2, C.beamDark);
+  b.box(-0.02, wallTop - 0.1, D / 2, 0.2, 0.22, D, C.beamDark);
+  b.box(W + 0.02, wallTop - 0.1, D / 2, 0.2, 0.22, D, C.beamDark);
+  for (const x of [0, 4, 8, 12]) {
+    b.box(x, wallTop + 0.22, D / 2, 0.36, 0.42, D + 0.4, C.beamDark, 0, { ao: false });
+    b.box(x, wallTop + 0.75, D / 2, 0.26, 0.3, D / 2, C.beamDark, 0, { ao: false });
+    b.box(x, wallTop + 0.6, D / 2 - 2.2, 0.16, 0.5, 0.16, C.beamDark);
+    b.box(x, wallTop + 0.6, D / 2 + 2.2, 0.16, 0.5, 0.16, C.beamDark);
+  }
+  const ridge = dims.ridgeH;
+  for (const [z, y] of [[D / 2, ridge - 0.15], [D / 2 - 2.2, wallTop + 0.95], [D / 2 + 2.2, wallTop + 0.95]] as const)
+    b.bar({ x: -0.3, y, z }, { x: W + 0.3, y, z }, 0.22, 0.22, C.beamDark, { ao: false });
+  // 서까래: 처마 끝까지 이어진다
+  const eo = dims.eave.out;
+  const eh = dims.eave.h;
+  for (let x = 0.15; x < W; x += 0.32) {
+    b.bar({ x, y: ridge - 0.1, z: D / 2 }, { x, y: eh + 0.05, z: D + eo }, 0.09, 0.09, C.beamDark, { ao: false });
+    b.bar({ x, y: ridge - 0.1, z: D / 2 }, { x, y: eh + 0.05, z: -eo }, 0.09, 0.09, C.beamDark, { ao: false });
+  }
+  // 개판(서까래 위 판)
+  const roofPlane = (z0: number, y0: number, z1: number, y1: number, col: string, bb: Builder, th = 0.06) => {
+    const len = Math.hypot(z1 - z0, y1 - y0);
+    const ang = Math.atan2(y1 - y0, z1 - z0);
+    bb.geo(new THREE.BoxGeometry(W + 3.2, th, len), trs(W / 2, (y0 + y1) / 2, (z0 + z1) / 2, (-ang * 180) / Math.PI, 0, 0), col, { ao: false });
+  };
+  roofPlane(D / 2, ridge, D + eo + 0.1, eh + 0.08, C.roofUnder, b);
+  roofPlane(D / 2, ridge, -eo - 0.1, eh + 0.08, C.roofUnder, b);
+  // 기와 지붕(바깥 위)
+  roofPlane(D / 2, ridge + 0.45, D + eo + 0.25, eh + 0.3, C.roof, b, 0.35);
+  roofPlane(D / 2, ridge + 0.45, -eo - 0.25, eh + 0.3, C.roof, b, 0.35);
+  // 처마 서까래 끝: 탁한 단청 녹
+  for (let x = 0.15; x < W; x += 0.32) b.cyl(x, eh - 0.04, D + eo, 0.05, 0.05, 0.06, C.dancheongGreen, 6, { ao: false });
+  // 바깥 창방: 탁한 단청 적
+  b.box(W / 2, wallTop - 0.1, D + 0.13, W + 0.3, 0.2, 0.04, C.dancheongRed, 0, { ao: false });
+  return roofPlane;
+}
+
 /**
  * coarse = 픽셀아트 굽기용: 띠살을 성기게, 세로살('lattice')·가로 띠('lattice-h')·한지('hanji')를 따로 메시로 둔다
  * (후처리가 띠살 칸을 고른 줄무늬로 다시 그린다). 기본은 기존 출력 그대로.
@@ -102,18 +171,7 @@ export function buildHall(opts: { coarse?: boolean } = {}): HallParts {
   const outB = new Builder(11); // 바깥(그림자 받기만)
 
   // ── 우물마루 ────────────────────────────────────────────
-  const floorShade = (x: number, _y: number, z: number) => {
-    const edge = Math.min(x, W - x, z * 1.4, (D - z) * 3);
-    return 0.62 + 0.38 * Math.min(1, edge / 1.4);
-  };
-  for (let gz = 0; gz <= D + 0.01; gz += 1.5) b.box(W / 2, -0.03, gz, W, 0.06, 0.2, C.floorDark, 0, { ao: false, shade: floorShade });
-  for (let gz = 0; gz < D - 0.01; gz += 1.5) {
-    for (let gx = 0; gx < W; gx += 1.2) b.box(gx + 0.06, -0.03, gz + 0.75, 0.12, 0.06, 1.3, C.floorDark, 0, { ao: false, shade: floorShade });
-    for (let x = 0.12; x < W - 0.05; x += 0.3) {
-      if (Math.abs(((x - 0.12) % 1.2) - 1.08) < 0.05) continue;
-      b.box(x + 0.14, -0.028, gz + 0.75, 0.286, 0.056, 1.29, C.floor, 0, { jitter: 0.22, ao: false, shade: floorShade });
-    }
-  }
+  floorPart(b, W, D);
 
   // ── 벽 ────────────────────────────────────────────────
   const plasterShade = (_x: number, y: number) => 0.75 + 0.25 * Math.min(1, y / 2.5);
@@ -145,51 +203,10 @@ export function buildHall(opts: { coarse?: boolean } = {}): HallParts {
   b.box(W / 2, (dr.top + 2.95) / 2, D + 0.06, W, 2.95 - dr.top, 0.14, C.plaster, 0, { ao: false });
   b.box(W / 2, dr.top + 0.05, D + 0.06, W, 0.12, 0.18, C.beamDark);
   // ── 기둥 + 초석 ───────────────────────────────────────
-  const pillars: [number, number][] = [];
-  for (const x of [0, 4, 8, 12]) pillars.push([x, 0], [x, D]);
-  for (const z of [3, 6]) pillars.push([0, z], [W, z]);
-  for (const [x, z] of pillars) {
-    b.cyl(x, -R.plinth + 0.12, z, 0.18, 0.17, 3.1 + R.plinth - 0.12, C.pillar, 12, { ao: false, shade: (_x, y) => 0.7 + 0.3 * Math.min(1, (y + 0.5) / 2.5) });
-    b.cyl(x, -R.plinth - 0.05, z, 0.3, 0.27, 0.17, C.stone, 8, { ao: false });
-  }
+  pillarPart(b, W, D, R.plinth);
 
   // ── 지붕틀: 창방·대들보·도리·서까래(연등천장) ──────────
-  const wallTop = R.wallH;
-  b.box(W / 2, wallTop - 0.1, -0.02, W + 0.3, 0.22, 0.2, C.beamDark);
-  b.box(W / 2, wallTop - 0.1, D + 0.02, W + 0.3, 0.22, 0.2, C.beamDark);
-  b.box(-0.02, wallTop - 0.1, D / 2, 0.2, 0.22, D, C.beamDark);
-  b.box(W + 0.02, wallTop - 0.1, D / 2, 0.2, 0.22, D, C.beamDark);
-  for (const x of [0, 4, 8, 12]) {
-    b.box(x, wallTop + 0.22, D / 2, 0.36, 0.42, D + 0.4, C.beamDark, 0, { ao: false });
-    b.box(x, wallTop + 0.75, D / 2, 0.26, 0.3, D / 2, C.beamDark, 0, { ao: false });
-    b.box(x, wallTop + 0.6, D / 2 - 2.2, 0.16, 0.5, 0.16, C.beamDark);
-    b.box(x, wallTop + 0.6, D / 2 + 2.2, 0.16, 0.5, 0.16, C.beamDark);
-  }
-  const ridge = R.ridgeH;
-  for (const [z, y] of [[D / 2, ridge - 0.15], [D / 2 - 2.2, wallTop + 0.95], [D / 2 + 2.2, wallTop + 0.95]] as const)
-    b.bar({ x: -0.3, y, z }, { x: W + 0.3, y, z }, 0.22, 0.22, C.beamDark, { ao: false });
-  // 서까래: 처마 끝까지 이어진다
-  const eo = R.eave.out;
-  const eh = R.eave.h;
-  for (let x = 0.15; x < W; x += 0.32) {
-    b.bar({ x, y: ridge - 0.1, z: D / 2 }, { x, y: eh + 0.05, z: D + eo }, 0.09, 0.09, C.beamDark, { ao: false });
-    b.bar({ x, y: ridge - 0.1, z: D / 2 }, { x, y: eh + 0.05, z: -eo }, 0.09, 0.09, C.beamDark, { ao: false });
-  }
-  // 개판(서까래 위 판)
-  const roofPlane = (z0: number, y0: number, z1: number, y1: number, col: string, bb: Builder, th = 0.06) => {
-    const len = Math.hypot(z1 - z0, y1 - y0);
-    const ang = Math.atan2(y1 - y0, z1 - z0);
-    bb.geo(new THREE.BoxGeometry(W + 3.2, th, len), trs(W / 2, (y0 + y1) / 2, (z0 + z1) / 2, (-ang * 180) / Math.PI, 0, 0), col, { ao: false });
-  };
-  roofPlane(D / 2, ridge, D + eo + 0.1, eh + 0.08, C.roofUnder, b);
-  roofPlane(D / 2, ridge, -eo - 0.1, eh + 0.08, C.roofUnder, b);
-  // 기와 지붕(바깥 위)
-  roofPlane(D / 2, ridge + 0.45, D + eo + 0.25, eh + 0.3, C.roof, b, 0.35);
-  roofPlane(D / 2, ridge + 0.45, -eo - 0.25, eh + 0.3, C.roof, b, 0.35);
-  // 처마 서까래 끝: 탁한 단청 녹
-  for (let x = 0.15; x < W; x += 0.32) b.cyl(x, eh - 0.04, D + eo, 0.05, 0.05, 0.06, C.dancheongGreen, 6, { ao: false });
-  // 바깥 창방: 탁한 단청 적
-  b.box(W / 2, wallTop - 0.1, D + 0.13, W + 0.3, 0.2, 0.04, C.dancheongRed, 0, { ao: false });
+  const roofPlane = roofPart(b, W, D, R);
 
   // ── 기단·마당·바깥 ───────────────────────────────────
   outB.box(W / 2, -R.plinth / 2 - 0.02, D + 0.9, W + 3, R.plinth, 2.0, C.stone, 0, { jitter: 0.1, ao: false });
