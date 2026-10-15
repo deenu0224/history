@@ -7,22 +7,9 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EP0, EP1 } from '@/data/v5';
 import type { Episode } from '@/core/types';
+import { bareHanja } from '@/ui/lib/text';
 
-const HANJA = /[㐀-䶿一-鿿豈-﫿]/;
-const RUN = /[㐀-䶿一-鿿豈-﫿][㐀-䶿一-鿿豈-﫿·\s]*/g;
-
-/** 한자 덩어리마다: 바로 앞이 「(」 이고 그 앞에 한글이 있거나, 바로 앞뒤(20자 안)에 한글 읽기가 있다 */
-export function bareHanja(text: string): string[] {
-  const out: string[] = [];
-  for (const m of text.matchAll(RUN)) {
-    const i = m.index!;
-    const before = text.slice(Math.max(0, i - 24), i);
-    const after = text.slice(i + m[0].length, i + m[0].length + 24);
-    const hasKo = /[가-힣]/.test(before) || /[가-힣]/.test(after);
-    if (!hasKo) out.push(m[0].trim());
-  }
-  return out;
-}
+const HANJA = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
 
 function strings(ep: Episode): { where: string; text: string }[] {
   const out: { where: string; text: string }[] = [];

@@ -1,18 +1,32 @@
 /**
  * v5 「눈을 빌려 다시 쓰기」 e2e. 모든 조작은 실제 탭(클릭·길게 누르기·드래그)이다.
- * 정답 경로: 콜드 오픈 → T1~T4 이름 붙이기 → 눈 닫힘 → 모순 X1·X2 → 기록 다시 쓰기 → 복원 → 예고.
- * 화면 캡처: mockups/out/v5-ui/*.png (390×844)
+ * 새 게임 정답 경로: 프롤로그 → 에피소드 0 「하룻밤」(컷 3장 넘기기 → 두루마리 세부 탭 → T0a → 최만리 카드 → 「세종」 링크 → T0b →
+ *   기록 다시 쓰기 → 복원 → 다리) → 에피소드 1(콜드 오픈 23:04 → T1~T4 이름 붙이기 → 눈 닫힘 → 모순 X1·X2 → 다시 쓰기 → 복원 → 예고).
+ * 화면 캡처: mockups/out/v5-ui/*.png (390×844) — 에피소드 0 은 ep0-NN-*.png, 에피소드 1 은 NN-*.png
  */
 import fs from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { bareHanja } from '../../src/ui/lib/text';
 
 const SHOTS = 'mockups/out/v5-ui';
 let shotNo = 0;
+let ep0No = 0;
 fs.mkdirSync(SHOTS, { recursive: true });
 const shot = async (page: Page, name: string) => {
   shotNo += 1;
   await page.waitForTimeout(350);
   await page.screenshot({ path: `${SHOTS}/${String(shotNo).padStart(2, '0')}-${name}.png` });
+};
+const shot0 = async (page: Page, name: string) => {
+  ep0No += 1;
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${SHOTS}/ep0-${String(ep0No).padStart(2, '0')}-${name}.png` });
+};
+
+/** 화면에 한글 읽기 없는 한자가 없다(DEDUCTION_RULES 7) — 화면마다 훑는다 */
+const expectReadings = async (page: Page, where: string) => {
+  const text = await page.locator('.app').innerText();
+  expect(bareHanja(text), `한글 읽기 없는 한자 (${where})`).toEqual([]);
 };
 
 /** 콘솔 오류·페이지 오류를 모은다(글꼴·이미지 404 포함) */

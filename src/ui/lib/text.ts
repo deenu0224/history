@@ -136,3 +136,21 @@ export function shorten(text: string, max = 80): { head: string; truncated: bool
   }
   return { head: text.slice(0, cut).trimEnd(), truncated: true };
 }
+
+// ── 한자 규칙 ───────────────────────────────────────────────────
+const HANJA_RUN = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff][\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff·\s]*/g;
+
+/**
+ * 한글 읽기가 옆(앞뒤 24자 안)에 없는 한자 덩어리들. 화면의 한자는 늘 한글 읽기를 옆에 붙인다(DEDUCTION_RULES 7).
+ * 시험(단위·e2e)이 화면 글을 이 함수로 훑는다.
+ */
+export function bareHanja(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(HANJA_RUN)) {
+    const i = m.index!;
+    const before = text.slice(Math.max(0, i - 24), i);
+    const after = text.slice(i + m[0].length, i + m[0].length + 24);
+    if (!/[가-힣]/.test(before) && !/[가-힣]/.test(after)) out.push(m[0].trim());
+  }
+  return out;
+}
