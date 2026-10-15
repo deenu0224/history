@@ -304,7 +304,7 @@ test.describe('v5 전체 플레이', () => {
 
     // ── 起: 첫 번째 기억 — 넘기기. 이름 붙이기 전엔 연도·장소·인물을 알려주지 않는다
     await tid(page, 'btn-memories').click();
-    await expect(tid(page, 'viewer-title')).toHaveText('누군가 본 것');
+    await expect(tid(page, 'viewer-title')).toHaveText('첫 번째 관측');
     await expect(tid(page, 'cut-time')).toHaveText('09:10');
     await expect(page.locator('[data-cut="e1-1"] [data-testid="bubble"]')).toBeVisible();
     await shot(page, 'viewer-first-cut');
