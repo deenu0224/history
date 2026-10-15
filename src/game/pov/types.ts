@@ -17,7 +17,18 @@ export interface PlanPoint {
  * W 윤효손(앞자리, 옛 H) · Y 이극돈(사초 서안 곁) · O 어세겸(윗자리) · H 홍귀달(구석 책상, 옛 N) ·
  * U·A 「?」 두 관원(유순·안침 — 누가 어느 자리인지는 사료에 없다) · B 문 앞 낭독 · SP 봉함 자리 · M2 서안 앞 · CL 서리
  */
-export type SeatId = 'W' | 'Y' | 'O' | 'H' | 'U' | 'A' | 'B' | 'SP' | 'M2' | 'CL';
+export type Ep1SeatId = 'W' | 'Y' | 'O' | 'H' | 'U' | 'A' | 'B' | 'SP' | 'M2' | 'CL';
+
+/**
+ * 에피소드 0 「하룻밤」 대전(ROOM_EP0, reconstructed) 자리: K 임금(단 위) · C 최만리가 나아가 엎드리는 자리 ·
+ * R1~R3 동쪽 줄(신석조·김문·정창손) · HW 하위지(줄 끝) · R5·R6 서쪽 줄(송처검·조근). 배치는 사료에 없다 — 재구성.
+ */
+export type Ep0SeatId = 'K' | 'C' | 'R1' | 'R2' | 'R3' | 'HW' | 'R5' | 'R6';
+
+export type SeatId = Ep1SeatId | Ep0SeatId;
+
+/** 장면 방: ep1 실록청 대청(기본) · ep0 「하룻밤」 대전(단·가리개, 사방 닫힌 띠살문) */
+export type PovRoomId = 'ep1' | 'ep0';
 
 export type PovPose =
   | 'seated' // 책상다리, 손은 무릎 위
@@ -32,14 +43,18 @@ export type PovPose =
   | 'seated-folding' // 앉아서 서안 위 종이를 두 손으로 가려 접는다
   | 'kneel' // 무릎 꿇고 앉음(서리)
   | 'kneel-whisper' // 무릎 꿇고 몸을 기울여 손을 입가에(귓속말, 서리만)
-  | 'kneel-point'; // 무릎 꿇고 한 손으로 가리킨다(서리)
+  | 'kneel-point' // 무릎 꿇고 한 손으로 가리킨다(서리)
+  | 'seated-present' // 앉아서 몸을 숙이고 두 손으로 두루마리를 앞으로 받쳐 올린다(ep0 최만리)
+  | 'seated-bow' // 앉아서 깊이 엎드린다 — 두 손을 앞 마루에(ep0 최만리)
+  | 'seated-gesture'; // 앉아서 몸을 앞으로 기울이고 한 손을 앞으로 내밀어 말한다(ep0 임금)
 
 export type Holding = 'none' | 'paper' | 'paper-folded' | 'scroll' | 'bundle' | 'sealed' | 'slips' | 'book';
 
 /** 옷 색은 증거가 아니다(DESIGN_V5 §6회 (4)). 화면 읽기용 구분일 뿐. */
-export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'slate' | 'messenger' | 'clerk' | 'young';
+export type RobeId = 'red' | 'red-dark' | 'blue' | 'green' | 'slate' | 'messenger' | 'clerk' | 'young' | 'ink' | 'royal';
 
-export type HatId = 'samo' | 'clerk-cap' | 'none';
+/** ikseon = 익선관 윤곽(둥근 모체 + 뒤로 곧추선 두 날개, reconstructed 일반형) */
+export type HatId = 'samo' | 'clerk-cap' | 'ikseon' | 'none';
 
 export interface PovFigure {
   /** 컷 안에서 유일한 id(탭 대상) */
@@ -63,6 +78,8 @@ export interface PovFigure {
   lean?: number;
   /** 머리 돌림(도, +는 왼쪽). 귓속말·듣기 */
   headYaw?: number;
+  /** 바닥 높이(m, 기본 0) — 단 위에 앉은 사람 */
+  elev?: number;
 }
 
 /** 눈의 주인 자신의 몸(앞쪽 덮개). */
@@ -116,6 +133,8 @@ export interface PovProps {
 }
 
 export interface PovSpec {
+  /** 방(기본 'ep1'). 기하·빛·소품이 방마다 다르다 */
+  room?: PovRoomId;
   /** 눈의 주인(personId). 렌더는 자리·덮개만 쓴다 */
   witnessId: string;
   seatId: SeatId;
