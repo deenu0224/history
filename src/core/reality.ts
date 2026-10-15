@@ -40,8 +40,25 @@ export function homeView(home: HomeCard, w: WorldFlags) {
     task: home.task,
     detection: home.detection,
     status: w.restored ? home.status.after : home.status.before,
+    record: home.record
+      ? {
+          title: home.record.title,
+          lines: home.record.lines.map((l) => ({
+            ...(l.minor ? { minor: true as const } : {}),
+            ...(l.note ? { note: l.note } : {}),
+            /** 출처는 복원 뒤에만(그 전엔 연도·왕대가 드러난다) */
+            source: w.restored ? l.source : undefined,
+            parts: l.parts.map((p) => ('gap' in p ? { text: w.restored ? p.gap : HOME_GAP, gap: true } : { text: p.text, gap: false })),
+          })),
+        }
+      : undefined,
   };
 }
+
+/** 홈 카드 문장의 빈 칸 */
+export const HOME_GAP = '[ ? ]';
+/** 홈 카드 문장 한 줄의 복원 뒤 글(검증기용) */
+export const homeRecordText = (l: { parts: ({ text: string } | { gap: string })[] }) => l.parts.map((p) => ('gap' in p ? p.gap : p.text)).join('');
 
 /** 「?」 figure 의 표시: 복원 뒤 짝 이름 */
 export function figureRestoredLabel(ep: Episode, figureId: Id, w: WorldFlags): string | undefined {

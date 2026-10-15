@@ -527,8 +527,21 @@ export interface HintLadder {
 }
 
 // ── 에피소드 번들 ────────────────────────────────────────────────
+/** 홈 카드에 그대로 뜨는 손상된 실록 문장(검증된 국역 그대로, 빈 칸만 비운다). gap = 복원 뒤 그 칸에 돌아오는 글 */
+export type HomeRecordPart = { text: string } | { gap: string };
+export interface HomeRecordLine {
+  parts: HomeRecordPart[];
+  /** 작은 줄(같은 칸이 빈 이웃 기록) */
+  minor?: true;
+  /** 줄 위 작은 표시(예: 「같은 칸이 빈 기록」) */
+  note?: string;
+  source: SourceRef;
+}
+
 export interface HomeCard {
   code: string;
+  /** 손상된 문장 자체(Ep0). 없으면 홈은 빈 기록 그림만 — 통째로 지워진 날(Ep1) */
+  record?: { title: string; lines: HomeRecordLine[] };
   date: { before: string; after: string };
   place: { before: string; after: string; source: SourceRef; note: string };
   task: string;

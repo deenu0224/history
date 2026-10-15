@@ -388,7 +388,7 @@ export const RECORDS0: RecordCard[] = [
     title: '언문 28자',
     provenance: V,
     aside: 'before',
-    inWorld: ['「이달에 (주어 칸 손상) 언문(諺文) 28자(字)를 지었는데」 — 지은 사람: 기록 없음'],
+    inWorld: ['「이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데」 — 지은 사람: 기록 없음'],
     lines: [
       {
         text: '「이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데, 그 글자가 옛 전자(篆字)를 모방하고, 초성(初聲)·중성(中聲)·종성(終聲)으로 나누어 합한 연후에야 글자를 이루었다. … 이것을 훈민정음(訓民正音)이라고 일렀다.」',
@@ -400,13 +400,21 @@ export const RECORDS0: RecordCard[] = [
     id: 'rec0_0220',
     title: '그날 실록',
     provenance: V,
-    inWorld: ['「… 하니, (주어 칸 손상) 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …」'],
+    inWorld: ['「… 하니, [ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …」'],
     lines: [{ text: '「임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를,」', source: SRC0.art0220 }],
   },
 ];
 
 export const HOME0: HomeCard = {
   code: '#C-2209',
+  // 손상된 문장 그대로(국역, 빈 칸만 비움) — Ep0 엔 찾기가 없으니 기록을 홈에서 본다
+  record: {
+    title: '그날 실록',
+    lines: [
+      { parts: [{ gap: '임금이' }, { text: ' 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …' }], source: SRC0.art0220 },
+      { minor: true, note: '같은 칸이 빈 기록', parts: [{ text: '이달에 ' }, { gap: '임금이' }, { text: ' 친히 언문(諺文) 28자(字)를 지었는데 …' }], source: SRC0.eonmun28 },
+    ],
+  },
   date: { before: '####', after: '세종 26년 2월 20일' },
   place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '그날 실록에는 장소가 없다' },
   task: '이 날의 기록에 빈 칸이 하나 있다. 그 자리에 있던 사람의 눈으로 본다.',
