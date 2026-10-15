@@ -76,7 +76,7 @@ export const BURSTS: Burst[] = [
       },
     ],
   },
-  { id: 'ev.room_open', steps: [han('관측 둘 가능하면 방 그림 나와.'), han('누가 어디 앉아 있었는지.')] },
+  { id: 'ev.room_open', steps: [han('본 사람이 둘이면 방 그림이 나와.'), han('누가 어디 앉아 있었는지.')] },
   { id: 'ev.merge_first', steps: [han('겹쳤네.'), han('같은 시각, 같은 자리면 같은 사람이야.')] },
   { id: 'ev.decoy.T2', steps: [han('성은 맞는데.'), han('그 사람, 그 방에서 일한 기록 있어?')] },
   {
@@ -279,7 +279,7 @@ export const LADDERS: HintLadder[] = [
     doneWhen: { tagsDone: ['T3'] },
     steps: [
       { id: 'h_overlap_1', text: '같은 시각에 같은 자리면 같은 사람이야.', afterS: 45, fails: 2 },
-      { id: 'h_overlap_2', text: '한 관측엔 말만, 다른 관측엔 얼굴만 있을 수도 있어.', afterS: 60, fails: 3 },
+      { id: 'h_overlap_2', text: '말만 들은 사람, 얼굴만 본 사람이 따로일 수도.', afterS: 60, fails: 3 },
       { id: 'h_overlap_3', text: '1시 20분. 병풍 앞.', afterS: 60, fails: 4 },
     ],
   },
