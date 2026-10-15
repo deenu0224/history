@@ -698,7 +698,6 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'line-w_alive')).toHaveAttribute('data-result', 'witness');
     await expect(tid(page, 'line-witness').first()).toContainText('실록이 적지 않은 일');
     await shot(page, 'rewrite-verdict');
-    await tid(page, 'btn-restore').click();
 
     // ── 복원: 다시 쓰기 화면 안에서 → 홈 카드(뒤집힘) → 바뀐 것(카드 줄·방의 짝 이름·로그 한 줄) → 독백 → 예고
     await expect(tid(page, 'btn-restore')).toHaveText('기록이 돌아왔다 ›');

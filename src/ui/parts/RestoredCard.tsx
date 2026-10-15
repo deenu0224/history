@@ -103,7 +103,7 @@ export function RestoredCard({ animate = false, children, testId }: { animate?: 
   // 이웃 기록(홈 카드의 아래 줄)이 돌아왔다는 꼬리표 — 한 줄
   const asideTag = a.record ? r.asides.find((x) => x.tag)?.tag : undefined;
   return (
-    <div className={`card-assign restored${anim ? ' flipin' : ''}`} data-testid={testId}>
+    <div className={`card-assign restored${anim ? ' flipin' : ''}`} data-testid={testId} style={animate ? { margin: '8px 0' } : undefined}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div className="t-h">{a.code}</div>
         <span className="t-m amber" data-testid="card-status">
