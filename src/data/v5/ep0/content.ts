@@ -26,6 +26,7 @@ import type {
   Eye,
   Figure,
   HomeCard,
+  HomeRecordPart,
   LedgerEntry,
   Line,
   PersonCard,
@@ -38,6 +39,34 @@ import type {
 } from '@/core/types';
 import { ARTICLE_0220_KO, ARTICLE_0220_PARTS } from './article';
 import { SRC0 } from './sources';
+import { holeOf } from '@/core/reality';
+
+/**
+ * 소실의 크기(DESIGN_V5 §14.8): 「누가 한글을 만들었나」라는 사실 하나가 지워지자 그 사실에 닿은 단락이 통째로 무너졌다.
+ * 남은 조각은 국역 그대로(검증기 ⑦ 이 대조), 구멍은 복원 뒤 돌아올 국역 글을 품는다. 관측 중엔 하나도 채워지지 않는다.
+ */
+export const HOLED_0220: HomeRecordPart[] = [
+  { gap: '임금이', who: true },
+  { text: ' 소(疏)를 보고, ' },
+  { gap: '만리(萬理) 등에게 이르기를, "너희들이 이르기를, ‘음(音)을 사용하고 글자를 합한 것이 모두 옛 글에 위반된다.’ 하였는데, ' },
+  { text: '설총(薛聰)의 ' },
+  {
+    gap: '이두(吏讀)도 역시 음이 다르지 않으냐. 또 이두를 제작한 본뜻이 백성을 편리하게 하려 함이 아니하겠느냐. 만일 그것이 백성을 편리하게 한 것이라면 이제의 언문은 백성을 편리하게 하려 한 것이다. 너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. 또 네가 ',
+  },
+  { text: '운서(韻書)를 아느냐. ' },
+  { gap: '사성 칠음(四聲七音)에 자모(字母)가 몇이나 있느냐. 만일 내가 그 운서를 바로잡지 아니하면 ' },
+  { text: '누가 이를 바로잡을 것이냐. …' },
+];
+export const HOLED_EONMUN28: HomeRecordPart[] = [
+  { text: '이달에 ' },
+  { gap: '임금이', who: true },
+  { text: ' 친히 ' },
+  { gap: '언문(諺文) 28자(字)를 지었는데, ' },
+  { text: '그 글자가 ' },
+  { gap: '옛 전자(篆字)를 모방하고, 초성(初聲)·중성(中聲)·종성(終聲)으로 나누어 합한 연후에야 글자를 이루었다. … 이것을 훈민정음(訓民正音)이라고 일렀다.' },
+];
+const holedText = (ps: HomeRecordPart[]) => ps.map((p) => ('gap' in p ? holeOf(p) : p.text)).join('');
+
 
 const V = 'verified' as const;
 const R = 'reconstructed' as const;
@@ -388,7 +417,7 @@ export const RECORDS0: RecordCard[] = [
     title: '언문 28자',
     provenance: V,
     aside: 'before',
-    inWorld: ['「이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데」 — 지은 사람: 기록 없음'],
+    inWorld: [`「${holedText(HOLED_EONMUN28)}」`],
     lines: [
       {
         text: '「이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데, 그 글자가 옛 전자(篆字)를 모방하고, 초성(初聲)·중성(中聲)·종성(終聲)으로 나누어 합한 연후에야 글자를 이루었다. … 이것을 훈민정음(訓民正音)이라고 일렀다.」',
@@ -400,7 +429,7 @@ export const RECORDS0: RecordCard[] = [
     id: 'rec0_0220',
     title: '그날 실록',
     provenance: V,
-    inWorld: ['「… 하니, [ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …」'],
+    inWorld: [`「… 하니, ${holedText(HOLED_0220)}」`],
     lines: [{ text: '「임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를,」', source: SRC0.art0220 }],
   },
 ];
@@ -411,14 +440,14 @@ export const HOME0: HomeCard = {
   record: {
     title: '그날 실록',
     lines: [
-      { parts: [{ gap: '임금이' }, { text: ' 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …' }], source: SRC0.art0220 },
-      { minor: true, note: '같은 칸이 빈 기록', parts: [{ text: '이달에 ' }, { gap: '임금이' }, { text: ' 친히 언문(諺文) 28자(字)를 지었는데 …' }], source: SRC0.eonmun28 },
+      { parts: HOLED_0220, source: SRC0.art0220 },
+      { minor: true, note: '똑같이 무너진 옆 기록', parts: HOLED_EONMUN28, source: SRC0.eonmun28 },
     ],
   },
   date: { before: '####', after: '세종 26년 2월 20일' },
   place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '그날 실록에는 장소가 없다' },
-  task: '이 날의 기록에 빈 칸이 하나 있다. 그 자리에 있던 사람의 눈으로 본다.',
-  detection: '좌표 #C-2209 · 일시 #### · 주어 칸 손상 2건에서 자동 탐지',
+  task: '이 날의 기록이 구멍투성이다. 그 자리에 있던 사람의 눈으로 본다.',
+  detection: '좌표 #C-2209 · 일시 #### · 문장 손상 2건에서 자동 탐지',
   status: { before: '부분 손상', after: '복원됨' },
 };
 

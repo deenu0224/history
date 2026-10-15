@@ -176,25 +176,35 @@ describe('store — Ep0 restoration rewrites the whole log, incl. my reply', () 
 });
 
 describe('Ep0 home card shows the damaged 실록 sentence itself', () => {
-  it('before: verified wording with a [ ? ] gap and no source; after: the gap is filled with 임금이', async () => {
+  it('before: the passage has collapsed — only verbatim fragments, holes, no source; after: the whole passage returns at once', async () => {
     const { homeView } = await import('@/core/reality');
     const before = homeView(EP0.home, { restored: false, closures: [] }).record!;
     expect(before.title).toBe('그날 실록');
-    expect(before.lines.map((l) => l.parts.map((p) => p.text).join(''))).toEqual([
-      '[ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …',
-      '이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데 …',
-    ]);
-    expect(before.lines[1]).toMatchObject({ minor: true, note: '같은 칸이 빈 기록' });
+    const b0 = before.lines[0].parts.map((p) => p.text).join('');
+    expect(b0.startsWith('[ ? ] 소(疏)를 보고, [ ')).toBe(true);
+    expect(b0).toContain('설총(薛聰)의 [ ');
+    expect(b0).toContain('운서(韻書)를 아느냐.');
+    expect(b0.endsWith('누가 이를 바로잡을 것이냐. …')).toBe(true);
+    // 남은 조각보다 구멍이 많다(사실 하나가 단락을 무너뜨린다)
+    const kept = before.lines[0].parts.filter((p) => !p.gap).map((p) => p.text).join('').length;
+    const lost = EP0.home.record!.lines[0].parts.filter((p) => 'gap' in p).map((p) => ('gap' in p ? p.gap : '')).join('').length;
+    expect(lost).toBeGreaterThan(kept * 3);
+    expect(before.lines[1].parts.map((p) => p.text).join('')).toMatch(/^이달에 \[ \? \] 친히 \[ ─+ \] 그 글자가 \[ ─+ \]$/);
+    expect(before.lines[1]).toMatchObject({ minor: true, note: '똑같이 무너진 옆 기록' });
     expect(before.lines.every((l) => l.source === undefined)).toBe(true);
+    // 관측 중엔 아무것도 채워지지 않는다(복원 플래그 하나만 본다)
     const after = homeView(EP0.home, { restored: true, closures: [] }).record!;
-    expect(after.lines[0].parts.map((p) => p.text).join('')).toBe('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …');
+    const a0 = after.lines[0].parts.map((p) => p.text).join('');
+    expect(a0.startsWith('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "너희들이 이르기를')).toBe(true);
+    expect(a0).toContain('만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐.');
+    expect(after.lines[1].parts.map((p) => p.text).join('')).toContain('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데, 그 글자가 옛 전자(篆字)를 모방하고');
     expect(after.lines[0].source?.url).toBe('https://sillok.history.go.kr/id/kda_12602020_001');
     expect(EP1.home.record).toBeUndefined(); // 통째로 지워진 날 — 문장이 없다
   });
   it('validator ⑦ catches a home sentence that is not the 국역 wording', () => {
     const ep = structuredClone(EP0);
     ep.erasedFacts = EP0.erasedFacts;
-    ep.home.record!.lines[0].parts = [{ gap: '임금이' }, { text: ' 상소를 보고 화를 내며 …' }];
+    ep.home.record!.lines[0].parts = [{ gap: '임금이', who: true }, { text: ' 상소를 보고 화를 내며 …' }];
     expect(validateEpisode(ep, X0).some((i) => i.rule === '⑦' && i.message.includes('홈 문장'))).toBe(true);
   });
 });

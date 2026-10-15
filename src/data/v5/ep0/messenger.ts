@@ -4,7 +4,7 @@
  * 아이러니: 이 세계의 모두(07 포함)는 「한글을 누가 만들었는지는 기록이 없다」를 당연하게 여긴다. 07 이 걸리는 것은 관측기의 「주어 칸 손상」 탐지뿐.
  * 현실 재기록(DIALOGUE_GUIDE §1-10): 소실 사실(ERASED0)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 갖는다 —
  * 한 선임의 말도, 07 의 답도. 복원되면 대화 기록 전체에서 그 자리에서 조용히 다시 쓰인다(표시 없음).
- * 관측기가 말한 것(시스템 줄 · 「주어 칸 손상」 탐지를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
+ * 관측기가 말한 것(시스템 줄 · 「문장 손상」 탐지를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
  * id 는 Ep1 과 겹치지 않게 'e0m*'·'c0_*'·'h0_*'.
  */
 import type { Burst, ErasedFact, HintLadder, Id, Step } from '@/core/types';
@@ -28,18 +28,18 @@ export const BURSTS0: Burst[] = [
   {
     id: 'ev.start',
     steps: [
-      sys('자동 탐지 · #C-2209 · 주어 칸 손상 2건'),
+      sys('자동 탐지 · #C-2209 · 문장 손상 2건'),
       han('07, 아직 있어?'),
       han('실록은 날짜 밑에 일이 한 꼭지씩 적혀 있어.'),
-      han('그중 한 꼭지 문장에 구멍이 났어.'),
-      han('홈 카드에 그 문장 떠 있지?'),
+      han('그중 한 꼭지가 구멍투성이가 됐어.'),
+      han('홈 카드 봐, 거의 다 뚫렸지?'),
       {
         kind: 'choice',
         id: 'c0_start',
         allowNoReply: true,
         options: [
-          { id: 'hole', text: '빈칸 말이에요?', then: [han('응, 누가 했는지 그 칸만 비었어.')] },
-          { id: 'ok', text: '네, 보여요.', then: [han('작은 거니까 금방 볼 거야.')] },
+          { id: 'hole', text: '왜 이렇게 뚫렸어요?', then: [han('사실 하나가 지워지면 닿은 문장이 다 무너져.')] },
+          { id: 'ok', text: '네, 보여요.', then: [han('남은 조각부터 맞춰 보자.')] },
         ],
       },
     ],
@@ -55,8 +55,8 @@ export const BURSTS0: Burst[] = [
   {
     id: 'ev0.erasure',
     steps: [
-      han('카드 아래 줄, 옆 기록도 같은 칸이 비었지?'),
-      named('m0_hangul', han('한글 만든 사람 칸.', { restored: '세종대왕이 언문 지은 그 기록.', facts: HANGUL })),
+      han('카드 아래 옆 기록도 똑같이 뚫렸지?'),
+      named('m0_hangul', han('한글 누가 만들었는지 적힌 데야.', { restored: '세종대왕이 언문 지은 그 기록.', facts: HANGUL })),
       {
         kind: 'choice',
         id: 'c0_hangul',
@@ -66,7 +66,7 @@ export const BURSTS0: Burst[] = [
           { id: 'also', text: '그것도 손상이에요?', then: [] },
         ],
         after: [
-          named('m0_nolog', han('응, 기록에 없으면 없는 거지.', { restored: '응, 그러니까 더 이상하지.', facts: HANGUL })),
+          named('m0_nolog', han('응, 한글은 쓰는데 만든 사람은 기록에 없지.', { restored: '응, 그러니까 더 이상하지.', facts: HANGUL })),
           han('지워지면 사람 머리에서도 같이 지워지니까.'),
           han('근데 관측기는 문장 구멍을 잡아.', { heavy: true }),
         ],

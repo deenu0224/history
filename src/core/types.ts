@@ -527,8 +527,12 @@ export interface HintLadder {
 }
 
 // ── 에피소드 번들 ────────────────────────────────────────────────
-/** 홈 카드에 그대로 뜨는 손상된 실록 문장(검증된 국역 그대로, 빈 칸만 비운다). gap = 복원 뒤 그 칸에 돌아오는 글 */
-export type HomeRecordPart = { text: string } | { gap: string };
+/**
+ * 홈 카드에 그대로 뜨는 손상된 실록 단락. 소실은 사실 하나(누가 만들었나)를 지우므로 그 사실에 닿은 단락이 통째로 무너진다 —
+ * 남는 것은 국역 그대로의 조각(text)뿐, 나머지는 구멍(gap = 복원 뒤 돌아오는 국역 글). who = 「누가」 칸([ ? ]), 아니면 [ ── ].
+ * 관측 중엔 아무것도 채워지지 않는다. 복원되는 순간 한꺼번에 돌아온다.
+ */
+export type HomeRecordPart = { text: string } | { gap: string; who?: true };
 export interface HomeRecordLine {
   parts: HomeRecordPart[];
   /** 작은 줄(같은 칸이 빈 이웃 기록) */

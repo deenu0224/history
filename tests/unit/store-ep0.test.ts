@@ -183,7 +183,7 @@ describe('store — Ep0 correct path', () => {
     expect(selectEpisodes(h.st()).map((e) => e.state)).toEqual(['done', 'current']);
     // 대화는 이어지고, Ep0 의 ⟲ 말풍선은 복원 뒤 글로 굳었다
     expect(h.st().messenger.log.length).toBe(logBefore);
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '세종대왕이 언문 지은 그 기록.', bakedFrom: '한글 만든 사람 칸.' });
+    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '세종대왕이 언문 지은 그 기록.', bakedFrom: '한글 누가 만들었는지 적힌 데야.' });
     h.advance(10_000);
     expect(h.st().messenger.log.slice(logBefore).map((m) => m.text)[0]).toBe('07, #C-2217 너한테 갔다.');
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);

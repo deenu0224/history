@@ -398,7 +398,7 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   for (const c of ep.claims) preTexts.push({ where: `주장 ${c.id}`, text: c.label });
   for (const xc of ep.contradictions) preTexts.push({ where: `모순 ${xc.id}`, text: [xc.loserLabel, xc.loserNote ?? '', xc.retryText, ...xc.buttons].join(' ') });
   preTexts.push({ where: '홈(전)', text: [ep.home.date.before, ep.home.place.before, ep.home.task, ep.home.detection, ep.home.status.before].join(' ') });
-  for (const l of ep.home.record?.lines ?? []) preTexts.push({ where: '홈 문장(전)', text: [l.note ?? '', ...l.parts.map((p) => ('gap' in p ? '[ ? ]' : p.text))].join(' ') });
+  for (const l of ep.home.record?.lines ?? []) preTexts.push({ where: '홈 문장(전)', text: [l.note ?? '', ...l.parts.map((p) => ('gap' in p ? '' : p.text))].join(' ') });
   for (const t of preTexts) {
     if (YEAR_RE.test(t.text)) bad('⑤', `${t.where}: 해결 전 화면에 연도 — 「${t.text}」`);
     for (const w of PLACE_WORDS) if (t.text.includes(w)) bad('⑤', `${t.where}: 해결 전 화면에 장소·왕대 '${w}'`);
