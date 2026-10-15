@@ -169,7 +169,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(xv.geometry.radius).toBe(8);
     const hong = xv.geometry.witnesses.find((w) => w.eyeId === 'E4')!;
     expect(hong).toMatchObject({ distance: 9.21, status: 'garbled' });
-    expect(h.st().resolveContradiction('X1', 'c_scope_all').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('1년 전에 너도 거기서 멈췄어.');
     expect(texts(h.store)).toContain('멀어서 첫 전교를 못 들은 거였네.');
@@ -201,7 +201,7 @@ describe('store — Ep1 correct path end to end', () => {
     const x2 = selectContradictionView(EP1, h.st(), 'X2')!;
     expect(x2.geometry.occluder?.id).toBe('stack');
     expect(x2.geometry.witnesses.find((w) => w.eyeId === 'E1')!.status).toBe('occluded');
-    expect(h.st().resolveContradiction('X2', 'c_count_6').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X2', 'c_count_6', 'X2:E1').status).toBe('resolved');
     expect(h.st().fillSlot(L4, 'count', '6').status).toBe('ok');
     // 선택 줄 + 회색 줄
     const S3 = add('pc_S3');
@@ -329,11 +329,19 @@ describe('store — mistakes are free and informative', () => {
     viewAll(h, 'E4');
     h.st().closeViewer();
     expect(h.st().revealed).toEqual(['X1']);
-    expect(h.st().resolveContradiction('X1', 'c_scope_six')).toEqual({ status: 'retry', text: '그 자리에서 그 말이 닿았는지 보자' });
+    // 근거 2칸: 판단 + 자리 사실. 한 칸만으로는 판정하지 않는다
+    expect(h.st().resolveContradiction('X1', 'c_scope_six')).toEqual({ status: 'invalid' });
+    const ev = selectContradictionView(EP1, h.st(), 'X1')!.evidence;
+    expect(ev.map((e) => e.id)).toContain('X1:E1');
+    expect(ev.find((e) => e.id === 'X1:E1')!.text).toBe('윤효손 자리 — 문 앞에서 5.7칸, 들림 반경 8칸');
+    // 틀린 판단 + 가르는 자리 / 맞는 판단 + 가르지 않는 자리 — 둘 다 같은 문구(어느 칸인지 말하지 않는다)
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1')).toEqual({ status: 'retry', text: '그 자리에서 그 말이 닿았는지 보자' });
     expect(h.st().fails['contra:X1']).toBe(1);
+    if (ev.some((e) => e.id === 'X1:E2')) expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E2')).toEqual({ status: 'retry', text: '그 자리에서 그 말이 닿았는지 보자' });
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E9')).toEqual({ status: 'invalid' });
     expect(h.st().resolved).toEqual({});
     expect(h.st().composeRewrite()).toBe('locked'); // X1 이 풀려야 結
-    expect(h.st().resolveContradiction('X1', 'c_scope_all').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
     expect(h.st().composeRewrite()).toBe('opened');
     // 진 쪽 조각의 새 이름
     expect(selectRewrite(EP1, h.st()).pieces.find((p) => p.id === 'w_six_only')!.label).toBe('뒤섞인 전해 들은 말 — 여섯 조목만 올리라 했다더라');
@@ -344,7 +352,7 @@ describe('store — mistakes are free and informative', () => {
     playToE4(h);
     viewAll(h, 'E4');
     h.st().closeViewer();
-    h.st().resolveContradiction('X1', 'c_scope_all');
+    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1');
     viewAll(h, 'E2');
     h.st().closeViewer();
     h.st().composeRewrite();
@@ -389,7 +397,7 @@ describe('store — closing eye (06:00) and the two-route guarantee', () => {
     viewAll(h, 'E4');
     h.st().closeViewer();
     expect(h.st().revealed).toContain('X1');
-    h.st().resolveContradiction('X1', 'c_scope_all');
+    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1');
     h.st().composeRewrite();
     const add = (pid: string) => (h.st().placePiece(pid) as { lineId: string }).lineId;
     const L1 = add('pc_L1');
@@ -400,7 +408,7 @@ describe('store — closing eye (06:00) and the two-route guarantee', () => {
     h.st().fillSlot(L4, 'who', '이극돈');
     h.st().fillSlot(L4, 'whose', '김일손');
     h.st().fillSlot(L4, 'count', '6');
-    h.st().resolveContradiction('X2', 'c_count_6');
+    h.st().resolveContradiction('X2', 'c_count_6', 'X2:E1');
     expect(h.st().fillSlot(L4, 'count', '6').status).toBe('ok');
     expect(h.st().placePiece('pc_S1').status).toBe('not_held'); // ② 전교 컷(3-4)은 잃었다
     const sub = h.st().submitRewrite();

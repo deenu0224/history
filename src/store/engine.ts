@@ -7,7 +7,7 @@
  */
 import { appearances, heldEvidence, idx, mergesAt, type Knowledge } from '@/core/ep';
 import { closureDue, cutAvailability, eyesOpenedByTag, givenEyes } from '@/core/eyes';
-import { isRevealed, resolve as resolveX } from '@/core/contradiction';
+import { geometry, isRevealed, resolve as resolveX, witnessEvidenceId } from '@/core/contradiction';
 import { askHint as nextAskHint, check, dueHint, markSent, trackActive, type Progress } from '@/core/hints';
 import * as M from '@/core/messenger';
 import { nextRandom } from '@/core/rng';
@@ -433,10 +433,13 @@ export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 
 }
 
 // ── 모순 ─────────────────────────────────────────────────────────
-export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id) {
+/** 모순 풀기 = 근거 2칸: 판단(claimId) + 근거(그날의 방의 자리 사실 — 지금 방에 보이는 눈의 것만) */
+export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id, evidenceId?: Id) {
   const x = c.ep.contradictions.find((y) => y.id === id);
   if (!x || !w.s.revealed.includes(id) || w.s.resolved[id]) return { status: 'invalid' as const };
-  const r = resolveX(c.ep, x, claimId);
+  const shown = geometry(c.ep, knowledge(w.s), x).witnesses.map((m) => witnessEvidenceId(x, m.eyeId));
+  if (!evidenceId || !shown.includes(evidenceId)) return { status: 'invalid' as const };
+  const r = resolveX(c.ep, x, claimId, evidenceId);
   if (r.status === 'resolved') {
     w.s.resolved[id] = r.winner;
     w.fx.push({ kind: 'resolve', contradictionId: id });

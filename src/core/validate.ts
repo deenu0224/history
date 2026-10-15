@@ -17,7 +17,7 @@
  *     복원 뒤 대화 기록(지난 에피소드에서 이어진 줄 포함)의 어떤 글도 소실 사실의 무늬(tells)에 걸리지 않는다(validateDialogueAcross)
  *  + 컷 id 는 CUT_IDS 안에, 모든 컷 id 에 판정 데이터가 있다, id 중복 없음, provenance·출처
  */
-import { claimById, winningClaims } from './contradiction';
+import { claimById, decisiveWitnesses, geometry, winningClaims } from './contradiction';
 import { appearances, cutAppearances, idx, trueFigureOf } from './ep';
 import { closureDue } from './eyes';
 import { homeRecordText } from './reality';
@@ -347,6 +347,13 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
     const win = claimById(ep, w[0]);
     const accepts = ep.sentences.filter((s) => ep.requiredSentences.includes(s.id)).flatMap((s) => s.segments.filter((g) => g.slot?.kind === xc.slot).map((g) => g.slot!.accepts));
     if (!accepts.length || accepts.some((v) => v !== win.value)) bad('③', `${xc.id}: 승자 '${win.value}' ≠ 검증 문장 값 ${accepts.join('/')}`);
+    // 근거 2칸(규칙 11): 승패를 가르는 자리가 있고, 모든 눈을 연 방에서 가르지 않는 자리도 있어야 한다(찍기 방지)
+    const dec = decisiveWitnesses(ep, xc);
+    if (!dec.length) bad('③', `${xc.id}: 승패를 가르는 자리(근거)가 없다`);
+    const allK = { viewedCuts: ep.cuts.map((c) => c.id), named: {}, merges: [], openedEyes: ep.eyes.filter((e) => e.seatId).map((e) => e.id), closedEyes: [], cardsFound: [], restored: false };
+    const shown = [...new Set(geometry(ep, allK, xc).witnesses.map((m) => m.eyeId))];
+    if (dec.some((e) => !shown.includes(e))) bad('③', `${xc.id}: 가르는 자리가 방에 보이지 않는다`);
+    if (shown.every((e) => dec.includes(e))) bad('③', `${xc.id}: 모든 자리가 근거로 통과한다(찍기 가능)`);
   }
 
   // ── ④ 두 길 ──

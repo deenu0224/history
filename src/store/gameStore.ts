@@ -9,7 +9,7 @@
  *  넘기기   openEye(eyeId) · viewCut(eyeId, index) · closeViewer()
  *  이름     tapFigure(cutId, figureId) → 시트 보기 · tag(figureId, cardId, evidenceId, cutId?) → TagOutcome
  *           followFactLink(factId, cardId) — 카드 줄 낱말 링크 → 인물 카드 +1(fx cards_gained)
- *  방       openRoom(time?) · openRoomAtCut(cutId)(「이 시각, 그날의 방」) · selectRoomTime(time) · closeRoom() · resolveContradiction(id, claimId)
+ *  방       openRoom(time?) · openRoomAtCut(cutId)(「이 시각, 그날의 방」) · selectRoomTime(time) · closeRoom() · resolveContradiction(id, claimId, evidenceId)(근거 2칸: 판단 + 자리 사실)
  *  찾기     search(query) · openCard(id) · openRecord(id)(fx cards_gained) · openDoc(id)
  *           searchFromTag() — 시트를 접고 돌아올 자리를 기억(ui.tagReturn) · returnToTag(cardId?) — 시트를 다시 연다(ui.tagCard)
  *  힌트     askHint() — 07 「어디부터 볼까요?」 → 켜진 사다리의 다음 단을 바로
@@ -71,7 +71,7 @@ export interface GameActions {
   openRoom(time?: Hhmm): 'opened' | 'locked';
   selectRoomTime(time: Hhmm): { merges: string[][] };
   closeRoom(): void;
-  resolveContradiction(id: Id, claimId: Id): ReturnType<typeof E.resolveContradiction>;
+  resolveContradiction(id: Id, claimId: Id, evidenceId?: Id): ReturnType<typeof E.resolveContradiction>;
   search(query: string): E.SearchOutcome;
   openCard(id: Id): boolean;
   openRecord(id: Id): boolean;
@@ -224,7 +224,7 @@ export function createGameStore(opts: StoreOptions = {}) {
       },
       selectRoomTime: (time) => run((w, c) => E.selectRoomTime(w, c, time)),
       closeRoom: () => set({ ui: { ...get().ui, roomOpen: false } }),
-      resolveContradiction: (id, claimId) => run((w, c) => E.resolveContradiction(w, c, id, claimId)),
+      resolveContradiction: (id, claimId, evidenceId) => run((w, c) => E.resolveContradiction(w, c, id, claimId, evidenceId)),
       search: (q) => run((w, c) => E.search(w, c, q)),
       openCard: (id) => run((w, c) => E.openCard(w, c, id)),
       openRecord: (id) => run((w, c) => E.openRecord(w, c, id)),

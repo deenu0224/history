@@ -2155,3 +2155,8 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* 근거 n칸 표시(DEDUCTION_RULES 규칙 11) */
+.slotsline {
+  color: var(--amber);
+  margin-top: 2px;
+}

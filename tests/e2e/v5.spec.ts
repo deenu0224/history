@@ -513,11 +513,21 @@ test.describe('v5 전체 플레이', () => {
     // ── 모순 X1: 그날의 방에서 풀기(틀린 쪽 → 다시 → 정답)
     await tid(page, 'alert-chip').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
+    // 근거 2칸: ① 판단 + ② 근거(자리 사실). 두 칸이 차야 확인할 수 있다
+    await expect(tid(page, 'contra-slots')).toContainText('근거 2칸');
+    await expect(tid(page, 'resolve-confirm')).toBeDisabled();
+    await expect(tid(page, 'cev-X1:E4')).toContainText('홍귀달 자리 — 문 앞에서 9.21칸, 들림 반경 8칸');
     await shot(page, 'room-contradiction');
-    await tid(page, 'resolve-c_scope_six').click();
+    // 틀린 판단 + 맞는 자리 → 어느 칸이 틀렸는지는 말하지 않는다
+    await tid(page, 'claim-c_scope_six').click();
+    await expect(tid(page, 'resolve-confirm')).toBeDisabled();
+    await tid(page, 'cev-X1:E4').click();
+    await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'retry-text')).toBeVisible();
     await shot(page, 'room-contradiction-retry');
-    await tid(page, 'resolve-c_scope_all').click();
+    await tid(page, 'claim-c_scope_all').click();
+    await tid(page, 'cev-X1:E4').click();
+    await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
     await shot(page, 'room-contradiction-resolved');
     await tid(page, 'room-back').click();
@@ -565,7 +575,10 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'opt-6').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
     await shot(page, 'room-contradiction-x2');
-    await tid(page, 'resolve-c_count_6').click();
+    await expect(tid(page, 'cev-X2:E1')).toContainText('사초 더미에 가림');
+    await tid(page, 'claim-c_count_6').click();
+    await tid(page, 'cev-X2:E1').click();
+    await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
     await tid(page, 'room-back').click();
     await page.getByRole('button', { name: '닫기' }).last().click();

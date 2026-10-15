@@ -55,3 +55,20 @@ describe('그날의 방 — DESIGN_V5 §4.2 계산 표', () => {
     expect(winningValue(EP1, x2)).toBe('6');
   });
 });
+
+describe('모순 근거 2칸(규칙 11): 판단 + 자리 사실', () => {
+  it('승패를 가르는 자리는 데이터로 계산된다 — X1: 또렷이 들은 증인 + 전해 들은 먼 자리, X2: 셀 수 있던 자리 + 가려진 자리', async () => {
+    const { decisiveWitnesses, resolve } = await import('@/core/contradiction');
+    const [x1, x2] = EP1.contradictions;
+    expect(decisiveWitnesses(EP1, x1).sort()).toEqual(['E1', 'E3', 'E4']);
+    expect(decisiveWitnesses(EP1, x2).sort()).toEqual(['E1', 'E2']);
+    // 두 칸이 다 차야 판정
+    expect(resolve(EP1, x1, 'c_scope_all')).toEqual({ status: 'invalid' });
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E2').status).toBe('retry'); // 주장이 없는 자리는 가르지 않는다
+    expect(resolve(EP1, x1, 'c_scope_six', 'X1:E4').status).toBe('retry');
+    expect(resolve(EP1, x2, 'c_count_6', 'X2:E1').status).toBe('resolved');
+    expect(resolve(EP1, x2, 'c_count_6', 'X2:E4').status).toBe('retry');
+    expect(resolve(EP1, x2, 'c_count_5', 'X2:E2')).toEqual({ status: 'retry', text: x2.retryText });
+  });
+});

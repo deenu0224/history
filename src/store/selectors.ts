@@ -402,8 +402,43 @@ export function selectContradictionView(ep: Episode, s: PersistedState, id: Id) 
     heading: '근거끼리 모순된다',
     resolved: !!s.resolved[id],
     buttons: x.claims.map((cid, i) => ({ claimId: cid, text: x.buttons[i] })),
+    /** 근거 2칸: ① 판단(주장 하나) ② 근거(그날의 방의 자리 사실 하나). 두 칸이 차야 확인할 수 있다 */
+    slots: 2 as const,
+    judgements: x.claims.map((cid, i) => ({ claimId: cid, text: x.buttons[i] })),
+    evidence: contradictionEvidence(ep, s, id),
     geometry: geometry(ep, knowledge(s), x),
   };
+}
+
+const SIGHT_WORD = { countable: '가림 없이 셀 수 있음', occluded: '가림', far: '세어 볼 수 있는 거리 밖', out_of_view: '시야 밖' } as const;
+
+/**
+ * 모순의 근거 칸에 고를 수 있는 자리 사실(지금 방에 보이는 눈마다 하나). 글은 데이터에서 계산한다 —
+ * 들림: 「홍귀달 자리 — 문 앞에서 9.21칸, 들림 반경 8칸」 / 보임: 「이극돈 자리 — 봉함 자리까지 1.1칸, 가림 없이 셀 수 있음」.
+ * 어느 것이 승패를 가르는지는 여기서 알려 주지 않는다(판정은 엔진).
+ */
+export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): { id: Id; eyeId: Id; text: string }[] {
+  const x = ep.contradictions.find((y) => y.id === id);
+  if (!x) return [];
+  const I = idx(ep);
+  const k = knowledge(s);
+  const g = geometry(ep, k, x);
+  const srcLabel = ep.room.points.find((p) => p.id === g.source.posId)?.label ?? ep.room.seats.find((p) => p.id === g.source.posId)?.label ?? '그 자리';
+  const occ = x.resolvedBy.kind === 'sight' ? ep.room.furniture.find((f) => f.id === (x.resolvedBy as { occluderId: Id }).occluderId)?.label : undefined;
+  const seen = new Set<Id>();
+  const out: { id: Id; eyeId: Id; text: string }[] = [];
+  for (const w of g.witnesses) {
+    if (seen.has(w.eyeId)) continue;
+    seen.add(w.eyeId);
+    const eye = I.eye.get(w.eyeId)!;
+    const who = ownerKnown(ep, k, eye) ? (I.card.get(eye.personId)?.name ?? '?') : eyeLabel(ep, k, eye);
+    const text =
+      g.kind === 'hearing'
+        ? `${who} 자리 — ${srcLabel}에서 ${w.distance}칸, 들림 반경 ${g.radius}칸`
+        : `${who} 자리 — ${srcLabel}까지 ${w.distance}칸, ${w.status === 'occluded' && occ ? `${occ}에 가림` : (SIGHT_WORD[w.status as keyof typeof SIGHT_WORD] ?? '')}`;
+    out.push({ id: `${x.id}:${w.eyeId}`, eyeId: w.eyeId, text });
+  }
+  return out;
 }
 
 // ── 찾기 ─────────────────────────────────────────────────────────

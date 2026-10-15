@@ -3,7 +3,9 @@
  * 이기는 쪽은 저장하지 않고 방의 기하로 계산한다:
  *  - hearing: 그 말(lineId)을 반경 안에서 직접 또렷이 들은 증인의 주장이 이긴다. 전해 들은 말(hearsay)은 지지 않을 수 없다.
  *  - sight:   가림 없이 셀 수 있었던 증인의 주장이 이긴다.
- * 플레이어가 고른 쪽이 계산과 같으면 풀린다. 틀려도 손해 없음(retryText).
+ * 근거 2칸(DEDUCTION_RULES 규칙 11): 「판단」(어느 주장을 남기나) + 「근거」(그날의 방의 자리 사실 하나 —
+ * 그 눈의 자리에서 말이 닿았나/셀 수 있었나). 두 칸이 다 차야 판정한다. 판단이 계산된 승자이고 근거가 그 승패를
+ * 가르는 자리(decisiveWitnesses)일 때만 풀린다. 어느 칸이 틀렸는지는 말하지 않는다(retryText 하나). 틀려도 손해 없음.
  */
 import { appearances, heldEvidence, idx, type Knowledge } from './ep';
 import { hearing, posOf, sameMoment, sight } from './room';
@@ -68,10 +70,42 @@ export function isRevealed(ep: Episode, k: Knowledge, x: Contradiction, slotsOpe
 
 export type ResolveResult = { status: 'resolved'; winner: Id; loser: Id } | { status: 'retry'; text: string } | { status: 'invalid' };
 
-export function resolve(ep: Episode, x: Contradiction, chosenClaimId: Id): ResolveResult {
-  if (!x.claims.includes(chosenClaimId)) return { status: 'invalid' };
+/** 근거 칸의 id: 「모순 id:눈 id」(그 눈의 자리 사실) */
+export const witnessEvidenceId = (x: Contradiction, eyeId: Id) => `${x.id}:${eyeId}`;
+
+/**
+ * 승패를 가르는 자리(눈 id): 이긴 주장의 증인 중 그 시각 또렷이 들은/셀 수 있었던 자리 +
+ * 진 주장의 증인 중 닿지 않았던/가려졌던(또는 전해 들은) 자리. 주장이 없는 다른 눈은 승패를 가르지 않는다.
+ */
+export function decisiveWitnesses(ep: Episode, x: Contradiction): Id[] {
+  const I = idx(ep);
+  const r = x.resolvedBy;
+  const win = new Set(winningClaims(ep, x));
+  const out = new Set<Id>();
+  for (const cid of x.claims) {
+    const c = claimById(ep, cid);
+    for (const { evidenceId, cutId } of claimWitnessCuts(ep, c)) {
+      const cut = I.cut.get(cutId)!;
+      const eye = I.eye.get(cut.eyeId)!;
+      if (!eye.seatId) continue;
+      const m = markAt(ep, x, posOf(ep.room, eye.seatId), cut.viewpoint.dirDeg);
+      const good = m.status === 'clear' || m.status === 'countable';
+      if (win.has(cid)) {
+        const direct = r.kind === 'hearing' ? evidenceId === r.lineId : I.detail.get(evidenceId)?.targetPosId === r.targetPosId;
+        if (good && !c.hearsay && direct && sameMoment(cut.time, r.time)) out.add(eye.id);
+      } else if (c.hearsay || !good) out.add(eye.id);
+    }
+  }
+  return [...out];
+}
+
+/** 판단(주장) + 근거(자리 사실 id). 두 칸이 다 차야 판정한다 */
+export function resolve(ep: Episode, x: Contradiction, chosenClaimId: Id, evidenceId?: Id): ResolveResult {
+  if (!x.claims.includes(chosenClaimId) || !evidenceId) return { status: 'invalid' };
   const w = winningClaims(ep, x);
-  if (w.length === 1 && w[0] === chosenClaimId) return { status: 'resolved', winner: chosenClaimId, loser: x.claims.find((c) => c !== chosenClaimId)! };
+  const decisive = decisiveWitnesses(ep, x).map((e) => witnessEvidenceId(x, e));
+  if (w.length === 1 && w[0] === chosenClaimId && decisive.includes(evidenceId))
+    return { status: 'resolved', winner: chosenClaimId, loser: x.claims.find((c) => c !== chosenClaimId)! };
   return { status: 'retry', text: x.retryText };
 }
 

@@ -210,6 +210,8 @@ export function RoomSheet() {
   const [selMarker, setSelMarker] = useState<number | null>(null);
   const [claim, setClaim] = useState<string | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
+  /** 근거 2칸의 ② 근거(자리 사실 id). ① 판단은 claim */
+  const [evid, setEvid] = useState<string | null>(null);
 
   const open1 = useMemo(() => xs.filter((x) => x.status === 'revealed'), [xs]);
 
@@ -217,6 +219,7 @@ export function RoomSheet() {
     if (!open) return;
     setRetry(null);
     setClaim(null);
+    setEvid(null);
     setSelMarker(null);
     setMode(focusId && xs.some((x) => x.id === focusId && x.status !== 'hidden') ? focusId : null);
     setSelEye(room.eyes.find((e) => e.selected)?.eyeId ?? null);
@@ -269,28 +272,27 @@ export function RoomSheet() {
         foot={
           view ? (
             view.resolved ? (
-              <button className="btn primary" data-testid="room-back" onClick={() => { setMode(null); setRetry(null); setClaim(null); }}>
+              <button className="btn primary" data-testid="room-back" onClick={() => { setMode(null); setRetry(null); setClaim(null); setEvid(null); }}>
                 그날의 방으로
               </button>
             ) : (
-              <>
-                {view.buttons.map((b) => (
-                  <button
-                    key={b.claimId}
-                    className="btn primary"
-                    data-testid={`resolve-${b.claimId}`}
-                    onClick={() => {
-                      const r = g.resolveContradiction(view.id, b.claimId);
-                      if (r.status === 'retry') {
-                        setRetry(r.text);
-                        fx('tag_no');
-                      } else if (r.status === 'resolved') setRetry(null);
-                    }}
-                  >
-                    {b.text}
-                  </button>
-                ))}
-              </>
+              <button
+                className="btn primary"
+                data-testid="resolve-confirm"
+                disabled={!claim || !evid}
+                onClick={() => {
+                  if (!claim || !evid) return;
+                  const r = g.resolveContradiction(view.id, claim, evid);
+                  if (r.status === 'retry') {
+                    setRetry(r.text);
+                    fx('tag_no');
+                    setClaim(null);
+                    setEvid(null);
+                  } else if (r.status === 'resolved') setRetry(null);
+                }}
+              >
+                {view.judgements.find((j) => j.claimId === claim)?.text ?? '판단과 근거를 고른다'}
+              </button>
             )
           ) : undefined
         }
@@ -341,9 +343,24 @@ export function RoomSheet() {
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+            <div className="t-m slotsline" data-testid="contra-slots">
+              근거 {view.slots}칸 · ① 판단 + ② 근거
+            </div>
+            <div className="t-m" style={{ marginTop: 6 }}>① 판단 — 어느 말을 남기나</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               {cx?.claims.map((c) => (
-                <button key={c.id} className={`claimchip${claim === c.id ? ' on' : ''}${c.lost ? ' won' : ''}`} data-testid={`claim-${c.id}`} aria-pressed={claim === c.id} onClick={() => setClaim(claim === c.id ? null : c.id)}>
+                <button
+                  key={c.id}
+                  className={`claimchip${claim === c.id ? ' on' : ''}${c.lost ? ' won' : ''}`}
+                  data-testid={`claim-${c.id}`}
+                  aria-pressed={claim === c.id}
+                  disabled={view.resolved}
+                  onClick={() => {
+                    fx('tap');
+                    setClaim(claim === c.id ? null : c.id);
+                    setRetry(null);
+                  }}
+                >
                   {c.label}
                 </button>
               ))}
@@ -352,15 +369,28 @@ export function RoomSheet() {
             <div className="t-m" style={{ marginTop: 8 }}>
               {view.geometry.kind === 'hearing' ? `${view.geometry.time} · 말이 닿은 거리` : `${view.geometry.time} · 세어 볼 수 있었는가`}
             </div>
-            <ul className="wlist t-m" data-testid="witness-list">
-              {view.geometry.witnesses.map((w) => (
-                <li key={`${w.eyeId}${w.claimId ?? ''}`}>
-                  <span style={{ color: 'var(--hanji)' }}>{ownerChar(room.eyes.find((e) => e.eyeId === w.eyeId)?.label ?? '')}</span>
-                  <span>{WORD[w.status] ?? w.status}</span>
-                  <span className="clock">{w.distance.toFixed(1)}칸</span>
-                </li>
+            <div className="t-m" style={{ marginTop: 10 }}>② 근거 — 그 판단을 받치는 자리 하나</div>
+            <div data-testid="contra-evidence" style={{ marginTop: 4 }}>
+              {view.evidence.map((e) => (
+                <button
+                  key={e.id}
+                  className={`evrow${evid === e.id ? ' sel' : ''}`}
+                  data-testid={`cev-${e.id}`}
+                  aria-pressed={evid === e.id}
+                  disabled={view.resolved}
+                  onClick={() => {
+                    fx('tap');
+                    setEvid(evid === e.id ? null : e.id);
+                    setRetry(null);
+                  }}
+                >
+                  <span className="k">
+                    <span className="t-m">{ownerChar(room.eyes.find((x) => x.eyeId === e.eyeId)?.label ?? '')}</span>
+                  </span>
+                  <span className="tx">{e.text}</span>
+                </button>
               ))}
-            </ul>
+            </div>
             {retry ? (
               <div className="fb" role="status" data-testid="retry-text">
                 <span className="t-b">{retry}</span>
