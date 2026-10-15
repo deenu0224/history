@@ -211,13 +211,19 @@ describe('store — Ep0 correct path', () => {
     drainMessages(h, 1, 'none');
     expect(texts(h.store)).toContain('어디부터 볼까요?');
     expect(texts(h.store)).toContain('모르는 얼굴 있으면 눌러 봐.');
+    // 연달아 묻기는 막힌다(같은 말이 쌓이지 않는다)
+    expect(h.st().askHint()).toEqual({ status: 'busy' });
+    expect(texts(h.store).filter((t) => t === '어디부터 볼까요?')).toHaveLength(1);
+    h.advance(31_000);
     h.st().askHint();
     drainMessages(h, 1, 'none');
     expect(texts(h.store)).toContain('두루마리에 뭐라고 적혀 있지?');
     h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
+    h.advance(31_000);
     h.st().askHint();
     drainMessages(h, 1, 'none');
     expect(texts(h.store)).toContain('그 사람이 자기를 뭐라고 불렀지?');
+    h.advance(31_000);
     h.st().askHint();
     drainMessages(h, 1, 'none');
     expect(texts(h.store)).toContain('최만리 카드를 펼쳐 봐.');

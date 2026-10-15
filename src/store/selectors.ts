@@ -12,7 +12,7 @@ import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slo
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
 import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
-import { knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
+import { canAskHint, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
 import type { PersistedState, SearchLogEntry } from './state';
 
 const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
@@ -516,8 +516,8 @@ export function selectLog(ep: Episode, s: PersistedState) {
 }
 
 // ── 메신저 ───────────────────────────────────────────────────────
-export function selectMessenger(_ep: Episode, s: PersistedState, now: number): MessengerView {
-  return messengerView(s.messenger, now, s.restored);
+export function selectMessenger(ep: Episode, s: PersistedState, now: number): MessengerView & { canAsk: boolean } {
+  return { ...messengerView(s.messenger, now, s.restored), canAsk: canAskHint(ep, s, now) };
 }
 
 // ── 기록 다시 쓰기 ───────────────────────────────────────────────

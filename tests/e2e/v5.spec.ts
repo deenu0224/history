@@ -210,6 +210,8 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'chat')).toContainText('응, 한글은 쓰는데 만든 사람은 기록에 없지.');
     await expect(tid(page, 'ask-hint')).toBeVisible();
     await tid(page, 'ask-hint').click();
+    // 한 번 물으면 버튼이 사라져 연달아 누를 수 없다
+    await expect(tid(page, 'ask-hint')).toHaveCount(0);
     await expect(tid(page, 'my-msg').last()).toContainText('어디부터 볼까요?');
     await expect(tid(page, 'their-msg').last()).toBeVisible({ timeout: 20_000 });
     await page.waitForTimeout(2500);

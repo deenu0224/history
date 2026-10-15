@@ -521,20 +521,28 @@ export function followFactLink(w: Work, c: Ctx, factId: Id, targetCardId: Id): {
 }
 
 /** 「어디부터 볼까요?」: 07 이 묻고, 켜진 사다리의 다음 단이 바로 온다(없으면 한 선임의 한 줄) */
-export function askHint(w: Work, c: Ctx): { status: 'hint' | 'fallback' | 'busy'; ladderId?: Id } {
-  if (w.s.messenger.choice) return { status: 'busy' };
+/** 물은 뒤 다시 물을 수 있기까지(ms) — 힌트 사다리를 연달아 털지 못하게 */
+export const ASK_COOLDOWN_MS = 30_000;
+
+/** 지금 「어디부터 볼까요?」를 물을 수 있는가: 답할 힌트가 있고, 방금 묻지 않았고, 대화가 비어 있을 때만 */
+export function canAskHint(ep: Episode, s: PersistedState, now: number): boolean {
+  if (s.messenger.choice || s.restored) return false;
+  if (s.hints.askedAt !== undefined && now - s.hints.askedAt < ASK_COOLDOWN_MS) return false;
+  const p = progress(ep, s);
+  return nextAskHint(ep.ladders, trackActive(ep.ladders, s.hints, p, now), p) !== null;
+}
+
+export function askHint(w: Work, c: Ctx): { status: 'hint' | 'busy'; ladderId?: Id } {
+  if (!canAskHint(c.ep, w.s, c.now)) return { status: 'busy' };
   const n = (w.s.hints.asked ?? 0) + 1;
-  w.s.hints = { ...w.s.hints, asked: n };
+  w.s.hints = { ...w.s.hints, asked: n, askedAt: c.now };
   w.s.messenger = M.sayMine(w.s.messenger, `${c.ep.id}.ask${n}`, c.ep.askText, c.now);
   const p = progress(c.ep, w.s);
   w.s.hints = trackActive(c.ep.ladders, w.s.hints, p, c.now);
-  const h = nextAskHint(c.ep.ladders, w.s.hints, p);
-  if (h && fireEvent(w, c, `ask.${h.stepId}`)) {
-    w.s.hints = markSent(w.s.hints, h.ladderId, c.now);
-    return { status: 'hint', ladderId: h.ladderId };
-  }
-  fireEvent(w, c, 'ask.fallback');
-  return { status: 'fallback' };
+  const h = nextAskHint(c.ep.ladders, w.s.hints, p)!;
+  fireEvent(w, c, `ask.${h.stepId}`);
+  w.s.hints = markSent(w.s.hints, h.ladderId, c.now);
+  return { status: 'hint', ladderId: h.ladderId };
 }
 
 export function openDoc(w: Work, _c: Ctx, id: Id): boolean {

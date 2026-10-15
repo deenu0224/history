@@ -61,6 +61,8 @@ export interface HintState {
   lastSentAt: Record<Id, number>;
   /** 플레이어가 「어디부터 볼까요?」라고 물은 수 */
   asked?: number;
+  /** 마지막으로 07 이 물은 시각(ms) — 연달아 묻기 막기 */
+  askedAt?: number;
 }
 
 export const emptyHintState = (): HintState => ({ activeSince: {}, sent: {}, lastSentAt: {} });

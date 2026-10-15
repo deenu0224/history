@@ -148,7 +148,7 @@ export function Messenger() {
             </button>
           ))}
         </div>
-      ) : (
+      ) : !view.canAsk ? null : (
         <div className="askbar">
           <button
             className="askhint"
