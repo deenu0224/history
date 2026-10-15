@@ -1,3 +1,4 @@
+import { josa } from '@/core/josa';
 /**
  * 화면별 보기(셀렉터) — UI_STYLE_GUIDE §1 화면 목록에 맞춘다. 모두 (ep, state) → 순수한 보기 객체.
  * 원칙: 정답·숨은 정체를 내보내지 않는다(이름은 붙인 뒤에만, 연도·장소는 복원 뒤에만).
@@ -38,7 +39,7 @@ export function selectEyes(ep: Episode, s: PersistedState): EyeView[] {
         order: e.order,
         state: st,
         ownerUnknown: st === 'open' && !ownerKnown(ep, k, e),
-        label: st === 'never' ? (s.restored ? `${idx(ep).card.get(e.personId)?.name} 관측` : '관측 불가') : st === 'unopened' ? '' : eyeLabel(ep, k, e),
+        label: st === 'never' ? (s.restored ? `${josa(idx(ep).card.get(e.personId)?.name ?? '?', '이/가')} 본 것` : '관측 불가') : st === 'unopened' ? '' : eyeLabel(ep, k, e),
         current: s.viewer?.eyeId === e.id,
       };
     });

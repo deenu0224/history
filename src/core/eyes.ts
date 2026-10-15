@@ -5,6 +5,7 @@
  *  - 닫힘: 06:00 재계산(EyeClosure). 본 컷은 관측 로그에 남아 다시 볼 수 있고, 안 본 컷은 영영 볼 수 없다.
  */
 import { idx, type Knowledge } from './ep';
+import { josa } from './josa';
 import type { Episode, Eye, EyeClosure, Id } from './types';
 
 export type EyeState = 'open' | 'unopened' | 'closed' | 'never';
@@ -25,10 +26,10 @@ export function ownerKnown(_ep: Episode, k: Knowledge, eye: Eye): boolean {
 
 const ORDINAL = ['첫 번째', '두 번째', '세 번째', '네 번째', '다섯 번째'];
 
-/** 화면 이름: 「첫 번째 관측」(이름 칸 손상) → 「윤효손 관측」 */
+/** 화면 이름: 「누군가 본 것」(이름 칸 손상) → 「윤효손이 본 것」 */
 export function eyeLabel(ep: Episode, k: Knowledge, eye: Eye): string {
-  if (ownerKnown(ep, k, eye)) return `${idx(ep).card.get(eye.personId)?.name ?? '?'} 관측`;
-  return `${ORDINAL[eye.order - 1] ?? ''} 관측`;
+  if (ownerKnown(ep, k, eye)) return `${josa(idx(ep).card.get(eye.personId)?.name ?? '?', '이/가')} 본 것`;
+  return eye.order === 1 ? '누군가 본 것' : `${ORDINAL[eye.order - 1] ?? ''} 누군가 본 것`;
 }
 
 /** 이 figure 에 이름을 붙이면 열리는 눈 */
