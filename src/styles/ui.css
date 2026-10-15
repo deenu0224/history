@@ -2029,3 +2029,59 @@
   margin-left: 36px;
   border-color: var(--ink3);
 }
+
+/* 홈 카드 「그날 실록」: 손상된 문장 그대로. 빈 칸은 청록(지워짐), 복원되면 먹으로 채워진다 */
+.home-record {
+  margin: 14px 0 12px;
+}
+.home-record .hr-title {
+  color: var(--hanji-muted);
+  margin-bottom: 4px;
+}
+.home-record .hr-text {
+  margin: 0;
+  font-family: var(--f-read);
+  font-size: var(--fs-b);
+  line-height: var(--lh-b);
+  color: var(--hanji);
+  word-break: keep-all;
+}
+.home-record .hr-line.minor {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--ink3);
+}
+.home-record .hr-line.minor .hr-text {
+  font-size: var(--fs-m);
+  line-height: var(--lh-m);
+  color: var(--hanji-muted);
+}
+.home-record .hr-note {
+  color: var(--teal);
+  font-size: 14px;
+  line-height: 20px;
+}
+.home-record .hr-gap {
+  color: var(--teal);
+  background: var(--teal-soft);
+  border: 1px dashed var(--teal);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: var(--f-pixel);
+  white-space: nowrap;
+}
+.home-record .hr-gap.filled {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: transparent;
+  font-family: var(--f-read);
+}
+.home-record .hr-src {
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: 2px;
+}
+.home-record-label {
+  color: var(--hanji-muted);
+  margin: 14px 0 -8px;
+}

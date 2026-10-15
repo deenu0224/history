@@ -11,6 +11,7 @@ import { IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
 import { shorten } from '../lib/text';
 import { FROM_LABEL } from '../lib/format';
+import { HomeRecord } from '../parts/HomeRecord';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
@@ -151,6 +152,7 @@ export function Restore() {
                 <Scramble from={r.home.before.status} to={r.home.after.status} ms={1000} delay={1400} reduce={reduce} />
               </span>
             </div>
+            {r.home.after.record ? <HomeRecord record={r.home.after.record} before={r.home.before.record} reduce={reduce} /> : null}
             {r.home.after.placeNote ? (
               <p className="t-m keep" style={{ margin: '14px 0 0' }}>
                 {r.home.after.placeNote}

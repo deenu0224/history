@@ -19,7 +19,7 @@ function playEp0ToRestore(h: Harness) {
   h.st().startEpisode();
   EP0.eyes[0].cuts.forEach((_, i) => h.st().viewCut('E0', i));
   h.st().closeViewer();
-  drainMessages(h, 3); // 첫 선택지: c0_start 「구멍이요?」, c0_hangul 「그건 원래 기록이 없잖아요.」
+  drainMessages(h, 3); // 첫 선택지: c0_start 「빈칸 말이에요?」, c0_hangul 「그건 원래 기록이 없잖아요.」
   h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
   h.st().followFactLink('f_choi_exam', 'sejong');
   h.st().tag('fig_king', 'sejong', 'l_e0_memorial', 'e0-3');
@@ -172,5 +172,29 @@ describe('store — Ep0 restoration rewrites the whole log, incl. my reply', () 
     const ep1View = selectMessenger(EP1, h2.st(), h2.clock.t).items;
     for (const m of ep1View) for (const re of allTells) expect(re.test(m.display), `${m.id} 「${m.display}」`).toBe(false);
     expect(ep1View.find((m) => m.id === 'm0_hangul')).toMatchObject({ rewritten: true, bleed: false });
+  });
+});
+
+describe('Ep0 home card shows the damaged 실록 sentence itself', () => {
+  it('before: verified wording with a [ ? ] gap and no source; after: the gap is filled with 임금이', async () => {
+    const { homeView } = await import('@/core/reality');
+    const before = homeView(EP0.home, { restored: false, closures: [] }).record!;
+    expect(before.title).toBe('그날 실록');
+    expect(before.lines.map((l) => l.parts.map((p) => p.text).join(''))).toEqual([
+      '[ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …',
+      '이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데 …',
+    ]);
+    expect(before.lines[1]).toMatchObject({ minor: true, note: '같은 칸이 빈 기록' });
+    expect(before.lines.every((l) => l.source === undefined)).toBe(true);
+    const after = homeView(EP0.home, { restored: true, closures: [] }).record!;
+    expect(after.lines[0].parts.map((p) => p.text).join('')).toBe('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …');
+    expect(after.lines[0].source?.url).toBe('https://sillok.history.go.kr/id/kda_12602020_001');
+    expect(EP1.home.record).toBeUndefined(); // 통째로 지워진 날 — 문장이 없다
+  });
+  it('validator ⑦ catches a home sentence that is not the 국역 wording', () => {
+    const ep = structuredClone(EP0);
+    ep.erasedFacts = EP0.erasedFacts;
+    ep.home.record!.lines[0].parts = [{ gap: '임금이' }, { text: ' 상소를 보고 화를 내며 …' }];
+    expect(validateEpisode(ep, X0).some((i) => i.rule === '⑦' && i.message.includes('홈 문장'))).toBe(true);
   });
 });

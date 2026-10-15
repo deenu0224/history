@@ -138,6 +138,11 @@ test.describe('v5 전체 플레이', () => {
     // 에피소드 0 에는 찾기·그날의 방이 없다 — 버튼도 없다
     await expect(tid(page, 'dock-search')).toHaveCount(0);
     await expect(tid(page, 'btn-rewrite')).toHaveCount(0);
+    // Ep0 엔 찾기가 없다 — 손상된 실록 문장이 홈 카드에 그대로 뜬다(빈 칸은 청록 [ ? ])
+    await expect(tid(page, 'home-record')).toContainText('그날 실록');
+    await expect(tid(page, 'home-record-0')).toContainText('[ ? ] 소(疏)를 보고, 만리(萬理) 등에게 이르기를');
+    await expect(tid(page, 'home-record-1')).toContainText('같은 칸이 빈 기록');
+    await expect(tid(page, 'home-record-1')).toContainText('이달에 [ ? ] 친히 언문(諺文) 28자(字)를 지었는데');
     await shot0(page, 'home');
     // 설정에서 「메시지 빠르게」(시험을 짧게) — 이것도 실제 탭
     await tid(page, 'open-settings').click();
@@ -268,6 +273,9 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'article-long-toggle').click();
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-date')).toContainText('세종 26년 2월 20일', { timeout: 6000 });
+    // 빈 칸이 채워진다
+    await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('임금이 소(疏)를 보고', { timeout: 6000 });
+    await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이달에 임금이 친히', { timeout: 6000 });
     await shot0(page, 'restore-home');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-messages')).toBeVisible();

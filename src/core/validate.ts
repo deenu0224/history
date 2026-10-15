@@ -20,6 +20,7 @@
 import { claimById, winningClaims } from './contradiction';
 import { appearances, cutAppearances, idx, trueFigureOf } from './ep';
 import { closureDue } from './eyes';
+import { homeRecordText } from './reality';
 import { hearing, hasPos, posOf, sameMoment, seatOf, sight } from './room';
 import { cardKeys, evidenceKeys, evidenceRefers, judgeTag, ledgerKeys, roomKeyOf } from './tag';
 import type { Episode, Id, Step } from './types';
@@ -397,6 +398,7 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   for (const c of ep.claims) preTexts.push({ where: `주장 ${c.id}`, text: c.label });
   for (const xc of ep.contradictions) preTexts.push({ where: `모순 ${xc.id}`, text: [xc.loserLabel, xc.loserNote ?? '', xc.retryText, ...xc.buttons].join(' ') });
   preTexts.push({ where: '홈(전)', text: [ep.home.date.before, ep.home.place.before, ep.home.task, ep.home.detection, ep.home.status.before].join(' ') });
+  for (const l of ep.home.record?.lines ?? []) preTexts.push({ where: '홈 문장(전)', text: [l.note ?? '', ...l.parts.map((p) => ('gap' in p ? '[ ? ]' : p.text))].join(' ') });
   for (const t of preTexts) {
     if (YEAR_RE.test(t.text)) bad('⑤', `${t.where}: 해결 전 화면에 연도 — 「${t.text}」`);
     for (const w of PLACE_WORDS) if (t.text.includes(w)) bad('⑤', `${t.where}: 해결 전 화면에 장소·왕대 '${w}'`);
@@ -473,6 +475,14 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
 
   // ── ⑦ 검증 문장 ──
   const full = ep.article.fullText;
+  // 홈 카드에 뜨는 손상 문장: 빈 칸을 채우면 국역(복원 전문이나 같은 출처의 기록 줄) 그대로
+  for (const l of ep.home.record?.lines ?? []) {
+    if (!l.parts.some((p) => 'gap' in p)) bad('⑦', `홈 문장: 빈 칸이 없다`);
+    const t = homeRecordText(l).replace(/[「」]/g, '');
+    const pool = [l.source.id === ep.article.source.id ? full : '', ...ep.records.flatMap((r) => r.lines.filter((x) => x.source.id === l.source.id).map((x) => x.text.replace(/[「」]/g, '')))];
+    if (!pool.some((f) => f && quotedFrom(t, f))) bad('⑦', `홈 문장이 국역과 글자가 다르다 「${t}」`);
+    verifiedNeedsUrl('홈 문장', 'verified', [l.source]);
+  }
   const joined = ep.article.parts.map((p) => p.text).join(' ');
   if (squash(joined) !== squash(full)) bad('⑦', '복원 전문의 조각을 이으면 국역 전문과 다르다');
   const mis = x.mistranslated;

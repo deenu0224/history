@@ -5,6 +5,7 @@ import { useView } from '@/store/hooks';
 import { fx } from '../lib/fx';
 import { goNextEpisode } from '../lib/flow';
 import { EyeRow } from '../parts/EyeRow';
+import { HomeRecord } from '../parts/HomeRecord';
 import { IChat, IGear, IMemory, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
 
@@ -81,7 +82,14 @@ export function Home() {
             {home.card.place}
           </span>
         </div>
-        {restored ? null : <GapGraphic />}
+        {home.card.record ? (
+          <HomeRecord record={home.card.record} />
+        ) : restored ? null : (
+          <>
+            <div className="t-m home-record-label">그날 실록</div>
+            <GapGraphic />
+          </>
+        )}
         {home.card.placeNote ? (
           <p className="t-m keep" style={{ margin: '10px 0 0' }}>
             {home.card.placeNote}
