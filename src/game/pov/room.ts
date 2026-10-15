@@ -79,13 +79,13 @@ export const ROOM_EP0 = {
   screen: { x0: 4.75, x1: 7.25, y: 0.55, h: 1.85, panels: 5 },
   seats: {
     K: { x: 6.0, y: 1.3, facingDeg: 90 },
-    C: { x: 6.05, y: 3.25, facingDeg: 270 },
-    R1: { x: 8.05, y: 3.05, facingDeg: 215 },
-    R2: { x: 8.25, y: 4.3, facingDeg: 220 },
-    R3: { x: 8.45, y: 5.55, facingDeg: 225 },
-    HW: { x: 8.65, y: 6.85, facingDeg: 230 },
-    R5: { x: 3.75, y: 3.6, facingDeg: 320 },
-    R6: { x: 3.55, y: 4.85, facingDeg: 315 },
+    C: { x: 6.25, y: 4.05, facingDeg: 265 },
+    R1: { x: 7.75, y: 2.75, facingDeg: 215 },
+    R2: { x: 8.0, y: 3.85, facingDeg: 220 },
+    R3: { x: 8.25, y: 4.95, facingDeg: 225 },
+    HW: { x: 7.75, y: 6.35, facingDeg: 250 },
+    R5: { x: 4.1, y: 3.4, facingDeg: 320 },
+    R6: { x: 3.9, y: 4.6, facingDeg: 315 },
   } satisfies Record<Ep0SeatId, Seat>,
 } as const;
 

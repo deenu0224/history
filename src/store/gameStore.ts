@@ -3,11 +3,16 @@
  * 상태 전이는 ./engine.ts(순수에 가까운 함수), 화면 보기는 ./selectors.ts. 시계는 createGameStore({ now }) 로 넣는다.
  *
  * ── UI 계약 ─────────────────────────────────────────────────────
- *  시작     startEpisode() · markPrologueSeen()
+ *  에피소드 startEpisode(id?) — id 없으면 지금 에피소드(새 저장은 ep0). 다른 id 면 진행을 새로 시작하고 대화는 이어진다
+ *           selectEpisodes(state) — 에피소드 선택 화면 · currentEpisode(state) · useEpisode()
+ *  시작     markPrologueSeen()
  *  넘기기   openEye(eyeId) · viewCut(eyeId, index) · closeViewer()
  *  이름     tapFigure(cutId, figureId) → 시트 보기 · tag(figureId, cardId, evidenceId, cutId?) → TagOutcome
- *  방       openRoom(time?) · selectRoomTime(time) · closeRoom() · resolveContradiction(id, claimId)
- *  찾기     search(query) · openCard(id) · openRecord(id) · openDoc(id)
+ *           followFactLink(factId, cardId) — 카드 줄 낱말 링크 → 인물 카드 +1(fx cards_gained)
+ *  방       openRoom(time?) · openRoomAtCut(cutId)(「이 시각, 그날의 방」) · selectRoomTime(time) · closeRoom() · resolveContradiction(id, claimId)
+ *  찾기     search(query) · openCard(id) · openRecord(id)(fx cards_gained) · openDoc(id)
+ *           searchFromTag() — 시트를 접고 돌아올 자리를 기억(ui.tagReturn) · returnToTag(cardId?) — 시트를 다시 연다(ui.tagCard)
+ *  힌트     askHint() — 07 「어디부터 볼까요?」 → 켜진 사다리의 다음 단을 바로
  *  메신저   openMessenger() · closeMessenger() · readMessage() · chooseReply(optionId) · setTouching(bool)
  *  시간     tick() — UI 가 250~500ms 마다 부른다(메신저 배달·힌트·닫히는 눈) · tickIdle() 같은 것 · resume()
  *  다시쓰기 composeRewrite() · placePiece(pieceId) · openSlot(kind) · fillSlot(lineId, kind, value) · clearSlot · removeLine
@@ -18,19 +23,20 @@
  *  보기     selectors.ts 의 select*(EP1, state) — 아래 use* 훅이 감싼다
  */
 import { create } from 'zustand';
-import { EP1 } from '@/data/v5';
+import { EP1, EPISODE_ORDER, EPISODES } from '@/data/v5';
 import { loadGame, migrate, saveGame, SaveError, type SaveSlot } from '@/core/save';
 import { seedFrom } from '@/core/rng';
 import * as M from '@/core/messenger';
 import type { Episode, Hhmm, Id, SlotKind } from '@/core/types';
 import * as E from './engine';
-import { selectCut } from './selectors';
-import { DEFAULT_SETTINGS, freshState, pickPersisted, PERSISTED_KEYS, type PersistedState, type Settings } from './state';
+import { selectCut, selectSearchSeed } from './selectors';
+import { DEFAULT_SETTINGS, FIRST_EPISODE_ID, freshState, pickPersisted, PERSISTED_KEYS, type PersistedState, type Settings } from './state';
 
 export * from './state';
 export * from './selectors';
 export type { Fx, TagOutcome, SearchOutcome, SubmitOutcome, ViewStatus, RestoreStep } from './engine';
-export { RESTORE_STEPS, rewriteAvailable, roomUnlocked, timeChips } from './engine';
+export { RESTORE_STEPS, rewriteAvailable, roomUnlocked, timeChips, switchEpisode } from './engine';
+export { EPISODES, EPISODE_ORDER } from '@/data/v5';
 
 export interface UiState {
   /** 지금 손가락을 대고 있다(밀기·시트 조작) — 메시지를 미룬다 */
@@ -39,10 +45,22 @@ export interface UiState {
   roomOpen: boolean;
   /** 열린 이름 붙이기 시트 */
   tagTarget: { cutId: Id; figureId: Id } | null;
+  /** 시트에서 「찾기로 더」를 눌러 접어 둔 자리(찾기 뒤 returnToTag 로 돌아간다) */
+  tagReturn: { cutId: Id; figureId: Id; cardId?: Id } | null;
+  /** 시트를 다시 열 때 미리 고른 카드 */
+  tagCard: Id | null;
 }
 
 export interface GameActions {
-  startEpisode(): 'started' | 'already';
+  /** id 없으면 지금 에피소드. 잠긴 에피소드는 'locked' */
+  startEpisode(id?: Id): 'started' | 'already' | 'locked' | 'unknown';
+  followFactLink(factId: Id, cardId: Id): ReturnType<typeof E.followFactLink>;
+  openRoomAtCut(cutId: Id): ReturnType<typeof E.openRoomAtCut>;
+  askHint(): ReturnType<typeof E.askHint>;
+  /** 이름 붙이기 시트 → 찾기(돌아올 자리 기억). 미리 채울 낱말을 돌려준다 */
+  searchFromTag(cardId?: Id): { seed: string[] };
+  /** 찾기 → 이름 붙이기 시트로 돌아간다(cardId 를 고른 채) */
+  returnToTag(cardId?: Id): boolean;
   markPrologueSeen(): void;
   openEye(eyeId: Id): { status: E.ViewStatus; cutId?: Id; index?: number };
   viewCut(eyeId: Id, index: number): { status: E.ViewStatus; cutId?: Id };
@@ -98,10 +116,26 @@ export interface StoreOptions {
   /** 시계(ms). 기본 Date.now */
   now?: () => number;
   seed?: number;
+  /** 이 에피소드 데이터로 바꿔 끼운다(같은 id 의 등록 데이터 대신, 테스트용). 처음 에피소드도 이것 */
   episode?: Episode;
+  /** 처음 에피소드 id(기본 ep0). 잠금을 풀고 시작한다 */
+  episodeId?: Id;
 }
 
-const initialUi = (): UiState => ({ touching: false, messengerOpen: false, roomOpen: false, tagTarget: null });
+const initialUi = (): UiState => ({ touching: false, messengerOpen: false, roomOpen: false, tagTarget: null, tagReturn: null, tagCard: null });
+
+/** 상태의 에피소드 데이터 */
+export const episodeById = (id: Id): Episode => EPISODES[id] ?? EP1;
+export const currentEpisode = (s: Pick<PersistedState, 'episodeId'>): Episode => episodeById(s.episodeId);
+
+/** 에피소드 선택 화면 */
+export function selectEpisodes(s: Pick<PersistedState, 'episodeId' | 'unlocked' | 'completed'>) {
+  return EPISODE_ORDER.map((id) => {
+    const ep = EPISODES[id];
+    const state = id === s.episodeId ? 'current' : s.completed.includes(id) ? 'done' : s.unlocked.includes(id) ? 'available' : 'locked';
+    return { id, order: ep.order, title: ep.title, code: ep.home.code, state: state as 'current' | 'done' | 'available' | 'locked', done: s.completed.includes(id) };
+  });
+}
 
 export function initialPersisted(seed = 1, now = 0): PersistedState {
   return freshState(seed, now);
@@ -109,13 +143,15 @@ export function initialPersisted(seed = 1, now = 0): PersistedState {
 
 export function createGameStore(opts: StoreOptions = {}) {
   const clock = opts.now ?? (() => Date.now());
-  const ep = opts.episode ?? EP1;
   const seed = opts.seed ?? seedFrom(String(clock()));
+  const override = opts.episode;
+  const firstId = opts.episodeId ?? override?.id ?? FIRST_EPISODE_ID;
+  const epOf = (id: Id): Episode => (override && override.id === id ? override : episodeById(id));
 
   return create<GameState>()((set, get) => {
     const ctx = (): E.Ctx => {
       const ui = get().ui;
-      return { ep, now: clock(), touching: ui.touching, messengerOpen: ui.messengerOpen };
+      return { ep: epOf(get().episodeId), now: clock(), touching: ui.touching, messengerOpen: ui.messengerOpen };
     };
     /** 엔진 동작 하나를 실행하고 상태·연출 큐를 반영 */
     function run<R>(fn: (w: E.Work, c: E.Ctx) => R, opts2?: { action?: boolean }): R {
@@ -126,27 +162,54 @@ export function createGameStore(opts: StoreOptions = {}) {
     }
 
     return {
-      ...freshState(seed, clock()),
+      ...freshState(seed, clock(), firstId),
       ui: initialUi(),
       fx: [],
       lastError: null,
       now: () => clock(),
 
-      startEpisode: () => run((w, c) => E.startEpisode(w, c)),
+      startEpisode: (id) => {
+        const target = id ?? get().episodeId;
+        if (!EPISODES[target] && override?.id !== target) return 'unknown';
+        if (target !== get().episodeId) {
+          if (!get().unlocked.includes(target)) return 'locked';
+          set({ ...E.switchEpisode(pickPersisted(get()), target, clock()), ui: initialUi() });
+        }
+        return run((w, c) => E.startEpisode(w, c));
+      },
+      followFactLink: (factId, cardId) => run((w, c) => E.followFactLink(w, c, factId, cardId)),
+      openRoomAtCut: (cutId) => {
+        const r = run((w, c) => E.openRoomAtCut(w, c, cutId));
+        if (r.status === 'opened') set({ ui: { ...get().ui, roomOpen: true } });
+        return r;
+      },
+      askHint: () => run((w, c) => E.askHint(w, c)),
+      searchFromTag: (cardId) => {
+        const t = get().ui.tagTarget;
+        const ep = epOf(get().episodeId);
+        set({ ui: { ...get().ui, tagTarget: null, tagReturn: t ? { ...t, ...(cardId ? { cardId } : {}) } : null } });
+        return { seed: t ? selectSearchSeed(ep, get(), t.cutId) : selectSearchSeed(ep, get()) };
+      },
+      returnToTag: (cardId) => {
+        const r = get().ui.tagReturn;
+        if (!r) return false;
+        set({ ui: { ...get().ui, tagTarget: { cutId: r.cutId, figureId: r.figureId }, tagReturn: null, tagCard: cardId ?? r.cardId ?? null } });
+        return true;
+      },
       markPrologueSeen: () => run((w) => void (w.s.prologueSeen = true)),
       openEye: (eyeId) => run((w, c) => E.openEye(w, c, eyeId)),
       viewCut: (eyeId, index) => run((w, c) => E.viewCut(w, c, eyeId, index)),
       closeViewer: () => run((w, c) => E.closeViewer(w, c)),
       tapFigure: (cutId, figureId) => {
-        const v = selectCut(ep, get(), cutId);
+        const v = selectCut(epOf(get().episodeId), get(), cutId);
         const f = v?.figures.find((x) => x.figureId === figureId);
         const tappable = !!f?.tappable;
-        set({ ui: { ...get().ui, tagTarget: tappable ? { cutId, figureId } : null } });
+        set({ ui: { ...get().ui, tagTarget: tappable ? { cutId, figureId } : null, tagCard: null } });
         return { tappable };
       },
-      closeTagSheet: () => set({ ui: { ...get().ui, tagTarget: null } }),
+      closeTagSheet: () => set({ ui: { ...get().ui, tagTarget: null, tagCard: null } }),
       tag: (figureId, cardId, evidenceId, cutId) => {
-        const target = cutId ?? get().ui.tagTarget?.cutId ?? currentCut(ep, get());
+        const target = cutId ?? get().ui.tagTarget?.cutId ?? currentCut(epOf(get().episodeId), get());
         if (!target) return { judgement: { status: 'invalid', reason: 'not_viewed' }, openedEyes: [] };
         const out = run((w, c) => E.tag(w, c, target, figureId, cardId, evidenceId));
         if (out.judgement.status === 'judged' && out.judgement.verdict === 'ok') set({ ui: { ...get().ui, tagTarget: null } });
@@ -209,7 +272,7 @@ export function createGameStore(opts: StoreOptions = {}) {
           return 'error';
         }
       },
-      reset: () => set({ ...freshState(seed, clock()), settings: get().settings, ui: initialUi(), fx: [], lastError: null }),
+      reset: () => set({ ...freshState(seed, clock(), firstId), settings: get().settings, ui: initialUi(), fx: [], lastError: null }),
       ackFx: () => set({ fx: [] }),
     };
   });
@@ -252,5 +315,12 @@ export function enableAutosave(store: GameStore, delayMs = 1500): () => void {
   };
 }
 
-export const EPISODE = EP1;
+/**
+ * @deprecated 지금 에피소드는 currentEpisode(state) / useEpisode(). 옛 UI 호환: 싱글턴 스토어의 에피소드를 따라가는 살아 있는 바인딩.
+ */
+export let EPISODE: Episode = EP1;
 export const useGameStore = createGameStore();
+EPISODE = currentEpisode(useGameStore.getState());
+useGameStore.subscribe((st, prev) => {
+  if (st.episodeId !== prev.episodeId) EPISODE = currentEpisode(st);
+});

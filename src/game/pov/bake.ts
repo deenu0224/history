@@ -5,6 +5,18 @@
  */
 import { bakePovCut, bakePovStyle, type PovSpec, type PovStyle, type PovVisibility } from './index';
 import { EP1_CUTS, EP1_ROOM_BACKDROP } from '@/data/cuts/ep1';
+import { EP0_CUTS, EP0_ROOM_BACKDROP } from '@/data/cuts/ep0';
+
+/** 굽기 대상 에피소드: 컷 목록 + 방 배경. 컷 id 는 에피소드끼리 겹치지 않는다 */
+const EPISODES = {
+  ep1: { cuts: EP1_CUTS, backdrop: EP1_ROOM_BACKDROP },
+  ep0: { cuts: EP0_CUTS, backdrop: EP0_ROOM_BACKDROP },
+} as const;
+type EpisodeId = keyof typeof EPISODES;
+const ALL_CUTS: readonly { id: string; spec: Omit<PovSpec, 'size' | 'overlay'> }[] = [...EP1_CUTS, ...EP0_CUTS];
+const findCut = (id: string) => ALL_CUTS.find((c) => c.id === id);
+/** 방 배경 id: 'room'(ep1) · 'room:ep0' */
+const backdropOf = (id: string) => EPISODES[(id.split(':')[1] ?? 'ep1') as EpisodeId].backdrop;
 
 export type BakeVariant = 'memory' | 'erased' | 'backdrop';
 
@@ -41,7 +53,7 @@ function upscale(src: HTMLCanvasElement, scale: number): HTMLCanvasElement {
 async function bake(id: string, variant: BakeVariant, w: number, h: number, scale: number, format = 'image/webp', quality = 1): Promise<BakeResult> {
   const t0 = performance.now();
   if (variant === 'backdrop') {
-    const r = await bakePovCut({ ...EP1_ROOM_BACKDROP, overlay: 'memory', size: { w, h } } as PovSpec);
+    const r = await bakePovCut({ ...backdropOf(id), overlay: 'memory', size: { w, h } } as PovSpec);
     const base = toCanvas(r.rgba, w, h);
     const out = document.createElement('canvas');
     out.width = w * scale;
@@ -52,7 +64,7 @@ async function bake(id: string, variant: BakeVariant, w: number, h: number, scal
     g.drawImage(base, -scale * 4, -scale * 4, out.width + scale * 8, out.height + scale * 8);
     return { id: 'room-backdrop', variant, w, h, scale, dataUrl: out.toDataURL(format, 0.82), visible: {}, ms: performance.now() - t0 };
   }
-  const cut = EP1_CUTS.find((c) => c.id === id);
+  const cut = findCut(id);
   if (!cut) throw new Error(`unknown cut ${id}`);
   const r = await bakePovCut({ ...cut.spec, overlay: variant, size: { w, h } } as PovSpec);
   const big = upscale(toCanvas(r.rgba, w, h), scale);
@@ -70,7 +82,7 @@ export const PIXEL_SIZE = { w: 130, h: 174 } as const;
 async function bakePixel(id: string, variant: BakeVariant, outW: number, outH: number, format = 'image/webp'): Promise<BakeResult & { visW: number; visH: number; outW: number; outH: number }> {
   const t0 = performance.now();
   const backdrop = variant === 'backdrop';
-  const base = backdrop ? EP1_ROOM_BACKDROP : EP1_CUTS.find((c) => c.id === id)?.spec;
+  const base = backdrop ? backdropOf(id) : findCut(id)?.spec;
   if (!base) throw new Error(`unknown cut ${id}`);
   const r = await bakePovStyle({ ...base, overlay: backdrop ? 'memory' : variant, size: { ...PIXEL_SIZE }, style: 'pixel' } as PovSpec);
   const scale = outW / r.w;
@@ -113,7 +125,7 @@ export const STYLE_SIZE: Record<PovStyle, { w: number; h: number }> = {
 
 async function bakeStyle(id: string, variant: 'memory' | 'erased', style: PovStyle, outW = 390, size?: { w: number; h: number }) {
   const t0 = performance.now();
-  const cut = EP1_CUTS.find((c) => c.id === id);
+  const cut = findCut(id);
   if (!cut) throw new Error(`unknown cut ${id}`);
   const sz = size ?? STYLE_SIZE[style];
   const r = await bakePovStyle({ ...cut.spec, overlay: variant, size: sz, style } as PovSpec, STYLE_SIZE.pixel);
@@ -225,7 +237,8 @@ async function sheet(items: { label: string; dataUrl: string }[], cols: number, 
 declare global {
   interface Window {
     __povBake?: {
-      cuts: { id: string; erasable: boolean; listed: string[]; witnessId: string; time: string }[];
+      cuts: BakeCutInfo[];
+      episodes: Record<EpisodeId, BakeCutInfo[]>;
       bake: typeof bake;
       bakePixel: typeof bakePixel;
       sheet: typeof sheet;
@@ -235,5 +248,21 @@ declare global {
   }
 }
 
-window.__povBake = { cuts: EP1_CUTS.map((c) => ({ id: c.id, erasable: !!c.erasable, listed: [...c.listed], witnessId: c.spec.witnessId, time: c.time })), bake, bakePixel, sheet, bakeStyle, compareSheet };
+interface BakeCutInfo {
+  id: string;
+  erasable: boolean;
+  listed: string[];
+  details: string[];
+  witnessId: string;
+  time: string;
+}
+const info = (c: { id: string; erasable?: boolean; listed: readonly string[]; details?: readonly string[]; time: string; spec: { witnessId: string } }): BakeCutInfo => ({
+  id: c.id,
+  erasable: !!c.erasable,
+  listed: [...c.listed],
+  details: [...(c.details ?? [])],
+  witnessId: c.spec.witnessId,
+  time: c.time,
+});
+window.__povBake = { cuts: EP1_CUTS.map(info), episodes: { ep1: EP1_CUTS.map(info), ep0: EP0_CUTS.map(info) }, bake, bakePixel, sheet, bakeStyle, compareSheet };
 document.body.dataset.bakeReady = '1';

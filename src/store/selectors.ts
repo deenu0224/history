@@ -10,8 +10,8 @@ import { alteredView, articleView, figureRestoredLabel, homeView, visibleFacts, 
 import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slotOptions, type LineRender, type LineResult, type SlotOption } from '@/core/rewrite';
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
-import type { Episode, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
-import { knowledge, RESTORE_STEPS, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
+import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
+import { knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
 import type { PersistedState, SearchLogEntry } from './state';
 
 const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
@@ -50,7 +50,7 @@ export type HomeButton = 'memories' | 'rewrite' | 'restored';
 export function selectHome(ep: Episode, s: PersistedState) {
   const sum = resumeSummary(ep, s);
   const buttons: HomeButton[] = ['memories'];
-  if (rewriteAvailable(s) && !s.restored) buttons.push('rewrite');
+  if (rewriteAvailable(ep, s) && !s.restored) buttons.push('rewrite');
   if (s.restored) buttons.push('restored');
   return {
     clock: s.clock,
@@ -60,6 +60,10 @@ export function selectHome(ep: Episode, s: PersistedState) {
     resume: { eyesOpen: sum.eyesOpen, contradictionsLeft: sum.contradictionsLeft },
     unread: messengerView(s.messenger, 0, s.restored).unread,
     started: s.started,
+    /** 지금 에피소드(제목·쓰는 동사 — UI 가 찾기·방 버튼을 감출지 정한다) */
+    episode: { id: ep.id, title: ep.title, verbs: ep.verbs },
+    /** 끝났으면 다음 에피소드(다리 연출 뒤 startEpisode(next)) */
+    nextEpisode: s.epilogueDone && ep.next ? ep.next : null,
   };
 }
 
@@ -132,7 +136,7 @@ export function selectCut(ep: Episode, s: PersistedState, cutId: Id): CutView | 
         label: l.label,
         named: l.named,
         anonymous: !!fig.anonymous,
-        tappable: !l.named && !s.restored,
+        tappable: !l.named && !s.restored && !fig.inert,
         seatId: f.seatId,
         pose: f.pose,
         visibleTraits: f.visibleTraits,
@@ -178,14 +182,21 @@ export function selectViewer(ep: Episode, s: PersistedState) {
     /** 아래 점(●○○○○): 본 컷 */
     dots: eye.cuts.map((id) => ({ cutId: id, viewed: s.viewedCuts.includes(id), current: id === cutId })),
     eyes: selectEyes(ep, s),
-    canOpenRoom: roomUnlocked(s),
+    canOpenRoom: roomUnlocked(ep, s),
   };
 }
 
 // ── 이름 붙이기 시트 ─────────────────────────────────────────────
+/**
+ * 시트: ① 카드 → ② 근거(들은 말·본 것만 — 카드 줄은 근거가 아니다). evidence 는 카드를 고른 뒤에만(옛 UI 호환),
+ * evidenceAll 은 늘. roomLink = 「이 시각, 그날의 방」(방이 열릴 수 있을 때) → openRoomAtCut(cutId).
+ * searchSeed = 이 컷에서 들은 밑줄 낱말(「찾기로 더」를 미리 채운다) → searchFromTag().
+ */
 export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figureId: Id, cardId?: Id) {
   const I = idx(ep);
   const k = knowledge(s);
+  const all = evidenceOptions(ep, k, { cutId, figureId }) as EvidenceOption[];
+  const cut = I.cut.get(cutId);
   return {
     figure: figureLabel(ep, s, figureId),
     cards: cardOrder(ep, k).map((id) => {
@@ -193,8 +204,23 @@ export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figure
       return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, roomAnchored: c.roomAnchored };
     }),
     selectedCard: cardId,
-    evidence: (cardId ? evidenceOptions(ep, k, { cutId, figureId }, cardId) : []) as EvidenceOption[],
+    evidence: cardId ? all : [],
+    evidenceAll: all,
+    roomLink: roomUnlocked(ep, s) && cut && s.viewedCuts.includes(cutId) ? { cutId, time: cut.time, label: '이 시각, 그날의 방' } : null,
+    searchSeed: ep.verbs.search ? selectSearchSeed(ep, s, cutId) : [],
   };
+}
+
+/** 「찾기」 미리 채울 낱말: 그 컷(없으면 지금 보는 컷)에서 또렷이 들은 말·본 것의 밑줄 낱말 */
+export function selectSearchSeed(ep: Episode, s: PersistedState, cutId?: Id): string[] {
+  const I = idx(ep);
+  const id = cutId ?? (s.viewer ? I.eye.get(s.viewer.eyeId)?.cuts[s.viewer.index] : undefined);
+  const c = id ? I.cut.get(id) : undefined;
+  if (!c || !s.viewedCuts.includes(c.id)) return [];
+  const out: string[] = [];
+  for (const h of c.heard) if (h.clarity === 'clear') for (const t of I.line.get(h.lineId)?.terms ?? []) if (!out.includes(t)) out.push(t);
+  for (const d of c.details) for (const t of I.detail.get(d)?.terms ?? []) if (!out.includes(t)) out.push(t);
+  return out;
 }
 
 // ── 인물 카드 ────────────────────────────────────────────────────
@@ -203,7 +229,8 @@ export interface CardView {
   name: string;
   hanja: string;
   lifespan?: string;
-  facts: { id: Id; text: string; source: SourceRef }[];
+  /** linkedBy: 이 줄에 먹선을 그은 근거(성공한 태그) · links: 줄 안의 낱말 링크(탭 → followFactLink) */
+  facts: { id: Id; text: string; source: SourceRef; linkedBy?: Id; links: (FactLink & { found: boolean })[] }[];
   altered: AlteredView[];
   eyeLine: string;
   eyeExtra: { text: string; source: SourceRef }[];
@@ -231,7 +258,13 @@ export function selectCard(ep: Episode, s: PersistedState, cardId: Id): CardView
     name: c.name,
     hanja: c.hanja,
     lifespan: c.lifespan,
-    facts: visibleFacts(c, world(s)).map((f) => ({ id: f.id, text: f.text, source: f.source })),
+    facts: visibleFacts(c, world(s)).map((f) => ({
+      id: f.id,
+      text: f.text,
+      source: f.source,
+      ...(s.factLinks[f.id] ? { linkedBy: s.factLinks[f.id] } : {}),
+      links: (f.links ?? []).map((l) => ({ ...l, found: s.cardsFound.includes(l.cardId) })),
+    })),
     altered: (c.altered ?? []).map((a) => alteredView(a, world(s))),
     eyeLine,
     eyeExtra,
@@ -316,7 +349,7 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
       };
     });
   return {
-    unlocked: roomUnlocked(s),
+    unlocked: roomUnlocked(ep, s),
     w: ep.room.w,
     h: ep.room.h,
     walls: ep.room.walls,
@@ -386,7 +419,8 @@ export function resultView(ep: Episode, s: PersistedState, r: { kind: 'person' |
   if (r.kind === 'record') {
     const rec = ep.records.find((x) => x.id === r.id);
     if (!rec) return null;
-    return { kind: 'record', id: rec.id, title: rec.title, subtitle: rec.lines[0]?.source.title ?? '', lines: rec.lines.map((l) => l.text), ...(rec.tag ? { tag: rec.tag } : {}) };
+    const lines = rec.inWorld && !s.restored ? rec.inWorld : rec.lines.map((l) => l.text);
+    return { kind: 'record', id: rec.id, title: rec.title, subtitle: rec.lines[0]?.source.title ?? '', lines, ...(rec.tag ? { tag: rec.tag } : {}) };
   }
   const d = ep.docs.find((x) => x.id === r.id);
   if (!d) return null;
@@ -415,6 +449,8 @@ export function selectSearch(ep: Episode, s: PersistedState) {
 export function selectRecord(ep: Episode, s: PersistedState, id: Id) {
   const rec = ep.records.find((x) => x.id === id);
   if (!rec || ((rec.afterRestore || rec.erasedBeforeRestore) && !s.restored)) return null;
+  // 소실 세계의 줄(fictional): 복원 전에는 verified 줄 대신
+  if (rec.inWorld && !s.restored) return { ...rec, provenance: 'fictional' as const, lines: rec.inWorld.map((text) => ({ text, source: rec.lines[0].source })) };
   return rec;
 }
 
@@ -488,7 +524,7 @@ export function selectRewrite(ep: Episode, s: PersistedState) {
     });
   const placed = new Set(s.rewrite.lines.map((l) => l.pieceId));
   return {
-    available: rewriteAvailable(s),
+    available: rewriteAvailable(ep, s),
     open: s.rewrite.open,
     code: ep.home.code,
     lines,
@@ -529,9 +565,9 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
   const pair = ep.figures.find((f) => f.revealOnRestore)?.revealOnRestore;
   const kim = ep.cards.find((c) => c.eye.never);
   return {
-    step: RESTORE_STEPS[s.restoreStep],
+    step: ep.restoreSteps[s.restoreStep],
     stepIndex: s.restoreStep,
-    steps: RESTORE_STEPS,
+    steps: ep.restoreSteps,
     article: { citation: ep.article.citation, source: ep.article.source, parts: articleView(ep, written) as ArticlePartView[] },
     home: { before, after },
     cards,
@@ -543,8 +579,10 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
     witnessLines: selectLog(ep, s).witness,
     monologue: ep.epilogue.monologue,
     teaser: resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }),
-    asides: ep.records.filter((r) => r.aside).map((r) => ({ id: r.id, when: r.aside!, title: r.title, lines: r.lines, tag: r.tag })),
+    asides: ep.records.filter((r) => r.aside).map((r) => ({ id: r.id, when: r.aside!, title: r.title, lines: r.lines, tag: r.tag, ...(r.inWorld ? { before: r.inWorld } : {}) })),
     epilogueDone: s.epilogueDone,
+    /** 끝나면 열리는 다음 에피소드 */
+    next: ep.next ?? null,
   };
 }
 
