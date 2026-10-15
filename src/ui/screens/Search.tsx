@@ -1,4 +1,4 @@
-/** 찾기 — 낱말 하나의 결과. 들은 말에서 밑줄 친 낱말이 칩으로 쌓인다. 결과가 없으면 「해당 기사 없음.」(부재의 증거). UI_STYLE_GUIDE §2.7 */
+/** 찾기 — 낱말 하나의 결과. 들은 말에서 밑줄 친 낱말이 칩으로 쌓인다. 결과가 없으면 「실록에 없음.」(부재의 증거). UI_STYLE_GUIDE §2.7 */
 import { useEffect, useState } from 'react';
 import { searchMessage } from '@/core/search';
 import { useGameStore } from '@/store/gameStore';

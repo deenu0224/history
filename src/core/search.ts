@@ -32,7 +32,7 @@ export function matchTerm(q: string, term: string): MatchKind | null {
   return null;
 }
 
-/** no_article: 맨 위 결과가 말소된 기사(SearchEntry.noArticle) — '해당 기사 없음'(스토어가 판단). */
+/** no_article: 맨 위 결과가 말소된 기사(SearchEntry.noArticle) — '실록에 없음'(스토어가 판단). */
 export type SearchStatus = 'ok' | 'unknown' | 'too_short' | 'empty' | 'no_article';
 
 export interface SearchMatch {
@@ -83,7 +83,7 @@ export function searchIndex(
 }
 
 /** 플레이어에게 보이는 피드백(정답 누설 없음, 장난스럽되 정보가 있게). */
-export const NO_ARTICLE_TEXT = '해당 기사 없음.';
+export const NO_ARTICLE_TEXT = '실록에 없음.';
 
 export function searchMessage(
   status: SearchStatus,

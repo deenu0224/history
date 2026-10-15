@@ -470,7 +470,7 @@ export function selectLog(ep: Episode, s: PersistedState) {
       .filter((l) => s.rewrite.results[l.id] === 'witness')
       .map((l) => ({ lineId: l.id, text: ep.pieces.find((p) => p.id === l.pieceId)?.label ?? '', note: ep.epilogue.witnessLogLabel })),
     docs: s.docs.map((d) => resultView(ep, s, { kind: 'log', id: d })).filter(Boolean) as SearchResultView[],
-    searches: s.searchLog.map((e) => ({ clock: e.clock, query: e.query, status: e.status, text: e.status === 'no_article' ? '해당 기사 없음' : `${e.results.length}건` })),
+    searches: s.searchLog.map((e) => ({ clock: e.clock, query: e.query, status: e.status, text: e.status === 'no_article' ? '실록에 없음' : `${e.results.length}건` })),
   };
 }
 
@@ -576,7 +576,7 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
     room: pair ? { pairLabel: pair.pairLabel, source: pair.source } : null,
     neverEye: kim ? { name: kim.name, reason: kim.eye.never!.reason, lines: kim.eye.never!.restoredLines ?? [] } : null,
     /** 관측 로그만은 그대로(부재의 증거) */
-    absence: s.searchLog.filter((e) => e.status === 'no_article').map((e) => ({ clock: e.clock, query: e.query, text: '해당 기사 없음' })),
+    absence: s.searchLog.filter((e) => e.status === 'no_article').map((e) => ({ clock: e.clock, query: e.query, text: '실록에 없음' })),
     witnessLines: selectLog(ep, s).witness,
     monologue: ep.epilogue.monologue,
     teaser: resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }),

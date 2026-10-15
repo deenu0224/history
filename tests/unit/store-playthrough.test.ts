@@ -218,7 +218,7 @@ describe('store — Ep1 correct path end to end', () => {
     // 현실 재기록
     expect(h.st().restore()).toBe('restored');
     const home = selectHome(EP1, h.st());
-    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '실록청(춘추관 안)', status: '복원됨', placeNote: '장소와 전달 방식은 재구성 — 이 날 기사에는 장소가 없다' });
+    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '실록청(춘추관 안)', status: '복원됨', placeNote: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다' });
     expect(home.buttons).toEqual(['memories', 'restored']);
     const kimR = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kimR.altered[0]).toMatchObject({ state: 'restored', provenance: 'verified' });
@@ -233,7 +233,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(rest.article.parts.filter((p) => p.by === 'me').map((p) => p.sentenceId)).toEqual(['L1', 'L2', 'L3', 'S3', 'L4']);
     expect(rest.messages.find((m) => m.id === 'm_kim_unknown')).toMatchObject({ before: '처음 듣는 이름인데.', after: '김일손이면 무오사화 그 사관이잖아.' });
     expect(rest.room).toMatchObject({ pairLabel: '유순·안침' });
-    expect(rest.absence).toEqual([{ clock: '23:04', query: '대내로 들여오라', text: '해당 기사 없음' }]);
+    expect(rest.absence).toEqual([{ clock: '23:04', query: '대내로 들여오라', text: '실록에 없음' }]);
     expect(rest.witnessLines).toHaveLength(1);
     // 메신저가 다시 쓰인다 + 「그걸 모르는 사람이 어디 있어」
     drainMessages(h, 2);

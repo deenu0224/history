@@ -183,7 +183,7 @@ export const HOME: HomeCard = {
     before: '미확인',
     after: '실록청(춘추관 안)',
     source: SRC.seongjongSillok,
-    note: '장소와 전달 방식은 재구성 — 이 날 기사에는 장소가 없다',
+    note: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다',
   },
   task: '이 날의 기록이 비어 있다. 그날 그 자리에 있던 사람들의 눈으로 본다.',
   detection: '좌표 #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건에서 자동 탐지',
@@ -198,7 +198,7 @@ export const EPILOGUE = {
   ],
   teaserDocId: 'doc_c0408',
   oldReportDocId: 'doc_old_report',
-  aboutScene: '말과 몸짓은 사료를 바탕으로 만든 재구성이다. 이 날 기사에는 장소와 전교를 전한 방식이 없다.',
+  aboutScene: '말과 몸짓은 사료를 바탕으로 만든 재구성이다. 그날 실록에는 장소와 전교를 전한 방식이 없다.',
   witnessLogLabel: '실록이 적지 않은 일',
 };
 

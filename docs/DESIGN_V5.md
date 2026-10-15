@@ -707,7 +707,7 @@ HISTORICAL_SOURCES §11(실록 원문 재확인)의 판정표 §11.8 을 에피�
 |---|---|---|---|
 | P0 | 프롤로그(승인본) → 22:31, 시스템 「자동 탐지 · #C-2209 · 주어 칸 손상 2건」, 한 선임 「기사 문장에 구멍 난 거야.」 | — | 0–1 |
 | P1 | 하위지 관측 세 장 넘기기(첫 컷에 한 선임: 관측기는 그날을 적은 사람 눈으로만) | 넘기기 | 1–2 |
-| P2 | 세 장을 다 보면 한 선임: 옆 기사도 같은 칸 — 「한글 만든 사람 칸.」 / 「응, 기록에 없으면 없는 거지.」 / 「지워지면 사람 머리에서도 같이 지워지니까.」 | (소실 규칙) | 2 |
+| P2 | 세 장을 다 보면 한 선임: 옆 기사도 같은 칸 — 「한글 만든 사람 칸.」 / (07: 「그건 원래 기록이 없잖아요.」) / 「응, 기록에 없으면 없는 거지.」 / 「지워지면 사람 머리에서도 같이 지워지니까.」 — 셋 다 복원 뒤 조용히 다시 쓰인다(§14.7) | (소실 규칙) | 2 |
 | P3 | T0a 두루마리 → 최만리(먹선) | 이름 붙이기 | 2–3 |
 | P4 | 최만리 카드의 「세종」 → 카드 +1 → T0b | (한 단계 더) | 3–4 |
 | P5 | 홈 [기록 다시 쓰기] → 한 줄, 칸 하나 → 길게 눌러 남긴다 · 한 선임 「맞는 줄은 실록 문장으로 돌아와.」 | 기록 다시 쓰기 | 4–5 |
@@ -725,7 +725,18 @@ HISTORICAL_SOURCES §11(실록 원문 재확인)의 판정표 §11.8 을 에피�
 7. 「金馹孫」 이름표 → 「꾸러미 이름표: 김일손(金馹孫).」(한자는 늘 한글 읽기 옆에 — 검증기가 본 것·대사의 괄호 밖 한자를 막는다).
 
 ### 14.6 엔진·스토어 계약(UI 가 연결할 것)
-- **에피소드**: 상태에 `episodeId`·`unlocked`·`completed`. 새 저장은 `ep0` 에서 시작, Ep1 은 Ep0 를 끝내야 열린다. `startEpisode(id?)`(id 없으면 지금 에피소드; 잠겼으면 `'locked'`) — 다른 에피소드로 가면 진행은 새로, **대화 기록은 이어지고** 지난 에피소드의 ⟲ 말풍선은 복원 뒤 글로 굳는다(`MsgItem.bakedFrom`). `selectEpisodes(state)`(에피소드 선택: current/done/available/locked), `currentEpisode(state)`, `useEpisode()`, `useView` 는 지금 에피소드를 넘긴다. `EPISODE` 상수는 싱글턴 스토어를 따라가는 살아 있는 바인딩(옛 UI 호환, 새 코드는 `useEpisode`).
+- **에피소드**: 상태에 `episodeId`·`unlocked`·`completed`. 새 저장은 `ep0` 에서 시작, Ep1 은 Ep0 를 끝내야 열린다. `startEpisode(id?)`(id 없으면 지금 에피소드; 잠겼으면 `'locked'`) — 다른 에피소드로 가면 진행은 새로, **대화 기록은 이어지고** 지난 에피소드에서 다시 쓰인 말풍선(내 답 포함)은 복원 뒤 글로 굳는다(`MsgItem.bakedFrom`, §14.7). `selectEpisodes(state)`(에피소드 선택: current/done/available/locked), `currentEpisode(state)`, `useEpisode()`, `useView` 는 지금 에피소드를 넘긴다. `EPISODE` 상수는 싱글턴 스토어를 따라가는 살아 있는 바인딩(옛 UI 호환, 새 코드는 `useEpisode`).
 - **에피소드 데이터**: `Episode.verbs`(Ep0: 찾기·방 없음 → UI 가 버튼을 감춘다), `restoreSteps`(Ep0: article·home·messages·neighbour·monologue·bridge), `next`, `rewriteWhen`·`roomWhen`·`triggers`·`searchEvents`·`derivedKeys`·`roomKey`, `RecordSentence.preplaced`, `RestoredPart.long`, `RecordCard.inWorld`(복원 전 fictional 줄), `Figure.inert`, `Detail.refers/keys`, `Fact.links`, 판정 `not_linked`.
 - **끝**: 에필로그가 끝나면 fx `episode_end {episodeId, next}`, `selectHome().nextEpisode` → UI 가 다리 연출 뒤 `startEpisode(next)`.
 - **저장 v7**: v6(에피소드 1 진행) → `episodeId 'ep1'`, Ep0·Ep1 열림.
+
+### 14.7 현실 재기록과 대화 기록 (2026-10-15)
+문제: 대화는 기록이 이어진다. 복원 뒤 거슬러 올라가면 동료가(그리고 07 자신이) 「한글을 누가 만들었는지는 기록이 없다」·「처음 듣는 이름인데」라고 한 말이 그대로 보였다.
+결정:
+1. **현실 재기록은 대화 기록 전체를 덮는다.** 새 현실과 어긋나는 지난 줄은 동료의 말이든 **07 이 보낸 답**이든 그 자리에서 다시 쓰인다. 어긋나는 줄은 하나도 남지 않는다. 내 말까지 바뀌는 것이 의도다 — 사람의 기억도 평범한 기록도 보호되지 않는다(세계 규칙 ④).
+2. **조용히 바뀐다.** 표시(⟲)·원문 보기·길게 누르기 없음. 원래 글을 기억하는 것은 플레이어뿐이다. 연출은 하나: 다시 쓰인 말풍선이 복원 뒤 처음 화면에 들어올 때 한 번 짧게 먹이 번진다(`MessengerState.inkSeen`, 「움직임 줄이기」면 없음). 동료는 옛 글을 인정하지 않는다.
+3. 관측기가 말한 것(시스템 줄, 탐지·재계산·관측 불가를 전하는 말)은 남는다 — 관측기 로그는 소실을 타지 않는다(§0.1 ①).
+4. 복원 단계 「메시지」는 바뀐 줄을 모두 before → after 로 보여 준다(내 말 포함, 「나」).
+5. 데이터: `Episode.erasedFacts`(소실 세계에서만 참인 사실, 검사 무늬 `tells`), 줄의 `facts`·`restored`(say·선택지). 검증기 ⑫ + `validateDialogueAcross(에피소드 순서)` — 복원 뒤 기록의 어떤 글도 소실 무늬에 걸리지 않는다(지난 에피소드에서 이어진 줄 포함).
+6. 저장: `MsgItem.text`(원래 글)·`restored`(복원 뒤 글), 다음 에피소드에서는 `text`(굳은 글)·`bakedFrom`(원래 글). 화면 쪽(`MsgView`)에는 지금 글(`display`)만 간다.
+목록은 DIALOGUE_GUIDE §4.0·§4.10.

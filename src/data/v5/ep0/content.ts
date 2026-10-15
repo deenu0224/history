@@ -55,7 +55,7 @@ export const CARDS0: PersonCard[] = [
     searchTerms: ['최만리', '崔萬理', '만리'],
     eye: {},
     facts: [
-      { id: 'f_choi_list', text: '그날 기사의 명단: 「부제학(副提學) 최만리(崔萬理)」', keys: ['bujehak_0220'], provenance: V, source: SRC0.art0220 },
+      { id: 'f_choi_list', text: '그날 실록의 명단: 「부제학(副提學) 최만리(崔萬理)」', keys: ['bujehak_0220'], provenance: V, source: SRC0.art0220 },
       {
         id: 'f_choi_exam',
         text: '「1419년(세종 1) 증광문과에 을과로 급제하여 그 이듬해 집현전박사로 임명되었다.」',
@@ -79,7 +79,7 @@ export const CARDS0: PersonCard[] = [
     searchTerms: ['정창손', '鄭昌孫', '창손'],
     eye: {},
     facts: [
-      { id: 'f_jeong_list', text: '그날 기사의 명단: 「응교(應敎) 정창손(鄭昌孫)」', keys: ['eunggyo_0220'], provenance: V, source: SRC0.art0220 },
+      { id: 'f_jeong_list', text: '그날 실록의 명단: 「응교(應敎) 정창손(鄭昌孫)」', keys: ['eunggyo_0220'], provenance: V, source: SRC0.art0220 },
       { id: 'f_jeong_clan', text: '「본관은 동래(東萊). 자는 효중(孝仲).」', keys: ['clan_dongnae'], provenance: V, source: SRC0.jeong },
       {
         id: 'f_jeong_sillok',
@@ -101,7 +101,7 @@ export const CARDS0: PersonCard[] = [
     searchTerms: ['김문', '金汶'],
     eye: {},
     facts: [
-      { id: 'f_kmun_list', text: '그날 기사의 명단: 「직전(直殿) 김문(金汶)」', keys: ['jikjeon_0220'], provenance: V, source: SRC0.art0220 },
+      { id: 'f_kmun_list', text: '그날 실록의 명단: 「직전(直殿) 김문(金汶)」', keys: ['jikjeon_0220'], provenance: V, source: SRC0.art0220 },
       { id: 'f_kmun_exam', text: '「1420년(세종 2) 식년 문과에 병과로 급제」', keys: ['exam_1420'], provenance: V, source: SRC0.kimMun },
       { id: 'f_kmun_clan', text: '「본관은 언양(彦陽). 자는 윤보(潤甫), 호는 서헌(西軒).」', keys: ['clan_eonyang'], provenance: V, source: SRC0.kimMun },
     ],
@@ -118,7 +118,7 @@ export const CARDS0: PersonCard[] = [
     facts: [
       {
         id: 'f_ha_list',
-        text: '그날 기사의 명단: 「부교리(副校理) 하위지(河緯之)」 — 국역 표기 河緯之, 원문은 河緯地',
+        text: '그날 실록의 명단: 「부교리(副校理) 하위지(河緯之)」 — 국역 표기 河緯之, 원문은 河緯地',
         keys: ['bugyori_0220'],
         provenance: V,
         source: SRC0.art0220,
@@ -398,7 +398,7 @@ export const RECORDS0: RecordCard[] = [
   },
   {
     id: 'rec0_0220',
-    title: '그날의 기사',
+    title: '그날 실록',
     provenance: V,
     inWorld: ['「… 하니, (주어 칸 손상) 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …」'],
     lines: [{ text: '「임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를,」', source: SRC0.art0220 }],
@@ -408,7 +408,7 @@ export const RECORDS0: RecordCard[] = [
 export const HOME0: HomeCard = {
   code: '#C-2209',
   date: { before: '####', after: '세종 26년 2월 20일' },
-  place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '이 날 기사에는 장소가 없다' },
+  place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '그날 실록에는 장소가 없다' },
   task: '이 날의 기록에 빈 칸이 하나 있다. 그 자리에 있던 사람의 눈으로 본다.',
   detection: '좌표 #C-2209 · 일시 #### · 주어 칸 손상 2건에서 자동 탐지',
   status: { before: '부분 손상', after: '복원됨' },
@@ -418,7 +418,7 @@ export const EPILOGUE0 = {
   monologue: ['모두가 아는 이름이, 문장 한 칸에서 빠져 있었다.', '나는 줄 끝에 앉은 사람의 눈을 빌려, 그 칸을 다시 적었다.', '이제 아무도 그 칸이 비어 있었던 것을 기억하지 못한다.'],
   teaserDocId: '',
   oldReportDocId: '',
-  aboutScene: '말은 실록 그대로이고, 자리·몸짓·두루마리의 모습은 사료를 바탕으로 만든 재구성이다. 이 날 기사에는 장소가 없다.',
+  aboutScene: '말은 실록 그대로이고, 자리·몸짓·두루마리의 모습은 사료를 바탕으로 만든 재구성이다. 그날 실록에는 장소가 없다.',
   witnessLogLabel: '실록이 적지 않은 일',
 };
 

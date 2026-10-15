@@ -31,7 +31,8 @@ export const BURSTS0: Burst[] = [
       sys('자동 탐지 · #C-2209 · 주어 칸 손상 2건'),
       han('07, 아직 있어?'),
       han('작은 거 하나만 보고 가.'),
-      han('기사 문장에 구멍 난 거야.'),
+      han('실록은 날짜 밑에 일이 한 꼭지씩 적혀 있어.'),
+      han('그중 한 꼭지 문장에 구멍 난 거야.'),
       {
         kind: 'choice',
         id: 'c0_start',
@@ -54,8 +55,8 @@ export const BURSTS0: Burst[] = [
   {
     id: 'ev0.erasure',
     steps: [
-      han('아 그리고, 옆 기사도 같은 칸이 비었더라.'),
-      named('m0_hangul', han('한글 만든 사람 칸.', { restored: '세종대왕 언문 기사 그거.', facts: HANGUL })),
+      han('아 그리고, 옆 기록도 같은 칸이 비었더라.'),
+      named('m0_hangul', han('한글 만든 사람 칸.', { restored: '세종대왕이 언문 지은 그 기록.', facts: HANGUL })),
       {
         kind: 'choice',
         id: 'c0_hangul',

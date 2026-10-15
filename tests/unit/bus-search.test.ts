@@ -33,14 +33,14 @@ describe('search (찾기)', () => {
     expect(searchIndex(EP1.search, '윤').matches.map((m) => m.entry.id).sort()).toEqual(['s_yun_hyoson', 's_yun_pilsang']);
   });
 
-  it('heard words become search chips; erased article → 해당 기사 없음; sacho-month records only after restoration', () => {
+  it('heard words become search chips; erased article → 실록에 없음; sacho-month records only after restoration', () => {
     const h = makeStore();
     h.st().startEpisode();
     h.st().openEye('E1');
     for (let i = 0; i < 5; i++) h.st().viewCut('E1', i);
     expect(selectSearch(EP1, h.st()).terms).toEqual(['이조 판서', '사관', '김일손', '사초', '대내']);
     const r = h.st().search('대내로 들여오라');
-    expect(r).toMatchObject({ status: 'no_article', message: '해당 기사 없음.' });
+    expect(r).toMatchObject({ status: 'no_article', message: '실록에 없음.' });
     expect(h.st().search('불살라').status).toBe('unknown');
     expect(h.st().search('명단').results).toEqual([{ kind: 'record', id: 'rec_r18' }]);
     expect(h.st().openRecord('rec_r18')).toBe(true);

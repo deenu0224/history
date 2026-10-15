@@ -314,7 +314,7 @@ test.describe('v5 전체 플레이', () => {
     await mineNow.scrollIntoViewIfNeeded();
     await expect(mineNow).toHaveCount(1);
     await expect(mineNow).toHaveAttribute('data-rewritten', 'true');
-    await expect(chat).toContainText('세종대왕 언문 기사 그거.');
+    await expect(chat).toContainText('세종대왕이 언문 지은 그 기록.');
     await expect(chat).toContainText('응, 그러니까 더 이상하지.');
     await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
     await expect(chat).not.toContainText('기록에 없으면 없는 거지');
@@ -429,7 +429,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'dock-search').click();
     await tid(page, 'search-input').fill('대내로 들여오라');
     await tid(page, 'search-go').click();
-    await expect(tid(page, 'search-message')).toContainText('해당 기사 없음.');
+    await expect(tid(page, 'search-message')).toContainText('실록에 없음.');
     await shot(page, 'search-no-article');
     await tid(page, 'search-back').click();
     await page.locator('[data-eye="E2"]').click();
@@ -577,7 +577,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-room')).toContainText('유순·안침');
     await shot(page, 'restore-room');
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-log')).toContainText('해당 기사 없음');
+    await expect(tid(page, 'restore-log')).toContainText('실록에 없음');
     await shot(page, 'restore-log');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-monologue')).toContainText('그의 관측은 끝내 이뤄지지 않았다');
