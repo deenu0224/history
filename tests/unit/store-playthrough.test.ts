@@ -7,6 +7,7 @@ import {
   selectEyes,
   selectHome,
   selectLog,
+  selectMessenger,
   selectRestoration,
   selectRewrite,
   selectRoom,
@@ -239,6 +240,11 @@ describe('store — Ep1 correct path end to end', () => {
     const mv = h.st().messenger.log.find((m) => m.id === 'm_kim_unknown')!;
     expect(mv.restored).toBe('김일손이면 무오사화 그 사관이잖아.');
     expect(texts(h.store)).toContain('우리 부서에 그걸 모르는 사람이 어디 있어.');
+    // 복원 뒤 대화 기록 전체: 소실 세계의 사실을 말하는 줄이 하나도 없다(동료·내 답·힌트 모두)
+    const tells = (EP1.erasedFacts ?? []).flatMap((f) => f.tells);
+    const shown = selectMessenger(EP1, h.st(), h.clock.t).items;
+    for (const m of shown) for (const re of tells) expect(re.test(m.display), `${m.id} 「${m.display}」`).toBe(false);
+    expect(shown.filter((m) => m.rewritten).length).toBeGreaterThanOrEqual(3);
     // 그날의 방: 「?」 둘에 짝 이름
     h.st().openRoom('14:05');
     const rr = selectRoom(EP1, h.st());

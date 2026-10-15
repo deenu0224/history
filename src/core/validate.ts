@@ -13,6 +13,8 @@
  *  ⑨ 눈 주인의 컷에는 주인의 이름·성을 부르는 말이 없다
  *  ⑩ 「?」(revealOnRestore) figure 를 가리키는 근거 0개
  *  ⑪ 금지 낱말(영감·파면·틀린 소문)
+ *  ⑫ 현실 재기록: 소실 사실(erasedFacts)에 기대는 대화 줄(동료·07 의 답)은 facts 로 그 사실을 달고 restored 를 갖는다.
+ *     복원 뒤 대화 기록(지난 에피소드에서 이어진 줄 포함)의 어떤 글도 소실 사실의 무늬(tells)에 걸리지 않는다(validateDialogueAcross)
  *  + 컷 id 는 CUT_IDS 안에, 모든 컷 id 에 판정 데이터가 있다, id 중복 없음, provenance·출처
  */
 import { claimById, winningClaims } from './contradiction';
@@ -81,6 +83,56 @@ function stepsOf(steps: readonly Step[]): Step[] {
     }
   }
   return out;
+}
+
+/** 대화 기록에 남을 수 있는 모든 줄(모든 갈래·힌트·빠른 질문). text = 처음 보낸 글, restored = 복원 뒤 글 */
+export interface DialogueLine {
+  where: string;
+  kind: 'say' | 'system' | 'attach' | 'mine' | 'hint' | 'ask';
+  text: string;
+  restored?: string;
+  facts?: Id[];
+  /** 복원 뒤에만 오는 묶음 */
+  post: boolean;
+}
+
+export function dialogueLines(ep: Episode): DialogueLine[] {
+  const out: DialogueLine[] = [];
+  for (const b of ep.bursts) {
+    const post = !!b.postRestore;
+    for (const s of stepsOf(b.steps)) {
+      if (s.kind === 'say') out.push({ where: `${b.id}/${s.id}`, kind: 'say', text: s.text, restored: s.restored, facts: s.facts, post });
+      else if (s.kind === 'system') out.push({ where: `${b.id}/${s.id}`, kind: 'system', text: s.text, post });
+      else if (s.kind === 'attach') out.push({ where: `${b.id}/${s.id}`, kind: 'attach', text: s.label, post });
+      else if (s.kind === 'choice')
+        for (const o of s.options) out.push({ where: `${b.id}/${s.id}:${o.id}`, kind: 'mine', text: o.text, restored: o.restored, facts: o.facts, post });
+    }
+  }
+  for (const l of ep.ladders) for (const st of l.steps) out.push({ where: `힌트 ${st.id}`, kind: 'hint', text: st.text, post: false });
+  out.push({ where: '빠른 질문', kind: 'ask', text: ep.askText, post: false });
+  out.push({ where: '빠른 질문 답', kind: 'ask', text: ep.askFallback, post: false });
+  return out;
+}
+
+/**
+ * ⑫ 에피소드를 건너서: 대화 기록은 다음 에피소드로 이어진다. 에피소드 k 가 복원된 뒤에는
+ *  - 모든 에피소드의 줄의 마지막 글(restored ?? text)이 k 의 소실 무늬에 걸리지 않고,
+ *  - k 뒤 에피소드의 줄은 처음 보낸 글부터 k 의 소실 무늬에 걸리지 않는다(이미 새 현실에서 한 말).
+ * order = 플레이 순서.
+ */
+export function validateDialogueAcross(order: readonly Episode[]): Issue[] {
+  const issues: Issue[] = [];
+  order.forEach((ek, k) => {
+    for (const f of ek.erasedFacts ?? [])
+      order.forEach((ej, j) => {
+        for (const l of dialogueLines(ej)) {
+          const finalText = l.restored ?? l.text;
+          if (f.tells.some((re) => re.test(finalText))) issues.push({ rule: '⑫', message: `${ej.id} ${l.where}: 복원 뒤 기록이 ${ek.id} 소실 사실 '${f.id}' 을 말한다 「${finalText}」` });
+          else if (j > k && f.tells.some((re) => re.test(l.text))) issues.push({ rule: '⑫', message: `${ej.id} ${l.where}: ${ek.id} 복원 뒤의 말인데 소실 사실 '${f.id}' 을 말한다 「${l.text}」` });
+        }
+      });
+  });
+  return issues;
 }
 
 export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
@@ -380,6 +432,10 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
         for (const o of s.options) {
           if (!MY_POLITE_RE.test(o.text)) bad('⑥', `${b.id}/${s.id}: 07 선택지는 존댓말 「${o.text}」`);
           if (pre) checkSay(`${b.id}/${o.id}`, 'me', o.text, pre, kimOk.has(b.id));
+          if (o.restored) {
+            checkSay(`${b.id}/${o.id}⟲`, 'me', o.restored, false, true);
+            if (!MY_POLITE_RE.test(o.restored)) bad('⑥', `${b.id}/${o.id}⟲: 07 선택지는 존댓말 「${o.restored}」`);
+          }
         }
       }
     }
@@ -393,6 +449,27 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
     allowedNames = new Set();
   }
   for (const xc of ep.contradictions) checkSay(`모순 ${xc.id} 다시`, 'sys', xc.retryText, true, false);
+
+  // ── ⑫ 현실 재기록(이 에피소드 안) ──
+  const erased = new Map((ep.erasedFacts ?? []).map((f) => [f.id, f]));
+  const used = new Set<Id>();
+  for (const l of dialogueLines(ep)) {
+    const tagged = l.facts ?? [];
+    for (const f of tagged) {
+      used.add(f);
+      if (!erased.has(f)) bad('⑫', `${l.where}: 모르는 소실 사실 '${f}'`);
+    }
+    if (l.kind === 'system' && tagged.length) bad('⑫', `${l.where}: 관측기 줄(시스템)은 다시 쓰이지 않는다`);
+    if (l.post && (tagged.length || l.restored)) bad('⑫', `${l.where}: 복원 뒤 줄은 소실 사실에 기댈 수 없다`);
+    if (tagged.length && !l.restored) bad('⑫', `${l.where}: 소실 사실에 기대는데 복원 뒤 글이 없다 「${l.text}」`);
+    if (l.restored && !tagged.length) bad('⑫', `${l.where}: 다시 쓰이는 까닭(facts)이 없다`);
+    if (l.restored && l.restored === l.text) bad('⑫', `${l.where}: 복원 뒤 글이 원래 글과 같다`);
+    // 태그를 빠뜨린 줄 잡기: 다시 쓰이지 않는 줄은 소실 사실의 무늬에 걸리면 안 된다
+    if (!l.restored)
+      for (const f of erased.values())
+        if (f.tells.some((re) => re.test(l.text))) bad('⑫', `${l.where}: 소실 사실 '${f.id}' 에 기대는 줄인데 태그·복원 뒤 글이 없다 「${l.text}」`);
+  }
+  for (const f of erased.values()) if (!used.has(f.id)) bad('⑫', `소실 사실 ${f.id} 에 기대는 줄이 없다(무늬만 남음)`);
 
   // ── ⑦ 검증 문장 ──
   const full = ep.article.fullText;

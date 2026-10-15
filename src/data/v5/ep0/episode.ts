@@ -4,7 +4,7 @@
  */
 import type { Episode } from '@/core/types';
 import { ROOM_EP0 } from './room';
-import { BURSTS0, LADDERS0 } from './messenger';
+import { BURSTS0, ERASED0, LADDERS0 } from './messenger';
 import {
   ARTICLE0,
   CARDS0,
@@ -54,6 +54,7 @@ export const EP0: Episode = {
   search: [],
   docs: [],
   bursts: BURSTS0,
+  erasedFacts: ERASED0,
   ladders: LADDERS0,
   home: HOME0,
   implies: {},

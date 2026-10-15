@@ -3,7 +3,7 @@
  */
 import type { Episode, SearchEntry } from '@/core/types';
 import { CARDS, FACT_KEY_IMPLIES, LEDGER_NAMES, PERSON_FACT_LEDGER, ROOM_PERSONS, SURNAME_KEYS } from './cards';
-import { BURSTS, LADDERS } from './messenger';
+import { BURSTS, ERASED1, LADDERS } from './messenger';
 import { ARTICLE, CLAIMS, CONTRADICTIONS, PIECES, REQUIRED_SENTENCES, SENTENCES, TAGS } from './puzzle';
 import { CLOCKS, DOC_TERMS, DOCS, EPILOGUE, HOME, RECORD_TERMS, RECORDS } from './records';
 import { ROOM } from './room';
@@ -57,6 +57,7 @@ export const EP1: Episode = {
   search: buildSearch(),
   docs: DOCS,
   bursts: BURSTS,
+  erasedFacts: ERASED1,
   ladders: LADDERS,
   home: HOME,
   implies: FACT_KEY_IMPLIES,

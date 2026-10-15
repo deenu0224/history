@@ -10,6 +10,7 @@ import { selectMessenger, selectRestoration } from '@/store/selectors';
 import { IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
 import { shorten } from '../lib/text';
+import { FROM_LABEL } from '../lib/format';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
@@ -187,11 +188,12 @@ export function Restore() {
         {step === 'messages' ? (
           <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }} data-testid="restore-messages">
             <div className="t-m" style={{ margin: '4px 0 8px' }}>
-              한 선임과의 대화에서 다시 쓰인 말
+              대화에서 다시 쓰인 말
             </div>
             {r.messages.length === 0 ? <div className="t-m">바뀐 말이 없다.</div> : null}
             {r.messages.map((m) => (
-              <div key={m.id} className="ba" data-testid="rewritten-msg">
+              <div key={m.id} className={`ba${m.from === 'me' ? ' mine' : ''}`} data-testid="rewritten-msg" data-from={m.from}>
+                <div className="t-m">{FROM_LABEL[m.from] ?? ''}</div>
                 <div className="t-b was keep">{m.before}</div>
                 <div className="t-b now keep">
                   <Scramble from={m.before} to={m.after} ms={2000} delay={600} reduce={reduce} />

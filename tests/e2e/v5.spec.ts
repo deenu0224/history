@@ -172,6 +172,9 @@ test.describe('v5 전체 플레이', () => {
     // ── 메신저: 한 선임 — 내가 먼저 묻기(「어디부터 볼까요?」)
     await tid(page, 'viewer-back').click();
     await readChat(page, false);
+    // 소실 세계: 07 자신도 「기록이 없다」를 당연하게 여긴다(첫 선택지)
+    await expect(tid(page, 'my-msg').filter({ hasText: '그건 원래 기록이 없잖아요.' })).toHaveCount(1);
+    await expect(tid(page, 'chat')).toContainText('응, 기록에 없으면 없는 거지.');
     await expect(tid(page, 'ask-hint')).toBeVisible();
     await tid(page, 'ask-hint').click();
     await expect(tid(page, 'my-msg').last()).toContainText('어디부터 볼까요?');
@@ -301,6 +304,33 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'home-place')).toHaveText('미확인');
     await expect(tid(page, 'dock-search')).toBeVisible(); // 이제 찾기가 생겼다
     await shot(page, 'home');
+
+    // ── 현실 재기록은 대화 기록 전체를 덮는다: 거슬러 올라가 보면 Ep0 의 말(내 답까지)이 이미 다른 말이다. 표시도 원문 보기도 없다
+    await tid(page, 'dock-messenger').click();
+    const chat = tid(page, 'chat');
+    await chat.evaluate((el) => (el.scrollTop = 0));
+    await page.waitForTimeout(300);
+    const mineNow = tid(page, 'my-msg').filter({ hasText: '그건 세종대왕이 만든 거잖아요.' });
+    await mineNow.scrollIntoViewIfNeeded();
+    await expect(mineNow).toHaveCount(1);
+    await expect(mineNow).toHaveAttribute('data-rewritten', 'true');
+    await expect(chat).toContainText('세종대왕 언문 기사 그거.');
+    await expect(chat).toContainText('응, 그러니까 더 이상하지.');
+    await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
+    await expect(chat).not.toContainText('기록에 없으면 없는 거지');
+    await expect(chat).not.toContainText('한글 만든 사람 칸.');
+    // 길게 눌러도 아무것도 뜨지 않는다(원래 글은 화면 어디에도 없다)
+    const hb = (await mineNow.boundingBox())!;
+    await page.mouse.move(hb.x + hb.width - 20, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(900);
+    await page.mouse.up();
+    await expect(page.locator('.app')).not.toContainText('그건 원래 기록이 없잖아요.');
+    await expect(page.locator('.app')).not.toContainText('원래 문장');
+    await page.waitForTimeout(800); // 먹 번짐이 지나간 뒤
+    await mineNow.scrollIntoViewIfNeeded();
+    await shot0(page, 'messenger-rewritten-log');
+    await tid(page, 'messenger-back').click();
 
     // ── 起: 첫 번째 기억 — 넘기기. 이름 붙이기 전엔 연도·장소·인물을 알려주지 않는다
     await tid(page, 'btn-memories').click();

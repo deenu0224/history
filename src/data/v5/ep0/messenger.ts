@@ -2,12 +2,25 @@
  * Ep0 메신저 대본(DIALOGUE_GUIDE §4.0) — 한 선임(반말)·시스템 줄. 말풍선 하나 = 문장 하나(≤30자), 정답(이름 붙이기 전 인물 이름·연도·사건) 금지.
  * 세계 규칙을 대화 속 한 문장씩만: 소실(지워지면 사람 기억도) · 관측기(그날을 적은 사람의 눈으로만) · 다시 쓰기(실록과 맞으면 현실이 돌아온다).
  * 아이러니: 이 세계의 모두(07 포함)는 「한글을 누가 만들었는지는 기록이 없다」를 당연하게 여긴다. 07 이 걸리는 것은 관측기의 「주어 칸 손상」 탐지뿐.
- * ⟲ 말풍선(restored)은 복원 뒤 다시 쓰인다. id 는 Ep1 과 겹치지 않게 'e0m*'·'c0_*'·'h0_*'.
+ * 현실 재기록(DIALOGUE_GUIDE §1-10): 소실 사실(ERASED0)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 갖는다 —
+ * 한 선임의 말도, 07 의 답도. 복원되면 대화 기록 전체에서 그 자리에서 조용히 다시 쓰인다(표시 없음).
+ * 관측기가 말한 것(시스템 줄 · 「주어 칸 손상」 탐지를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
+ * id 는 Ep1 과 겹치지 않게 'e0m*'·'c0_*'·'h0_*'.
  */
-import type { Burst, HintLadder, Step } from '@/core/types';
+import type { Burst, ErasedFact, HintLadder, Id, Step } from '@/core/types';
+
+/** Ep0 의 소실 세계에서만 참인 사실 */
+export const ERASED0: ErasedFact[] = [
+  {
+    id: 'e0.hangul_unknown',
+    label: '한글을 누가 만들었는지는 기록이 없다(모두 그렇게 안다)',
+    tells: [/원래 기록이 없/, /기록에 없으면 없/, /(한글|언문).*(모르|기록이 없|기록에 없)/, /누가 만들었는지/],
+  },
+];
 
 let seq = 0;
-const han = (text: string, extra: { heavy?: true; restored?: string } = {}): Step => ({ kind: 'say', id: `e0m${++seq}`, from: 'han', text, ...extra });
+const han = (text: string, extra: { heavy?: true; restored?: string; facts?: Id[] } = {}): Step => ({ kind: 'say', id: `e0m${++seq}`, from: 'han', text, ...extra });
+const HANGUL = ['e0.hangul_unknown'];
 const sys = (text: string): Step => ({ kind: 'system', id: `e0m${++seq}`, text });
 const named = (id: string, step: Step): Step => ({ ...step, id }) as Step;
 
@@ -42,17 +55,17 @@ export const BURSTS0: Burst[] = [
     id: 'ev0.erasure',
     steps: [
       han('아 그리고, 옆 기사도 같은 칸이 비었더라.'),
-      named('m0_hangul', han('한글 만든 사람 칸.', { restored: '세종대왕 언문 기사 그거.' })),
+      named('m0_hangul', han('한글 만든 사람 칸.', { restored: '세종대왕 언문 기사 그거.', facts: HANGUL })),
       {
         kind: 'choice',
         id: 'c0_hangul',
         allowNoReply: true,
         options: [
-          { id: 'none', text: '그건 원래 기록이 없잖아요.', then: [] },
+          { id: 'none', text: '그건 원래 기록이 없잖아요.', restored: '그건 세종대왕이 만든 거잖아요.', facts: HANGUL, then: [] },
           { id: 'also', text: '그것도 손상이에요?', then: [] },
         ],
         after: [
-          named('m0_nolog', han('응, 기록에 없으면 없는 거지.', { restored: '무슨 소리야, 다 아는 건데.' })),
+          named('m0_nolog', han('응, 기록에 없으면 없는 거지.', { restored: '응, 그러니까 더 이상하지.', facts: HANGUL })),
           han('지워지면 사람 머리에서도 같이 지워지니까.'),
           han('근데 관측기는 문장 구멍을 잡아.', { heavy: true }),
         ],

@@ -81,6 +81,8 @@ export interface GameActions {
   /** 메신저를 열어 둔 채 읽음 처리 */
   readMessage(): void;
   chooseReply(optionId: Id): boolean;
+  /** 다시 쓰인 말풍선의 먹 번짐을 보여 줬다(한 번만) */
+  markInkSeen(ids: readonly Id[]): void;
   setTouching(on: boolean): void;
   tick(): void;
   /** tick 의 별칭(방치 시간·힌트) */
@@ -239,6 +241,7 @@ export function createGameStore(opts: StoreOptions = {}) {
           w.s.messenger = r.state;
           return r.ok;
         }),
+      markInkSeen: (ids) => run((w) => void (w.s.messenger = M.markInkSeen(w.s.messenger, ids)), { action: false }),
       setTouching: (on) => {
         set({ ui: { ...get().ui, touching: on } });
         if (!on) run((w, c) => void (w.s.messenger = M.release(w.s.messenger, c.now, w.s.settings.fastMessages)), { action: false });

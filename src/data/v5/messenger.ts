@@ -1,13 +1,25 @@
 /**
  * 메신저 대본(docs/DIALOGUE_GUIDE.md §4) — 한 선임(가상, 반말)·오 실장(가상, 두 번만)·시스템 줄.
  * 사건(§3) 하나 = 묶음(Burst) 하나. 말풍선 하나 = 문장 하나(≤30자). 정답(인물 이름·연도·사건 이름) 금지.
- * ⟲ 말풍선은 restored 에 복원 뒤 텍스트를 함께 갖는다(§4.10). 모두 provenance: fictional.
+ * 현실 재기록(§1-10): 소실 사실(ERASED1)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 함께 갖는다 —
+ * 한 선임·오 실장의 말도, 07 의 답도. 복원되면 대화 기록 전체에서 조용히 다시 쓰인다(표시 없음). 모두 provenance: fictional.
+ * 관측기가 말한 것(시스템 줄, 탐지·재계산·「관측 불가」를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
  */
-import type { Burst, HintLadder, Step } from '@/core/types';
+import type { Burst, ErasedFact, HintLadder, Id, Step } from '@/core/types';
+
+/** Ep1 의 소실 세계에서만 참인 사실 */
+export const ERASED1: ErasedFact[] = [
+  { id: 'e1.kim_unknown', label: '김일손은 아무도 모르는 이름이다', tells: [/처음 듣는/, /모르는 이름/] },
+  { id: 'e1.kim_cause_blank', label: '김일손의 사인(죽은 까닭)이 비어 있다', tells: [/사인 칸이 비/, /사인.{0,6}(없|비어|빠)/] },
+  { id: 'e1.day_unknown', label: '그날의 일은 아무도 모르는 하찮은 건이다', tells: [/그날이 없/, /우선순위 낮/, /끊긴 관측은 끊긴/] },
+];
+const KIM: Id[] = ['e1.kim_unknown'];
+const CAUSE: Id[] = ['e1.kim_cause_blank'];
+const DAY: Id[] = ['e1.day_unknown'];
 
 let seq = 0;
-const han = (text: string, extra: { heavy?: true; restored?: string } = {}): Step => ({ kind: 'say', id: `m${++seq}`, from: 'han', text, ...extra });
-const oh = (text: string, extra: { restored?: string } = {}): Step => ({ kind: 'say', id: `m${++seq}`, from: 'oh', text, ...extra });
+const han = (text: string, extra: { heavy?: true; restored?: string; facts?: Id[] } = {}): Step => ({ kind: 'say', id: `m${++seq}`, from: 'han', text, ...extra });
+const oh = (text: string, extra: { restored?: string; facts?: Id[] } = {}): Step => ({ kind: 'say', id: `m${++seq}`, from: 'oh', text, ...extra });
 const sys = (text: string): Step => ({ kind: 'system', id: `m${++seq}`, text });
 const heavy = { heavy: true as const };
 
@@ -19,7 +31,7 @@ export const BURSTS: Burst[] = [
     id: 'ev.start',
     steps: [
       oh('07, #C-2217 너한테 갔다.'),
-      oh('우선순위 낮음. 아침 전에 정리해.'),
+      named('m_oh_priority', oh('우선순위 낮음. 아침 전에 정리해.', { restored: '다 아는 건이니 아침 전에 정리해.', facts: DAY })),
       han('아까 하나 더 떴다던 그거야.'),
       han('이름은 남고 사유가 빠진 거.'),
       han('그 건 좌표 기록에 명단이 하나 붙어 있더라.'),
@@ -62,8 +74,8 @@ export const BURSTS: Burst[] = [
     id: 'ev.search_kim',
     steps: [
       han('김일손?'),
-      named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.' })),
-      named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?' })),
+      named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.', facts: KIM })),
+      named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?', facts: CAUSE })),
       han('…관측도 불가라고 나오고.', heavy),
       {
         kind: 'choice',
@@ -72,7 +84,7 @@ export const BURSTS: Burst[] = [
           { id: 'noday', text: '그날을 가리키는 기록이 없대요.', then: [] },
           { id: 'odd', text: '이상하네요.', then: [] },
         ],
-        after: [han('사람은 있는데 그날이 없는 거네.'), han('그런 거 가끔 있어.')],
+        after: [named('m_kim_noday', han('사람은 있는데 그날이 없는 거네.', { restored: '그날은 다 아는데, 그 사람 눈만 없네.', facts: DAY })), han('그런 거 가끔 있어.')],
       },
     ],
   },
@@ -119,7 +131,7 @@ export const BURSTS: Burst[] = [
     steps: [
       sys('06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 관측 가능 1개 끊김'),
       oh('재계산 돌았다.'),
-      named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '그 좌표, 교과서 건이다. 깔끔하게 했네.' })),
+      named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '교과서 건이니 남은 걸로 깔끔하게 해.', facts: DAY })),
       han('…닫혔어?', heavy),
       han('본 건 남아. 로그는 안 지워지니까.'),
       han('못 본 건… 끝이고.'),

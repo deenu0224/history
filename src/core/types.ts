@@ -445,7 +445,7 @@ export type MsgFrom = 'han' | 'oh' | 'system' | 'me';
 export type Presence = 'online' | 'away';
 
 export type Step =
-  | { kind: 'say'; id: Id; from: 'han' | 'oh'; text: string; heavy?: true; restored?: string }
+  | { kind: 'say'; id: Id; from: 'han' | 'oh'; text: string; heavy?: true; restored?: string; facts?: Id[] }
   | { kind: 'system'; id: Id; text: string }
   | { kind: 'status'; presence: Presence }
   | { kind: 'attach'; id: Id; docId: Id; label: string }
@@ -456,7 +456,8 @@ export type Step =
 export interface ChoiceStep {
   kind: 'choice';
   id: Id;
-  options: { id: Id; text: string; then: Step[] }[];
+  /** 07 의 답. restored = 복원 뒤 이 답이 다시 쓰인 글(내 말도 보호되지 않는다), facts = 기댄 소실 사실 */
+  options: { id: Id; text: string; then: Step[]; restored?: string; facts?: Id[] }[];
   /** 고른 갈래 뒤 공통 */
   after?: Step[];
   /** 「(답 없음)」이 허용되는가. 아니면 기한이 지나면 after 를 이어서 한다 */
@@ -472,6 +473,17 @@ export interface Burst {
   repeatable?: true;
   /** 복원 뒤에만 오는 묶음 */
   postRestore?: true;
+}
+
+/**
+ * 소실 세계에서만 참인 사실(에피소드가 복원되면 거짓이 된다). 대화의 어떤 줄이 이 사실에 기대면 그 줄은
+ * `facts` 로 이 id 를 달고 `restored`(복원 뒤 글)를 가져야 한다. `tells` 는 태그를 빠뜨린 줄을 잡는 검사 무늬.
+ * 관측기가 말한 것(시스템 줄 — 탐지·재계산·관측 불가)은 소실·복원을 타지 않으므로 여기에 기대지 않는다.
+ */
+export interface ErasedFact {
+  id: Id;
+  label: string;
+  tells: RegExp[];
 }
 
 // ── 힌트 사다리 ──────────────────────────────────────────────────
@@ -553,6 +565,8 @@ export interface Episode {
   docs: LogDocument[];
   bursts: Burst[];
   ladders: HintLadder[];
+  /** 소실 세계에서만 참인 사실 — 복원 뒤 대화 기록에 남으면 안 된다(DIALOGUE_GUIDE §1-10) */
+  erasedFacts?: ErasedFact[];
   home: HomeCard;
   /** 판정용 사실 키 함의 */
   implies: Record<FactKey, FactKey[]>;

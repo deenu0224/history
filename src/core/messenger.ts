@@ -11,6 +11,10 @@
  *   빠르게      = 모든 시간 × 0.4, 망설임 없음
  * 끼어들기: 자발 메시지는 90초에 하나 · 손가락을 대고 있으면 보내지 않고 뗀 뒤 600ms · 한 묶음은 4말풍선까지(그 뒤는 메신저를 열 때까지).
  * 시계는 밖에서 넣는다(now, ms). 난수 상태는 저장된다.
+ *
+ * 현실 재기록(DIALOGUE_GUIDE §1-10): 복원되면 대화 기록 전체에서 새 현실과 어긋나는 줄이 그 자리에서 다시 쓰인다 —
+ * 동료의 말도, 07 이 보낸 답도. 표시는 없다(⟲·원문 보기 없음). 원래 글은 저장에만 남고(text / bakedFrom) 화면에는 나오지 않는다.
+ * 다시 쓰인 말풍선은 복원 뒤 처음 화면에 들어올 때 한 번만 먹이 번진다(inkSeen 에 기록, 움직임 줄이기면 효과 없음).
  */
 import { nextRandom } from './rng';
 import type { Burst, ChoiceStep, Id, MsgFrom, Presence, Step } from './types';
@@ -32,7 +36,7 @@ export interface MsgItem {
   text: string;
   at: number;
   burstId: Id;
-  /** ⟲ 복원 뒤 텍스트 */
+  /** 이 에피소드가 복원되면 이 글로 다시 쓰인다(동료의 말·내 답 모두). text 는 원래 글 그대로 저장된다 */
   restored?: string;
   heavy?: boolean;
   docId?: Id;
@@ -81,6 +85,8 @@ export interface MessengerState {
   heldForTouch: boolean;
   /** 메신저를 마지막으로 본 시각(안 읽음 계산) */
   lastReadAt: number;
+  /** 다시 쓰인 뒤 먹 번짐을 이미 보여 준 말풍선(한 번만). 옛 저장에는 없다 */
+  inkSeen?: Id[];
 }
 
 export interface MsgCtx {
@@ -337,7 +343,7 @@ export function choose(s0: MessengerState, optionId: Id, now: number, ctx: MsgCt
   const s = r.s;
   const c = s.choice!;
   const readAt = now + r.k(s.presence === 'online' ? r.rand(800, 2500) : r.rand(20_000, 60_000));
-  s.log.push({ id: `${c.step.id}:${opt.id}`, from: 'me', kind: 'mine', text: opt.text, at: now, burstId: c.burstId, readAt });
+  s.log.push({ id: `${c.step.id}:${opt.id}`, from: 'me', kind: 'mine', text: opt.text, at: now, burstId: c.burstId, readAt, ...(opt.restored ? { restored: opt.restored } : {}) });
   s.choice = null;
   s.lastAt = Math.max(s.lastAt, now);
   const rest = [...structuredClone(opt.then), ...structuredClone(c.step.after ?? [])];
@@ -371,8 +377,25 @@ export function rebase(s: MessengerState, delta: number): MessengerState {
 }
 
 // ── 보기 ─────────────────────────────────────────────────────────
+/** 화면에 주는 말풍선: 원래 글(text·restored·bakedFrom)은 넘기지 않는다 — 다시 쓰기는 조용하다 */
+export type MsgView = Omit<MsgItem, 'text' | 'restored' | 'bakedFrom'> & {
+  /** 지금 현실의 글 */
+  display: string;
+  /** 현실 재기록으로 바뀐 말풍선(표시는 없다; 먹 번짐·테스트용) */
+  rewritten: boolean;
+  /** 아직 먹 번짐을 보여 주지 않았다(화면에 처음 들어올 때 한 번) */
+  bleed: boolean;
+};
+
+/** 이 말풍선이 지금 현실에서 보이는 글과, 다시 쓰였는지 */
+export function currentText(m: MsgItem, restored: boolean): { display: string; rewritten: boolean } {
+  if (m.bakedFrom !== undefined) return { display: m.text, rewritten: true };
+  if (restored && m.restored) return { display: m.restored, rewritten: true };
+  return { display: m.text, rewritten: false };
+}
+
 export interface MessengerView {
-  items: (MsgItem & { display: string; rewritten: boolean })[];
+  items: MsgView[];
   /** 한 선임(또는 오 실장)이 입력 중 */
   typing: { from: MsgFrom } | null;
   presence: Presence;
@@ -391,13 +414,24 @@ export function view(s: MessengerState, now: number, restored: boolean): Messeng
   }
   const others = s.log.filter((m) => m.from !== 'me');
   return {
-    items: s.log.map((m) => ({ ...m, display: restored && m.restored ? m.restored : m.text, rewritten: restored && !!m.restored })),
+    items: s.log.map((m) => {
+      const { text: _t, restored: _r, bakedFrom: _b, ...rest } = m;
+      const cur = currentText(m, restored);
+      return { ...rest, ...cur, bleed: cur.rewritten && !(s.inkSeen ?? []).includes(m.id) };
+    }),
     typing,
     presence: s.presence,
     choices: s.choice ? s.choice.step.options.map((o) => ({ id: o.id, text: o.text })) : null,
     unread: others.filter((m) => m.at > s.lastReadAt).length,
     latest: others.length ? others[others.length - 1] : null,
   };
+}
+
+/** 먹 번짐을 보여 줬다(말풍선마다 한 번) */
+export function markInkSeen(s: MessengerState, ids: readonly Id[]): MessengerState {
+  const seen = s.inkSeen ?? [];
+  const add = ids.filter((id) => !seen.includes(id));
+  return add.length ? { ...s, inkSeen: [...seen, ...add] } : s;
 }
 
 /** 대기 중인 일이 있는가(테스트·UI 의 틱 주기 조절용) */
@@ -415,7 +449,7 @@ export function sayMine(s: MessengerState, id: Id, text: string, now: number): M
 
 /**
  * 다음 에피소드로 대화를 이어 간다: 지난 대화(log)는 남기고, 줄·계획·선택지·비동기·보낸 묶음은 비운다.
- * 지난 에피소드가 복원되었다면 ⟲ 말풍선은 복원 뒤 글로 굳힌다(이전 글은 bakedFrom).
+ * 지난 에피소드가 복원되었다면 다시 쓰인 말풍선(내 답 포함)은 복원 뒤 글로 굳힌다(원래 글은 bakedFrom, 저장에만).
  */
 export function carryOver(s: MessengerState, now: number, prevRestored: boolean): MessengerState {
   return {
