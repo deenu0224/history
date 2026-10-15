@@ -4,8 +4,8 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { GLOSSARY } from '@/data/glossary';
-import { EPISODE, useGameStore } from '@/store/gameStore';
-import { useView } from '@/store/hooks';
+import { currentEpisode, useGameStore } from '@/store/gameStore';
+import { useEpisode, useView } from '@/store/hooks';
 import { selectContradictions, selectCut, selectViewer, type CutView } from '@/store/selectors';
 import { fx } from '../lib/fx';
 import { cutNo, VOLUME_LABEL } from '../lib/format';
@@ -40,6 +40,7 @@ function useBox(ref: React.RefObject<HTMLElement | null>) {
 
 // ── 말풍선: 컷에 들어오면 차례로 나타난다(글자 수 × 35ms), 탭하면 즉시 다음 ──
 function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
+  const canSearch = useEpisode().verbs.search;
   const [shown, setShown] = useState(0);
   const [open, setOpen] = useState<{ line: string; term: string; gloss?: string } | null>(null);
   const reduce = useGameStore((s) => s.settings.reduceMotion);
@@ -77,7 +78,7 @@ function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
   return (
     <div className="bubbles" aria-live="polite" onClick={() => shown < total && setShown(shown + 1)}>
       {visible.map((b) => {
-        const segs = richSegments(b.text, b.terms, b.glosses);
+        const segs = richSegments(b.text, canSearch ? b.terms : [], b.glosses);
         const who = b.speaker && b.speaker !== '?' && !/\(/.test(b.speaker) ? `${b.speaker} · ${VOLUME_LABEL[b.volume]}` : VOLUME_LABEL[b.volume];
         return (
           <div key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}`} data-testid="bubble" data-line={b.lineId}>
@@ -106,7 +107,7 @@ function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
             {open?.line === b.lineId ? (
               <div className="gl">
                 {open.gloss ? <span>{open.gloss} </span> : null}
-                {b.terms.includes(open.term) ? (
+                {canSearch && b.terms.includes(open.term) ? (
                   <button
                     style={{ color: '#2d5f7a', textDecoration: 'underline', minHeight: 30 }}
                     onClick={(e) => {
@@ -130,6 +131,10 @@ function Bubbles({ cut, active }: { cut: CutView; active: boolean }) {
 // ── 컷 한 장 ──
 function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: string; entry: CutEntry | undefined; box: { w: number; h: number }; active: boolean; eyeClosed: boolean; selected: string | null }) {
   const cut = useView((ep, s) => selectCut(ep, s, cutId), [cutId]);
+  const epId = useGameStore((s) => s.episodeId);
+  const canSearch = useEpisode().verbs.search;
+  const [detail, setDetail] = useState<string | null>(null);
+  useEffect(() => setDetail(null), [cutId, active]);
   if (!cut) return null;
   if (cut.availability === 'lost')
     return (
@@ -150,10 +155,28 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
   if (cut.availability === 'locked') return <div className="vslide" data-cut={cutId} data-avail="locked" />;
 
   const hasErased = !!entry?.files.erased;
-  const memory = cutSrc(entry, cutId, 'memory');
-  const erased = cutSrc(entry, cutId, 'erased');
+  const memory = cutSrc(entry, cutId, 'memory', epId);
+  const erased = cutSrc(entry, cutId, 'erased', epId);
   const closedLook = eyeClosed && hasErased;
   const minTouch = 44;
+const hit = (b: { x: number; y: number; w: number; h: number }) => {
+    let x = b.x * box.w;
+    let y = b.y * box.h;
+    let w = b.w * box.w;
+    let h = b.h * box.h;
+    if (w < minTouch) {
+      x -= (minTouch - w) / 2;
+      w = minTouch;
+    }
+    if (h < minTouch) {
+      y -= (minTouch - h) / 2;
+      h = minTouch;
+    }
+    x = Math.max(0, Math.min(box.w - w, x));
+    y = Math.max(0, Math.min(box.h - h, y));
+    return { left: x, top: y, width: w, height: h };
+  };
+  const openDetail = detail ? cut.details.find((d) => d.id === detail) : undefined;
   return (
     <div className="vslide" data-cut={cutId} data-avail={cut.availability}>
       <div className={`cutbox${eyeClosed ? ' erased' : ''}`} style={{ width: box.w, height: box.h }} role="img" aria-label={cut.alt}>
@@ -207,6 +230,45 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
             </button>
           );
         })}
+        {/* 세부(두루마리 머리글 등): 사람 상자보다 먼저 눌린다 */}
+        {(entry?.details ?? []).map((b) => {
+          const d = cut.details.find((x) => x.id === b.id);
+          if (!d) return null;
+          return (
+            <button
+              key={b.id}
+              className={`detailbox${detail === b.id ? ' sel' : ''}`}
+              style={hit(b)}
+              data-detail={b.id}
+              aria-label={`자세히 보기: ${d.label}`}
+              aria-expanded={detail === b.id}
+              onClick={() => {
+                fx('tap');
+                setDetail(detail === b.id ? null : b.id);
+              }}
+            >
+              <span className="mark" aria-hidden="true" />
+            </button>
+          );
+        })}
+        {openDetail ? (
+          <div className="detail-note" role="note" data-testid="detail-note" data-detail={openDetail.id} onClick={() => setDetail(null)}>
+            <div className="who">본 것</div>
+            <div className="txt">{openDetail.label}</div>
+            {canSearch && openDetail.terms.length ? (
+              <button
+                className="more"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  useUi.getState().setSearchSeed(openDetail.terms[0]!);
+                  useUi.getState().push('search');
+                }}
+              >
+                「{openDetail.terms[0]}」 찾기 ›
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <Bubbles cut={cut} active={active} />
       </div>
     </div>
@@ -223,9 +285,11 @@ export function Viewer() {
   const tagTarget = useGameStore((s) => s.ui.tagTarget);
   const contradictions = useView((ep, s) => selectContradictions(ep, s).filter((x) => x.status === 'revealed'));
   const eyeId = v?.eyeId;
-  const eye = useMemo(() => EPISODE.eyes.find((e) => e.id === eyeId), [eyeId]);
+  const episode = useEpisode();
+  const epId = episode.id;
+  const eye = useMemo(() => episode.eyes.find((e) => e.id === eyeId), [episode, eyeId]);
   const eyeClosed = !!v && v.eyes.find((e) => e.eyeId === v.eyeId)?.state === 'closed';
-  const closureLine = EPISODE.closures.find((c) => c.eyeId === eyeId)?.systemLine;
+  const closureLine = episode.closures.find((c) => c.eyeId === eyeId)?.systemLine;
 
   const index = v?.index ?? 0;
   const total = v?.total ?? 0;
@@ -234,7 +298,7 @@ export function Viewer() {
     (i: number) => {
       const g = useGameStore.getState();
       const cur = g.viewer;
-      if (!cur || i < 0 || i >= (EPISODE.eyes.find((e) => e.id === cur.eyeId)?.cuts.length ?? 0) || i === cur.index) return;
+      if (!cur || i < 0 || i >= (currentEpisode(g).eyes.find((e) => e.id === cur.eyeId)?.cuts.length ?? 0) || i === cur.index) return;
       fx('swipe');
       g.closeTagSheet();
       g.viewCut(cur.eyeId, i);
@@ -251,8 +315,8 @@ export function Viewer() {
   useEffect(() => {
     if (!eye || !manifest) return;
     const next = eye.cuts[index + 1];
-    if (next) preloadCut(manifest.cuts[next], next, eyeClosed);
-  }, [eye, manifest, index, eyeClosed]);
+    if (next) preloadCut(manifest.cuts[next], next, eyeClosed, epId);
+  }, [eye, manifest, index, eyeClosed, epId]);
 
   // 키보드: ← → (데스크톱)
   useEffect(() => {

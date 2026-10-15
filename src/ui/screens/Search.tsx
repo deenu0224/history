@@ -8,13 +8,16 @@ import { fx } from '../lib/fx';
 import { IBack, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
 
-function Hit({ r }: { r: SearchResultView }) {
+function Hit({ r, onPerson }: { r: SearchResultView; onPerson?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const onTap = () => {
     const g = useGameStore.getState();
     const ui = useUi.getState();
     if (r.kind === 'person') {
-      if (g.openCard(r.id)) ui.openCard(r.id);
+      if (g.openCard(r.id)) {
+        ui.openCard(r.id);
+        onPerson?.(r.id);
+      }
     } else if (r.kind === 'record') {
       g.openRecord(r.id);
       setOpen((x) => !x);
@@ -42,7 +45,10 @@ function Hit({ r }: { r: SearchResultView }) {
 export function Search() {
   const view = useView(selectSearch);
   const seed = useUi((s) => s.searchSeed);
+  const seedTerms = useUi((s) => s.seedTerms);
   const [q, setQ] = useState('');
+  const [lastPerson, setLastPerson] = useState<string | undefined>();
+  const tagReturn = useGameStore((s) => s.ui.tagReturn);
 
   const run = (text: string) => {
     const t = text.trim();
@@ -54,11 +60,23 @@ export function Search() {
   useEffect(() => {
     if (seed) {
       setQ(seed);
-      run(seed);
+      // 낱말이 하나뿐이면 바로 찾고, 여럿이면 칩으로 고르게 한다
+      if (useUi.getState().seedTerms.length <= 1) run(seed);
       useUi.getState().setSearchSeed(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed]);
+
+  // 이름 붙이기 시트에서 왔으면 돌아가서 그 시트를 다시 연다(방금 본 인물 카드를 고른 채)
+  const back = () => {
+    const g = useGameStore.getState();
+    if (g.ui.tagReturn) {
+      const pick = lastPerson && g.cardsFound.includes(lastPerson) ? lastPerson : undefined;
+      g.returnToTag(pick);
+    }
+    useUi.setState({ seedTerms: [] });
+    useUi.getState().pop();
+  };
 
   const people = view.last?.views.filter((v) => v.kind === 'person') ?? [];
   const records = view.last?.views.filter((v) => v.kind === 'record') ?? [];
@@ -68,7 +86,7 @@ export function Search() {
   return (
     <div className="scr" data-screen="search">
       <div className="bar">
-        <button className="ibtn" aria-label="뒤로" onClick={() => useUi.getState().pop()} data-testid="search-back">
+        <button className="ibtn" aria-label="뒤로" onClick={back} data-testid="search-back">
           <IBack />
         </button>
         <div className="title t-h">찾기</div>
@@ -86,6 +104,27 @@ export function Search() {
         </button>
       </form>
       <div className="body" style={{ paddingTop: 6 }}>
+        {tagReturn && seedTerms.length > 1 ? (
+          <div style={{ marginTop: 10 }}>
+            <div className="t-m">이 컷에서 들은 말</div>
+            <div className="chips" style={{ marginTop: 6 }} data-testid="seed-chips">
+              {seedTerms.map((t) => (
+                <button
+                  key={t}
+                  className="chip"
+                  data-testid={`seed-${t}`}
+                  style={{ borderBottom: '2px solid var(--seal)' }}
+                  onClick={() => {
+                    setQ(t);
+                    run(t);
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {view.terms.length ? (
           <div style={{ marginTop: 10 }}>
             <div className="t-m">들은 말에서</div>
@@ -116,7 +155,7 @@ export function Search() {
           <>
             <div className="seclabel t-m">인물</div>
             {people.map((r) => (
-              <Hit key={r.id} r={r} />
+              <Hit key={r.id} r={r} onPerson={setLastPerson} />
             ))}
           </>
         ) : null}

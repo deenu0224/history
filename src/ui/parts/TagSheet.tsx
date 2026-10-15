@@ -4,10 +4,10 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { useView } from '@/store/hooks';
+import { useEpisode, useView } from '@/store/hooks';
 import { selectCut, selectTagSheet } from '@/store/selectors';
 import { fx } from '../lib/fx';
-import { IBan, IWarn, ISearch } from './icons';
+import { IBan, IWarn, ISearch, IChevR } from './icons';
 import { Sheet } from './Sheet';
 import { useUi } from '../uiStore';
 
@@ -47,18 +47,23 @@ function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: stri
 export function TagSheet() {
   const target = useGameStore((s) => s.ui.tagTarget);
   const picked = useUi((s) => s.picked);
+  const tagCard = useGameStore((s) => s.ui.tagCard);
+  const verbs = useEpisode().verbs;
   const [cardId, setCardId] = useState<string | undefined>();
   const [evId, setEvId] = useState<string | undefined>();
   const [fb, setFb] = useState<{ text: string; warn: boolean } | null>(null);
 
   const key = target ? `${target.cutId}/${target.figureId}` : '';
   useEffect(() => {
-    setCardId(undefined);
+    // 찾기에서 돌아오면 고른 카드를 그대로(스토어 ui.tagCard)
+    setCardId(useGameStore.getState().ui.tagCard ?? undefined);
     setEvId(undefined);
     setFb(null);
-  }, [key]);
+  }, [key, tagCard]);
 
   const sheet = useView((ep, s) => (target ? selectTagSheet(ep, s, target.cutId, target.figureId, cardId) : null), [key, cardId]);
+  const [linked, setLinked] = useState(false);
+  useEffect(() => setLinked(false), [key]);
   const cut = useView((ep, s) => (target ? selectCut(ep, s, target.cutId) : null), [key]);
 
   useEffect(() => {
@@ -82,11 +87,28 @@ export function TagSheet() {
     if (j.status === 'judged') {
       if (j.verdict === 'ok') return; // 시트는 스토어가 닫는다
       setFb({ text: j.feedback ?? '근거가 이 사람을 가리키지 않는다', warn: j.verdict === 'contradicts' });
+      setLinked(j.verdict === 'not_linked');
+      if (j.verdict === 'not_linked') return; // 고른 것은 그대로 — 방에서 이어 보고 돌아와 다시
     } else {
       setFb({ text: '근거를 다시 골라 보자', warn: false });
     }
     setCardId(undefined);
     setEvId(undefined);
+  };
+  const openRoom = () => {
+    const g = useGameStore.getState();
+    const r = g.openRoomAtCut(target.cutId);
+    if (r.status === 'opened') {
+      g.closeTagSheet();
+      useUi.getState().setRoomFocus(null);
+    }
+  };
+  const toSearch = () => {
+    const g = useGameStore.getState();
+    const { seed } = g.searchFromTag(cardId);
+    useUi.getState().setSearchSeed(seed.length ? seed[0]! : null);
+    useUi.setState({ seedTerms: seed });
+    useUi.getState().push('search');
   };
 
   return (
@@ -128,20 +150,26 @@ export function TagSheet() {
             }}
           />
         ))}
+        {verbs.search ? (
+          <button className="pcard more" onClick={toSearch} data-testid="tag-search-more">
+            <ISearch />
+            <span className="t-m">찾기로 더</span>
+          </button>
+        ) : null}
+      </div>
+      {cardId ? (
         <button
-          className="pcard more"
+          className="ghostlink"
+          data-testid="tag-open-card"
           onClick={() => {
-            close();
-            useUi.getState().setSearchSeed(null);
-            useUi.getState().push('search');
+            if (useGameStore.getState().openCard(cardId)) useUi.getState().openCard(cardId, true);
           }}
         >
-          <ISearch />
-          <span className="t-m">찾기로 더</span>
+          이 카드 펼쳐 보기 <IChevR size={18} />
         </button>
-      </div>
+      ) : null}
       {fb ? (
-        <div className={`fb${fb.warn ? ' warn' : ''}`} role="status" data-testid="tag-feedback">
+        <div className={`fb${fb.warn ? ' warn' : ''}`} role="status" data-testid="tag-feedback" data-linked={linked ? 'true' : undefined}>
           <span style={{ display: 'flex', color: fb.warn ? 'var(--alert)' : 'var(--teal)' }}>{fb.warn ? <IWarn /> : <IBan />}</span>
           <span className="t-b">{fb.text}</span>
         </div>
@@ -149,24 +177,28 @@ export function TagSheet() {
       <div className="t-m" style={{ margin: '10px 0 8px' }}>
         ② 근거 하나
       </div>
-      {cardId ? (
-        <div data-testid="tag-evidence">
-          {sheet.evidence.length === 0 ? <div className="placeholder t-m">쓸 수 있는 근거가 아직 없다</div> : null}
-          {sheet.evidence.map((e) => (
-            <button key={e.id} className={`evrow${evId === e.id ? ' sel' : ''}`} data-testid={`ev-${e.id}`} aria-pressed={evId === e.id} onClick={() => { fx('tap'); setEvId(evId === e.id ? undefined : e.id); }}>
-              <span className="k">
-                <span className="t-m" style={{ color: e.fromThisPersonCut ? 'var(--amber)' : undefined }}>
-                  {KIND[e.kind]}
-                </span>
-                {e.time ? <span className="clock t-m">{e.time}</span> : null}
+      <div data-testid="tag-evidence">
+        {sheet.evidenceAll.length === 0 ? <div className="placeholder t-m">쓸 수 있는 근거가 아직 없다</div> : null}
+        {sheet.evidenceAll.map((e) => (
+          <button key={e.id} className={`evrow${evId === e.id ? ' sel' : ''}`} data-testid={`ev-${e.id}`} aria-pressed={evId === e.id} onClick={() => { fx('tap'); setEvId(evId === e.id ? undefined : e.id); }}>
+            <span className="k">
+              <span className="t-m" style={{ color: e.fromThisPersonCut ? 'var(--amber)' : undefined }}>
+                {KIND[e.kind]}
               </span>
-              <span className="tx">{e.kind === 'line' ? `「${e.text}」` : e.text}</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="placeholder t-m">카드를 고르면 근거가 나온다</div>
-      )}
+              {e.time ? <span className="clock t-m">{e.time}</span> : null}
+            </span>
+            <span className="tx">{e.kind === 'line' ? `「${e.text}」` : e.text}</span>
+          </button>
+        ))}
+      </div>
+      {sheet.roomLink ? (
+        <button className={`btn secondary${linked ? ' breath' : ''}`} style={{ marginTop: 12 }} data-testid="tag-room-link" onClick={openRoom}>
+          {sheet.roomLink.label}
+          <span className="clock t-m" style={{ marginLeft: 8, color: 'inherit' }}>
+            {sheet.roomLink.time}
+          </span>
+        </button>
+      ) : null}
     </Sheet>
   );
 }

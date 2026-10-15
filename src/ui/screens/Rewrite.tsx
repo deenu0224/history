@@ -168,7 +168,7 @@ export function Rewrite() {
       <div className="sheetpaper hanji" data-testid="paper">
         {rw.lines.length === 0 ? (
           <p className="read keep" style={{ margin: '28px 4px', fontSize: 17, lineHeight: '30px', color: '#6b5e45' }}>
-            본 것으로만 쓴다. 줄을 더해, 칸을 내가 확인한 값으로 채운다.
+            {rw.pieces.length ? '본 것으로만 쓴다. 줄을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 쓴다.'}
           </p>
         ) : null}
         {rw.lines.map((l) => (
@@ -182,9 +182,11 @@ export function Rewrite() {
           </button>
         ) : (
           <>
-            <button className="btn secondary" onClick={() => setPicker(true)} data-testid="btn-add-line">
-              줄 더하기
-            </button>
+            {rw.pieces.length ? (
+              <button className="btn secondary" onClick={() => setPicker(true)} data-testid="btn-add-line">
+                줄 더하기
+              </button>
+            ) : null}
             <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0}>
               ● 기록을 남긴다 {holdMode === 'hold' ? '(길게)' : '(두 번)'}
             </HoldButton>

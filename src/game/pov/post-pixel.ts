@@ -23,6 +23,7 @@
 import { hexToRgb, rgbToOklab } from './palette';
 import { mulberry32 } from './camera';
 import { MEMORIAL_HEAD_COLUMNS, MEMORIAL_HEAD_GLYPHS, NAME_TAG_GLYPHS_SMALL } from './glyphs';
+import { ROOM_DETAIL_NAMES } from './room';
 import type { PovOverlay } from './types';
 
 /** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 3 · 호박 3 · 붉은 3 · 초록 3 · 남 3 · 피부 2 */
@@ -186,7 +187,7 @@ type Kind = 0 | 1 | 2 | 3 | 4; // 0 하늘 · 1 방 · 2 소품 · 3 종이 조�
 /** 띠살 칸의 역할: 1 한지 · 2 세로살 · 3 가로 띠 (render3d 가 style 'pixel' 에서 따로 번호 매긴다) */
 const panelRole = (name: string | undefined): number => (name === 'hanji' ? 1 : name === 'lattice' ? 2 : name === 'lattice-h' ? 3 : 0);
 const kindOf = (name: string | undefined): Kind =>
-  !name ? 0 : name === 'hall' ? 1 : name.startsWith('slip:') || name.startsWith('detail:') ? 3 : name.startsWith('fig_') || name === 'self' ? 4 : 2;
+  !name ? 0 : name === 'hall' || ROOM_DETAIL_NAMES.has(name) ? 1 : name.startsWith('slip:') || name.startsWith('detail:') ? 3 : name.startsWith('fig_') || name === 'self' ? 4 : 2;
 
 export function postPixel(inp: PixelInput): PixelOutput {
   const { w2, h2, overlay } = inp;
@@ -828,13 +829,21 @@ export function postPixel(inp: PixelInput): PixelOutput {
             pc = n;
             paper = c;
           }
-        if (paper < 0) paper = br1[br1[1]];
-        if (palLab[paper][0] < 0.6) paper = br1[paper];
-        if (palLab[paper][0] < 0.6) paper = br1[paper];
-        const top = y0 + Math.floor((y1 - y0 + 1 - rows) / 2);
+        // 종이는 한지 빛(흰 간판처럼 가장 밝은 색으로 올리지 않는다): 빛 받는 면 #d8c7a1, 그늘 가장자리 #b9a682
+        const hanji = palHex.indexOf('#d8c7a1');
+        const hanjiDk = palHex.indexOf('#b9a682');
+        if (hanji >= 0) paper = hanji;
+        else if (paper < 0) paper = br1[br1[1]];
+        const shade = hanjiDk >= 0 ? hanjiDk : paper;
+        // 머리글은 겉장 윗머리에(아래는 드는 손·소매에 가리기 쉽다): 위 가장자리에서 1px
+        const top = y0 + Math.min(1, Math.max(0, y1 - y0 + 1 - rows));
         const left = x0 + Math.floor((x1 - x0 + 1 - colsW) / 2);
         const bw = x1 - x0 + 1;
         const bh = y1 - y0 + 1;
+        const rimDk = palHex.indexOf('#5a4130');
+        const figOf = (j: number) => obj[j] === hid || kinds[obj[j]] === 4;
+        // 줄 사이 접힌 금(세로 1px, 한 단 어둡게): 접은 상소의 쪽 경계 — 글자 사이 틈 가운데
+        const foldX = fits ? left + GW + Math.floor(GAP / 2) : x0 + Math.round(bw / 2);
         for (let y = y0; y <= y1; y++)
           for (let x = x0; x <= x1; x++) {
             const i = y * w + x;
@@ -859,19 +868,33 @@ export function postPixel(inp: PixelInput): PixelOutput {
               ink = inCol && v > 0.12 && v < 0.88 && (y - y0) % 3 !== 2;
             }
             if (ink) out[i] = 1;
-            else if (!edge) out[i] = paper;
+            else if (edge && rimDk >= 0 && !(figOf(i - 1) && figOf(i + 1) && figOf(i - w) && figOf(i + w))) out[i] = rimDk; // 방 배경과 닿는 가장자리: 어두운 밤색 테(벽 한지와 갈라 보이게)
+            else if (edge) out[i] = obj[i + w] !== hid || obj[i - 1] !== hid ? shade : paper; // 아래·왼 가장자리는 종이 두께 그늘
+            else if (x === foldX) out[i] = shade;
+            else out[i] = paper;
           }
-        // 은근한 호박 반짝임: 겉장 위 가장자리(빛을 받는 모서리)만 — 눈길을 끄는 단서 표시(화면 문법)
+        // 은근한 호박 반짝임: 빛을 받는 오른쪽 위 모서리 몇 px 만(테두리 전체가 아니라) — 눈길을 끄는 단서 표시(화면 문법)
         const amber = palHex.indexOf('#c9873f');
         const amberHi = palHex.indexOf('#f0c27e');
-        if (amber >= 0 && amberHi >= 0)
-          for (let x = x0; x <= x1; x++)
+        if (amber >= 0 && amberHi >= 0) {
+          const run = Math.max(3, Math.round(bw * 0.3));
+          let n = 0;
+          for (let x = x1; x >= x0 && n < run; x--)
             for (let y = y0; y <= y1; y++) {
               const i = y * w + x;
               if (obj[i] !== hid) continue;
-              out[i] = x >= x1 - Math.max(1, Math.round(bw * 0.25)) ? amberHi : amber;
+              out[i] = n < 2 ? amberHi : amber;
+              n++;
               break;
             }
+          // 오른쪽 가장자리 위쪽 두 칸
+          for (let y = y0, m = 0; y <= y1 && m < 2; y++) {
+            let x = x1;
+            while (x >= x0 && obj[y * w + x] !== hid) x--;
+            if (x < x0) continue;
+            if (m++ > 0) out[y * w + x] = amber;
+          }
+        }
       }
     }
   }

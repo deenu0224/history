@@ -4,12 +4,12 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { ContradictionGeometry } from '@/core/contradiction';
-import { EPISODE, useGameStore } from '@/store/gameStore';
+import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectContradictionView, selectContradictions, selectRoom, type RoomMarker } from '@/store/selectors';
 import { fx } from '../lib/fx';
 import { cutNo } from '../lib/format';
-import { BACKDROP } from '../lib/manifest';
+import { backdropSrc } from '../lib/manifest';
 import { IChevR, IWarn } from './icons';
 import { Sheet } from './Sheet';
 import { useUi } from '../uiStore';
@@ -234,7 +234,7 @@ export function RoomSheet() {
   const justMerged = mergeUntil > Date.now();
 
   const goCut = (cutId: string) => {
-    const eye = EPISODE.eyes.find((e) => e.cuts.includes(cutId));
+    const eye = currentEpisode(useGameStore.getState()).eyes.find((e) => e.cuts.includes(cutId));
     if (!eye) return;
     g.viewCut(eye.id, eye.cuts.indexOf(cutId));
     close();
@@ -249,7 +249,7 @@ export function RoomSheet() {
   return (
     <>
       <div className="scr" style={{ zIndex: 28, background: '#0b0a09' }} aria-hidden="true">
-        <img src={BACKDROP} alt="" style={{ width: '100%', height: '42%', objectFit: 'cover', imageRendering: 'pixelated', filter: 'blur(2px) brightness(.4) saturate(.7)' }} />
+        <img src={backdropSrc(currentEpisode(useGameStore.getState()).id)} alt="" style={{ width: '100%', height: '42%', objectFit: 'cover', imageRendering: 'pixelated', filter: 'blur(2px) brightness(.4) saturate(.7)' }} />
       </div>
       <Sheet
         title={

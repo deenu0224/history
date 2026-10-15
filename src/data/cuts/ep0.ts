@@ -21,8 +21,8 @@ export const EP0_FIGURE_IDS = ['fig_king', 'fig_choi', 'fig_jeong', 'fig_kim', '
 export type Ep0FigureId = (typeof EP0_FIGURE_IDS)[number];
 /** 탭할 수 있는 사람(이름 붙이기 대상). fig_row 는 아니다 */
 export const EP0_TAPPABLE: readonly Ep0FigureId[] = ['fig_king', 'fig_choi', 'fig_jeong', 'fig_kim'];
-/** 컷 안 세부(탭 영역): 상소 겉장 머리글 */
-export const EP0_DETAIL_IDS = ['d_scroll_head'] as const;
+/** 컷 안 세부(탭 영역): 상소 겉장 머리글 · 임금의 단(높은 자리). id 는 src/data/v5/ep0/content.ts DETAILS0 과 같다 */
+export const EP0_DETAIL_IDS = ['d_scroll_head', 'd_e0_dais'] as const;
 export type Ep0DetailId = (typeof EP0_DETAIL_IDS)[number];
 
 export type Ep0Figure = PovFigure & { id: Ep0FigureId };
@@ -78,9 +78,9 @@ export const EP0_CUTS: readonly Ep0CutRenderSpec[] = [
   {
     id: 'e0-1',
     time: '10:00',
-    note: '줄지어 앉은 관원들. 맨 앞 늙은 관원이 접은 상소를 받들어 올리고, 그 겉장 머리글이 보인다. 멀리 단 위 임금은 어둡고 작다(뒤에서 비치는 고창 빛).',
+    note: '줄지어 앉은 관원들. 맨 앞 늙은 관원이 접은 상소를 가슴 앞에 펴 들고 단 쪽으로 읽어 올린다 — 그 어깨 너머로 겉장 머리글이 보인다. 멀리 단 위 임금은 어둡고 작다(뒤에서 비치는 고창 빛).',
     listed: ['fig_king', 'fig_choi', 'fig_jeong', 'fig_kim'],
-    details: ['d_scroll_head'],
+    details: ['d_scroll_head', 'd_e0_dais'],
     spec: {
       ...base,
       lookAt: { x: 6.74, y: 2.42, h: 1.0 },
@@ -126,14 +126,15 @@ export const EP0_CUTS: readonly Ep0CutRenderSpec[] = [
   },
 ];
 
-/** 그날의 방 도면 뒤에 까는 흐린 배경(사람 없음) */
+/** 그날의 방 도면 뒤에 까는 흐린 배경(사람 없음): 남쪽 문 안쪽 조금 높은 데서 단·가리개를 바라본 어둑한 전각(먹·한지·호박 빛).
+ *  위에서 곧장 내려다보면 비스듬히 놓인 방석만 떠 보여서, 방의 깊이(마루·기둥·단·고창 빛)가 읽히는 눈으로 바꿨다 */
 export const EP0_ROOM_BACKDROP: Omit<PovSpec, 'size' | 'overlay'> = {
   room: 'ep0',
   witnessId: 'room',
   seatId: 'HW',
-  eye: { x: 6.0, y: 4.6, h: 2.95 },
-  lookAt: { x: 6.0, y: 4.75, h: 0 },
-  fov: 112,
+  eye: { x: 6.0, y: 7.9, h: 2.3 },
+  lookAt: { x: 6.0, y: 1.8, h: 0.75 },
+  fov: 72,
   roll: 0,
   time: '10:00',
   figures: [],

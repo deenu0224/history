@@ -89,6 +89,10 @@ export const ROOM_EP0 = {
   } satisfies Record<Ep0SeatId, Seat>,
 } as const;
 
+/** 방에 붙은 컷 세부(탭 영역): 방 메시 안에서 'detail:{id}' 로 따로 번호 매긴다. 그림은 방과 같다(픽셀 후처리 종류 = 방) */
+export const ROOM_DETAIL_IDS = { ep0: ['d_e0_dais'] } as const;
+export const ROOM_DETAIL_NAMES: ReadonlySet<string> = new Set(Object.values(ROOM_DETAIL_IDS).flatMap((ids) => ids.map((id) => `detail:${id}`)));
+
 /**
  * 잘라 낸 종이 조각 여섯 장의 자리(15:00, 서안 위). 다섯 장은 SP 앞 보자기 위에 나란히(긴 변이 동서), 한 장은 따로
  * 사초 더미 바로 서쪽에 놓였다 → W(윤효손) 자리에서는 그 한 장의 시선이 더미 윗면 아래로 지나 가린다(§4.2 SP ← W).

@@ -1,12 +1,14 @@
-/** 부트 → 프롤로그(승인된 8줄, 건너뛸 수 있다) → 콜드 오픈(두 줄) → 홈. UI_STYLE_GUIDE §2.1 */
+/** 부트 → 프롤로그(승인된 8줄, 건너뛸 수 있다) → 콜드 오픈(두 줄, 에피소드마다) → 홈. 새 게임은 에피소드 0 에서 시작. UI_STYLE_GUIDE §2.1 */
 import { useEffect, useState } from 'react';
 import { peekSave } from '@/core/save';
 import { EPISODE_1 } from '@/data/script';
 import { useGameStore } from '@/store/gameStore';
+import { coldOpenFor } from '../lib/flow';
 import { useUi } from '../uiStore';
 
 export function Boot() {
   const step = useUi((s) => s.boot);
+  const episodeId = useGameStore((s) => s.episodeId);
   const [saved, setSaved] = useState<boolean | null>(null);
   const [n, setN] = useState(0);
 
@@ -78,7 +80,7 @@ export function Boot() {
     );
   }
 
-  const lines = step === 'prologue' ? EPISODE_1.prologue : EPISODE_1.coldOpen;
+  const lines = step === 'prologue' ? EPISODE_1.prologue : coldOpenFor(episodeId);
   const last = n >= lines.length - 1;
   const next = () => {
     if (!last) setN(n + 1);

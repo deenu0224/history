@@ -93,7 +93,8 @@ async function bakePixel(id: string, variant: BakeVariant, outW: number, outH: n
   out.height = outH;
   const g = out.getContext('2d')!;
   g.imageSmoothingEnabled = false;
-  if (backdrop) g.filter = `blur(${Math.round(scale * 0.8)}px) brightness(0.55) saturate(0.7)`;
+  // ep0 배경은 회벽·마루가 잿빛으로 식지 않게 호박 기운을 조금 얹는다(먹·한지·호박). ep1 은 예전 그대로
+  if (backdrop) g.filter = `blur(${Math.round(scale * 0.8)}px) brightness(0.55) saturate(0.7)${id === 'room:ep0' ? ' sepia(0.45) saturate(1.25)' : ''}`;
   g.drawImage(big, 0, 0);
   const vs = r.visibleScale;
   return {

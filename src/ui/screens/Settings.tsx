@@ -4,7 +4,7 @@ import type { HintLevel } from '@/core/hints';
 import { deleteSave } from '@/core/save';
 import { useGameStore, type Settings as S } from '@/store/gameStore';
 import { selectAboutScene } from '@/store/selectors';
-import { EPISODE } from '@/store/gameStore';
+import { useEpisode } from '@/store/hooks';
 import { IBack } from '../parts/icons';
 import { useUi } from '../uiStore';
 
@@ -26,6 +26,7 @@ function Seg<T extends string>({ value, options, onChange, label }: { value: T; 
 export function Settings() {
   const s = useGameStore((x) => x.settings);
   const restored = useGameStore((x) => x.restored);
+  const episode = useEpisode();
   const set = (p: Partial<S>) => useGameStore.getState().setSettings(p);
   const [about, setAbout] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -94,7 +95,7 @@ export function Settings() {
         </button>
         {about ? (
           <p className="t-b keep read" style={{ margin: '8px 0 12px' }} data-testid="about-text">
-            {selectAboutScene(EPISODE)}
+            {selectAboutScene(episode)}
           </p>
         ) : null}
         <div style={{ marginTop: 18 }}>

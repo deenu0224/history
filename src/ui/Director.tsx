@@ -54,6 +54,15 @@ function handle(f: Fx) {
         }
       }
       break;
+    case 'cards_gained':
+      fx('search_hit');
+      ui.showToast(`인물 카드 +${f.ids.length}`, 'amber');
+      break;
+    case 'fact_link':
+      // 카드 줄에 먹선이 그어진다(카드를 펼치면 줄이 그어지는 연출)
+      useUi.setState({ inkNew: [...new Set([...ui.inkNew, f.factId])] });
+      break;
+    case 'episode_end':
     case 'clock':
     case 'savepoint':
       break;

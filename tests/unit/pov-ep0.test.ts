@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EP0_CUTS, EP0_CUT_IDS, EP0_FIGURE_IDS, EP0_ROOM_BACKDROP, EP0_TAPPABLE } from '@/data/cuts/ep0';
 import { ROOM_EP0, validatePovSpec } from '@/game/pov/room';
 import { MEMORIAL_HEAD_COLUMNS, MEMORIAL_HEAD_GLYPHS } from '@/game/pov/glyphs';
+import { CUTS0, DETAILS0 } from '@/data/v5/ep0/content';
 
 const baked = import.meta.glob('../../public/cuts/ep0/*.{webp,json}', { eager: true, import: 'default' });
 const onDisk = new Set(Object.keys(baked).map((k) => k.split('/').pop()!));
@@ -65,7 +66,7 @@ describe('ep0 cut render specs (「하룻밤」, one eye: 하위지)', () => {
       for (const row of g) expect(row).toMatch(/^[.#]{8}$/);
     }
     const e01 = EP0_CUTS.find((c) => c.id === 'e0-1')!;
-    expect(e01.details).toEqual(['d_scroll_head']);
+    expect(e01.details).toEqual(['d_scroll_head', 'd_e0_dais']);
     expect(e01.spec.figures.find((f) => f.id === 'fig_choi')?.holding).toBe('memorial');
   });
 });
@@ -127,5 +128,24 @@ describe('ep0 baked cuts (public/cuts/ep0)', () => {
     // 다른 컷에는 머리글 세부가 없다
     expect(manifest.cuts['e0-2'].details).toBeUndefined();
     expect(manifest.cuts['e0-3'].details).toBeUndefined();
+  });
+
+  it('every detail the cut data defines (content.ts CUTS0) has a matching render spec entry and a manifest hitbox ≥ 44 CSS px', () => {
+    const known = new Set(DETAILS0.map((d) => d.id));
+    for (const c of CUTS0) {
+      const want = c.details ?? [];
+      for (const id of want) expect(known.has(id), `${c.id} ${id}`).toBe(true);
+      const spec = EP0_CUTS.find((x) => x.id === c.id)!;
+      expect(spec, c.id).toBeDefined();
+      expect([...(spec.details ?? [])].sort(), c.id).toEqual([...want].sort());
+      const boxes: Box[] = manifest.cuts[c.id].details ?? [];
+      expect(boxes.map((b) => b.id).sort(), c.id).toEqual([...want].sort());
+      for (const b of boxes) {
+        expect(b.w * CSS.w, `${c.id} ${b.id} w`).toBeGreaterThanOrEqual(44 - EPS);
+        expect(b.h * CSS.h, `${c.id} ${b.id} h`).toBeGreaterThanOrEqual(44 - EPS);
+        expect(b.x + b.w).toBeLessThanOrEqual(1 + 1e-4);
+        expect(b.y + b.h).toBeLessThanOrEqual(1 + 1e-4);
+      }
+    }
   });
 });

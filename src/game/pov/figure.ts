@@ -31,6 +31,10 @@ const BEARD = '#4a4540';
 const COLLAR = '#e2d8bf';
 const BELT = '#2a2320';
 export const PAPER = '#efe3c4';
+/** 상소 한지(ep0): 겉 · 뒷면 · 접힌 쪽 묶음의 가장자리 — 흰 판이 아니라 누런 종이 */
+const HANJI = '#d6c49c';
+const HANJI_BACK = '#c9b78f';
+const HANJI_EDGE = '#a8946c';
 const LINING = '#d8cdb2';
 
 type P = [number, number, number];
@@ -212,7 +216,8 @@ function hat(b: Builder, kind: HatId, hy0: number, m: THREE.Matrix4): void {
     hb.geo(new THREE.CylinderGeometry(0.099, 0.103, 0.05, 16), trs(0.004, hy + 0.045, 0, 0, 0, 0, 1.05, 1, 0.88), HAT, { ao: false });
     hb.geo(new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), trs(-0.028, hy + 0.06, 0, 0, 0, 0, 0.078, 0.088, 0.074), HAT, { ao: false });
     hb.geo(new THREE.TorusGeometry(0.102, 0.006, 4, 18), trs(0.004, hy + 0.024, 0, 90, 0, 0, 1.05, 0.86, 1), '#2a2622', { ao: false });
-    for (const s of [-1, 1]) hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.085, hy + 0.15, s * 0.04, s * 12, 0, 6, 0.009, 0.042, 0.03), HAT, { ao: false });
+    // 날개: 둥근 공 둘(귀처럼 보임)이 아니라 얇고 넓적한 판 둘이 맞붙어 모체 뒤로 조금만 솟는다
+    for (const s of [-1, 1]) hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.088, hy + 0.135, s * 0.033, s * 16, 0, 10, 0.007, 0.034, 0.038), HAT, { ao: false });
   } else {
     hb.geo(new THREE.CylinderGeometry(0.088, 0.1, 0.1, 12), trs(-0.01, hy + 0.05, 0, 0, 0, -8, 1.05, 1, 0.88), HAT, { ao: false });
     hb.box(-0.09, hy + 0.04, 0, 0.02, 0.12, 0.1, HAT, 0, { ao: false });
@@ -261,29 +266,30 @@ function armPoses(pose: PovPose, sh: number): { L: ArmPose; R: ArmPose; lean: nu
     case 'kneel-point':
       return { L: A(0.06, -0.26, -0.22, 0.24, -0.42, -0.1, { curl: 0.5 }), R: A(0.22, -0.16, 0.2, 0.5, -0.12, 0.1, { f: [1, 0.05, 0], curl: 0.1 }), lean: 12 };
     case 'seated-present':
-            // 두 손으로 접은 상소를 머리 앞 위로 받들어 올린다
-      return { L: A(0.18, 0.1, -0.27, 0.3, 0.44, -0.18, { f: [0.1, 1, 0.15], n: [-1, 0, 0], curl: 0.35 }), R: A(0.18, 0.1, 0.27, 0.3, 0.44, 0.18, { f: [0.1, 1, -0.15], n: [-1, 0, 0], curl: 0.35 }), lean: 14 };
+      // 두 손으로 접은 상소를 가슴 앞에 펴 들고 단 쪽으로 읽어 올린다(종이 윗머리가 얼굴 높이)
+      return { L: A(0.12, -0.24, -0.25, 0.34, -0.2, -0.08, { f: [0.15, 1, 0.1], n: [-1, 0, 0], curl: 0.35 }), R: A(0.12, -0.24, 0.25, 0.34, -0.2, 0.24, { f: [0.15, 1, -0.1], n: [-1, 0, 0], curl: 0.35 }), lean: 6 };
     case 'seated-bow':
       // 깊이 엎드림: 두 손을 앞 마루에 모은다(지역 좌표는 기울어진 윗몸 기준)
       return { L: A(0.22, -0.13, -0.24, 0.47, -0.06, -0.1, { f: [0.85, 0.5, 0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), R: A(0.22, -0.13, 0.24, 0.47, -0.06, 0.1, { f: [0.85, 0.5, -0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), lean: 52 };
     case 'seated-gesture':
-      // 왼손은 무릎, 오른손을 앞으로 내밀어 말한다(손바닥 아래·조금 펼침)
-      return { L: A(0.06, -0.26, -0.24, 0.26, -0.38, -0.12), R: A(0.2, -0.18, 0.28, 0.46, -0.06, 0.2, { f: [1, 0.15, -0.15], n: [0, 1, 0], curl: 0.12 }), lean: 12 };
+      // 왼손은 무릎, 오른손을 앞으로 내밀어 아래(엎드린 사람 쪽)로 가리키며 말한다 — 손끝이 눈을 향해 뭉친 공처럼 보이지 않게
+      return { L: A(0.06, -0.26, -0.24, 0.26, -0.38, -0.12), R: A(0.2, -0.2, 0.28, 0.44, -0.12, 0.18, { f: [0.75, -0.5, -0.3], n: [0.45, 0.85, 0], curl: 0.25 }), lean: 12 };
   }
 }
 
-/** 접은 상소 크기(m)·기울기(도, + = 위가 드는 사람 쪽으로)·돌림(도, + = 겉장이 드는 사람의 오른쪽 뒤를 향함) — 재구성 */
-const MEMORIAL = { w: 0.36, h: 0.56, tilt: 10, yaw: 32 } as const;
-const memorialCenter = (L: ArmPose, R: ArmPose): P => [(L.w[0] + R.w[0]) / 2 + 0.03, (L.w[1] + R.w[1]) / 2 + 0.31, (L.w[2] + R.w[2]) / 2];
+/** 접은 상소 크기(m)·기울기(도, + = 위가 드는 사람 쪽으로)·돌림(도, + = 겉장이 드는 사람의 오른쪽 뒤를 향함) — 재구성.
+ *  펴 든 첫 두 쪽(평평한 판) + 바깥 가장자리에 아직 접힌 나머지 쪽들(두툼한 묶음) */
+const MEMORIAL = { w: 0.38, h: 0.7, tilt: 6, yaw: 42, stack: 0.05 } as const;
+/** 손목 가운데에서 종이 가운데까지: 조금 앞·위로, 드는 사람 오른쪽(보는 눈 쪽)으로 */
+const memorialCenter = (L: ArmPose, R: ArmPose): P => [(L.w[0] + R.w[0]) / 2 + 0.05, (L.w[1] + R.w[1]) / 2 + 0.3, (L.w[2] + R.w[2]) / 2 + 0.07];
+const MEMO_ROT = () => new THREE.Euler(0, (MEMORIAL.yaw * Math.PI) / 180, (MEMORIAL.tilt * Math.PI) / 180);
 
-/** 상소 겉장 머리글 판(뒤쪽, 드는 사람 쪽 면). 글자는 픽셀 후처리가 찍는다(glyphs.ts MEMORIAL_HEAD_GLYPHS) */
+/** 상소 겉장 머리글 판(드는 사람 쪽 면). 한지 빛, 글자는 픽셀 후처리가 찍는다(glyphs.ts MEMORIAL_HEAD_GLYPHS) */
 function memorialHead(L: ArmPose, R: ArmPose, leanM: THREE.Matrix4): THREE.Mesh {
   const [mx, my, mz] = memorialCenter(L, R);
   const hb = new Builder(77);
-  // 판 중심: 책 뒤 면에서 조금 뒤(지역 −x 를 책과 같이 돌린 방향)
-  const d = 0.009;
-  const off = new THREE.Vector3(-d, 0, 0).applyEuler(new THREE.Euler(0, (MEMORIAL.yaw * Math.PI) / 180, (MEMORIAL.tilt * Math.PI) / 180));
-  hb.geo(new THREE.BoxGeometry(0.003, MEMORIAL.h - 0.03, MEMORIAL.w - 0.03), trs(mx + off.x, my + off.y, mz + off.z, 0, MEMORIAL.yaw, MEMORIAL.tilt), '#e6d8b4', { ao: false });
+  const off = new THREE.Vector3(-0.006, 0, 0).applyEuler(MEMO_ROT());
+  hb.geo(new THREE.BoxGeometry(0.002, MEMORIAL.h - 0.02, MEMORIAL.w - 0.02), trs(mx + off.x, my + off.y, mz + off.z, 0, MEMORIAL.yaw, MEMORIAL.tilt), HANJI, { ao: false });
   const g = hb.build();
   g.applyMatrix4(leanM);
   const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -330,10 +336,12 @@ function held(b: Builder, kind: Holding, L: ArmPose, R: ArmPose, standing: boole
       b.box(cx, cy + 0.03, cz, 0.19, 0.03, 0.29, '#d9caa6', 0, { ao: false });
       break;
     case 'memorial': {
-      // 접은 상소(무늬 없는 두꺼운 한지 책, 재구성 크기). 앞(임금 쪽)은 글자를 그리지 않는다 — 자모 모양 미확인(HISTORICAL_SOURCES §13.4-7).
-      // 겉장 머리글은 따로 이름 붙은 판(memorialHead)이 뒤쪽(드는 사람 쪽)에 붙는다
+      // 접은 상소(무늬 없는 한지, 재구성 크기). 앞(임금 쪽)은 글자를 그리지 않는다 — 자모 모양 미확인(HISTORICAL_SOURCES §13.4-7).
+      // 펴 든 판 + 바깥(드는 사람 왼쪽) 가장자리에 아직 접힌 쪽 묶음. 겉장 머리글은 따로 이름 붙은 판(memorialHead)
       const [mx, my, mz] = memorialCenter(L, R);
-      b.geo(new THREE.BoxGeometry(0.014, MEMORIAL.h, MEMORIAL.w), trs(mx, my, mz, 0, MEMORIAL.yaw, MEMORIAL.tilt), PAPER, { ao: false });
+      b.geo(new THREE.BoxGeometry(0.01, MEMORIAL.h, MEMORIAL.w), trs(mx, my, mz, 0, MEMORIAL.yaw, MEMORIAL.tilt), HANJI_BACK, { ao: false });
+      const so = new THREE.Vector3(0.012, -0.004, -(MEMORIAL.w / 2 - MEMORIAL.stack / 2)).applyEuler(MEMO_ROT());
+      b.geo(new THREE.BoxGeometry(0.03, MEMORIAL.h - 0.01, MEMORIAL.stack), trs(mx + so.x, my + so.y, mz + so.z, 0, MEMORIAL.yaw, MEMORIAL.tilt), HANJI_EDGE, { ao: false });
       break;
     }
   }

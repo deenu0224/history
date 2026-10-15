@@ -1,5 +1,5 @@
 /** 내 관측 로그 · 문서 시트. 이미 본 컷은 소실에도 남는다(면역). */
-import { EPISODE, useGameStore } from '@/store/gameStore';
+import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { resultView, selectLog } from '@/store/selectors';
 import { cutNo } from '../lib/format';
@@ -13,7 +13,7 @@ export function LogSheet() {
   if (!open) return null;
   const close = () => useUi.getState().setLog(false);
   const goCut = (cutId: string) => {
-    const eye = EPISODE.eyes.find((e) => e.cuts.includes(cutId));
+    const eye = currentEpisode(useGameStore.getState()).eyes.find((e) => e.cuts.includes(cutId));
     if (!eye) return;
     useGameStore.getState().viewCut(eye.id, eye.cuts.indexOf(cutId));
     close();

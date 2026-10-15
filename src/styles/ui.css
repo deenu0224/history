@@ -653,6 +653,53 @@
     border-color: rgba(226, 168, 92, 0.85);
   }
 }
+.detailbox {
+  position: absolute;
+  z-index: 5;
+  border-radius: 8px;
+  display: block;
+}
+.detailbox .mark {
+  position: absolute;
+  inset: 3px;
+  border-radius: 6px;
+  border: 1.5px dashed rgba(226, 168, 92, 0);
+  animation: figure-breath 2.4s ease-in-out 1.2s 2;
+}
+.detailbox.sel .mark {
+  border: 2px solid var(--amber);
+  box-shadow: 0 0 18px rgba(226, 168, 92, 0.45);
+  animation: none;
+}
+.detail-note {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 6;
+  background: rgba(19, 17, 16, 0.94);
+  border: 1.5px solid rgba(226, 168, 92, 0.7);
+  border-radius: 12px;
+  padding: 8px 14px 10px;
+  color: var(--hanji);
+  word-break: keep-all;
+  animation: bubble-in 0.16s var(--ease);
+}
+.detail-note .who {
+  font-size: var(--fs-m);
+  line-height: 22px;
+  color: var(--amber);
+}
+.detail-note .txt {
+  font-family: var(--f-read);
+  font-size: var(--fs-b);
+  line-height: 26px;
+}
+.detail-note .more {
+  min-height: 36px;
+  color: #cfd6da;
+  text-decoration: underline;
+}
 .bubbles {
   position: absolute;
   left: 10px;
@@ -1704,8 +1751,10 @@
 .seal {
   display: inline-grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
+  align-content: center;
+  gap: 2px;
+  width: 72px;
+  height: 72px;
   border: 3px solid var(--seal);
   color: var(--seal);
   font-family: var(--f-read);
@@ -1852,4 +1901,111 @@
   gap: 8px;
   align-items: baseline;
   min-height: 26px;
+}
+
+/* ── Ep0 / 멀티 에피소드 추가분 ───────────────────────────── */
+.ghostlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 6px;
+  margin-top: 2px;
+  color: var(--amber);
+  font-size: var(--fs-m);
+  line-height: var(--lh-m);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/* 카드 줄 안의 낱말 링크(탭 → 인물 카드 +1) */
+.flink {
+  font: inherit;
+  color: #1f5f86;
+  border-bottom: 2px solid #2d6f96;
+  min-height: 32px;
+  padding: 0 1px;
+  margin: 0 1px;
+  background: rgba(45, 111, 150, 0.1);
+  border-radius: 3px 3px 0 0;
+}
+.flink.found {
+  color: #46525e;
+  border-bottom-style: dotted;
+  background: transparent;
+}
+.fact .chevbtn {
+  min-width: 44px;
+  min-height: 44px;
+  margin: -6px -8px -6px 0;
+  display: grid;
+  place-items: center;
+  color: #4b5561;
+  flex: none;
+}
+/* 먹선: 성공한 이름 붙이기가 그은 줄 */
+.fact .ink {
+  background-image: linear-gradient(var(--seal), var(--seal));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 2px;
+  padding-bottom: 1px;
+}
+.fact.ink-new .ink {
+  animation: ink-draw 1.1s var(--ease) 0.25s both;
+}
+@keyframes ink-draw {
+  from {
+    background-size: 0% 2px;
+  }
+  to {
+    background-size: 100% 2px;
+  }
+}
+.fact .inkline {
+  display: block;
+  margin-top: 2px;
+  color: #7a3a36;
+  font-size: 16px;
+  line-height: 22px;
+}
+.askbar {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 2px 16px 12px;
+}
+.askhint {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  color: var(--hanji-muted);
+  border: 1px solid var(--ink3);
+  background: transparent;
+  font-size: var(--fs-m);
+}
+.askhint:disabled {
+  opacity: 0.4;
+}
+.askhint:active:not(:disabled) {
+  color: var(--amber);
+  border-color: rgba(226, 168, 92, 0.6);
+}
+.bridge-clock {
+  font-family: var(--f-pixel);
+  font-size: 40px;
+  line-height: 56px;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  text-align: center;
+  padding: 28px 0 12px;
+}
+.seal b {
+  font-size: 20px;
+  line-height: 22px;
+}
+.seal small {
+  font-family: var(--f-ui);
+  font-size: 16px;
+  line-height: 18px;
+  font-weight: 600;
 }

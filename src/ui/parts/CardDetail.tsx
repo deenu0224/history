@@ -1,8 +1,11 @@
 /** 인물 카드 상세 — 카드처럼(모서리 구멍·종이). 줄을 탭하면 출처가 펼쳐진다. 변조(소실 세계)·지워짐·복원 상태를 구분해 보인다. */
 import { useEffect, useState } from 'react';
 import type { SourceRef } from '@/core/types';
-import { useView } from '@/store/hooks';
-import { selectCard } from '@/store/selectors';
+import { useGameStore } from '@/store/gameStore';
+import { useEpisode, useView } from '@/store/hooks';
+import { selectCard, type CardView } from '@/store/selectors';
+import { fx } from '../lib/fx';
+import { splitTerms } from '../lib/text';
 import { EyeIcon } from './icons';
 import { IBack, IChevD, IClose, IExt } from './icons';
 import { useUi } from '../uiStore';
@@ -20,11 +23,72 @@ function Src({ s }: { s: SourceRef }) {
   );
 }
 
+type FactView = CardView['facts'][number];
+
+/** 카드 한 줄: 낱말 링크(탭 → 인물 카드 +1) · 먹선(성공한 이름 붙이기가 그은 근거). 출처는 ▾ 로 펼친다. */
+function FactRow({ f, open, fresh, evText, onToggle }: { f: FactView; open: boolean; fresh: boolean; evText?: string; onToggle: () => void }) {
+  const segs = splitTerms(f.text, f.links.map((l) => l.term));
+  const follow = (cardId: string) => {
+    const g = useGameStore.getState();
+    const link = f.links.find((l) => l.cardId === cardId)!;
+    if (link.found) {
+      if (g.openCard(cardId)) useUi.getState().openCard(cardId);
+      return;
+    }
+    fx('tap');
+    g.followFactLink(f.id, cardId);
+  };
+  return (
+    <div className={`fact${f.linkedBy ? ' linked' : ''}${fresh ? ' ink-new' : ''}`} data-fact={f.id} data-linked={f.linkedBy ? 'true' : undefined}>
+      <div className="l">
+        <span className="sq" />
+        <span className="t-b keep" style={{ flex: 1, color: 'var(--card-ink)' }}>
+          <span className={f.linkedBy ? 'ink' : undefined}>
+            {segs.map((sg, i) => {
+              const link = sg.term ? f.links.find((l) => l.term === sg.term) : undefined;
+              return link ? (
+                <button key={i} className={`flink${link.found ? ' found' : ''}`} data-testid={`flink-${link.cardId}`} aria-label={link.found ? `${sg.text}, 인물 카드 열기` : `${sg.text}, 인물 카드 얻기`} onClick={() => follow(link.cardId)}>
+                  {sg.text}
+                </button>
+              ) : (
+                <span key={i}>{sg.text}</span>
+              );
+            })}
+          </span>
+          {f.linkedBy && evText ? (
+            <span className="inkline t-m" data-testid="ink-line">
+              먹선 · {evText}
+            </span>
+          ) : null}
+        </span>
+        <button className="chevbtn" aria-label="출처" aria-expanded={open} onClick={onToggle}>
+          <span style={{ display: 'flex', transform: open ? 'rotate(180deg)' : undefined }}>
+            <IChevD />
+          </span>
+        </button>
+      </div>
+      {open ? <Src s={f.source} /> : null}
+    </div>
+  );
+}
+
 export function CardDetail() {
   const ref = useUi((s) => s.card);
   const card = useView((ep, s) => (ref ? selectCard(ep, s, ref.id) : null), [ref?.id]);
   const [open, setOpen] = useState<string | null>(null);
+  const inkNew = useUi((s) => s.inkNew);
+  const ep = useEpisode();
+  const evidenceText = (id?: string) => {
+    if (!id) return undefined;
+    const l = ep.lines.find((x) => x.id === id);
+    if (l) return `들은 말 「${l.text}」`;
+    const d = ep.details.find((x) => x.id === id);
+    return d ? `본 것 · ${d.label}` : undefined;
+  };
   useEffect(() => setOpen(null), [ref?.id]);
+  useEffect(() => {
+    if (!ref) useUi.setState({ inkNew: [] });
+  }, [ref]);
   useEffect(() => {
     if (!ref) return;
     const k = (e: KeyboardEvent) => e.key === 'Escape' && useUi.getState().closeCard();
@@ -62,18 +126,7 @@ export function CardDetail() {
           ) : null}
           <div className="rule" />
           {card.facts.map((f) => (
-            <button key={f.id} className="fact" onClick={() => setOpen(open === f.id ? null : f.id)} aria-expanded={open === f.id}>
-              <span className="l">
-                <span className="sq" />
-                <span className="t-b keep" style={{ flex: 1, color: 'var(--card-ink)' }}>
-                  {f.text}
-                </span>
-                <span style={{ color: '#4b5561', marginTop: 2, transform: open === f.id ? 'rotate(180deg)' : undefined }}>
-                  <IChevD />
-                </span>
-              </span>
-              {open === f.id ? <Src s={f.source} /> : null}
-            </button>
+            <FactRow key={f.id} f={f} open={open === f.id} fresh={inkNew.includes(f.id)} evText={evidenceText(f.linkedBy)} onToggle={() => setOpen(open === f.id ? null : f.id)} />
           ))}
           {card.altered.map((a) => (
             <button key={a.id} className="fact alt" onClick={() => setOpen(open === a.id ? null : a.id)} data-testid={`altered-${a.state}`}>

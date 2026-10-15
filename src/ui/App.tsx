@@ -87,12 +87,17 @@ export function App() {
       /* 오디오 없음 */
     }
   }, []);
-  // 테스트: ?test=1 이면 부트를 건너뛰고 바로 홈(&boot=1 이면 부트 화면)
+  // 테스트: ?test=1 이면 부트를 건너뛰고 바로 홈(&boot=1 이면 부트 화면). &ep=1 이면 에피소드 1 에서(잠금을 풀고)
   useEffect(() => {
     const p = params();
     if (p.get('test') === '1' && p.get('boot') !== '1') {
       const g = useGameStore.getState();
-      g.startEpisode();
+      const only = p.get('ep');
+      if (only && only !== '0') {
+        const id = `ep${only}`;
+        useGameStore.setState({ unlocked: [...new Set([...g.unlocked, id])] });
+        g.startEpisode(id);
+      } else g.startEpisode();
       g.markPrologueSeen();
       useUi.getState().enterGame();
     }

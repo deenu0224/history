@@ -105,3 +105,34 @@ export function changedLines(before: string, after: string): { label: string; fr
   }
   return out;
 }
+
+/**
+ * 긴 단락을 접을 때 보이는 앞부분. 괄호 안(한자 풀이 등)에서 자르지 않고, 되도록 낱말 사이에서 자른다.
+ * max 안에 끝나면 그대로 돌려준다(truncated: false).
+ */
+export function shorten(text: string, max = 80): { head: string; truncated: boolean } {
+  if (text.length <= max) return { head: text, truncated: false };
+  let depth = 0;
+  let cut = -1;
+  for (let i = 0; i < text.length && i < max; i++) {
+    const c = text[i];
+    if (c === '(' || c === '（') depth += 1;
+    else if (c === ')' || c === '）') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (c === ' ' || c === ',' || c === '.')) cut = i + 1;
+  }
+  if (cut < max / 2) {
+    // 낱말 경계가 없으면 괄호가 닫힌 곳까지 늘린다
+    cut = max;
+    let d = 0;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (c === '(' || c === '（') d += 1;
+      else if (c === ')' || c === '）') d = Math.max(0, d - 1);
+      if (i + 1 >= cut && d === 0) {
+        cut = i + 1;
+        break;
+      }
+    }
+  }
+  return { head: text.slice(0, cut).trimEnd(), truncated: true };
+}

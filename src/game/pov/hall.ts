@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { Builder, trs } from './geo';
-import { ROOM_EP0, ROOM_EP1 as R } from './room';
+import { ROOM_DETAIL_IDS, ROOM_EP0, ROOM_EP1 as R } from './room';
 import { mulberry32 } from './camera';
 
 /** 재질 색(sRGB). 꼭짓점 색이므로 빛을 받아 어두워진다 — 기본값은 밝은 쪽 */
@@ -388,6 +388,9 @@ function hallMeshes(b: Builder, glowB: Builder, lat: Lattice | undefined): HallP
  * 북쪽 가운데 낮은 단 + 무늬 없는 가리개 + 방석. 일월오봉도·글자·자모 모양은 그리지 않는다(근거 없음).
  * 겨울 끝(음력 2월)이라 문은 닫혀 있다(연출). 화로는 근거가 없어 두지 않는다.
  */
+/** ep0 신하 방석: 어두운 먹밤색 삼베(재구성) — 파란 방석은 위에서 내려다본 배경에서 떠 보인다 */
+const CUSHION_EP0 = '#3a2c24';
+
 export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
   const E = ROOM_EP0;
   const rnd = mulberry32(1444220);
@@ -418,14 +421,16 @@ export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
   roofPart(b, W0, D0, E);
 
   // ── 단(임금 자리): 옻칠 마루 + 테 + 앞 디딤 ──────────────
+  // 단·디딤·방석은 따로 이름 붙은 물체(컷 세부 'detail:d_e0_dais' — 탭 영역). 그림은 방과 같은 방식
+  const db = new Builder(29);
   const d = E.dais;
-  b.box((d.x0 + d.x1) / 2, d.h / 2, (d.y0 + d.y1) / 2, d.x1 - d.x0, d.h, d.y1 - d.y0, C.woodLacquer, 0, { ao: false });
-  b.box((d.x0 + d.x1) / 2, d.h + 0.01, (d.y0 + d.y1) / 2, d.x1 - d.x0 - 0.08, 0.02, d.y1 - d.y0 - 0.08, C.wood, 0, { ao: false, jitter: 0.08 });
-  b.box((d.x0 + d.x1) / 2, d.h - 0.05, d.y1 + 0.005, d.x1 - d.x0 + 0.02, 0.06, 0.03, C.beamDark, 0, { ao: false });
-  b.box((d.x0 + d.x1) / 2, d.step.h / 2, (d.y1 + d.step.y1) / 2, (d.x1 - d.x0) * 0.5, d.step.h, d.step.y1 - d.y1, C.woodLacquer, 0, { ao: false });
+  db.box((d.x0 + d.x1) / 2, d.h / 2, (d.y0 + d.y1) / 2, d.x1 - d.x0, d.h, d.y1 - d.y0, C.woodLacquer, 0, { ao: false });
+  db.box((d.x0 + d.x1) / 2, d.h + 0.01, (d.y0 + d.y1) / 2, d.x1 - d.x0 - 0.08, 0.02, d.y1 - d.y0 - 0.08, C.wood, 0, { ao: false, jitter: 0.08 });
+  db.box((d.x0 + d.x1) / 2, d.h - 0.05, d.y1 + 0.005, d.x1 - d.x0 + 0.02, 0.06, 0.03, C.beamDark, 0, { ao: false });
+  db.box((d.x0 + d.x1) / 2, d.step.h / 2, (d.y1 + d.step.y1) / 2, (d.x1 - d.x0) * 0.5, d.step.h, d.step.y1 - d.y1, C.woodLacquer, 0, { ao: false });
   // 단 위 방석(임금 자리)
   const k = E.seats.K;
-  b.box(k.x, d.h + 0.04, k.y, 0.78, 0.07, 0.72, C.cushionRed, 0, { ao: false, jitter: 0.06 });
+  db.box(k.x, d.h + 0.04, k.y, 0.78, 0.07, 0.72, C.cushionRed, 0, { ao: false, jitter: 0.06 });
 
   // ── 가리개: 옻칠 테 + 무늬 없는 옅은 비단 판(그림 내용을 주장하지 않는다) ──
   const sc = E.screen;
@@ -441,7 +446,7 @@ export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
   // ── 신하들의 방석(어두운 자리) ──────────────────────────
   for (const id of ['C', 'R1', 'R2', 'R3', 'HW', 'R5', 'R6'] as const) {
     const st = E.seats[id];
-    b.box(st.x, 0.025, st.y, 0.6, 0.05, 0.6, C.cushionBlue, st.facingDeg, { ao: false, jitter: 0.08 });
+    b.box(st.x, 0.025, st.y, 0.6, 0.05, 0.6, CUSHION_EP0, st.facingDeg, { ao: false, jitter: 0.08 });
   }
 
   // ── 등잔걸이(낮: 불 없음) 둘, 단 양옆 ───────────────────
@@ -451,5 +456,9 @@ export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
     b.cyl(x, 0.96, z, 0.09, 0.05, 0.03, C.brass, 8, { ao: false });
   }
 
-  return hallMeshes(b, glowB, lat);
+  const parts = hallMeshes(b, glowB, lat);
+  const dais = db.mesh(new THREE.MeshLambertMaterial({ vertexColors: true }));
+  dais.name = `detail:${ROOM_DETAIL_IDS.ep0[0]}`;
+  parts.group.add(dais);
+  return parts;
 }

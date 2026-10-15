@@ -8,30 +8,51 @@ import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectMessenger, selectRestoration } from '@/store/selectors';
 import { IExt } from '../parts/icons';
+import { goNextEpisode } from '../lib/flow';
+import { shorten } from '../lib/text';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
 
 function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }) {
   const [fold, setFold] = useState(false);
+  const [openLong, setOpenLong] = useState<Record<number, boolean>>({});
   return (
     <div className="sheetpaper hanji" style={{ margin: '0 4px' }} data-testid="restored-article">
       <div className="t-m read" style={{ color: '#6b5e45', lineHeight: '22px' }}>
         {r.article.citation}
       </div>
       <p className="article" style={{ margin: '10px 0 14px' }}>
-        {r.article.parts.map((p, i) =>
-          p.folded ? (
-            <button key={i} className="fold" style={{ font: 'inherit' }} onClick={() => setFold(!fold)} aria-expanded={fold}>
-              ……
-            </button>
-          ) : (
+        {r.article.parts.map((p, i) => {
+          if (p.folded)
+            return (
+              <button key={i} className="fold" style={{ font: 'inherit' }} onClick={() => setFold(!fold)} aria-expanded={fold}>
+                ……
+              </button>
+            );
+          // 긴 단락(상소 전문 등)은 접어 둘 수 있다 — 글자는 그대로, 펼치면 전문
+          if (p.long) {
+            const sh = shorten(p.text, 78);
+            const open = !sh.truncated || openLong[i];
+            return (
+              <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by} data-long={open ? 'open' : 'folded'}>
+                {i > 0 ? ' ' : ''}
+                {open ? p.text : `${sh.head} `}
+                {sh.truncated ? (
+                  <button className="fold" style={{ font: 'inherit' }} data-testid="article-long-toggle" aria-expanded={!!open} onClick={() => setOpenLong({ ...openLong, [i]: !open })}>
+                    {open ? ' [접기]' : '…… 펼치기'}
+                  </button>
+                ) : null}
+              </span>
+            );
+          }
+          return (
             <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by}>
               {i > 0 ? ' ' : ''}
               {p.text}
             </span>
-          ),
-        )}
+          );
+        })}
       </p>
       {fold ? (
         <p className="t-m" style={{ color: '#6b5e45' }}>
@@ -39,8 +60,9 @@ function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }
         </p>
       ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
-        <span className="seal" aria-label="실록">
-          實錄
+        <span className="seal" aria-label="실록 도장">
+          <b>實錄</b>
+          <small>실록</small>
         </span>
         <a className="t-m" style={{ color: '#2d5f7a', textDecoration: 'underline' }} href={r.article.source.url} target="_blank" rel="noreferrer noopener">
           {r.article.source.title} <IExt size={14} />
@@ -61,15 +83,17 @@ export function Restore() {
   const chatRef = useRef<HTMLDivElement>(null);
   // 복원 뒤에 온 말만(옛 대화가 밀려 있어도 이 장면은 그 뒤 말을 보인다)
   const tail = { ...chat, items: chat.items.filter((m) => m.burstId === 'ev.restore') };
+  const bridgeTail = { ...chat, items: chat.items.filter((m) => m.burstId === 'ev.teaser') };
+  const clock = useGameStore((s) => s.clock);
   const step = r?.steps[idx];
 
   useEffect(() => {
     try {
-      setMusic(!useGameStore.getState().settings.music ? 'none' : idx >= 6 ? 'ending' : 'restore');
+      setMusic(!useGameStore.getState().settings.music ? 'none' : step === 'monologue' || step === 'teaser' || step === 'bridge' ? 'ending' : 'restore');
     } catch {
       /* 오디오 없음 */
     }
-  }, [idx]);
+  }, [step]);
   useEffect(() => {
     if (step !== 'messages') return;
     useGameStore.getState().openMessenger();
@@ -87,6 +111,8 @@ export function Restore() {
     const g = useGameStore.getState();
     if (last) {
       g.finishEpilogue();
+      // 다음 에피소드가 있으면 다리 뒤 그 콜드 오픈으로, 없으면 홈
+      if (r.next && goNextEpisode(r.next)) return;
       useUi.getState().home();
       return;
     }
@@ -234,6 +260,49 @@ export function Restore() {
           </div>
         ) : null}
 
+        {step === 'neighbour' ? (
+          <div data-testid="restore-neighbour">
+            <div className="t-m" style={{ margin: '4px 0 10px' }}>
+              이웃 기록도 함께 돌아왔다
+            </div>
+            {r.asides.length === 0 ? <div className="t-m">이웃 기록이 없다.</div> : null}
+            {r.asides.map((a) => (
+              <div key={a.id} className="ba" data-testid={`aside-${a.id}`}>
+                <div className="t-b" style={{ fontWeight: 600 }}>
+                  {a.title}
+                </div>
+                {a.before ? <div className="t-b was keep">{a.before.join(' ')}</div> : null}
+                <div className="t-b now keep read">
+                  {a.lines.map((l, i) => (
+                    <div key={i}>
+                      <Scramble from={a.before?.join(' ') ?? ''} to={l.text} ms={2200} delay={600} reduce={reduce} />
+                    </div>
+                  ))}
+                </div>
+                {a.tag ? (
+                  <div className="t-m" style={{ color: 'var(--amber)', marginTop: 4 }}>
+                    {a.tag}
+                  </div>
+                ) : null}
+                {a.lines.map((l, i) => (
+                  <a key={i} className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={l.source.url} target="_blank" rel="noreferrer noopener">
+                    {l.source.title} <IExt size={14} />
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {step === 'bridge' ? (
+          <div data-testid="restore-bridge" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+            <div className="bridge-clock" data-testid="bridge-clock">
+              {clock}
+            </div>
+            <ChatList view={bridgeTail} now={now} scrollRef={chatRef} />
+          </div>
+        ) : null}
+
         {step === 'teaser' && r.teaser ? (
           <div data-testid="restore-teaser">
             <div className="t-m" style={{ margin: '4px 0 10px' }}>
@@ -267,7 +336,7 @@ export function Restore() {
       ) : null}
       <div className="foot">
         <button className="btn primary" onClick={next} data-testid="restore-next">
-          {last ? '홈으로' : '다음 ▸'}
+          {last ? (r.next ? '다음 빈자리 ▸' : '홈으로') : '다음 ▸'}
         </button>
       </div>
     </div>

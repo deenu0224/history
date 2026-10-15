@@ -3,6 +3,7 @@ import { useGameStore } from '@/store/gameStore';
 import { selectHome } from '@/store/selectors';
 import { useView } from '@/store/hooks';
 import { fx } from '../lib/fx';
+import { goNextEpisode } from '../lib/flow';
 import { EyeRow } from '../parts/EyeRow';
 import { IChat, IGear, IMemory, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
@@ -124,8 +125,13 @@ export function Home() {
           </button>
         ) : null}
         {home.buttons.includes('restored') ? (
-          <button className="btn primary" data-testid="btn-restored" onClick={() => push('restore')}>
+          <button className={`btn ${home.nextEpisode ? 'secondary' : 'primary'}`} data-testid="btn-restored" onClick={() => push('restore')}>
             복원된 기록
+          </button>
+        ) : null}
+        {home.nextEpisode ? (
+          <button className="btn primary breath" data-testid="btn-next-episode" onClick={() => goNextEpisode(home.nextEpisode)}>
+            다음 빈자리 ▸
           </button>
         ) : null}
       </div>
@@ -137,12 +143,14 @@ export function Home() {
             기억
           </span>
         </button>
-        <button onClick={() => push('search')} data-testid="dock-search">
-          <ISearch />
-          <span className="t-m" style={{ lineHeight: '18px', color: 'inherit' }}>
-            찾기
-          </span>
-        </button>
+        {home.episode.verbs.search ? (
+          <button onClick={() => push('search')} data-testid="dock-search">
+            <ISearch />
+            <span className="t-m" style={{ lineHeight: '18px', color: 'inherit' }}>
+              찾기
+            </span>
+          </button>
+        ) : null}
         <button onClick={() => push('messenger')} data-testid="dock-messenger" aria-label={unseen ? `메신저, 안 읽은 메시지 ${home.unread}` : '메신저'}>
           <span style={{ position: 'relative', display: 'flex' }}>
             <IChat />

@@ -34,6 +34,10 @@ export interface UiStore {
   roomFocus: Id | null;
   /** 찾기 입력 미리 채움 */
   searchSeed: string | null;
+  /** 이름 붙이기 시트에서 넘어온 찾기: 그 컷에서 들은 밑줄 낱말들 */
+  seedTerms: string[];
+  /** 막 먹선이 그어진 카드 줄(연출용) */
+  inkNew: string[];
   toast: Toast | null;
   banner: Banner | null;
   /** 겹침 라벨을 보일 마감 시각(ms) */
@@ -72,6 +76,8 @@ export const useUi = create<UiStore>()((set, get) => ({
   docId: null,
   roomFocus: null,
   searchSeed: null,
+  seedTerms: [],
+  inkNew: [],
   toast: null,
   banner: null,
   mergeUntil: 0,

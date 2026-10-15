@@ -274,6 +274,9 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
     disposables.push(s.geometry);
   });
 
+  // 방에 붙은 세부(예: ep0 임금의 단) — 방 메시 그대로, id 패스에만 따로 번호
+  for (const c of hall.group.children as THREE.Mesh[]) if (c.isMesh && c.name.startsWith('detail:')) tagged.push(c);
+
   // 소품
   for (const o of ep0 ? [] : buildProps(spec.props ?? {}, { pixelTag: pixel })) {
     scene.add(o);

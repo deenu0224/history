@@ -107,7 +107,7 @@ export function Messenger() {
         <button className="ibtn" aria-label="뒤로" onClick={() => useUi.getState().pop()} data-testid="messenger-back">
           <IBack />
         </button>
-        <span className="avatar">韓</span>
+        <span className="avatar">한</span>
         <div style={{ flex: 1 }}>
           <div className="nm">한 선임</div>
           <div className="pres" data-testid="presence" data-presence={view.presence}>
@@ -133,7 +133,21 @@ export function Messenger() {
             </button>
           ))}
         </div>
-      ) : null}
+      ) : (
+        <div className="askbar">
+          <button
+            className="askhint"
+            data-testid="ask-hint"
+            disabled={!!view.typing}
+            onClick={() => {
+              fx('tap');
+              useGameStore.getState().askHint();
+            }}
+          >
+            어디부터 볼까요?
+          </button>
+        </div>
+      )}
     </div>
   );
 }
