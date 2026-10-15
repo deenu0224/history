@@ -61,6 +61,8 @@ export interface PixelInput {
   robes?: Record<string, string>;
   /** 초점 거리(m) — 초점 인물 둘레 외곽선을 조금 더 진하게 */
   focusDepth?: number;
+  /** 가까운 큰 얼굴에 2px 눈·눈썹 줄(ep0 임금 클로즈업). 기본 false = 예전 그대로 */
+  bigFaces?: boolean;
 }
 
 /** 옷 색 계열(팔레트 색) — 먹 4색은 언제나 허용 */
@@ -706,7 +708,14 @@ export function postPixel(inp: PixelInput): PixelOutput {
       if (faceH < 3) continue;
       // 눈썹·눈 줄: 얼굴 위에서 3할쯤
       const ey = fy0 + top + Math.max(1, Math.round(faceH * 0.3));
-      if (fw >= 5) {
+      if (inp.bigFaces && fw >= 12 && faceH >= 9) {
+        // 가까운 큰 얼굴(ep0 임금 클로즈업): 눈 줄 2px + 그 위 눈썹 2px(한 단) — 여전히 눈동자·표정 없음
+        for (const [ex, dir] of [[fx0 + Math.round((fw - 1) * 0.3), 1], [fx1 - Math.round((fw - 1) * 0.3), -1]] as const)
+          for (const xx of [ex, ex + dir]) {
+            if (inC(xx, ey)) out[ey * w + xx] = dk2[out[ey * w + xx]];
+            if (inC(xx - dir, ey - 2)) out[(ey - 2) * w + xx - dir] = dk1[out[(ey - 2) * w + xx - dir]];
+          }
+      } else if (fw >= 5) {
         for (const ex of [fx0 + Math.round((fw - 1) * 0.28), fx1 - Math.round((fw - 1) * 0.28)]) if (inC(ex, ey)) out[ey * w + ex] = dk2[out[ey * w + ex]];
         if (faceH >= 7) for (const ex of [fx0 + Math.round((fw - 1) * 0.28), fx1 - Math.round((fw - 1) * 0.28)]) if (inC(ex, ey - 1)) out[(ey - 1) * w + ex] = dk1[out[(ey - 1) * w + ex]];
       } else {
@@ -803,11 +812,15 @@ export function postPixel(inp: PixelInput): PixelOutput {
         }
       const GW = 8;
       const GH = 9;
-      const GAP = 2;
       const cols = MEMORIAL_HEAD_COLUMNS.length;
-      const rows = GH * 3 + 2;
+      // 글자 사이 틈: 자리가 넉넉하면 줄 사이 2px·글자 사이 1px, 모자라면 줄 사이 1px·글자 사이 0
+      const roomy = x1 - x0 + 1 >= GW * cols + 2 + 2 && y1 - y0 + 1 >= GH * 3 + 2 + 2;
+      const GAP = roomy ? 2 : 1;
+      const VG = roomy ? 1 : 0;
+      const rows = GH * 3 + VG * 2;
       const colsW = GW * cols + GAP * (cols - 1);
-      if (x1 - x0 + 1 >= colsW + 2 && y1 - y0 + 1 >= rows + 2) {
+      const fits = x1 - x0 + 1 >= colsW + 1 && y1 - y0 + 1 >= rows + 1;
+      if (x1 >= x0) {
         let paper = -1;
         let pc = -1;
         for (const [c, n] of hist)
@@ -820,24 +833,45 @@ export function postPixel(inp: PixelInput): PixelOutput {
         if (palLab[paper][0] < 0.6) paper = br1[paper];
         const top = y0 + Math.floor((y1 - y0 + 1 - rows) / 2);
         const left = x0 + Math.floor((x1 - x0 + 1 - colsW) / 2);
+        const bw = x1 - x0 + 1;
+        const bh = y1 - y0 + 1;
         for (let y = y0; y <= y1; y++)
           for (let x = x0; x <= x1; x++) {
             const i = y * w + x;
             if (obj[i] !== hid) continue;
             const edge = obj[i - 1] !== hid || obj[i + 1] !== hid || obj[i - w] !== hid || obj[i + w] !== hid;
-            const gy = y - top;
-            const gx = x - left;
             let ink = false;
-            if (gy >= 0 && gy < rows && gx >= 0 && gx < colsW && gx % (GW + GAP) < GW) {
-              // 세로쓰기: 오른쪽 줄이 첫 줄
-              const col = cols - 1 - Math.floor(gx / (GW + GAP));
-              const r = Math.floor(gy / (GH + 1));
-              const ry = gy % (GH + 1);
-              if (r < 3 && ry < GH) ink = MEMORIAL_HEAD_GLYPHS[MEMORIAL_HEAD_COLUMNS[col][r]][ry][gx % (GW + GAP)] === '#';
+            if (fits) {
+              const gy = y - top;
+              const gx = x - left;
+              if (gy >= 0 && gy < rows && gx >= 0 && gx < colsW && gx % (GW + GAP) < GW) {
+                // 세로쓰기: 오른쪽 줄이 첫 줄
+                const col = cols - 1 - Math.floor(gx / (GW + GAP));
+                const r = Math.floor(gy / (GH + VG));
+                const ry = gy % (GH + VG);
+                if (r < 3 && ry < GH) ink = MEMORIAL_HEAD_GLYPHS[MEMORIAL_HEAD_COLUMNS[col][r]][ry][gx % (GW + GAP)] === '#';
+              }
+            } else {
+              // 멀어서 글자가 들어가지 않으면: 두 줄 세로 먹 획(글씨로 읽히는 끊긴 줄)
+              const u = (x - x0) / bw;
+              const v = (y - y0) / bh;
+              const inCol = Math.abs(u - 0.32) < 0.1 || Math.abs(u - 0.68) < 0.1;
+              ink = inCol && v > 0.12 && v < 0.88 && (y - y0) % 3 !== 2;
             }
             if (ink) out[i] = 1;
             else if (!edge) out[i] = paper;
           }
+        // 은근한 호박 반짝임: 겉장 위 가장자리(빛을 받는 모서리)만 — 눈길을 끄는 단서 표시(화면 문법)
+        const amber = palHex.indexOf('#c9873f');
+        const amberHi = palHex.indexOf('#f0c27e');
+        if (amber >= 0 && amberHi >= 0)
+          for (let x = x0; x <= x1; x++)
+            for (let y = y0; y <= y1; y++) {
+              const i = y * w + x;
+              if (obj[i] !== hid) continue;
+              out[i] = x >= x1 - Math.max(1, Math.round(bw * 0.25)) ? amberHi : amber;
+              break;
+            }
       }
     }
   }

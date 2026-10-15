@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * 에피소드 1 기억 컷을 미리 굽는다(런타임은 three 를 싣지 않고 이 이미지만 읽는다).
+ * 기억 컷을 미리 굽는다(런타임은 three 를 싣지 않고 이 이미지만 읽는다). 기본 에피소드 1.
  *
  *   node scripts/render-cuts.mjs                 # 20컷 + 지워진 변형 + 방 배경 + 매니페스트 + 확인용 모음
+ *   node scripts/render-cuts.mjs --episode ep0   # 에피소드 0(3컷 + 방 배경) → public/cuts/ep0/, mockups/out/ep0-cuts-sheet.png
+ *                                                #   컷 세부(details: 상소 머리글 등)의 탭 영역도 매니페스트에 넣는다
  *   node scripts/render-cuts.mjs --only e1-5,e2-5 # 몇 장만 다시(매니페스트는 기존 것에 합침)
  *   node scripts/render-cuts.mjs --no-sheet       # 모음 이미지 생략
  *   node scripts/render-cuts.mjs --url http://localhost:5173/   # 이미 떠 있는 dev 서버 사용
@@ -28,8 +30,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'public/cuts/ep1');
-const SHEET = join(ROOT, 'mockups/out/ep1-cuts-sheet.png');
+const EPISODE = (() => {
+  const i = process.argv.indexOf('--episode');
+  return i >= 0 ? process.argv[i + 1] : 'ep1';
+})();
+if (!['ep1', 'ep0'].includes(EPISODE)) throw new Error(`unknown episode ${EPISODE}`);
+const OUT = join(ROOT, `public/cuts/${EPISODE}`);
+const SHEET = join(ROOT, `mockups/out/${EPISODE}-cuts-sheet.png`);
+/** 세부 탭 영역의 최소 크기(CSS px) — 눈에 띄게 넉넉히 */
+const MIN_DETAIL = 56;
 const CSS = { w: 390, h: 520 };
 const MIN_TOUCH = 44;
 const DPR3 = { w: 234, h: 312, scale: 5 };
@@ -65,7 +74,7 @@ page.on('pageerror', (e) => console.error('PAGEERR', e.message));
 page.on('console', (m) => m.type() === 'error' && console.error('ERR', m.text()));
 await page.goto(new URL('pov-dev.html?bake', url).href);
 await page.waitForFunction(() => !!window.__povBake, null, { timeout: 120000 });
-const cuts = await page.evaluate(() => window.__povBake.cuts);
+const cuts = await page.evaluate((ep) => window.__povBake.episodes[ep], EPISODE);
 
 const STYLE_LABEL = { current: 'CURRENT', pixel: 'A 픽셀아트', painted: 'B 일러스트', hd2d: 'A2 HD-2D' };
 const style = arg('--style');
@@ -125,10 +134,14 @@ if (args.includes('--compare') || (style && style !== 'current')) {
 mkdirSync(OUT, { recursive: true });
 const manifestPath = join(OUT, 'manifest.json');
 const manifest = existsSync(manifestPath) && only ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
+const NOTES = {
+  ep1: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).',
+  ep0: '미리 구운 기억 컷(src/data/cuts/ep0.ts → scripts/render-cuts.mjs --episode ep0). 눈 하나(하위지). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위. listed = 탭할 수 있는 사람(fig_row 는 이름 없이 줄에 앉은 여러 사람을 합친 영역, listed:false). details = 컷 안 세부의 탭 영역(d_scroll_head 상소 겉장 머리글 「副提學 崔萬理」 — 글자는 원문 그대로, 겉장에 적어 보이게 한 것은 재구성 연출). 방·자리·빛·옷·임금의 모습은 모두 reconstructed.',
+};
 const out = manifest ?? {
-  episode: 'ep1',
+  episode: EPISODE,
   provenance: 'reconstructed',
-  note: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).',
+  note: NOTES[EPISODE],
   css: CSS,
   style: bakeStyle0,
   sizes:
@@ -150,8 +163,8 @@ const bake =
     : (id, variant, s, fmt = 'image/webp') =>
         page.evaluate(([id, v, w, h, sc, f]) => window.__povBake.bake(id, v, w, h, sc, f, 1), [id, variant, s.w, s.h, s.scale, fmt]).then((r) => ({ ...r, visW: r.w, visH: r.h }));
 
-/** 내부 px 경계 → 0..1 사각형, CSS 390×520 에서 최소 44px 로 키움 */
-function hitbox(v, w, h) {
+/** 내부 px 경계 → 0..1 사각형, CSS 390×520 에서 최소 44px(minCss) 로 키움 */
+function hitbox(v, w, h, minCss = MIN_TOUCH) {
   let x0 = v.x0 / w;
   let x1 = (v.x1 + 1) / w;
   let y0 = v.y0 / h;
@@ -165,8 +178,8 @@ function hitbox(v, w, h) {
     s = Math.min(s, 1 - min);
     return [s, s + min];
   };
-  [x0, x1] = grow(x0, x1, MIN_TOUCH / CSS.w);
-  [y0, y1] = grow(y0, y1, MIN_TOUCH / CSS.h);
+  [x0, x1] = grow(x0, x1, minCss / CSS.w);
+  [y0, y1] = grow(y0, y1, minCss / CSS.h);
   const r = (n) => Math.round(n * 10000) / 10000;
   return { x: r(x0), y: r(y0), w: r(x1 - x0), h: r(y1 - y0) };
 }
@@ -194,6 +207,18 @@ for (const c of cuts) {
         .filter((f) => f.box)
         .map(({ box, ...f }) => ({ id: f.id, ...box, px: f.px, listed: f.listed }))
         .sort((a, b) => b.w * b.h - a.w * a.h);
+      if (c.details?.length) {
+        entry.details = c.details
+          .map((id) => [id, r3.visible[`detail:${id}`]])
+          .filter(([, vis]) => vis && vis.px >= 4)
+          .map(([id, vis]) => {
+            // 세부는 보이는 경계에서 사방 6 CSS px 넉넉히 + 최소 56px
+            const pad = { x: (6 / CSS.w) * r3.visW, y: (6 / CSS.h) * r3.visH };
+            const box = hitbox({ x0: Math.max(0, vis.x0 - pad.x), x1: Math.min(r3.visW - 1, vis.x1 + pad.x), y0: Math.max(0, vis.y0 - pad.y), y1: vis.y1 + pad.y }, r3.visW, r3.visH, MIN_DETAIL);
+            return box && { id, ...box, px: vis.px };
+          })
+          .filter(Boolean);
+      }
       entry.slipsVisible = Object.keys(r3.visible).filter((k) => k.startsWith('slip:') && r3.visible[k].px >= 2).length;
       entry.slipPx = Object.fromEntries(Object.entries(r3.visible).filter(([k]) => k.startsWith('slip:')).map(([k, vv]) => [k, vv.px]));
       entry.visiblePx = Object.fromEntries(Object.entries(r3.visible).filter(([k]) => k.startsWith('fig_')).map(([k, vv]) => [k, vv.px]));
@@ -204,7 +229,7 @@ for (const c of cuts) {
   out.cuts[c.id] = entry;
 }
 if (!only) {
-  const bd = await bake('room', 'backdrop', bakeStyle0 === 'pixel' ? { w: 130, h: 520 / 3, scale: 3 } : { w: 195, h: 260, scale: 2 });
+  const bd = await bake(EPISODE === 'ep1' ? 'room' : `room:${EPISODE}`, 'backdrop', bakeStyle0 === 'pixel' ? { w: 130, h: 520 / 3, scale: 3 } : { w: 195, h: 260, scale: 2 });
   const b = write('room-backdrop.webp', bd.dataUrl);
   total += b;
   out.backdrop = { file: 'room-backdrop.webp', w: 390, h: 520, bytes: b, note: '흐린 방(사람 없음) — 그날의 방 도면 뒤 배경' };
@@ -213,7 +238,7 @@ if (!only) {
 writeFileSync(manifestPath, JSON.stringify(out, null, 1) + '\n');
 
 if (!noSheet && sheetItems.length) {
-  const png = await page.evaluate(([items]) => window.__povBake.sheet(items, 5, 260, 347), [sheetItems]);
+  const png = await page.evaluate(([items, cols]) => window.__povBake.sheet(items, cols, 260, 347), [sheetItems, Math.min(5, sheetItems.length)]);
   mkdirSync(dirname(SHEET), { recursive: true });
   writeFileSync(SHEET, Buffer.from(png.split(',')[1], 'base64'));
   console.log('sheet →', SHEET);

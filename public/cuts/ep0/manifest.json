@@ -1,0 +1,200 @@
+{
+ "episode": "ep0",
+ "provenance": "reconstructed",
+ "note": "미리 구운 기억 컷(src/data/cuts/ep0.ts → scripts/render-cuts.mjs --episode ep0). 눈 하나(하위지). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위. listed = 탭할 수 있는 사람(fig_row 는 이름 없이 줄에 앉은 여러 사람을 합친 영역, listed:false). details = 컷 안 세부의 탭 영역(d_scroll_head 상소 겉장 머리글 「副提學 崔萬理」 — 글자는 원문 그대로, 겉장에 적어 보이게 한 것은 재구성 연출). 방·자리·빛·옷·임금의 모습은 모두 reconstructed.",
+ "css": {
+  "w": 390,
+  "h": 520
+ },
+ "style": "pixel",
+ "sizes": {
+  "dpr3": {
+   "w": 1170,
+   "h": 1560,
+   "internal": [
+    130,
+    174
+   ],
+   "scale": 9
+  },
+  "dpr2": {
+   "w": 780,
+   "h": 1040,
+   "internal": [
+    130,
+    174
+   ],
+   "scale": 6
+  }
+ },
+ "minTouchCss": 44,
+ "cuts": {
+  "e0-1": {
+   "witness": "ha_wiji",
+   "time": "10:00",
+   "files": {
+    "memory": {
+     "dpr3": "e0-1.webp",
+     "dpr2": "e0-1.2x.webp",
+     "bytes": {
+      "dpr3": 9290,
+      "dpr2": 7492
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_jeong",
+     "x": 0.5923,
+     "y": 0.2827,
+     "w": 0.4077,
+     "h": 0.7173,
+     "px": 16123,
+     "listed": true
+    },
+    {
+     "id": "fig_choi",
+     "x": 0,
+     "y": 0.1788,
+     "w": 0.3,
+     "h": 0.6577,
+     "px": 10178,
+     "listed": true
+    },
+    {
+     "id": "fig_kim",
+     "x": 0.5731,
+     "y": 0.3404,
+     "w": 0.2577,
+     "h": 0.3288,
+     "px": 3538,
+     "listed": true
+    },
+    {
+     "id": "fig_row",
+     "x": 0.5731,
+     "y": 0.3606,
+     "w": 0.1462,
+     "h": 0.2135,
+     "px": 846,
+     "listed": false
+    },
+    {
+     "id": "fig_king",
+     "x": 0.3346,
+     "y": 0.3115,
+     "w": 0.1615,
+     "h": 0.1385,
+     "px": 971,
+     "listed": true
+    }
+   ],
+   "slipsVisible": 0,
+   "details": [
+    {
+     "id": "d_scroll_head",
+     "x": 0.0885,
+     "y": 0.1731,
+     "w": 0.1962,
+     "h": 0.2019,
+     "px": 1820
+    }
+   ],
+   "slipPx": {},
+   "visiblePx": {
+    "fig_choi": 10178,
+    "fig_jeong": 16123,
+    "fig_king": 971,
+    "fig_kim": 3538,
+    "fig_row": 846
+   }
+  },
+  "e0-2": {
+   "witness": "ha_wiji",
+   "time": "10:05",
+   "files": {
+    "memory": {
+     "dpr3": "e0-2.webp",
+     "dpr2": "e0-2.2x.webp",
+     "bytes": {
+      "dpr3": 6488,
+      "dpr2": 5164
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_king",
+     "x": 0.2808,
+     "y": 0.3029,
+     "w": 0.5077,
+     "h": 0.424,
+     "px": 9100,
+     "listed": true
+    },
+    {
+     "id": "fig_choi",
+     "x": 0.0115,
+     "y": 0.6317,
+     "w": 0.5269,
+     "h": 0.3683,
+     "px": 9952,
+     "listed": true
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_king": 9100,
+    "fig_choi": 9952
+   }
+  },
+  "e0-3": {
+   "witness": "ha_wiji",
+   "time": "10:06",
+   "files": {
+    "memory": {
+     "dpr3": "e0-3.webp",
+     "dpr2": "e0-3.2x.webp",
+     "bytes": {
+      "dpr3": 5282,
+      "dpr2": 4160
+     }
+    }
+   },
+   "figures": [
+    {
+     "id": "fig_king",
+     "x": 0.1654,
+     "y": 0.3058,
+     "w": 0.7577,
+     "h": 0.6942,
+     "px": 25462,
+     "listed": true
+    },
+    {
+     "id": "fig_choi",
+     "x": 0,
+     "y": 0.9154,
+     "w": 0.4962,
+     "h": 0.0846,
+     "px": 1142,
+     "listed": true
+    }
+   ],
+   "slipsVisible": 0,
+   "slipPx": {},
+   "visiblePx": {
+    "fig_king": 25462,
+    "fig_choi": 1142
+   }
+  }
+ },
+ "backdrop": {
+  "file": "room-backdrop.webp",
+  "w": 390,
+  "h": 520,
+  "bytes": 94568,
+  "note": "흐린 방(사람 없음) — 그날의 방 도면 뒤 배경"
+ }
+}

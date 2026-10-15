@@ -435,7 +435,7 @@ export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
     const zz = sc.y + (i % 2 === 0 ? 0 : 0.08);
     const ry = i % 2 === 0 ? 6 : -6;
     b.box(cx, d.h + sc.h / 2, zz, pw, sc.h, 0.04, C.woodLacquer, ry, { ao: false });
-    b.box(cx, d.h + sc.h / 2 + 0.02, zz + 0.024, pw - 0.08, sc.h - 0.2, 0.01, C.hanjiOld, ry, { ao: false, shade: (_x, y) => 0.78 + 0.22 * Math.min(1, Math.max(0, (y - d.h - 0.3) / 1.2)) });
+    b.box(cx, d.h + sc.h / 2 + 0.02, zz + 0.024, pw - 0.08, sc.h - 0.2, 0.01, '#6a6152', ry, { ao: false, shade: (_x, y) => 0.78 + 0.22 * Math.min(1, Math.max(0, (y - d.h - 0.3) / 1.2)) });
   }
 
   // ── 신하들의 방석(어두운 자리) ──────────────────────────

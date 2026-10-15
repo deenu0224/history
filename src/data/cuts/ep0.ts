@@ -44,6 +44,8 @@ export interface Ep0CutRenderSpec {
 const S = ROOM_EP0.seats;
 /** 임금이 앉은 높이 = 단 + 방석 */
 const KING_ELEV = ROOM_EP0.dais.h + 0.07;
+/** 상소를 올린 뒤 최만리가 단 앞으로 나아가 엎드린 자리(e0-2·e0-3, 재구성) */
+const CHOI_BOW = { x: 6.25, y: 3.35 };
 /** 단 앞 가운데(줄이 바라보는 곳) */
 const DAIS_FRONT = { x: 6.0, y: 2.4 };
 
@@ -81,8 +83,9 @@ export const EP0_CUTS: readonly Ep0CutRenderSpec[] = [
     details: ['d_scroll_head'],
     spec: {
       ...base,
-      lookAt: { x: 6.55, y: 2.6, h: 1.0 },
-      fov: 52,
+      lookAt: { x: 6.74, y: 2.42, h: 1.0 },
+      fov: 60,
+      pano: { hfov: 60, d: 0.5, horizon: 0.4 },
       focus: 'fig_choi',
       figures: [king(), choi(), shin(), kim(), jeong(), song(), jo()],
       rim: { from: NORTH_LATTICE, strength: 1.2, ids: ['fig_king'] },
@@ -91,29 +94,34 @@ export const EP0_CUTS: readonly Ep0CutRenderSpec[] = [
   {
     id: 'e0-2',
     time: '10:05',
-    note: '줄의 머리 너머 단 위의 임금: 익선관 윤곽, 붉은 포, 몸을 조금 앞으로 기울이고 한 손을 내밀어 꾸짖는다. 앞에 늙은 관원이 깊이 엎드렸다.',
+    note: '줄의 머리 너머 단 위의 임금: 익선관 윤곽, 붉은 포, 몸을 조금 앞으로 기울이고 한 손을 내밀어 꾸짖는다. 상소를 올린 늙은 관원은 단 앞으로 나아가 깊이 엎드렸다(재구성).',
     listed: ['fig_king', 'fig_choi'],
     spec: {
       ...base,
-      lookAt: { x: 6.1, y: 1.6, h: 1.2 },
-      fov: 24,
+      time: '10:05',
+      lookAt: { x: 6.05, y: 1.75, h: 1.05 },
+      fov: 27,
       focus: 'fig_king',
-      figures: [king({ pose: 'seated-gesture' }), choi({ pose: 'seated-bow', holding: 'none' }), shin(), kim(), jeong(), song(), jo()],
+      figures: [king({ pose: 'seated-gesture' }), choi({ pose: 'seated-bow', holding: 'none', pos: CHOI_BOW }), shin(), kim(), jeong(), song(), jo()],
       rim: { from: NORTH_LATTICE, strength: 0.9, ids: ['fig_king'] },
+      exposure: 1.0,
     },
   },
   {
     id: 'e0-3',
     time: '10:06',
-    note: '임금이 몸을 앞으로 숙여 곧장 말한다 — 그 한마디의 순간.',
-    listed: ['fig_king'],
+    note: '임금이 몸을 앞으로 숙여 곧장 말한다 — 그 한마디의 순간. 아래 가장자리에 엎드린 늙은 관원의 등.',
+    listed: ['fig_king', 'fig_choi'],
     spec: {
       ...base,
-      lookAt: { x: 6.0, y: 1.45, h: 1.38 },
-      fov: 13,
+      time: '10:06',
+      lookAt: { x: 6.0, y: 1.45, h: 1.3 },
+      fov: 14,
       focus: 'fig_king',
-      figures: [king({ pose: 'seated-gesture', lean: 18 }), choi({ pose: 'seated-bow', holding: 'none' }), shin(), kim(), jeong(), song(), jo()],
+      // 줄 쪽(내 쪽)으로 몸을 돌려 숙이고 곧장 말한다
+      figures: [king({ pose: 'seated-gesture', lean: 18, facing: 72 }), choi({ pose: 'seated-bow', holding: 'none', pos: CHOI_BOW }), shin(), kim(), jeong(), song(), jo()],
       rim: { from: NORTH_LATTICE, strength: 0.8, ids: ['fig_king'] },
+      exposure: 0.95,
     },
   },
 ];

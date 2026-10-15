@@ -208,15 +208,11 @@ function hat(b: Builder, kind: HatId, hy0: number, m: THREE.Matrix4): void {
       hb.geo(new THREE.CylinderGeometry(0.006, 0.006, 0.07, 4), trs(-0.075, hy + 0.13, s * 0.075, 90, 0, 0), HAT, { ao: false });
     }
   } else if (kind === 'ikseon') {
-    // 익선관 윤곽(일반형, reconstructed): 앞이 낮고 뒤가 높은 둥근 모체 + 뒤에서 위로 곧추선 두 날개. 장식·문양 없음
-    hb.geo(new THREE.CylinderGeometry(0.1, 0.104, 0.08, 16), trs(0.004, hy + 0.06, 0, 0, 0, 0, 1.05, 1, 0.88), HAT, { ao: false });
-    hb.geo(new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), trs(-0.03, hy + 0.1, 0, 0, 0, 0, 0.082, 0.1, 0.078), HAT, { ao: false });
-    hb.geo(new THREE.TorusGeometry(0.102, 0.006, 4, 18), trs(0.004, hy + 0.026, 0, 90, 0, 0, 1.05, 0.86, 1), '#2a2622', { ao: false });
-    for (const s of [-1, 1]) {
-      // 날개: 얇은 타원 판, 뒤쪽에서 위로 서고 바깥으로 조금 벌어진다
-      hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.1, hy + 0.2, s * 0.05, s * 14, 0, 8, 0.012, 0.075, 0.045), HAT, { ao: false });
-      hb.geo(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 4), trs(-0.095, hy + 0.14, s * 0.045, 0, 0, 0), HAT, { ao: false });
-    }
+    // 익선관 윤곽(일반형, reconstructed): 앞이 낮은 띠 + 뒤가 높은 둥근 모체 + 모체 뒤에서 위로 곧추선 작은 두 날개. 장식·문양 없음
+    hb.geo(new THREE.CylinderGeometry(0.099, 0.103, 0.05, 16), trs(0.004, hy + 0.045, 0, 0, 0, 0, 1.05, 1, 0.88), HAT, { ao: false });
+    hb.geo(new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), trs(-0.028, hy + 0.06, 0, 0, 0, 0, 0.078, 0.088, 0.074), HAT, { ao: false });
+    hb.geo(new THREE.TorusGeometry(0.102, 0.006, 4, 18), trs(0.004, hy + 0.024, 0, 90, 0, 0, 1.05, 0.86, 1), '#2a2622', { ao: false });
+    for (const s of [-1, 1]) hb.geo(new THREE.SphereGeometry(1, 12, 6), trs(-0.085, hy + 0.15, s * 0.04, s * 12, 0, 6, 0.009, 0.042, 0.03), HAT, { ao: false });
   } else {
     hb.geo(new THREE.CylinderGeometry(0.088, 0.1, 0.1, 12), trs(-0.01, hy + 0.05, 0, 0, 0, -8, 1.05, 1, 0.88), HAT, { ao: false });
     hb.box(-0.09, hy + 0.04, 0, 0.02, 0.12, 0.1, HAT, 0, { ao: false });
@@ -266,7 +262,7 @@ function armPoses(pose: PovPose, sh: number): { L: ArmPose; R: ArmPose; lean: nu
       return { L: A(0.06, -0.26, -0.22, 0.24, -0.42, -0.1, { curl: 0.5 }), R: A(0.22, -0.16, 0.2, 0.5, -0.12, 0.1, { f: [1, 0.05, 0], curl: 0.1 }), lean: 12 };
     case 'seated-present':
             // 두 손으로 접은 상소를 머리 앞 위로 받들어 올린다
-      return { L: A(0.2, 0.06, -0.26, 0.34, 0.36, -0.17, { f: [0.1, 1, 0.15], n: [-1, 0, 0], curl: 0.35 }), R: A(0.2, 0.06, 0.26, 0.34, 0.36, 0.17, { f: [0.1, 1, -0.15], n: [-1, 0, 0], curl: 0.35 }), lean: 16 };
+      return { L: A(0.18, 0.1, -0.27, 0.3, 0.44, -0.18, { f: [0.1, 1, 0.15], n: [-1, 0, 0], curl: 0.35 }), R: A(0.18, 0.1, 0.27, 0.3, 0.44, 0.18, { f: [0.1, 1, -0.15], n: [-1, 0, 0], curl: 0.35 }), lean: 14 };
     case 'seated-bow':
       // 깊이 엎드림: 두 손을 앞 마루에 모은다(지역 좌표는 기울어진 윗몸 기준)
       return { L: A(0.22, -0.13, -0.24, 0.47, -0.06, -0.1, { f: [0.85, 0.5, 0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), R: A(0.22, -0.13, 0.24, 0.47, -0.06, 0.1, { f: [0.85, 0.5, -0.15], n: [-0.5, 0.85, 0], curl: 0.2 }), lean: 52 };
@@ -276,18 +272,18 @@ function armPoses(pose: PovPose, sh: number): { L: ArmPose; R: ArmPose; lean: nu
   }
 }
 
-/** 접은 상소 크기(m)·기울기(도, + = 위가 드는 사람 쪽으로) — 재구성 */
-const MEMORIAL = { w: 0.3, h: 0.44, tilt: 10 } as const;
-const memorialCenter = (L: ArmPose, R: ArmPose): P => [(L.w[0] + R.w[0]) / 2 + 0.03, (L.w[1] + R.w[1]) / 2 + 0.12, (L.w[2] + R.w[2]) / 2];
+/** 접은 상소 크기(m)·기울기(도, + = 위가 드는 사람 쪽으로)·돌림(도, + = 겉장이 드는 사람의 오른쪽 뒤를 향함) — 재구성 */
+const MEMORIAL = { w: 0.36, h: 0.56, tilt: 10, yaw: 32 } as const;
+const memorialCenter = (L: ArmPose, R: ArmPose): P => [(L.w[0] + R.w[0]) / 2 + 0.03, (L.w[1] + R.w[1]) / 2 + 0.31, (L.w[2] + R.w[2]) / 2];
 
 /** 상소 겉장 머리글 판(뒤쪽, 드는 사람 쪽 면). 글자는 픽셀 후처리가 찍는다(glyphs.ts MEMORIAL_HEAD_GLYPHS) */
 function memorialHead(L: ArmPose, R: ArmPose, leanM: THREE.Matrix4): THREE.Mesh {
   const [mx, my, mz] = memorialCenter(L, R);
   const hb = new Builder(77);
-  const r = (MEMORIAL.tilt * Math.PI) / 180;
-  // 판 중심: 책 뒤 면에서 조금 뒤(지역 −x 를 기울기만큼 돌린 방향)
-  const off = 0.009;
-  hb.geo(new THREE.BoxGeometry(0.003, MEMORIAL.h - 0.03, MEMORIAL.w - 0.03), trs(mx - off * Math.cos(r), my - off * Math.sin(r), mz, 0, 0, MEMORIAL.tilt), '#e6d8b4', { ao: false });
+  // 판 중심: 책 뒤 면에서 조금 뒤(지역 −x 를 책과 같이 돌린 방향)
+  const d = 0.009;
+  const off = new THREE.Vector3(-d, 0, 0).applyEuler(new THREE.Euler(0, (MEMORIAL.yaw * Math.PI) / 180, (MEMORIAL.tilt * Math.PI) / 180));
+  hb.geo(new THREE.BoxGeometry(0.003, MEMORIAL.h - 0.03, MEMORIAL.w - 0.03), trs(mx + off.x, my + off.y, mz + off.z, 0, MEMORIAL.yaw, MEMORIAL.tilt), '#e6d8b4', { ao: false });
   const g = hb.build();
   g.applyMatrix4(leanM);
   const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -337,8 +333,7 @@ function held(b: Builder, kind: Holding, L: ArmPose, R: ArmPose, standing: boole
       // 접은 상소(무늬 없는 두꺼운 한지 책, 재구성 크기). 앞(임금 쪽)은 글자를 그리지 않는다 — 자모 모양 미확인(HISTORICAL_SOURCES §13.4-7).
       // 겉장 머리글은 따로 이름 붙은 판(memorialHead)이 뒤쪽(드는 사람 쪽)에 붙는다
       const [mx, my, mz] = memorialCenter(L, R);
-      b.geo(new THREE.BoxGeometry(0.014, MEMORIAL.h, MEMORIAL.w), trs(mx, my, mz, 0, 0, MEMORIAL.tilt), PAPER, { ao: false });
-      b.geo(new THREE.BoxGeometry(0.016, MEMORIAL.h + 0.004, 0.006), trs(mx, my, mz + MEMORIAL.w / 2 - 0.004, 0, 0, MEMORIAL.tilt), '#cdbf9e', { ao: false });
+      b.geo(new THREE.BoxGeometry(0.014, MEMORIAL.h, MEMORIAL.w), trs(mx, my, mz, 0, MEMORIAL.yaw, MEMORIAL.tilt), PAPER, { ao: false });
       break;
     }
   }
