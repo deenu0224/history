@@ -38,7 +38,7 @@ export function selectEyes(ep: Episode, s: PersistedState): EyeView[] {
         order: e.order,
         state: st,
         ownerUnknown: st === 'open' && !ownerKnown(ep, k, e),
-        label: st === 'never' ? (s.restored ? `${idx(ep).card.get(e.personId)?.name}의 눈` : '열리지 않음') : st === 'unopened' ? '' : eyeLabel(ep, k, e),
+        label: st === 'never' ? (s.restored ? `${idx(ep).card.get(e.personId)?.name} 관측` : '관측 불가') : st === 'unopened' ? '' : eyeLabel(ep, k, e),
         current: s.viewer?.eyeId === e.id,
       };
     });
@@ -242,16 +242,16 @@ export function selectCard(ep: Episode, s: PersistedState, cardId: Id): CardView
   const c = I.card.get(cardId);
   if (!c || !s.cardsFound.includes(cardId)) return null;
   const k = knowledge(s);
-  let eyeLine = '눈: 아직 모름';
+  let eyeLine = '관측: 아직 모름';
   let eyeExtra: CardView['eyeExtra'] = [];
   if (c.eye.never) {
-    eyeLine = `눈: 열리지 않음 — ${c.eye.never.reason}`;
+    eyeLine = `관측: 불가 — ${c.eye.never.reason}`;
     if (s.restored) eyeExtra = c.eye.never.restoredLines ?? [];
   } else if (c.eye.eyeId) {
     const e = I.eye.get(c.eye.eyeId)!;
     const st = eyeState(ep, k, e);
-    if (st === 'closed') eyeLine = '눈: 닫힘';
-    else if (st === 'open' && ownerKnown(ep, k, e)) eyeLine = '눈: 열림';
+    if (st === 'closed') eyeLine = '관측: 끊김';
+    else if (st === 'open' && ownerKnown(ep, k, e)) eyeLine = '관측: 가능';
   }
   return {
     id: c.id,

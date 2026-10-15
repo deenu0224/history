@@ -25,10 +25,10 @@ export function ownerKnown(_ep: Episode, k: Knowledge, eye: Eye): boolean {
 
 const ORDINAL = ['첫 번째', '두 번째', '세 번째', '네 번째', '다섯 번째'];
 
-/** 화면 이름: 「첫 번째 기억」(이름 칸 손상) → 「윤효손의 기억」 */
+/** 화면 이름: 「첫 번째 관측」(이름 칸 손상) → 「윤효손 관측」 */
 export function eyeLabel(ep: Episode, k: Knowledge, eye: Eye): string {
-  if (ownerKnown(ep, k, eye)) return `${idx(ep).card.get(eye.personId)?.name ?? '?'}의 기억`;
-  return `${ORDINAL[eye.order - 1] ?? ''} 기억`;
+  if (ownerKnown(ep, k, eye)) return `${idx(ep).card.get(eye.personId)?.name ?? '?'} 관측`;
+  return `${ORDINAL[eye.order - 1] ?? ''} 관측`;
 }
 
 /** 이 figure 에 이름을 붙이면 열리는 눈 */

@@ -52,13 +52,13 @@ describe('store — Ep1 correct path end to end', () => {
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);
     expect(selectHome(EP1, h.st()).card).toMatchObject({ code: '#C-2217', date: '####', place: '미확인', status: '빈자리' });
     expect(selectEyes(EP1, h.st()).map((e) => e.state)).toEqual(['open', 'unopened', 'unopened', 'unopened', 'never']);
-    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: true, label: '첫 번째 기억' });
+    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: true, label: '첫 번째 관측' });
     // 첫 기억 다섯 컷
     expect(h.st().openEye('E1')).toMatchObject({ status: 'viewed', cutId: 'e1-1', index: 0 });
     viewAll(h, 'E1');
     expect(h.st().swipes).toBe(4);
     const v = selectViewer(EP1, h.st())!;
-    expect(v.eyeLabel).toBe('첫 번째 기억');
+    expect(v.eyeLabel).toBe('첫 번째 관측');
     expect(v.cut!.time).toBe('15:00');
     const c14 = selectCut(EP1, h.st(), 'e1-4')!;
     expect(c14.bubbles[0]).toMatchObject({ text: '김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.', garbled: false });
@@ -70,7 +70,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(sk.results[0]).toEqual({ kind: 'person', id: 'kim_ilson' });
     const kim = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kim.altered[0]).toMatchObject({ state: 'altered', text: '사망 1498년 7월 · 사인: 기록 없음' });
-    expect(kim.eyeLine).toBe('눈: 열리지 않음 — 그날을 가리키는 그의 기록이 남아 있지 않다');
+    expect(kim.eyeLine).toBe('관측: 불가 — 그날을 가리키는 그의 기록이 남아 있지 않다');
     expect(h.st().search('대내로 들여오라').status).toBe('no_article');
 
     // T1 — 시트: 이 방 카드 먼저, 근거는 이 사람이 나온 컷 것 먼저
@@ -104,8 +104,8 @@ describe('store — Ep1 correct path end to end', () => {
     expect(h.st().returnToTag()).toBe(true);
     expect(h.st().ui).toMatchObject({ tagTarget: { cutId: 'e2-1', figureId: 'fig_yun' }, tagCard: 'yun_hyoson' });
     expect(verdict(h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1'))).toBe('ok');
-    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: false, label: '윤효손의 기억' });
-    expect(selectCard(EP1, h.st(), 'yun_hyoson')!.eyeLine).toBe('눈: 열림');
+    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: false, label: '윤효손 관측' });
+    expect(selectCard(EP1, h.st(), 'yun_hyoson')!.eyeLine).toBe('관측: 가능');
     expect(h.st().openRoom()).toBe('opened');
     const room = selectRoom(EP1, h.st());
     expect(room.time).toBe('11:40');
@@ -158,7 +158,7 @@ describe('store — Ep1 correct path end to end', () => {
 
     // 메신저: 06:00 대사 + 1년 전 보고서(비동기, 상한 120초)
     drainMessages(h, 8);
-    expect(texts(h.store)).toContain('닫힌 눈은 닫힌 거야. 남은 걸로 해.');
+    expect(texts(h.store)).toContain('끊긴 관측은 끊긴 거야. 남은 걸로 해.');
     expect(h.st().docs).toContain('doc_old_report');
     expect(h.st().messenger.presence).toBe('online');
 

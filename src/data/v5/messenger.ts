@@ -52,8 +52,8 @@ export const BURSTS: Burst[] = [
         id: 'c_e2',
         allowNoReply: true,
         options: [
-          { id: 'go', text: '두 번째 기억 볼게요.', then: [] },
-          { id: 'whose', text: '첫 번째는 누구 눈이에요?', then: [han('그건 나도 몰라.'), han('그 기록 이름 칸이 깎여 있었어.')] },
+          { id: 'go', text: '두 번째 관측 볼게요.', then: [] },
+          { id: 'whose', text: '첫 번째 관측은 누구 거예요?', then: [han('그건 나도 몰라.'), han('그 기록 이름 칸이 깎여 있었어.')] },
         ],
       },
     ],
@@ -64,7 +64,7 @@ export const BURSTS: Burst[] = [
       han('김일손?'),
       named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.' })),
       named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?' })),
-      han('…눈도 안 열린다고 나오고.', heavy),
+      han('…관측도 불가라고 나오고.', heavy),
       {
         kind: 'choice',
         id: 'c_kim',
@@ -76,13 +76,13 @@ export const BURSTS: Burst[] = [
       },
     ],
   },
-  { id: 'ev.room_open', steps: [han('눈 둘 열렸으면 방 그림 나와.'), han('누가 어디 앉아 있었는지.')] },
+  { id: 'ev.room_open', steps: [han('관측 둘 가능하면 방 그림 나와.'), han('누가 어디 앉아 있었는지.')] },
   { id: 'ev.merge_first', steps: [han('겹쳤네.'), han('같은 시각, 같은 자리면 같은 사람이야.')] },
   { id: 'ev.decoy.T2', steps: [han('성은 맞는데.'), han('그 사람, 그 방에서 일한 기록 있어?')] },
   {
     id: 'ev.owner_named',
     steps: [
-      han('첫 번째 기억 주인 찾았네.'),
+      han('첫 번째 관측 주인 찾았네.'),
       han('자기 자리에서 남이 본 거로.'),
       {
         kind: 'choice',
@@ -101,7 +101,7 @@ export const BURSTS: Burst[] = [
     id: 'ev.x1',
     steps: [
       han('잠깐.'),
-      han('첫 번째 기억이랑 말이 다르네.'),
+      han('첫 번째 관측이랑 말이 다르네.'),
       han('「모두」랑 「여섯 조목만」.', heavy),
       {
         kind: 'choice',
@@ -117,9 +117,9 @@ export const BURSTS: Burst[] = [
   {
     id: 'ev.closure',
     steps: [
-      sys('06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 열린 눈 1개 닫힘'),
+      sys('06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 관측 가능 1개 끊김'),
       oh('재계산 돌았다.'),
-      named('m_oh_closed', oh('닫힌 눈은 닫힌 거야. 남은 걸로 해.', { restored: '그 좌표, 교과서 건이다. 깔끔하게 했네.' })),
+      named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '그 좌표, 교과서 건이다. 깔끔하게 했네.' })),
       han('…닫혔어?', heavy),
       han('본 건 남아. 로그는 안 지워지니까.'),
       han('못 본 건… 끝이고.'),
@@ -279,7 +279,7 @@ export const LADDERS: HintLadder[] = [
     doneWhen: { tagsDone: ['T3'] },
     steps: [
       { id: 'h_overlap_1', text: '같은 시각에 같은 자리면 같은 사람이야.', afterS: 45, fails: 2 },
-      { id: 'h_overlap_2', text: '한 기억엔 말만, 다른 기억엔 얼굴만 있을 수도 있어.', afterS: 60, fails: 3 },
+      { id: 'h_overlap_2', text: '한 관측엔 말만, 다른 관측엔 얼굴만 있을 수도 있어.', afterS: 60, fails: 3 },
       { id: 'h_overlap_3', text: '1시 20분. 병풍 앞.', afterS: 60, fails: 4 },
     ],
   },

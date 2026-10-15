@@ -151,7 +151,7 @@ export const DOCS: LogDocument[] = [
     when: '1년 전',
     officer: '대조관 07',
     fields: [
-      { label: '열린 눈', value: '2' },
+      { label: '관측 가능', value: '2' },
       { label: '기록 다시 쓰기', value: '미완(근거끼리 모순)' },
       { label: '첨부 컷', value: '보존 기간 만료로 폐기' },
     ],
@@ -194,7 +194,7 @@ export const EPILOGUE = {
   monologue: [
     '그날 그 방에서 여러 사람이 그의 글을 보았다.',
     '나는 그중 네 사람의 눈을 빌려, 그가 남기지 못한 날을 다시 적었다.',
-    '그의 눈은 끝내 열리지 않았다.',
+    '그의 관측은 끝내 이뤄지지 않았다.',
   ],
   teaserDocId: 'doc_c0408',
   oldReportDocId: 'doc_old_report',

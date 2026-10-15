@@ -75,7 +75,7 @@ describe('store — Ep0 correct path', () => {
     expect(home.card).toMatchObject({ code: '#C-2209', date: '####', place: '미확인', status: '부분 손상' });
     expect(home.episode.verbs).toEqual({ search: false, room: false, rewrite: true });
     expect(home.buttons).toEqual(['memories']);
-    expect(selectEyes(EP0, h.st())[0]).toMatchObject({ state: 'open', ownerUnknown: false, label: '하위지의 기억' });
+    expect(selectEyes(EP0, h.st())[0]).toMatchObject({ state: 'open', ownerUnknown: false, label: '하위지 관측' });
 
     // 넘기기
     expect(h.st().openEye('E0')).toMatchObject({ status: 'viewed', cutId: 'e0-1' });
