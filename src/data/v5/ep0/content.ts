@@ -48,21 +48,21 @@ import { holeOf } from '@/core/reality';
 export const HOLED_0220: HomeRecordPart[] = [
   { gap: '임금이', who: true },
   { text: ' 소(疏)를 보고, ' },
-  { gap: '만리(萬理) 등에게 이르기를, "너희들이 이르기를, ‘음(音)을 사용하고 글자를 합한 것이 모두 옛 글에 위반된다.’ 하였는데, ' },
-  { text: '설총(薛聰)의 ' },
+  { gap: '만리(萬理) 등에게 이르기를, "너희들이 이르기를, ‘음(音)을 사용하고 글자를 합한 것이 모두 옛 글에 위반된다.’ 하였는데,' },
+  { text: ' 설총(薛聰)의 ' },
   {
-    gap: '이두(吏讀)도 역시 음이 다르지 않으냐. 또 이두를 제작한 본뜻이 백성을 편리하게 하려 함이 아니하겠느냐. 만일 그것이 백성을 편리하게 한 것이라면 이제의 언문은 백성을 편리하게 하려 한 것이다. 너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. 또 네가 ',
+    gap: '이두(吏讀)도 역시 음이 다르지 않으냐. 또 이두를 제작한 본뜻이 백성을 편리하게 하려 함이 아니하겠느냐. 만일 그것이 백성을 편리하게 한 것이라면 이제의 언문은 백성을 편리하게 하려 한 것이다. 너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. 또 네가',
   },
-  { text: '운서(韻書)를 아느냐. ' },
-  { gap: '사성 칠음(四聲七音)에 자모(字母)가 몇이나 있느냐. 만일 내가 그 운서를 바로잡지 아니하면 ' },
-  { text: '누가 이를 바로잡을 것이냐. …' },
+  { text: ' 운서(韻書)를 아느냐. ' },
+  { gap: '사성 칠음(四聲七音)에 자모(字母)가 몇이나 있느냐. 만일 내가 그 운서를 바로잡지 아니하면' },
+  { text: ' 누가 이를 바로잡을 것이냐. …' },
 ];
 export const HOLED_EONMUN28: HomeRecordPart[] = [
   { text: '이달에 ' },
   { gap: '임금이', who: true },
   { text: ' 친히 ' },
-  { gap: '언문(諺文) 28자(字)를 지었는데, ' },
-  { text: '그 글자가 ' },
+  { gap: '언문(諺文) 28자(字)를 지었는데,' },
+  { text: ' 그 글자가 ' },
   { gap: '옛 전자(篆字)를 모방하고, 초성(初聲)·중성(中聲)·종성(終聲)으로 나누어 합한 연후에야 글자를 이루었다. … 이것을 훈민정음(訓民正音)이라고 일렀다.' },
 ];
 const holedText = (ps: HomeRecordPart[]) => ps.map((p) => ('gap' in p ? holeOf(p) : p.text)).join('');
@@ -235,9 +235,9 @@ export const LINES0: Line[] = [
     speaker: { groupId: 'g_choi_etc', figureIds: ['fig_choi'] },
     origin: ['C'],
     volume: 'read',
-    // 상소는 높은 자리의 사람에게 올린 글이다 — 「제작하신」의 주어
+    // 상소는 높은 자리의 사람에게 올린 글이다 — 「제작하신」의 주어(언문은 그 사람의 일). 판정 사실은 없다:
+    // 「누가 언문을 만들었나」는 지워진 사실이라 어느 카드에도 아직 없다 — 이 줄은 다시 쓰기의 결론으로 간다
     refers: { figureId: 'fig_king' },
-    keys: ['king_served_by_choi'],
     terms: ['언문'],
     glosses: [
       { term: '언문', gloss: '그 무렵 새 글자를 부르던 말' },
@@ -266,7 +266,11 @@ export const LINES0: Line[] = [
     speaker: KING,
     origin: ['K'],
     volume: 'talk',
-    glosses: [{ term: '군상', gloss: '임금' }],
+    // 높은 자리의 사람이 자기를 「군상(임금)」이라 부르고, 상소한 「너희들」(최만리 등)을 꾸짖는다 →
+    // 그는 임금이고, 최만리 등이 섬긴 임금이다(최만리 카드의 「세종」 줄과 맞물린다)
+    refers: { figureId: 'fig_king' },
+    keys: ['is_king', 'king_served_by_choi'],
+    glosses: [{ term: '군상', gloss: '임금', inline: true }],
   },
   {
     id: 'l_e0_unseo',
@@ -314,7 +318,7 @@ export const CUTS0: CutRef[] = [
     ],
     heard: [{ lineId: 'l_e0_memorial', clarity: 'clear' }],
     details: ['d_scroll_head', 'd_e0_dais'],
-    alt: '줄 맨 앞의 관원이 두루마리를 펴 읽는다. 멀리 높은 자리에 앉은 사람은 얼굴이 어둡다.',
+    alt: '줄 맨 앞의 관원이 높은 자리 쪽을 향해 두루마리를 펴 읽는다. 멀리 높은 자리에 앉은 사람은 얼굴이 어둡다.',
   },
   {
     id: 'e0-2', eyeId: 'E0', n: 2, time: '10:10', viewpoint: { dirDeg: 222 }, provenance: R,
@@ -366,9 +370,9 @@ export const TAGS0: TagRule[] = [
     id: 'T0b',
     figureId: 'fig_king',
     personId: 'sejong',
-    acceptedEvidence: ['l_e0_memorial'],
+    acceptedEvidence: ['l_e0_gunsang'],
     uniquenessNote:
-      '상소는 최만리 등이 그때의 임금에게 올린 글. 최만리는 1419년(세종 1) 급제 ~ 1445년(세종 27) 사망 — 그가 섬긴 임금은 세종 하나(E0057279). 파생 키 king_served_by_choi.',
+      '높은 자리의 사람이 자기를 군상(君上, 임금)이라 하며 상소한 「너희들」(최만리 등)을 꾸짖는다(kda_12602020_001) → 임금(is_king ← 세종 카드 「조선의 제4대 … 왕」), 최만리 등의 임금. 최만리는 1419년(세종 1) 급제 ~ 1445년(세종 27) 사망 — 그가 섬긴 임금은 세종 하나(E0057279). 파생 키 king_served_by_choi.',
     decoys: [
       { personId: 'choi_manri', event: 'ev0.decoy.choi' },
       { personId: 'jeong_changson', event: 'ev0.decoy.king' },
@@ -393,7 +397,7 @@ export const SENTENCES0: RecordSentence[] = [
     preplaced: true,
     segments: [
       { text: '', slot: { kind: 'who', accepts: '세종', display: '임금' } },
-      { text: '이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐. …"' },
+      { text: '이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. … 만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐. …"' },
     ],
   },
 ];
@@ -417,6 +421,7 @@ export const RECORDS0: RecordCard[] = [
     title: '언문 28자',
     provenance: V,
     aside: 'before',
+    tag: '세종 카드에 이 줄이 돌아왔다 — 언문 28자를 지은 임금',
     inWorld: [`「${holedText(HOLED_EONMUN28)}」`],
     lines: [
       {
@@ -452,7 +457,11 @@ export const HOME0: HomeCard = {
 };
 
 export const EPILOGUE0 = {
-  monologue: ['모두가 아는 이름이, 문장 한 칸에서 빠져 있었다.', '나는 줄 끝에 앉은 사람의 눈을 빌려, 그 칸을 다시 적었다.', '이제 아무도 그 칸이 비어 있었던 것을 기억하지 못한다.'],
+  monologue: [
+    '한글을 지은 임금, 세종. 모두가 아는 이름이 단락째 무너져 있었다.',
+    '나는 줄 끝에 앉은 사람의 눈을 빌려, 그 한 칸을 다시 적었다.',
+    '이제 아무도 그 단락이 무너져 있었던 것을 기억하지 못한다.',
+  ],
   teaserDocId: '',
   oldReportDocId: '',
   aboutScene: '말은 실록 그대로이고, 자리·몸짓·두루마리의 모습은 사료를 바탕으로 만든 재구성이다. 그날 실록에는 장소가 없다.',

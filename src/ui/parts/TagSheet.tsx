@@ -13,7 +13,8 @@ import { useUi } from '../uiStore';
 
 const KIND = { line: '들은 말', detail: '본 것', fact: '기록' } as const;
 
-function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string; roomAnchored: boolean; lifespan?: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
+/** 작은 카드: 이름(한자) + 사실 한 줄. 길게 누르면 카드를 펼친다 */
+function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string; keyFact: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const held = useRef(false);
   return (
@@ -37,9 +38,11 @@ function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: stri
         onPick();
       }}
     >
-      <span className="nm">{c.name}</span>
-      <span className="hj">{c.hanja}</span>
-      <span className="ft">{c.roomAnchored ? '이 방 카드' : (c.lifespan ?? '')}</span>
+      <span className="nm">
+        {c.name}
+        <span className="hj">({c.hanja})</span>
+      </span>
+      <span className="ft">{c.keyFact}</span>
     </button>
   );
 }
@@ -129,10 +132,12 @@ export function TagSheet() {
           {figure.label !== '?' ? `겉모습: ${figure.label}` : '겉모습을 알 수 없다'}
         </div>
       ) : null}
-      <div className="t-m" style={{ marginTop: 6 }}>
+      {/* 카드 줄은 위에 고정 — 아래 근거 목록만 스크롤된다 */}
+      <div className="tag-pin" data-testid="tag-pin">
+      <div className="t-m" style={{ paddingTop: 6 }}>
         ① 카드
       </div>
-      <div className="cards" data-testid="tag-cards">
+      <div className="cards compact" data-testid="tag-cards">
         {sheet.cards.map((c) => (
           <CardTile
             key={c.id}
@@ -168,6 +173,7 @@ export function TagSheet() {
           이 카드 펼쳐 보기 <IChevR size={18} />
         </button>
       ) : null}
+      </div>
       {fb ? (
         <div className={`fb${fb.warn ? ' warn' : ''}`} role="status" data-testid="tag-feedback" data-linked={linked ? 'true' : undefined}>
           <span style={{ display: 'flex', color: fb.warn ? 'var(--alert)' : 'var(--teal)' }}>{fb.warn ? <IWarn /> : <IBan />}</span>

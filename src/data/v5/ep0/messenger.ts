@@ -77,8 +77,8 @@ export const BURSTS0: Burst[] = [
   { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
   { id: 'ev0.decoy.rank', steps: [han('두루마리 첫머리 다시 봐.'), han('카드랑 자리 이름이 다르잖아.')] },
   { id: 'ev0.choi_named', steps: [han('맞네.'), han('이름 붙이면 카드 줄에 먹선이 가.'), han('남은 건 높은 자리 그 사람.')] },
-  { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('그 글, 누구한테 올린 거야?')] },
-  { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.')] },
+  { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('높은 자리 사람은 자기를 뭐라고 불렀지?')] },
+  { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.'), han('그 사람들은 꾸중 듣던 쪽이잖아.')] },
   { id: 'ev.card_link', steps: [han('카드 하나 더 붙었네.'), han('줄 안 이름도 눌러 볼 수 있어.')] },
   { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 그 빈 칸, 채울 수 있겠다.')] },
   {
@@ -161,7 +161,7 @@ export const LADDERS0: HintLadder[] = [
     activeWhen: { tagsDone: ['T0a'], allViewed: ['e0-1', 'e0-2', 'e0-3'], tagsNotDone: ['T0b'] },
     doneWhen: { tagsDone: ['T0b'] },
     steps: [
-      { id: 'h0_king_1', text: '높은 자리 사람은 카드에 없는 것 같은데.', afterS: 25, fails: 1 },
+      { id: 'h0_king_1', text: '그 사람이 자기를 뭐라고 불렀지?', afterS: 25, fails: 1 },
       { id: 'h0_king_2', text: '최만리 카드를 펼쳐 봐.', afterS: 30, fails: 2 },
       { id: 'h0_king_3', text: '카드 줄에 밑줄 친 이름 있지?', afterS: 30, fails: 3 },
     ],

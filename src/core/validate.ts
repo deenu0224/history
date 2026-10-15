@@ -478,6 +478,7 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   // 홈 카드에 뜨는 손상 문장: 빈 칸을 채우면 국역(복원 전문이나 같은 출처의 기록 줄) 그대로
   for (const l of ep.home.record?.lines ?? []) {
     if (!l.parts.some((p) => 'gap' in p)) bad('⑦', `홈 문장: 빈 칸이 없다`);
+    for (const p of l.parts) if ('gap' in p && p.gap !== p.gap.trim()) bad('⑦', `홈 문장: 구멍 앞뒤 공백은 조각 쪽에 둔다 「${p.gap}」`);
     const t = homeRecordText(l).replace(/[「」]/g, '');
     const pool = [l.source.id === ep.article.source.id ? full : '', ...ep.records.flatMap((r) => r.lines.filter((x) => x.source.id === l.source.id).map((x) => x.text.replace(/[「」]/g, '')))];
     if (!pool.some((f) => f && quotedFrom(t, f))) bad('⑦', `홈 문장이 국역과 글자가 다르다 「${t}」`);

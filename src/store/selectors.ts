@@ -202,7 +202,9 @@ export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figure
     figure: figureLabel(ep, s, figureId),
     cards: cardOrder(ep, k).map((id) => {
       const c = I.card.get(id)!;
-      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, roomAnchored: c.roomAnchored };
+      // 한 줄 사실: 지금 보이는 첫 사실 줄(따옴표만 벗긴다) — 시트의 작은 카드에 한 줄로
+      const key = visibleFacts(c, world(s))[0]?.text.replace(/[「」]/g, '') ?? '';
+      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, roomAnchored: c.roomAnchored, keyFact: key };
     }),
     selectedCard: cardId,
     evidence: cardId ? all : [],

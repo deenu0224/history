@@ -57,7 +57,8 @@ export const EP0: Episode = {
   erasedFacts: ERASED0,
   ladders: LADDERS0,
   home: HOME0,
-  implies: {},
+  // 「조선의 제4대 … 왕」 = 임금(T0b: 군상 줄)
+  implies: { king_1418_1450: ['is_king'] },
   derivedKeys: DERIVED0,
   roomKey: null,
   rewriteWhen: { tagsDone: ['T0b'] },
