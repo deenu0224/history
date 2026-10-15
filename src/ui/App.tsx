@@ -4,6 +4,7 @@ import { installAudioUnlock, setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { Director } from './Director';
 import { installFeedback } from './lib/fx';
+import { EDGE_GO_PX, EDGE_PX, goBack, openMessenger } from './lib/nav';
 import { CardDetail } from './parts/CardDetail';
 import { DocSheet, LogSheet } from './parts/LogSheets';
 import { RoomSheet } from './parts/RoomSheet';
@@ -35,11 +36,7 @@ function Layers() {
           key={banner.key}
           className="banner"
           data-testid="banner"
-          onClick={() => {
-            const ui = useUi.getState();
-            ui.clearBanner();
-            ui.push('messenger');
-          }}
+          onClick={() => openMessenger()}
         >
           <span className="from">{banner.from}</span>
           <span className="txt t-b" style={{ flex: 1, minWidth: 0 }}>
@@ -51,8 +48,73 @@ function Layers() {
   );
 }
 
+/**
+ * 왼쪽 가장자리에서 오른쪽으로 밀면 뒤로(iOS 식). 가장자리 EDGE_PX 안에서 시작해 EDGE_GO_PX 넘게, 거의 수평으로.
+ * 손가락을 따라 작은 「‹」 가 나온다. 뷰어의 컷 넘기기는 가장자리에서 시작한 밀기를 받지 않는다.
+ */
+function useEdgeBack() {
+  useEffect(() => {
+    let st: { x: number; y: number; id: number; done: boolean; hint: HTMLDivElement | null } | null = null;
+    const app = () => document.querySelector<HTMLElement>('.app');
+    const down = (e: PointerEvent) => {
+      const el = app();
+      if (!el || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientX - r.left > EDGE_PX || e.clientX < r.left) return;
+      const top = topScreen(useUi.getState());
+      const g = useGameStore.getState();
+      const overlay = !!useUi.getState().card || g.ui.roomOpen || !!g.ui.tagTarget || useUi.getState().logOpen || !!useUi.getState().docId;
+      if (!overlay && (top === 'home' || top === 'restore')) return;
+      st = { x: e.clientX, y: e.clientY, id: e.pointerId, done: false, hint: null };
+    };
+    const move = (e: PointerEvent) => {
+      if (!st || st.id !== e.pointerId || st.done) return;
+      const dx = e.clientX - st.x;
+      const dy = Math.abs(e.clientY - st.y);
+      if (dy > 40 && dy > dx) {
+        st.hint?.remove();
+        st = null;
+        return;
+      }
+      if (dx > 8 && !st.hint) {
+        const h = document.createElement('div');
+        h.className = 'edgehint';
+        h.textContent = '‹';
+        app()?.appendChild(h);
+        st.hint = h;
+      }
+      if (st.hint) {
+        st.hint.style.transform = `translateX(${Math.min(dx, EDGE_GO_PX) * 0.6}px)`;
+        st.hint.style.top = `${e.clientY - (app()?.getBoundingClientRect().top ?? 0) - 22}px`;
+        st.hint.classList.toggle('go', dx >= EDGE_GO_PX);
+      }
+      if (dx >= EDGE_GO_PX && dy < dx * 0.6) {
+        st.done = true;
+        goBack();
+      }
+    };
+    const up = (e: PointerEvent) => {
+      if (!st || st.id !== e.pointerId) return;
+      const h = st.hint;
+      if (h) setTimeout(() => h.remove(), st.done ? 160 : 0);
+      st = null;
+    };
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+    };
+  }, []);
+}
+
 function Game() {
   const top = useUi(topScreen);
+  useEdgeBack();
   return (
     <>
       <Director />

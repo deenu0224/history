@@ -78,6 +78,6 @@ describe('UI 코드의 한자', () => {
       }
     }
     // 도장 「實錄」은 같은 도장 안에 「실록」이 붙어 있다(같은 줄은 아니므로 허용)
-    expect(bad.filter((x) => !x.startsWith('src/ui/screens/Restore.tsx') && !x.startsWith('src/ui/screens/Boot.tsx'))).toEqual([]);
+    expect(bad.filter((x) => !x.startsWith('src/ui/parts/RestoredCard.tsx') && !x.startsWith('src/ui/screens/Restore.tsx') && !x.startsWith('src/ui/screens/Boot.tsx'))).toEqual([]);
   });
 });

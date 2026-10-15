@@ -650,3 +650,8 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
 export function selectAboutScene(ep: Episode) {
   return ep.epilogue.aboutScene;
 }
+
+/** 안 읽은 메시지 수(아래 막대의 메신저 칸 점) */
+export function selectUnread(_ep: Episode, s: PersistedState): number {
+  return messengerView(s.messenger, 0, s.restored).unread;
+}

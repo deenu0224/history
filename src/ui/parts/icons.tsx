@@ -22,6 +22,8 @@ export const IBan = ({ size = 22 }: { size?: number }) => sv(<><circle cx="12" c
 export const IClear = ({ size = 22 }: { size?: number }) => sv(<><circle cx="12" cy="12" r="8.5" /><path d="M9 9l6 6M15 9l-6 6" /></>, size);
 export const IMemory = () => sv(<><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="2.8" /></>);
 export const IChat = () => sv(<path d="M4 5.5h16v10.5H10l-5 4v-4H4z" />);
+/** 그날의 방(도면) */
+export const IPlan = () => sv(<><path d="M3.5 4.5h17v15h-17z" /><path d="M3.5 11h7v8.5" /><path d="M14 4.5v4h6.5" /><circle cx="15.5" cy="14.5" r="1.6" /></>);
 export const IDoc = () => sv(<><path d="M6 3.5h8l4 4v13H6z" /><path d="M14 3.5v4h4" /><path d="M9 12h6M9 15.5h6" /></>);
 
 // ───────────────────────── 눈 아이콘 ─────────────────────────

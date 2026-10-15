@@ -1,16 +1,18 @@
 /**
- * 복원 — 돌아오는 기록. 기사 → 홈(일시·장소) → 인물 카드 → 그날의 방 → 지금까지 본 것 → 독백 → 예고.
- * 따뜻한 먹 번짐으로 한지에서 시작해 단말로 돌아온다. 현실 재기록: 같은 자리의 글자가 한 자씩 바뀐다. UI_STYLE_GUIDE §2.10
+ * 복원 뒤 — 세 박자. 복원의 순간(빈칸이 채워지고 출처가 붙음)은 기록 다시 쓰기 화면 안에서 이미 지나갔다.
+ *  ① 홈 카드가 뒤집혀 「복원됨」(일시·장소, 돌아온 줄 짧게, 이웃 기록 한 줄, 전문은 「전문 펼치기」)
+ *  (Ep1 만) 바뀐 것 — 인물 카드에서 다시 쓰인 줄 · 그날의 방 「?」의 짝 이름 · 그대로 남은 로그 한 줄
+ *  ② 짧은 독백 → ③ 다리(Ep0: 대화창 23:04) / 예고(Ep1). UI_STYLE_GUIDE §2.10
  */
 import { useEffect, useRef, useState } from 'react';
 import { setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
-import { selectMessenger, selectRestoration, selectRewrite } from '@/store/selectors';
-import { IChevD, IExt } from '../parts/icons';
+import { selectMessenger, selectRestoration } from '@/store/selectors';
+import { IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
 import { GlossText } from '../parts/GlossText';
-import { HomeRecord } from '../parts/HomeRecord';
+import { RestoredCard } from '../parts/RestoredCard';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
@@ -19,86 +21,6 @@ import { ChatList } from './Messenger';
 function ScrambleGloss(props: { from: string; to: string; ms: number; delay: number; reduce: boolean }) {
   const [done, setDone] = useState(props.reduce);
   return done ? <GlossText text={props.to} /> : <Scramble {...props} onDone={() => setDone(true)} />;
-}
-
-/**
- * 복원 기사: 내가 다시 쓴 줄(돌아온 핵심 문장)만 크게, 내가 채운 칸은 밝게. 나머지 전문은 「전문 펼치기」 뒤에 접어 둔다.
- */
-function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }) {
-  const [fold, setFold] = useState(false);
-  const keys = useView((ep, s) => selectRewrite(ep, s).lines.filter((l) => l.result === 'restored'));
-  const [full, setFull] = useState(keys.length === 0);
-  return (
-    <div className="sheetpaper hanji rarticle" style={{ margin: '0 4px' }} data-testid="restored-article">
-      <div className="t-m read" style={{ color: '#6b5e45', lineHeight: '22px' }}>
-        {r.article.citation}
-      </div>
-      {keys.length ? (
-        <div className="t-m keylabel" style={{ color: '#6b5e45', marginTop: 14 }}>
-          내가 다시 쓴 줄
-        </div>
-      ) : null}
-      {keys.map((l) => (
-        <p key={l.id} className="keyline read keep" data-testid="article-key">
-          {l.render.parts.map((p, i) =>
-            p.slot ? (
-              <mark key={i} className="kslot" data-testid="article-filled">
-                {p.text}
-              </mark>
-            ) : p.editorial ? (
-              <span key={i} className="edit">
-                {p.text}
-              </span>
-            ) : (
-              <span key={i}>
-                <GlossText text={p.text} />
-              </span>
-            ),
-          )}
-        </p>
-      ))}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
-        <span className="seal" aria-label="실록 도장">
-          <b>實錄</b>
-          <small>실록</small>
-        </span>
-        <a className="t-m" style={{ color: '#2d5f7a', textDecoration: 'underline' }} href={r.article.source.url} target="_blank" rel="noreferrer noopener">
-          {r.article.source.title} <IExt size={14} />
-        </a>
-      </div>
-      {keys.length ? (
-        <button className="fulltoggle t-b" data-testid="article-full-toggle" aria-expanded={full} onClick={() => setFull(!full)}>
-          {full ? '전문 접기' : '전문 펼치기'}
-          <span style={{ display: 'inline-flex', transform: full ? 'rotate(180deg)' : undefined }}>
-            <IChevD />
-          </span>
-        </button>
-      ) : null}
-      {full ? (
-        <>
-          <p className="article" style={{ margin: '10px 0 14px' }} data-testid="article-full">
-            {r.article.parts.map((p, i) =>
-              p.folded ? (
-                <button key={i} className="fold" style={{ font: 'inherit' }} onClick={() => setFold(!fold)} aria-expanded={fold}>
-                  ……
-                </button>
-              ) : (
-                <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by}>
-                  {i > 0 ? ' ' : ''}
-                  <GlossText text={p.text} />
-                </span>
-              ),
-            )}
-          </p>
-          {fold ? (
-            <p className="t-m" style={{ color: '#6b5e45' }}>
-              {r.article.parts.find((p) => p.folded)?.folded?.note}
-            </p>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  );
 }
 
 export function Restore() {
@@ -164,38 +86,12 @@ export function Restore() {
         </span>
       </div>
       <div className="rbody" key={step} ref={bodyRef}>
-        {step === 'article' ? <Article r={r} /> : null}
-
-        {step === 'home' ? (
-          <div className="card-assign restored" style={{ margin: '8px 0' }} data-testid="restore-home">
-            <div className="t-h">빈자리 {r.home.after.code}</div>
-            <div className="kv" style={{ gridTemplateColumns: '56px 1fr', marginTop: 14, rowGap: 10 }}>
-              <span className="t-m">일시</span>
-              <span className="t-b read" data-testid="restore-date">
-                <Scramble from={r.home.before.date} to={r.home.after.date} ms={1600} delay={400} reduce={reduce} />
-              </span>
-              <span className="t-m">장소</span>
-              <span className="t-b">
-                <Scramble from={r.home.before.place} to={r.home.after.place} ms={1600} delay={900} reduce={reduce} />
-              </span>
-              <span className="t-m">상태</span>
-              <span className="t-b amber">
-                <Scramble from={r.home.before.status} to={r.home.after.status} ms={1000} delay={1400} reduce={reduce} />
-              </span>
-            </div>
-            {r.home.after.record ? <HomeRecord record={r.home.after.record} before={r.home.before.record} reduce={reduce} clamp /> : null}
-            {r.home.after.placeNote ? (
-              <p className="t-m keep" style={{ margin: '14px 0 0' }}>
-                {r.home.after.placeNote}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        {step === 'home' ? <RestoredCard animate testId="restore-home" /> : null}
 
         {step === 'cards' ? (
           <div data-testid="restore-cards">
             <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              인물 카드에서 바뀐 줄
+              인물 카드에서 다시 쓰인 줄
             </div>
             {r.cards.flatMap((c) =>
               c.changes.map((ch, i) => (
@@ -215,18 +111,10 @@ export function Restore() {
                 </div>
               )),
             )}
-          </div>
-        ) : null}
-
-        {step === 'room' ? (
-          <div data-testid="restore-room">
-            <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              그날의 방
-            </div>
             {r.room ? (
-              <div className="ba">
-                <div className="t-b">그날 「?」 로 남았던 두 관원</div>
-                <div className="t-h read" style={{ margin: '8px 0' }}>
+              <div className="ba" data-testid="restore-room">
+                <div className="t-m">그날의 방 · 「?」 로 남았던 두 관원</div>
+                <div className="t-h read" style={{ margin: '6px 0' }}>
                   {r.room.pairLabel}
                 </div>
                 <a className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={r.room.source.url} target="_blank" rel="noreferrer noopener">
@@ -234,35 +122,12 @@ export function Restore() {
                 </a>
               </div>
             ) : null}
-            <button className="btn secondary" onClick={() => useGameStore.getState().openRoom('14:05')} data-testid="restore-open-room">
-              그날의 방 보기
-            </button>
-          </div>
-        ) : null}
-
-        {step === 'log' ? (
-          <div data-testid="restore-log">
-            <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              내가 본 것은 그대로 남는다
-            </div>
-            {r.absence.map((a, i) => (
-              <div key={i} className="ba">
-                <div className="t-m">
-                  <span className="clock">{a.clock}</span> · 찾기 「{a.query}」
-                </div>
-                <div className="t-b">{a.text}</div>
+            {r.absence.length || r.witnessLines.length ? (
+              <div className="t-m keep" style={{ marginTop: 4 }} data-testid="restore-log">
+                내 관측 로그는 그대로 —{' '}
+                {[...r.absence.map((a) => `${a.clock} 찾기 「${a.query}」 → ${a.text}`), ...r.witnessLines.map((w) => `「${w.text}」 ${w.note}`)].join(' · ')}
               </div>
-            ))}
-            {r.witnessLines.map((w) => (
-              <div key={w.lineId} className="ba">
-                <div className="t-b keep read" style={{ color: 'var(--hanji-muted)', borderBottom: '1.5px dashed var(--hanji-muted)', display: 'inline' }}>
-                  {w.text}
-                </div>
-                <div className="t-m" style={{ marginTop: 6 }}>
-                  {w.note}
-                </div>
-              </div>
-            ))}
+            ) : null}
           </div>
         ) : null}
 
@@ -272,40 +137,6 @@ export function Restore() {
               <p key={i} style={{ animationDelay: reduce ? '0s' : `${i * 1.6}s` }}>
                 {l}
               </p>
-            ))}
-          </div>
-        ) : null}
-
-        {step === 'neighbour' ? (
-          <div data-testid="restore-neighbour">
-            <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              이웃 기록도 함께 돌아왔다
-            </div>
-            {r.asides.length === 0 ? <div className="t-m">이웃 기록이 없다.</div> : null}
-            {r.asides.map((a) => (
-              <div key={a.id} className="ba" data-testid={`aside-${a.id}`}>
-                <div className="t-b" style={{ fontWeight: 600 }}>
-                  {a.title}
-                </div>
-                {a.before ? <div className="t-b was keep">{a.before.join(' ')}</div> : null}
-                <div className="t-b now keep read">
-                  {a.lines.map((l, i) => (
-                    <div key={i}>
-                      <ScrambleGloss from={a.before?.join(' ') ?? ''} to={l.text} ms={2200} delay={600} reduce={reduce} />
-                    </div>
-                  ))}
-                </div>
-                {a.tag ? (
-                  <div className="t-m" style={{ color: 'var(--amber)', marginTop: 4 }}>
-                    {a.tag}
-                  </div>
-                ) : null}
-                {a.lines.map((l, i) => (
-                  <a key={i} className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={l.source.url} target="_blank" rel="noreferrer noopener">
-                    {l.source.title} <IExt size={14} />
-                  </a>
-                ))}
-              </div>
             ))}
           </div>
         ) : null}

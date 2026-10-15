@@ -227,7 +227,8 @@ describe('store — Ep1 correct path end to end', () => {
     expect(selectCard(EP1, h.st(), 'eo_segyeom')!.altered[0].text).toContain('파직하고');
     expect(selectCard(EP1, h.st(), 'hong_gwidal')!.facts.map((f) => f.id)).toContain('f_hong_gongjo');
     const rest = selectRestoration(EP1, h.st())!;
-    expect(rest.step).toBe('article');
+    expect(rest.step).toBe('home');
+    expect(rest.steps).toEqual(['home', 'cards', 'monologue', 'teaser']);
     expect(rest.article.parts.filter((p) => p.folded)).toHaveLength(1);
     expect(rest.article.parts.find((p) => p.folded)!.display).toBe('……');
     expect(rest.article.parts.filter((p) => p.by === 'me').map((p) => p.sentenceId)).toEqual(['L1', 'L2', 'L3', 'S3', 'L4']);

@@ -8,7 +8,8 @@ import { fx } from '../lib/fx';
 import { splitTerms } from '../lib/text';
 import { EyeIcon } from './icons';
 import { GlossText } from './GlossText';
-import { IBack, IChevD, IClose, IExt } from './icons';
+import { IChevD, IExt } from './icons';
+import { NavBar } from './NavBar';
 import { useUi } from '../uiStore';
 
 function Src({ s }: { s: SourceRef }) {
@@ -108,16 +109,7 @@ export function CardDetail() {
   const eyeLook = card.eyeLine.includes('열림') ? 'open' : card.eyeLine.includes('닫힘') ? 'closed' : 'never';
   return (
     <div className="scr" style={{ zIndex: 40, background: '#0b0a09' }} data-screen="card" data-card={card.id}>
-      <div className="bar">
-        <button className="ibtn" aria-label="뒤로" onClick={close}>
-          <IBack />
-        </button>
-        <span className="title" />
-        <button className="ibtn" aria-label="닫기" onClick={close} data-testid="card-close">
-          <IClose />
-        </button>
-      </div>
-      <div className="body">
+      <div className="body" style={{ paddingTop: 16 }}>
         <div className="cardfull" data-testid="card-full">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span className="t-h" data-testid="card-name">
@@ -180,20 +172,25 @@ export function CardDetail() {
           </div>
         </div>
       </div>
-      {ref.picking ? (
-        <div className="foot">
-          <button
-            className="btn primary"
-            data-testid="card-pick"
-            onClick={() => {
-              useUi.getState().setPicked(card.id);
-              close();
-            }}
-          >
-            이 사람으로
-          </button>
-        </div>
-      ) : null}
+      <NavBar
+        onBack={close}
+        backTestId="card-close"
+        messenger={!ref.picking}
+        primary={
+          ref.picking ? (
+            <button
+              className="btn primary navprimary"
+              data-testid="card-pick"
+              onClick={() => {
+                useUi.getState().setPicked(card.id);
+                close();
+              }}
+            >
+              이 사람으로
+            </button>
+          ) : null
+        }
+      />
     </div>
   );
 }

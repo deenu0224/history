@@ -12,7 +12,9 @@ import { cutNo, VOLUME_LABEL } from '../lib/format';
 import { cutSrc, preloadCut, useManifest, type CutEntry } from '../lib/manifest';
 import { glossInline, richSegments } from '../lib/text';
 import { EyeRow } from '../parts/EyeRow';
-import { IBack, IChevL, IChevR, IWarn } from '../parts/icons';
+import { IChevL, IChevR, IDoc, IPlan, IWarn } from '../parts/icons';
+import { NavBar } from '../parts/NavBar';
+import { EDGE_PX } from '../lib/nav';
 import { useUi } from '../uiStore';
 
 const CUT_W = 390;
@@ -171,6 +173,7 @@ function pickPlace(entry: CutEntry | undefined, h: number): 'top' | 'bottom' {
 // ── 컷 한 장 ──
 function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: string; entry: CutEntry | undefined; box: { pw: number; ph: number; w: number; h: number }; active: boolean; eyeClosed: boolean; selected: string | null }) {
   const cut = useView((ep, s) => selectCut(ep, s, cutId), [cutId]);
+  const freshName = useUi((s) => s.freshName);
   const epId = useGameStore((s) => s.episodeId);
   const canSearch = useEpisode().verbs.search;
   const [detail, setDetail] = useState<string | null>(null);
@@ -266,7 +269,7 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
           return (
             <button
               key={b.id}
-              className={`figure ${f.named ? 'named' : 'unnamed'}${sel ? ' sel' : ''}`}
+              className={`figure ${f.named ? 'named' : 'unnamed'}${sel ? ' sel' : ''}${f.named && freshName === b.id ? ' fresh' : ''}`}
               style={{ left: x, top: y, width: w, height: h, zIndex: zOf.get(b.id) }}
               data-figure={b.id}
               data-named={f.named ? 'true' : 'false'}
@@ -397,6 +400,9 @@ export function Viewer() {
   const st = useRef<{ x: number; y: number; t: number; id: number; on: boolean; dx: number } | null>(null);
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // 왼쪽 가장자리에서 시작한 밀기는 뒤로 가기(lib/nav) — 컷을 넘기지 않는다
+    const sl = stageRef.current?.getBoundingClientRect().left ?? 0;
+    if (e.clientX - sl <= EDGE_PX) return;
     st.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, on: false, dx: 0 };
     useGameStore.getState().setTouching(true);
   };
@@ -452,17 +458,30 @@ export function Viewer() {
     useUi.getState().setRoomFocus(null);
     g.openRoom();
   };
+  const openLog = () => useUi.getState().setLog(true);
+  // 아래 가운데 칸 = 지금 할 일 하나: 기록 다시 쓰기 › (이름이 다 붙어 쓸 수 있게 되면) · 그날의 방 · 지금까지 본 것
+  const primary: 'rewrite' | 'room' | 'log' = v.rewriteReady ? 'rewrite' : v.canOpenRoom ? 'room' : 'log';
+  const logIsPrimary = primary === 'log';
+  const toRewrite = () => {
+    const g = useGameStore.getState();
+    fx('tap');
+    g.closeTagSheet();
+    g.closeViewer();
+    useUi.getState().go('rewrite');
+  };
 
   return (
     <div className="scr" data-screen="viewer" data-eye={v.eyeId} data-index={index}>
       <div className="vtop">
         <div className="l1">
-          <button className="ibtn" aria-label="뒤로" onClick={back} data-testid="viewer-back">
-            <IBack />
-          </button>
           <div className="title t-b" data-testid="viewer-title">
             {v.eyeLabel}
           </div>
+          {v.tags.total ? (
+            <span className={`tagprog t-m${v.tags.complete ? ' done' : ''}`} data-testid="tag-progress" aria-label={`이름 붙이기 ${v.tags.done} / ${v.tags.total}`}>
+              이름 붙이기 {v.tags.done}/{v.tags.total}
+            </span>
+          ) : null}
           <span className="clock" data-testid="cut-time">
             {curCut?.time ?? ''}
           </span>
@@ -523,6 +542,13 @@ export function Viewer() {
 
       <div className="vbottom">
         <div className="dots" role="group" aria-label="컷 위치">
+          {logIsPrimary ? (
+            <span className="dotside" aria-hidden="true" />
+          ) : (
+            <button className="dotside" aria-label="지금까지 본 것" onClick={openLog} data-testid="btn-log">
+              <IDoc />
+            </button>
+          )}
           <button className="arrow" aria-label="이전 컷" disabled={index === 0} onClick={() => goTo(index - 1)} data-testid="prev-cut">
             <IChevL />
           </button>
@@ -534,19 +560,35 @@ export function Viewer() {
           <button className="arrow" aria-label="다음 컷" disabled={index >= total - 1} onClick={() => goTo(index + 1)} data-testid="next-cut">
             <IChevR />
           </button>
+          {v.canOpenRoom && primary !== 'room' ? (
+            <button className={`dotside${hasWarn ? ' warn' : ''}`} aria-label="그날의 방" onClick={openRoom} data-testid="btn-room">
+              <IPlan />
+            </button>
+          ) : (
+            <span className="dotside" aria-hidden="true" />
+          )}
         </div>
-        <div className="row">
-          {v.canOpenRoom ? (
-            <button className="btn primary" style={{ flex: 1.15 }} onClick={openRoom} data-testid="btn-room">
+      </div>
+      <NavBar
+        onBack={back}
+        backTestId="viewer-back"
+        primary={
+          primary === 'rewrite' ? (
+            <button className="btn primary navprimary breath" onClick={toRewrite} data-testid="btn-to-rewrite">
+              기록 다시 쓰기 ›
+            </button>
+          ) : primary === 'room' ? (
+            <button className="btn primary navprimary" onClick={openRoom} data-testid="btn-room">
               {hasWarn ? <IWarn size={20} /> : null}
               그날의 방
             </button>
-          ) : null}
-          <button className="btn secondary" onClick={() => useUi.getState().setLog(true)} data-testid="btn-log">
-            지금까지 본 것
-          </button>
-        </div>
-      </div>
+          ) : (
+            <button className="btn secondary navprimary" onClick={openLog} data-testid="btn-log">
+              지금까지 본 것
+            </button>
+          )
+        }
+      />
     </div>
   );
 }

@@ -1,11 +1,13 @@
 /** 찾기 — 낱말 하나의 결과. 들은 말에서 밑줄 친 낱말이 칩으로 쌓인다. 결과가 없으면 「실록에 없음.」(부재의 증거). UI_STYLE_GUIDE §2.7 */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { searchMessage } from '@/core/search';
 import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectSearch, type SearchResultView } from '@/store/selectors';
 import { fx } from '../lib/fx';
-import { IBack, ISearch } from '../parts/icons';
+import { ISearch } from '../parts/icons';
+import { NavBar } from '../parts/NavBar';
+import { useBackHandler } from '../lib/nav';
 import { useUi } from '../uiStore';
 import { GlossText } from '../parts/GlossText';
 
@@ -81,7 +83,7 @@ export function Search() {
   }, [seed]);
 
   // 이름 붙이기 시트에서 왔으면 돌아가서 그 시트를 다시 연다(방금 본 인물 카드를 고른 채)
-  const back = () => {
+  const back = useCallback(() => {
     const g = useGameStore.getState();
     if (g.ui.tagReturn) {
       const pick = lastPerson && g.cardsFound.includes(lastPerson) ? lastPerson : undefined;
@@ -89,7 +91,9 @@ export function Search() {
     }
     useUi.setState({ seedTerms: [] });
     useUi.getState().pop();
-  };
+  }, [lastPerson]);
+  // 가장자리 밀기도 같은 뒤로(이름 붙이기 시트에서 왔으면 시트로)
+  useBackHandler('search', back);
 
   const people = view.last?.views.filter((v) => v.kind === 'person') ?? [];
   const records = view.last?.views.filter((v) => v.kind === 'record') ?? [];
@@ -98,10 +102,7 @@ export function Search() {
 
   return (
     <div className="scr" data-screen="search">
-      <div className="bar">
-        <button className="ibtn" aria-label="뒤로" onClick={back} data-testid="search-back">
-          <IBack />
-        </button>
+      <div className="bar slim">
         <div className="title t-h">찾기</div>
       </div>
       <form
@@ -195,6 +196,7 @@ export function Search() {
           </>
         ) : null}
       </div>
+      <NavBar onBack={back} backTestId="search-back" />
     </div>
   );
 }

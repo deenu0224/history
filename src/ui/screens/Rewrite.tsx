@@ -9,7 +9,8 @@ import { useView } from '@/store/hooks';
 import { selectRewrite, selectSlotOptions, type RewriteLineView } from '@/store/selectors';
 import { fx } from '../lib/fx';
 import { HoldButton } from '../parts/HoldButton';
-import { IBack, IClose, IExt, IWarn } from '../parts/icons';
+import { IClose, IExt, IWarn } from '../parts/icons';
+import { NavBar } from '../parts/NavBar';
 import { GlossText } from '../parts/GlossText';
 import { Sheet } from '../parts/Sheet';
 import { useUi } from '../uiStore';
@@ -35,7 +36,13 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
               </span>
             );
           const sv = l.slots.find((x) => x.kind === p.slot);
-          if (restored) return <span key={i}>{p.text}</span>;
+          // 복원의 순간: 빈칸이 그 자리에서 먹으로 채워진다(한 번의 연출)
+          if (restored)
+            return (
+              <span key={i} className="fillin" data-testid="filled-slot">
+                {p.text}
+              </span>
+            );
           const v = sv?.value;
           const warn = !!sv?.contested;
           return (
@@ -47,7 +54,7 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
         })}
       </div>
       {l.result === 'restored' && l.render.sourceUrl ? (
-        <div className="res" data-testid="line-source">
+        <div className="res src" data-testid="line-source">
           {l.render.sourceTitle}{' '}
           <a href={l.render.sourceUrl} target="_blank" rel="noreferrer noopener">
             출처 <IExt size={14} />
@@ -157,6 +164,8 @@ export function Rewrite() {
       else if (vals.includes('witness')) fx('write_grey');
       else fx('write_fail');
       if (vals.includes('not_recorded') || vals.includes('incomplete')) fx('write_fail');
+      // 마지막 줄까지 돌아왔다 = 복원의 순간(이 화면 안에서: 빈칸이 채워지고 출처가 붙는다)
+      if (out.complete) setTimeout(() => fx('restore'), 350);
     }
   };
   const restore = () => {
@@ -166,15 +175,17 @@ export function Rewrite() {
 
   return (
     <div className="scr paper" data-screen="rewrite">
-      <div className="paperbar">
-        <button className="ibtn" aria-label="뒤로" onClick={() => useUi.getState().pop()} data-testid="rewrite-back">
-          <IBack />
-        </button>
+      <div className="paperbar slim">
         <div className="title t-h" style={{ flex: 1 }}>
           빈자리 {rw.code}
         </div>
+        {rw.complete ? (
+          <span className="t-m amber" data-testid="rewrite-restored">
+            복원됨
+          </span>
+        ) : null}
       </div>
-      <div className="sheetpaper hanji" data-testid="paper">
+      <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}`} data-testid="paper">
         {rw.lines.length === 0 ? (
           <p className="read keep" style={{ margin: '28px 4px', fontSize: 17, lineHeight: '30px', color: '#6b5e45' }}>
             {rw.pieces.length ? '본 것으로만 쓴다. 줄을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 쓴다.'}
@@ -184,24 +195,27 @@ export function Rewrite() {
           <LineView key={l.id} l={l} onSlot={(kind) => setSlot({ lineId: l.id, kind })} onRemove={() => useGameStore.getState().removeLine(l.id)} />
         ))}
       </div>
-      <div className="foot">
-        {rw.complete ? (
-          <button className="btn primary" data-testid="btn-restore" onClick={restore}>
-            기록이 돌아온다 ▸
+      {!rw.complete && rw.pieces.length ? (
+        <div className="foot slim">
+          <button className="btn secondary" onClick={() => setPicker(true)} data-testid="btn-add-line">
+            줄 더하기
           </button>
-        ) : (
-          <>
-            {rw.pieces.length ? (
-              <button className="btn secondary" onClick={() => setPicker(true)} data-testid="btn-add-line">
-                줄 더하기
-              </button>
-            ) : null}
-            <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0}>
-              ● 기록을 남긴다 {holdMode === 'hold' ? '(길게)' : '(두 번)'}
+        </div>
+      ) : null}
+      <NavBar
+        backTestId="rewrite-back"
+        primary={
+          rw.complete ? (
+            <button className="btn primary navprimary breath" data-testid="btn-restore" onClick={restore}>
+              기록이 돌아왔다 ›
+            </button>
+          ) : (
+            <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0} className="btn primary navprimary">
+              ● 기록을 남긴다 <small className="hint">{holdMode === 'hold' ? '(길게)' : '(두 번)'}</small>
             </HoldButton>
-          </>
-        )}
-      </div>
+          )
+        }
+      />
       {picker ? <PiecePicker onClose={() => setPicker(false)} /> : null}
       {slot ? <SlotPicker lineId={slot.lineId} kind={slot.kind} onClose={() => setSlot(null)} /> : null}
     </div>

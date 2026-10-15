@@ -164,7 +164,7 @@ describe('store — Ep0 correct path', () => {
     expect(h.st().restore()).toBe('restored');
     expect(selectHome(EP0, h.st()).card).toMatchObject({ date: '세종 26년 2월 20일', status: '복원됨' });
     const r = selectRestoration(EP0, h.st())!;
-    expect(r.steps).toEqual(['article', 'home', 'neighbour', 'monologue', 'bridge']);
+    expect(r.steps).toEqual(['home', 'monologue', 'bridge']);
     expect(r.article.parts.filter((p) => p.by === 'me').map((p) => p.sentenceId)).toEqual(['R0']);
     expect(r.asides.map((x) => x.id)).toEqual(['rec0_eonmun28']);
     expect(r.asides[0].lines[0].text).toContain('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데');

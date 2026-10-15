@@ -16,15 +16,16 @@ const holeLen = (t: string): number | null => {
   return m ? (m[1] === '?' ? 0 : m[1]!.length) : null;
 };
 
-export function HomeRecord({ record, before, reduce = false, clamp = false }: { record: RecordView; before?: RecordView; reduce?: boolean; clamp?: boolean }) {
+/** short: 복원된 카드 — 돌아온 줄은 두 줄, 이웃 기록은 한 줄로(전문은 「전문 펼치기」) */
+export function HomeRecord({ record, before, reduce = false, clamp = false, short = false }: { record: RecordView; before?: RecordView; reduce?: boolean; clamp?: boolean; short?: boolean }) {
   const raw = useEpisode().home.record;
   return (
     <div className="home-record" data-testid="home-record">
       <div className="t-m hr-title">{record.title}</div>
       {record.lines.map((l, i) => (
         <div key={i} className={`hr-line${l.minor ? ' minor' : ''}`} data-testid={`home-record-${i}`}>
-          {l.note ? <div className="t-m hr-note">{l.note}</div> : null}
-          <p className={`read keep hr-text${clamp ? ' clamp' : ''}`}>
+          {l.note ? <div className="t-m hr-note">{short && l.minor ? '이웃 기록도 함께 돌아왔다' : l.note}</div> : null}
+          <p className={`read keep hr-text${short ? (l.minor ? ' clamp1' : ' clamp2') : clamp ? ' clamp' : ''}`}>
             「
             {l.parts.map((p, j) => {
               if (!p.gap)

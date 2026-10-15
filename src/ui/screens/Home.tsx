@@ -6,6 +6,8 @@ import { fx } from '../lib/fx';
 import { goNextEpisode } from '../lib/flow';
 import { EyeRow } from '../parts/EyeRow';
 import { HomeRecord } from '../parts/HomeRecord';
+import { RestoredCard } from '../parts/RestoredCard';
+import { openMessenger } from '../lib/nav';
 import { IChat, IGear, IMemory, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
 
@@ -62,19 +64,29 @@ export function Home() {
         </button>
       </div>
 
-      <div className={`card-assign${restored ? ' restored' : ''}`} data-testid="assign-card">
+      <div className="home-scroll">
+      {restored ? (
+        <RestoredCard testId="assign-card">
+          <div className="divider" style={{ marginTop: 6 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+          <span className="t-m" style={{ marginRight: 4 }}>
+            관측 가능
+          </span>
+          <EyeRow eyes={home.eyes} onPick={enterMemory} />
+        </div>
+        </RestoredCard>
+      ) : (
+      <div className="card-assign" data-testid="assign-card">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <div className="t-h">
             {home.card.status === '빈자리' ? '빈자리 ' : ''}
             {home.card.code}
           </div>
-          <span className="t-m" style={{ color: restored ? 'var(--amber)' : undefined }}>
-            {home.card.status}
-          </span>
+          <span className="t-m">{home.card.status}</span>
         </div>
         <div className="kv">
           <span className="t-m">일시</span>
-          <span className="t-b" style={{ color: restored ? 'var(--hanji)' : 'var(--amber)', fontFamily: restored ? 'var(--f-read)' : 'var(--f-pixel)', letterSpacing: restored ? 0 : '0.08em' }} data-testid="home-date">
+          <span className="t-b" style={{ color: 'var(--amber)', fontFamily: 'var(--f-pixel)', letterSpacing: '0.08em' }} data-testid="home-date">
             {home.card.date}
           </span>
           <span className="t-m">장소</span>
@@ -83,21 +95,16 @@ export function Home() {
           </span>
         </div>
         {home.card.record ? (
-          <HomeRecord record={home.card.record} clamp={restored} />
-        ) : restored ? null : (
+          <HomeRecord record={home.card.record} />
+        ) : (
           <>
             <div className="t-m home-record-label">그날 실록</div>
             <GapGraphic />
           </>
         )}
-        {home.card.placeNote ? (
-          <p className="t-m keep" style={{ margin: '10px 0 0' }}>
-            {home.card.placeNote}
-          </p>
-        ) : null}
-        <div className="divider" style={{ marginTop: restored ? 14 : 0 }} />
+        <div className="divider" />
         <p className="t-b keep" style={{ margin: '14px 0' }}>
-          {restored ? '이 날의 기록이 돌아왔다.' : home.card.task}
+          {home.card.task}
         </p>
         <div className="divider" />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
@@ -106,18 +113,26 @@ export function Home() {
           </span>
           <EyeRow eyes={home.eyes} onPick={enterMemory} />
         </div>
-        {home.resume.eyesOpen > 1 && !restored ? (
-          <p className="t-m" style={{ margin: '4px 0 0' }} data-testid="resume-line">
-            관측 가능 {home.resume.eyesOpen}
+        {home.tags.total ? (
+          <p className={`t-m tagprog-line${home.tags.complete ? ' done' : ''}`} style={{ margin: '4px 0 0' }} data-testid="home-tag-progress">
+            이름 붙이기 {home.tags.done}/{home.tags.total}
+            {home.tags.complete ? ' · 모두 밝혀졌다' : ''}
             {home.resume.contradictionsLeft ? ` · 남은 모순 ${home.resume.contradictionsLeft}` : ''}
           </p>
         ) : null}
       </div>
+      )}
+      </div>
 
       <div className="home-body">
-        {home.buttons.includes('memories') ? (
+        {home.rewriteReady ? (
+          <button className="btn primary breath" data-testid="btn-rewrite" onClick={() => push('rewrite')}>
+            기록 다시 쓰기 ›
+          </button>
+        ) : null}
+        {home.buttons.includes('memories') && !home.nextEpisode ? (
           <button
-            className={`btn primary${home.resume.eyesOpen <= 1 ? ' breath' : ''}`}
+            className={`btn ${home.rewriteReady ? 'secondary' : 'primary'}${!home.rewriteReady && home.resume.eyesOpen <= 1 && !home.tags.done ? ' breath' : ''}`}
             data-testid="btn-memories"
             onClick={() => {
               fx('tap');
@@ -127,13 +142,8 @@ export function Home() {
             관측하기
           </button>
         ) : null}
-        {home.buttons.includes('rewrite') ? (
-          <button className="btn primary" data-testid="btn-rewrite" onClick={() => push('rewrite')}>
-            기록 다시 쓰기
-          </button>
-        ) : null}
-        {home.buttons.includes('restored') ? (
-          <button className={`btn ${home.nextEpisode ? 'secondary' : 'primary'}`} data-testid="btn-restored" onClick={() => push('restore')}>
+        {home.buttons.includes('restored') && !home.nextEpisode ? (
+          <button className="btn secondary" data-testid="btn-restored" onClick={() => push('restore')}>
             복원된 기록
           </button>
         ) : null}
@@ -159,7 +169,7 @@ export function Home() {
             </span>
           </button>
         ) : null}
-        <button onClick={() => push('messenger')} data-testid="dock-messenger" aria-label={unseen ? `메신저, 안 읽은 메시지 ${home.unread}` : '메신저'}>
+        <button onClick={openMessenger} data-testid="dock-messenger" aria-label={unseen ? `메신저, 안 읽은 메시지 ${home.unread}` : '메신저'}>
           <span style={{ position: 'relative', display: 'flex' }}>
             <IChat />
             {unseen ? <i className="dot" data-testid="unread-dot" style={{ left: 14, top: -4 }} /> : null}

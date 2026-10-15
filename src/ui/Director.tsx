@@ -4,7 +4,8 @@
  */
 import { useEffect, useState } from 'react';
 import { setMusic, setVolume } from '@/game/audio';
-import { PERSISTED_KEYS, pickPersisted, useGameStore } from '@/store/gameStore';
+import { currentEpisode, PERSISTED_KEYS, pickPersisted, useGameStore } from '@/store/gameStore';
+import { selectTagProgress } from '@/store/selectors';
 import type { Fx } from '@/store/gameStore';
 import { LANDSCAPE_TOUCH_QUERY } from '@/shell/orientation';
 import { fx } from './lib/fx';
@@ -12,6 +13,9 @@ import { FROM_LABEL } from './lib/format';
 import { topScreen, useUi } from './uiStore';
 
 let lastBannerAt = 0;
+/** 한 묶음 안에서 알림이 이미 떴는가(「모두 밝혀졌다」는 그 뒤로 미룬다) */
+let toastInBatch = false;
+let allNamed = false;
 const TICK_MS = 300;
 const SAVE_MS = 2000;
 
@@ -22,6 +26,7 @@ function handle(f: Fx) {
     case 'eye_open':
       fx('eye_open');
       ui.showToast('관측이 하나 열렸다', 'amber');
+      toastInBatch = true;
       break;
     case 'eye_close':
       fx('eye_close');
@@ -29,6 +34,14 @@ function handle(f: Fx) {
       break;
     case 'tag':
       fx(f.verdict === 'ok' ? 'tag_ok' : 'tag_no');
+      if (f.verdict === 'ok') {
+        ui.flashName(f.figureId);
+        // 꼭 붙여야 할 이름의 마지막 하나였다 → 「모두 밝혀졌다」(묶음이 끝난 뒤에)
+        const ep = currentEpisode(g);
+        const rule = ep.tags.find((t) => t.figureId === f.figureId);
+        const req = ep.requiredTags ?? ep.tags.map((t) => t.id);
+        if (rule && req.includes(rule.id) && selectTagProgress(ep, g).complete) allNamed = true;
+      }
       break;
     case 'merge':
       fx('merge');
@@ -42,7 +55,7 @@ function handle(f: Fx) {
       fx('resolve');
       break;
     case 'restore':
-      fx('restore');
+      // 소리는 다시 쓰기 화면이 복원의 순간(구멍이 채워질 때)에 이미 냈다
       break;
     case 'message':
       if (ui.phase === 'game' && topScreen(ui) !== 'messenger' && topScreen(ui) !== 'restore') {
@@ -57,6 +70,7 @@ function handle(f: Fx) {
     case 'cards_gained':
       fx('search_hit');
       ui.showToast(`인물 카드 +${f.ids.length}`, 'amber');
+      toastInBatch = true;
       break;
     case 'fact_link':
       // 카드 줄에 먹선이 그어진다(카드를 펼치면 줄이 그어지는 연출)
@@ -126,8 +140,18 @@ export function Director() {
   const queue = useGameStore((s) => s.fx);
   useEffect(() => {
     if (!queue.length) return;
+    toastInBatch = false;
+    allNamed = false;
     for (const f of queue) handle(f);
     useGameStore.getState().ackFx();
+    if (allNamed) {
+      const show = () => {
+        fx('tags_done');
+        useUi.getState().showToast('모두 밝혀졌다', 'amber');
+      };
+      if (toastInBatch) setTimeout(show, 1900);
+      else setTimeout(show, 450); // 시트가 도장과 함께 닫힌 뒤
+    }
   }, [queue]);
 
   // 음악·소리 크기

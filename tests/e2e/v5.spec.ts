@@ -94,6 +94,32 @@ const holdSubmit = async (page: Page) => {
   await page.mouse.up();
 };
 
+/** 왼쪽 가장자리에서 오른쪽으로 밀기(iOS 식 뒤로) */
+const edgeBack = async (page: Page) => {
+  const ab = (await page.locator('.app').boundingBox())!;
+  const y = ab.y + ab.height * 0.45;
+  await page.mouse.move(ab.x + 6, y);
+  await page.mouse.down();
+  await page.mouse.move(ab.x + 160, y + 6, { steps: 10 });
+  await page.mouse.up();
+};
+
+/** 아래 막대 3칸: 높이 ≤56, 칸마다 ≥44px, 뒤로는 왼쪽 아래 엄지 영역 */
+const expectNavBar = async (page: Page, where: string) => {
+  const bar = page.locator('nav.navbar').last();
+  await expect(bar, where).toBeVisible();
+  const bb = (await bar.boundingBox())!;
+  expect(bb.height, `${where}: 막대 높이`).toBeLessThanOrEqual(57);
+  expect(bb.y + bb.height, `${where}: 맨 아래`).toBeGreaterThan(844 - 4);
+  for (const b of await bar.locator('button').all()) {
+    const r = (await b.boundingBox())!;
+    expect(r.height, `${where}: 버튼 높이`).toBeGreaterThanOrEqual(44);
+    expect(r.width, `${where}: 버튼 폭`).toBeGreaterThanOrEqual(44);
+  }
+  // 위쪽에 뒤로 버튼이 없다
+  expect(await page.locator('nav.navbar button[aria-label="뒤로"]').count(), `${where}: 뒤로는 아래 막대에만`).toBe(await page.locator('button[aria-label="뒤로"]').count());
+};
+
 /** 컷을 실제로 밀어 넘긴다(오른쪽 → 왼쪽 드래그) */
 const swipeLeft = async (page: Page) => {
   const sb = (await tid(page, 'stage').boundingBox())!;
@@ -168,6 +194,9 @@ test.describe('v5 전체 플레이', () => {
     // 눈이 하나뿐이면 눈 줄을 두지 않는다 — 컷이 머리글 바로 밑에 붙는다
     await expect(page.locator('.vtop .l2')).toHaveCount(0);
     await expect(tid(page, 'btn-log')).toHaveText('지금까지 본 것');
+    // 진행: 꼭 붙여야 할 이름 수(목표 수일 뿐 — 누구인지는 없다)
+    await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 0/2');
+    await expectNavBar(page, '뷰어');
     {
       const top = (await page.locator('.vtop').boundingBox())!;
       const cutb = (await page.locator('[data-cut="e0-1"] .cutbox').boundingBox())!;
@@ -235,13 +264,18 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'card-choi_manri').click();
     await tid(page, 'ev-d_scroll_head').click();
     await tid(page, 'tag-confirm').click();
-    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    // 맞았다: 시트는 도장과 함께 내려가고, 컷의 그 사람 위에 이름표가 붙는다
+    await expect(tid(page, 'tag-ok-stamp')).toContainText('최만리');
     await expect(figure(page, 'e0-1', 'fig_choi')).toHaveAttribute('data-named', 'true');
+    await expect(figure(page, 'e0-1', 'fig_choi').getByTestId('name-label')).toHaveText('최만리');
     await shot0(page, 'tag-ok');
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 1/2');
 
     // ── 최만리 카드: 먹선이 그어졌고, 줄 안의 「세종」을 탭하면 인물 카드 +1
     await figure(page, 'e0-1', 'fig_choi').click();
     await expect(tid(page, 'card-name')).toHaveText('최만리');
+    await expectNavBar(page, '인물 카드');
     await expect(page.locator('[data-fact="f_choi_list"] [data-testid="ink-line"]')).toContainText('두루마리');
     await expectReadings(page, '인물 카드');
     // 빽빽한 인용 위엔 쉬운 한 줄, 인용 속 어려운 말은 탭하면 풀이
@@ -283,17 +317,31 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(figure(page, 'e0-3', 'fig_king')).toHaveAttribute('data-named', 'true');
+    // 마지막 이름: 「모두 밝혀졌다」 + 아래 가운데 칸이 「기록 다시 쓰기 ›」 로
+    await expect(tid(page, 'toast')).toHaveText('모두 밝혀졌다', { timeout: 6000 });
+    await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 2/2');
+    await expect(tid(page, 'btn-to-rewrite')).toHaveText('기록 다시 쓰기 ›');
+    await expect(tid(page, 'btn-log')).toBeVisible(); // 지금까지 본 것은 작은 아이콘으로
+    await shot0(page, 'tags-all-done');
 
-    // ── 기록 다시 쓰기: 미리 놓인 한 줄, 칸 하나
-    await tid(page, 'viewer-back').click();
+    // ── 왼쪽 가장자리에서 밀면 뒤로(홈). 홈도 다음 할 일이 「기록 다시 쓰기」
+    await edgeBack(page);
+    await expect(page.locator('[data-screen=home]')).toBeVisible();
     await expect(tid(page, 'btn-rewrite')).toBeVisible();
+    await expect(tid(page, 'btn-rewrite')).toHaveClass(/primary/);
+    await expect(tid(page, 'btn-memories')).toHaveClass(/secondary/);
+    await expect(tid(page, 'home-tag-progress')).toContainText('이름 붙이기 2/2 · 모두 밝혀졌다');
     // 관측 중에는 구멍이 하나도 채워지지 않는다
     await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
     await expect(tid(page, 'home-record-0')).toContainText('[ ? ]');
     await shot0(page, 'home-rewrite-ready');
-    await tid(page, 'btn-rewrite').click();
+
+    // ── 기록 다시 쓰기: 뷰어 아래 칸에서 바로(미리 놓인 한 줄, 칸 하나)
+    await tid(page, 'btn-memories').click();
+    await tid(page, 'btn-to-rewrite').click();
     await expect(tid(page, 'line-pc_R0')).toBeVisible();
     await expect(tid(page, 'btn-add-line')).toHaveCount(0);
+    await expectNavBar(page, '다시 쓰기');
     await shot0(page, 'rewrite-preplaced');
     await tid(page, 'slot-pc_R0-who').click();
     await expect(tid(page, 'slot-sheet')).toBeVisible();
@@ -306,46 +354,54 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'slot-pc_R0-who').click();
     await tid(page, 'opt-세종').click();
     await holdSubmit(page);
+    // ① 복원의 순간은 이 화면 안에서: 빈칸이 그 자리에서 채워지고, 출처 한 줄, 버튼 하나
     await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'restored');
+    await expect(tid(page, 'filled-slot')).toHaveText('임금');
     await expect(tid(page, 'line-source')).toBeVisible();
+    await expect(tid(page, 'btn-restore')).toHaveText('기록이 돌아왔다 ›');
+    await expect(tid(page, 'btn-submit')).toHaveCount(0);
     await expectReadings(page, '다시 쓴 줄');
+    await page.waitForTimeout(1600); // 빈칸이 먹으로 채워지는 시간
     await shot0(page, 'rewrite-restored');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 다시 쓴 줄만 크게(채운 칸은 밝게, 전문은 접힘) → 홈 → 이웃 기록 → 독백 → 다리
-    const article = tid(page, 'restored-article');
-    await expect(tid(page, 'article-key')).toContainText('만일 내가 그 운서를 바로잡지 아니하면');
-    await expect(tid(page, 'article-filled')).toHaveText('임금');
-    await expect(article).not.toContainText('번독하나이다');
-    await expect(tid(page, 'article-full-toggle')).toHaveText(/전문 펼치기/);
-    await shot0(page, 'restore-article');
-    await tid(page, 'article-full-toggle').click();
-    await expect(article).toContainText('번독하나이다');
-    await expectReadings(page, '복원 전문');
-    await shot0(page, 'restore-article-long');
-    await tid(page, 'article-full-toggle').click();
-    await tid(page, 'restore-next').click();
+    // ── ② 홈 카드가 뒤집힌다: 빈자리 → 복원됨. 돌아온 줄은 짧게, 이웃 기록은 같은 카드 안 한 줄. 전문은 「전문 펼치기」
+    await expect(page.locator('[data-screen=restore]')).toHaveAttribute('data-step', 'home');
     await expect(tid(page, 'restore-date')).toContainText('세종 26년 2월 20일', { timeout: 6000 });
-    // 빈 칸이 채워진다
     // 확정하는 순간 무너진 단락 전체가 한꺼번에 돌아온다
     await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를', { timeout: 8000 });
     await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('군상(君上)의 하는 일은 그르다', { timeout: 8000 });
     await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데', { timeout: 8000 });
+    await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이웃 기록도 함께 돌아왔다');
     await expect(tid(page, 'restore-home')).not.toContainText('[ ? ]', { timeout: 8000 });
+    await expect(tid(page, 'aside-tag')).toContainText('세종 카드에 이 줄이 돌아왔다');
     // 밝은 건 내가 채운 「임금」 칸뿐(단락 전체를 칠하지 않는다)
     await expect(tid(page, 'restore-home').locator('.hr-gap.who').first()).toHaveText('임금이');
     await expect(tid(page, 'restore-home').locator('.hr-gap.who')).toHaveCount(2);
+    // 돌아온 줄은 두 줄, 이웃 기록은 한 줄로 접혀 있다
+    {
+      const lh = async (i: number) => page.evaluate((n) => {
+        const el = document.querySelector(`[data-testid="restore-home"] [data-testid="home-record-${n}"] .hr-text`) as HTMLElement;
+        return Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight));
+      }, i);
+      expect(await lh(0)).toBeLessThanOrEqual(2);
+      expect(await lh(1)).toBe(1);
+    }
+    await expect(tid(page, 'article-full')).toHaveCount(0);
+    await page.waitForTimeout(2600);
     await shot0(page, 'restore-home');
+    await tid(page, 'article-full-toggle').click();
+    await expect(tid(page, 'article-full')).toContainText('번독하나이다');
+    await expectReadings(page, '복원 전문');
+    await tid(page, 'article-full-toggle').scrollIntoViewIfNeeded();
+    await shot0(page, 'restore-home-full');
+    await tid(page, 'article-full-toggle').click();
     // 대화가 다시 쓰인 것은 따로 보여 주지 않는다(바뀐 말 목록·표시·효과 없음)
     await expect(page.locator('[data-testid="rewritten-msg"]')).toHaveCount(0);
+    // 따로 있던 「기사」·「이웃 기록」 단계는 없다
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-neighbour')).toBeVisible();
-    await page.waitForTimeout(3200); // 먹 번짐(글자가 굳는 시간)
-    await expect(tid(page, 'aside-rec0_eonmun28')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데');
-    await expect(tid(page, 'aside-rec0_eonmun28')).toContainText('세종 카드에 이 줄이 돌아왔다');
-    await expectReadings(page, '이웃 기록');
-    await shot0(page, 'restore-neighbour');
-    await tid(page, 'restore-next').click();
+    // ── ③ 짧은 독백 → 다리
+    await expect(page.locator('[data-screen=restore]')).toHaveAttribute('data-step', 'monologue');
     await expect(tid(page, 'restore-monologue')).toContainText('모두가 아는 이름이');
     await page.waitForTimeout(4500);
     await shot0(page, 'restore-monologue');
@@ -542,6 +598,11 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E4"]')).toHaveAttribute('data-state', 'open');
+    // 마지막 이름(T4): 진행 4/4 · 「모두 밝혀졌다」(눈이 열린 알림 뒤에)
+    await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 4/4');
+    await expect(tid(page, 'toast')).toHaveText('모두 밝혀졌다', { timeout: 6000 });
+    // Ep1 은 아직 다시 쓸 수 없다(닫힘·모순이 남았다) — 아래 가운데는 그대로 그날의 방
+    await expect(tid(page, 'btn-to-rewrite')).toHaveCount(0);
     await shot(page, 'four-eyes');
     // 닫히기 전에 다 본다
     await viewAll(page, 3);
@@ -639,22 +700,24 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'rewrite-verdict');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 기사 → 홈 → 카드 → 방 → 지금까지 본 것 → 독백 → 예고(대화의 재기록은 따로 보이지 않는다)
-    await expect(tid(page, 'restored-article')).toContainText('김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로');
-    await shot(page, 'restore-article');
-    await tid(page, 'restore-next').click();
+    // ── 복원: 다시 쓰기 화면 안에서 → 홈 카드(뒤집힘) → 바뀐 것(카드 줄·방의 짝 이름·로그 한 줄) → 독백 → 예고
+    await expect(tid(page, 'btn-restore')).toHaveText('기록이 돌아왔다 ›');
+    await expect(tid(page, 'filled-slot').first()).toBeVisible();
+    await tid(page, 'btn-restore').click();
+    await expect(page.locator('[data-screen=restore]')).toHaveAttribute('data-step', 'home');
     await expect(tid(page, 'restore-date')).toContainText('연산군 4년 7월 11일', { timeout: 6000 });
+    await expect(tid(page, 'restored-keyline')).toContainText('김일손');
+    await page.waitForTimeout(2200);
     await shot(page, 'restore-home');
+    await tid(page, 'article-full-toggle').click();
+    await expect(tid(page, 'article-full')).toContainText('김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로');
+    await tid(page, 'article-full-toggle').click();
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-cards')).toBeVisible();
+    await expect(tid(page, 'restore-room')).toContainText('유순·안침');
+    await expect(tid(page, 'restore-log')).toContainText('실록에 없음');
     await page.waitForTimeout(2600); // 먹 번짐(글자가 굳는 시간)
     await shot(page, 'restore-cards');
-    await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-room')).toContainText('유순·안침');
-    await shot(page, 'restore-room');
-    await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-log')).toContainText('실록에 없음');
-    await shot(page, 'restore-log');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-monologue')).toContainText('그의 관측은 끝내 이뤄지지 않았다');
     await page.waitForTimeout(4500);
@@ -665,6 +728,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'home-date')).toHaveText('연산군 4년 7월 11일');
     await expect(tid(page, 'btn-restored')).toBeVisible();
+    await expect(tid(page, 'article-full-toggle')).toBeVisible(); // 홈 카드에서도 전문을 펼칠 수 있다
     await shot(page, 'home-restored');
     // 복원 뒤 대화는 메신저에서 그대로 이어진다(표시·효과 없이)
     await tid(page, 'dock-messenger').click();

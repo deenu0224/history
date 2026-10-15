@@ -44,6 +44,8 @@ export interface UiStore {
   mergeUntil: number;
   /** 열린 눈에서 막 닫힘이 일어난 눈(연출용) */
   closedFlash: Id | null;
+  /** 막 이름이 붙은 사람(컷 위 이름표가 한 번 튄다) */
+  freshName: Id | null;
 
   setBoot(b: BootStep): void;
   enterGame(): void;
@@ -62,6 +64,7 @@ export interface UiStore {
   showBanner(from: string, text: string): void;
   clearBanner(): void;
   flashMerge(): void;
+  flashName(figureId: Id): void;
 }
 
 let seq = 0;
@@ -82,6 +85,7 @@ export const useUi = create<UiStore>()((set, get) => ({
   banner: null,
   mergeUntil: 0,
   closedFlash: null,
+  freshName: null,
 
   setBoot: (boot) => set({ boot }),
   enterGame: () => set({ phase: 'game', stack: ['home'] }),
@@ -120,6 +124,12 @@ export const useUi = create<UiStore>()((set, get) => ({
   flashMerge: () => {
     set({ mergeUntil: Date.now() + 1500 });
     setTimeout(() => set({ mergeUntil: 0 }), 1550);
+  },
+  flashName: (figureId) => {
+    set({ freshName: figureId });
+    setTimeout(() => {
+      if (get().freshName === figureId) set({ freshName: null });
+    }, 2400);
   },
 }));
 

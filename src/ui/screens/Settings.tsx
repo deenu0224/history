@@ -5,7 +5,7 @@ import { deleteSave } from '@/core/save';
 import { useGameStore, type Settings as S } from '@/store/gameStore';
 import { selectAboutScene } from '@/store/selectors';
 import { useEpisode } from '@/store/hooks';
-import { IBack } from '../parts/icons';
+import { NavBar } from '../parts/NavBar';
 import { useUi } from '../uiStore';
 
 function Switch({ on, onChange, label, testId }: { on: boolean; onChange: (v: boolean) => void; label: string; testId?: string }) {
@@ -44,10 +44,7 @@ export function Settings() {
 
   return (
     <div className="scr" data-screen="settings">
-      <div className="bar">
-        <button className="ibtn" aria-label="뒤로" onClick={() => useUi.getState().pop()} data-testid="settings-back">
-          <IBack />
-        </button>
+      <div className="bar slim">
         <div className="title t-h">설정</div>
       </div>
       <div className="body">
@@ -120,6 +117,7 @@ export function Settings() {
           ) : null}
         </div>
       </div>
+      <NavBar backTestId="settings-back" />
     </div>
   );
 }

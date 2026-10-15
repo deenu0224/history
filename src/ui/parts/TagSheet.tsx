@@ -68,6 +68,13 @@ export function TagSheet() {
   const [linked, setLinked] = useState(false);
   useEffect(() => setLinked(false), [key]);
   const cut = useView((ep, s) => (target ? selectCut(ep, s, target.cutId) : null), [key]);
+  /** 맞았다: 시트가 도장과 함께 닫힌다(스토어는 이미 닫았다 — 잠깐 남는 그림만) */
+  const [stamp, setStamp] = useState<{ name: string; hanja: string } | null>(null);
+  useEffect(() => {
+    if (!stamp) return;
+    const t = setTimeout(() => setStamp(null), 1100);
+    return () => clearTimeout(t);
+  }, [stamp]);
 
   useEffect(() => {
     if (picked && sheet?.cards.some((c) => c.id === picked)) {
@@ -78,7 +85,16 @@ export function TagSheet() {
     if (picked) useUi.getState().setPicked(null);
   }, [picked, sheet]);
 
-  if (!target || !sheet) return null;
+  if (!target || !sheet)
+    return stamp ? (
+      <section className="sheet stampout" aria-hidden="true" data-testid="tag-stamp-sheet">
+        <div className="okstamp" data-testid="tag-ok-stamp">
+          <b>{stamp.name}</b>
+          <small>{stamp.hanja}</small>
+          <span className="oklab">이름 붙음</span>
+        </div>
+      </section>
+    ) : null;
   const close = () => useGameStore.getState().closeTagSheet();
   const figure = cut?.figures.find((f) => f.figureId === target.figureId);
 
@@ -88,7 +104,12 @@ export function TagSheet() {
     const out = g.tag(target.figureId, cardId, evId, target.cutId);
     const j = out.judgement;
     if (j.status === 'judged') {
-      if (j.verdict === 'ok') return; // 시트는 스토어가 닫는다
+      if (j.verdict === 'ok') {
+        // 시트는 스토어가 닫는다 — 도장 하나를 남기고 내려간다
+        const c = sheet.cards.find((x) => x.id === cardId);
+        if (c) setStamp({ name: c.name, hanja: c.hanja });
+        return;
+      }
       setFb({ text: j.feedback ?? '근거가 이 사람을 가리키지 않는다', warn: j.verdict === 'contradicts' });
       setLinked(j.verdict === 'not_linked');
       if (j.verdict === 'not_linked') return; // 고른 것은 그대로 — 방에서 이어 보고 돌아와 다시

@@ -12,6 +12,7 @@ import { cutNo } from '../lib/format';
 import { backdropSrc } from '../lib/manifest';
 import { IChevR, IWarn } from './icons';
 import { Sheet } from './Sheet';
+import { NavBar } from './NavBar';
 import { useUi } from '../uiStore';
 
 const C = 27; // 1칸 = 27 사용자 단위(글자 16 이 폭 328px 에서도 16px 이상)
@@ -270,31 +271,46 @@ export function RoomSheet() {
         testId="room-sheet"
         maxH="82%"
         foot={
-          view ? (
-            view.resolved ? (
-              <button className="btn primary" data-testid="room-back" onClick={() => { setMode(null); setRetry(null); setClaim(null); setEvid(null); }}>
-                그날의 방으로
-              </button>
-            ) : (
-              <button
-                className="btn primary"
-                data-testid="resolve-confirm"
-                disabled={!claim || !evid}
-                onClick={() => {
-                  if (!claim || !evid) return;
-                  const r = g.resolveContradiction(view.id, claim, evid);
-                  if (r.status === 'retry') {
-                    setRetry(r.text);
-                    fx('tag_no');
-                    setClaim(null);
-                    setEvid(null);
-                  } else if (r.status === 'resolved') setRetry(null);
-                }}
-              >
-                {view.judgements.find((j) => j.claimId === claim)?.text ?? '판단과 근거를 고른다'}
-              </button>
-            )
-          ) : undefined
+          <NavBar
+            className="insheet"
+            backTestId="room-nav-back"
+            onBack={() => {
+              // 모순 보기에서는 방(도면)으로, 방에서는 닫기
+              if (view) {
+                setMode(null);
+                setRetry(null);
+                setClaim(null);
+                setEvid(null);
+              } else close();
+            }}
+            primary={
+              view ? (
+                view.resolved ? (
+                  <button className="btn primary navprimary" data-testid="room-back" onClick={() => { setMode(null); setRetry(null); setClaim(null); setEvid(null); }}>
+                    그날의 방으로
+                  </button>
+                ) : (
+                  <button
+                    className="btn primary navprimary"
+                    data-testid="resolve-confirm"
+                    disabled={!claim || !evid}
+                    onClick={() => {
+                      if (!claim || !evid) return;
+                      const r = g.resolveContradiction(view.id, claim, evid);
+                      if (r.status === 'retry') {
+                        setRetry(r.text);
+                        fx('tag_no');
+                        setClaim(null);
+                        setEvid(null);
+                      } else if (r.status === 'resolved') setRetry(null);
+                    }}
+                  >
+                    {view.judgements.find((j) => j.claimId === claim)?.text ?? '판단과 근거를 고른다'}
+                  </button>
+                )
+              ) : null
+            }
+          />
         }
       >
         {!view ? (

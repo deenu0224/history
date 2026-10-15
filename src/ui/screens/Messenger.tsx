@@ -6,7 +6,8 @@ import { useView } from '@/store/hooks';
 import { selectMessenger } from '@/store/selectors';
 import { fx } from '../lib/fx';
 import { FROM_LABEL, FROM_MARK } from '../lib/format';
-import { IBack, IDoc } from '../parts/icons';
+import { IDoc } from '../parts/icons';
+import { NavBar } from '../parts/NavBar';
 import { useUi } from '../uiStore';
 
 /** 말풍선 글. 현실 재기록으로 바뀐 말은 아무 표시·효과 없이 지금 글만 보인다(원래 글은 화면에 오지 않는다). */
@@ -119,9 +120,6 @@ export function Messenger() {
   return (
     <div className="scr" data-screen="messenger">
       <div className="chat-head">
-        <button className="ibtn" aria-label="뒤로" onClick={() => useUi.getState().pop()} data-testid="messenger-back">
-          <IBack />
-        </button>
         <span className="avatar">한</span>
         <div style={{ flex: 1 }}>
           <div className="nm">한 선임</div>
@@ -148,21 +146,26 @@ export function Messenger() {
             </button>
           ))}
         </div>
-      ) : !view.canAsk ? null : (
-        <div className="askbar">
-          <button
-            className="askhint"
-            data-testid="ask-hint"
-            disabled={!!view.typing}
-            onClick={() => {
-              fx('tap');
-              useGameStore.getState().askHint();
-            }}
-          >
-            어디부터 볼까요?
-          </button>
-        </div>
-      )}
+      ) : null}
+      <NavBar
+        backTestId="messenger-back"
+        messenger={false}
+        primary={
+          !view.choices && view.canAsk ? (
+            <button
+              className="btn secondary navprimary"
+              data-testid="ask-hint"
+              disabled={!!view.typing}
+              onClick={() => {
+                fx('tap');
+                useGameStore.getState().askHint();
+              }}
+            >
+              어디부터 볼까요?
+            </button>
+          ) : null
+        }
+      />
     </div>
   );
 }
