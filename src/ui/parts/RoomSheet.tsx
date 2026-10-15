@@ -32,7 +32,7 @@ function cone(x: number, y: number, facing: number, half: number, r: number) {
 }
 
 const WORD: Record<string, string> = { clear: '또렷', garbled: '흐림', none: '안 들림', countable: '셀 수 있음', occluded: '가려짐', far: '멀다', out_of_view: '시야 밖' };
-const ownerChar = (label: string) => (/^(?!.*번째).+(의 기억| 관측)$/.test(label) ? label[0]! : '?');
+const ownerChar = (label: string) => (/번째|누군가|^\?/.test(label) ? '?' : label[0]!);
 
 function Base({ room, children }: { room: ReturnType<typeof selectRoom>; children?: React.ReactNode }) {
   const W = room.w * C;
