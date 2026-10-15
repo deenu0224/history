@@ -147,7 +147,7 @@ test.describe('v5 전체 플레이', () => {
 
     // ── 넘기기: 하위지의 기억 세 장(한 사람의 기억 = 고정 컷)
     await tid(page, 'btn-memories').click();
-    await expect(tid(page, 'viewer-title')).toHaveText(/^하위지/);
+    await expect(tid(page, 'viewer-title')).toHaveText('하위지가 본 것');
     await expect(tid(page, 'cut-time')).toHaveText('10:00');
     await expect(page.locator('[data-cut="e0-1"] [data-testid="bubble"]')).toBeVisible();
     await expect(tid(page, 'btn-room')).toHaveCount(0);
@@ -304,7 +304,7 @@ test.describe('v5 전체 플레이', () => {
 
     // ── 起: 첫 번째 기억 — 넘기기. 이름 붙이기 전엔 연도·장소·인물을 알려주지 않는다
     await tid(page, 'btn-memories').click();
-    await expect(tid(page, 'viewer-title')).toHaveText(/첫 번째|누군가/);
+    await expect(tid(page, 'viewer-title')).toHaveText('누군가 본 것');
     await expect(tid(page, 'cut-time')).toHaveText('09:10');
     await expect(page.locator('[data-cut="e1-1"] [data-testid="bubble"]')).toBeVisible();
     await shot(page, 'viewer-first-cut');
@@ -376,7 +376,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(page.locator('[data-eye="E1"]')).toHaveAttribute('data-state', 'open');
     // 첫 번째 눈의 주인이 밝혀졌다
     await page.locator('[data-eye="E1"]').click();
-    await expect(tid(page, 'viewer-title')).toHaveText(/^윤효손/);
+    await expect(tid(page, 'viewer-title')).toHaveText('윤효손이 본 것');
     await viewAll(page, 1);
     await page.locator('[data-eye="E2"]').click();
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
@@ -550,7 +550,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-log')).toContainText('해당 기사 없음');
     await shot(page, 'restore-log');
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-monologue')).toContainText('그의 눈은 끝내 열리지 않았다');
+    await expect(tid(page, 'restore-monologue')).toContainText('그의 관측은 끝내 이뤄지지 않았다');
     await page.waitForTimeout(4500);
     await shot(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
