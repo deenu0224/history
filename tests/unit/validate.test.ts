@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { validateEpisode, quotedFrom, type ValidateExtras } from '@/core/validate';
+import { hanBubblesMax, hanLineCount, HAN_LINES_MAX, validateEpisode, quotedFrom, type ValidateExtras } from '@/core/validate';
 import { CUT_IDS, CUT_TIMES, EP1, KIM_ALLOWED_BURSTS, MISTRANSLATED_0711 } from '@/data/v5';
+import { EP0 } from '@/data/v5/ep0';
 import type { Episode } from '@/core/types';
 
 const X: ValidateExtras = { cutIds: CUT_IDS, cutTimes: CUT_TIMES, kimAllowedBursts: KIM_ALLOWED_BURSTS, mistranslated: MISTRANSLATED_0711 };
@@ -113,6 +114,20 @@ describe('validator — catches broken content', () => {
     const ep3 = clone();
     ep3.verbs = { ...ep3.verbs, search: false };
     expect(rules(ep3)).toContain('words');
+  });
+  it('⑬ 한 선임 말수 예산: 사건 하나 ≤3(복원 장면 ≤4), 에피소드 줄 상한', () => {
+    expect(hanLineCount(EP0)).toBeLessThanOrEqual(HAN_LINES_MAX.ep0);
+    expect(hanLineCount(EP1)).toBeLessThanOrEqual(HAN_LINES_MAX.ep1);
+    for (const ep of [EP0, EP1])
+      for (const b of ep.bursts) expect(hanBubblesMax(b.steps), `${ep.id} ${b.id}`).toBeLessThanOrEqual(b.id === 'ev.restore' ? 4 : 3);
+    const ep = clone();
+    const x1 = ep.bursts.find((b) => b.id === 'ev.x1')!;
+    x1.steps = [...x1.steps, ...['하나.', '둘.', '셋.'].map((text, i) => ({ kind: 'say' as const, id: `zz${i}`, from: 'han' as const, text }))];
+    expect(validateEpisode(ep, X).some((i) => i.rule === '⑬' && i.message.includes('ev.x1'))).toBe(true);
+    const ep2 = clone();
+    for (let i = 0; i < 12; i++)
+      ep2.bursts.push({ id: `ev.pad${i}`, steps: [1, 2, 3].map((k) => ({ kind: 'say' as const, id: `pad${i}_${k}`, from: 'han' as const, text: '응.' })) });
+    expect(validateEpisode(ep2, X).some((i) => i.rule === '⑬' && i.message.includes('ep1'))).toBe(true);
   });
   it('cut ids must exist in CUT_IDS', () => {
     expect(validateEpisode(EP1, { ...X, cutIds: CUT_IDS.filter((c) => c !== 'e2-3') }).map((i) => i.rule)).toContain('cut_ids');

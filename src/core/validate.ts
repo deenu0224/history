@@ -15,6 +15,8 @@
  *  ⑪ 금지 낱말(영감·파면·틀린 소문)
  *  ⑫ 현실 재기록: 소실 사실(erasedFacts)에 기대는 대화 줄(동료·07 의 답)은 facts 로 그 사실을 달고 restored 를 갖는다.
  *     복원 뒤 대화 기록(지난 에피소드에서 이어진 줄 포함)의 어떤 글도 소실 사실의 무늬(tells)에 걸리지 않는다(validateDialogueAcross)
+ *  ⑬ 한 선임 말수 예산(DIALOGUE_GUIDE §1-11): 사건(묶음) 하나에 한 선임 말풍선 ≤3(가장 긴 갈래 기준, 현실 재기록 `ev.restore` 만 ≤4),
+ *     에피소드 하나의 한 선임 대본 줄(모든 갈래, 힌트·빠른 질문 답 제외) ≤ HAN_LINES_MAX
  *  + 낱말(words): 찾기 밑줄은 찾기 데이터에 있는 말만(찾기 없는 에피소드엔 없음), 풀이는 글 안에 있고 20자 이내
  *  + 컷 id 는 CUT_IDS 안에, 모든 컷 id 에 판정 데이터가 있다, id 중복 없음, provenance·출처
  */
@@ -49,6 +51,28 @@ export function bareHanja(text: string): string | null {
 }
 
 export const BAN_WORDS = ['영감', '파면', '틀린 소문'];
+
+/** ⑬ 한 선임 말수 예산 — 사건 하나(가장 긴 갈래)의 말풍선 수 */
+export const HAN_PER_EVENT_MAX = 3;
+/** 현실 재기록 장면만 한 칸 더 */
+export const HAN_PER_EVENT_MAX_RESTORE = 4;
+/** 에피소드 하나의 한 선임 대본 줄 수(모든 갈래, 힌트 제외). 없는 에피소드는 기본값 */
+export const HAN_LINES_MAX: Readonly<Record<string, number>> = { ep0: 15, ep1: 35 };
+export const HAN_LINES_MAX_DEFAULT = 35;
+
+/** 한 갈래를 따라 읽을 때 한 선임 말풍선이 가장 많은 길의 수 */
+export function hanBubblesMax(steps: readonly Step[]): number {
+  let n = 0;
+  for (const s of steps) {
+    if (s.kind === 'say' && s.from === 'han') n += 1;
+    else if (s.kind === 'choice') n += Math.max(0, ...s.options.map((o) => hanBubblesMax(o.then))) + hanBubblesMax(s.after ?? []);
+  }
+  return n;
+}
+
+/** 에피소드 대본의 한 선임 줄 수(모든 갈래) */
+export const hanLineCount = (ep: Episode): number =>
+  ep.bursts.reduce((a, b) => a + stepsOf(b.steps).filter((s) => s.kind === 'say' && s.from === 'han').length, 0);
 /** 1300~1999 네 자리 연도 */
 export const YEAR_RE = /(^|[^0-9#\-])1[3-9][0-9]{2}(?![0-9])/;
 export const PLACE_WORDS = ['실록청', '춘추관', '연산군', '연산 ', '성종', '궁궐', '창덕궁', '경복궁'];
@@ -492,6 +516,16 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
         if (f.tells.some((re) => re.test(l.text))) bad('⑫', `${l.where}: 소실 사실 '${f.id}' 에 기대는 줄인데 태그·복원 뒤 글이 없다 「${l.text}」`);
   }
   for (const f of erased.values()) if (!used.has(f.id)) bad('⑫', `소실 사실 ${f.id} 에 기대는 줄이 없다(무늬만 남음)`);
+
+  // ── ⑬ 한 선임 말수 예산 ──
+  for (const b of ep.bursts) {
+    const cap = b.id === 'ev.restore' ? HAN_PER_EVENT_MAX_RESTORE : HAN_PER_EVENT_MAX;
+    const n = hanBubblesMax(b.steps);
+    if (n > cap) bad('⑬', `${b.id}: 한 선임 말풍선 ${n}개(상한 ${cap})`);
+  }
+  const hanMax = HAN_LINES_MAX[ep.id] ?? HAN_LINES_MAX_DEFAULT;
+  const hanN = hanLineCount(ep);
+  if (hanN > hanMax) bad('⑬', `${ep.id}: 한 선임 대본 ${hanN}줄(상한 ${hanMax})`);
 
   // ── ⑦ 검증 문장 ──
   const full = ep.article.fullText;

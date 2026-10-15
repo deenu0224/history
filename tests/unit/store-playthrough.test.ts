@@ -124,7 +124,7 @@ describe('store — Ep1 correct path end to end', () => {
       verdict: 'not_linked',
       feedback: '그 말이 이 사람 얘기인지 아직 모른다',
     });
-    expect(h.st().messenger.fired).toContain('ev.tag_unmerged');
+    expect(h.st().messenger.fired).not.toContain('ev.tag_unmerged'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     const at = h.st().openRoomAtCut('e2-2');
     expect(at).toMatchObject({ status: 'opened', time: '13:20' });
     expect(at.merges.some((m) => m.includes('e2-2#fig_eo') && m.includes('e1-3#say:l_e1_3'))).toBe(true);
@@ -171,8 +171,8 @@ describe('store — Ep1 correct path end to end', () => {
     expect(hong).toMatchObject({ distance: 9.21, status: 'garbled' });
     expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
     drainMessages(h, 3);
-    expect(texts(h.store)).toContain('1년 전에 너도 거기서 멈췄어.');
-    expect(texts(h.store)).toContain('멀어서 임금의 첫 명령을 못 들은 거였네.');
+    expect(texts(h.store)).toContain('맨 끝 봐, 1년 전에도 너 거기서 멈췄어.');
+    expect(h.st().messenger.fired).not.toContain('ev.x1_resolved'); // 풀린 것은 화면이 알린다
     expect(h.st().search('#C-2217').results).toEqual([{ kind: 'log', id: 'doc_old_report' }]);
 
     // 기록 다시 쓰기
@@ -279,7 +279,7 @@ describe('store — mistakes are free and informative', () => {
     // 이름 없는 사람 두 번 → 한 선임
     h.st().tag('fig_clerk', 'yi_geukdon', 'l_e1_1', 'e1-1');
     h.st().tag('fig_clerk', 'sin_seungseon', 'l_e1_1', 'e1-1');
-    expect(h.st().messenger.fired).toContain('ev.tag_anon');
+    expect(h.st().messenger.fired).not.toContain('ev.tag_anon'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     expect(h.st().fails['tag:T1']).toBe(2);
     expect(h.st().named).toEqual({});
     // 정답
@@ -289,7 +289,7 @@ describe('store — mistakes are free and informative', () => {
     h.st().search('윤');
     o = h.st().tag('fig_yun', 'yun_pilsang', 'l_e2_1', 'e2-1');
     expect(o.judgement).toEqual({ status: 'judged', verdict: 'no_room_record', feedback: '근거가 이 사람을 가리키지 않는다' });
-    expect(h.st().messenger.fired).toContain('ev.decoy.T2');
+    expect(h.st().messenger.fired).not.toContain('ev.decoy.T2'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     o = h.st().tag('fig_yun', 'yi_geukdon', 'l_e2_1', 'e2-1');
     expect(o.judgement).toEqual({ status: 'judged', verdict: 'contradicts', feedback: '근거끼리 모순된다' });
     h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1');
@@ -299,7 +299,7 @@ describe('store — mistakes are free and informative', () => {
     expect(verdict(h.st().tag('fig_clerk', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_pointing'); // 그 자리가 아닌 사람
     h.st().openRoom('13:20');
     expect(verdict(h.st().tag('fig_eo', 'sin_seungseon', 'l_e1_3', 'e2-2'))).toBe('not_pointing');
-    expect(h.st().messenger.fired).toContain('ev.decoy.T3');
+    expect(h.st().messenger.fired).not.toContain('ev.decoy.T3'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     expect(h.st().tag('fig_eo', 'eo_segyeom', 'f_eo_r18', 'e2-2').judgement).toEqual({
       status: 'judged',
       verdict: 'not_unique',
@@ -311,7 +311,7 @@ describe('store — mistakes are free and informative', () => {
     h.st().viewCut('E2', 2);
     h.st().tag('fig_a', 'yi_geukdon', 'l_remon1', 'e2-3');
     expect(verdict(h.st().tag('fig_a', 'eo_segyeom', 'l_remon1', 'e2-3'))).toBe('not_pointing');
-    expect(h.st().messenger.fired).toContain('ev.tag_noevidence');
+    expect(h.st().messenger.fired).not.toContain('ev.tag_noevidence'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
     // T4 미끼: 이극균·한치형(이 방 기록 없음) · 유순(산릉)
     h.st().viewCut('E3', 0);
@@ -320,7 +320,7 @@ describe('store — mistakes are free and informative', () => {
     expect(verdict(h.st().tag('fig_hong', 'yi_geukgyun', 'l_e3_1', 'e3-1'))).toBe('no_room_record');
     expect(verdict(h.st().tag('fig_hong', 'han_chihyeong', 'l_e3_1', 'e3-1'))).toBe('no_room_record');
     expect(verdict(h.st().tag('fig_hong', 'yu_sun', 'l_e3_1', 'e3-1'))).toBe('not_pointing');
-    expect(h.st().messenger.fired).toContain('ev.decoy.T4');
+    expect(h.st().messenger.fired).not.toContain('ev.decoy.T4'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     expect(h.st().openedEyes).not.toContain('E4');
   });
 
@@ -373,7 +373,7 @@ describe('store — mistakes are free and informative', () => {
     // 그날 고정률: 필수 L1~L4 중 하나 = 25%. 증인 줄(w_corner)은 세지 않는다
     expect(selectRewrite(EP1, h.st()).fixRate).toEqual({ fixed: 1, total: 4, pct: 25 });
     expect(selectHome(EP1, h.st()).fixRate.pct).toBe(25);
-    expect(h.st().messenger.fired).toContain('ev.write_partial');
+    expect(h.st().messenger.fired).not.toContain('ev.write_partial'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     expect(h.st().placePiece('pc_L2').status).toBe('already');
     expect(h.st().placePiece('pc_S1').status).toBe('not_held'); // 3-4 를 못 봤다(닫히는 눈의 선택 줄)
   });

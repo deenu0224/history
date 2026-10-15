@@ -1,6 +1,7 @@
 /**
  * Ep0 메신저 대본(DIALOGUE_GUIDE §4.0) — 한 선임(반말)·시스템 줄. 말풍선 하나 = 문장 하나(≤30자), 정답(이름 붙이기 전 인물 이름·연도·사건) 금지.
- * 세계 규칙을 대화 속 한 문장씩만: 소실(지워지면 사람 기억도) · 관측기(그날을 적은 사람의 눈으로만) · 다시 쓰기(실록과 맞으면 현실이 돌아온다).
+ * 세계 규칙을 대화 속 한 문장씩, 게임 전체에서 한 번만: 관측기(그날을 적은 사람의 눈으로만) · 소실(지워지면 기억도)과 관측기의 구멍 탐지 · 고정(세상이 그 기록대로 굳는다).
+ * 말수 예산(DIALOGUE_GUIDE §1-11, 검증기 ⑬): 사건 하나 ≤3 말풍선(ev.restore ≤4), Ep0 한 선임 ≤15줄. 틀린 시도·성공 맞장구엔 묶음이 없다(힌트 사다리만).
  * 아이러니: 이 세계의 모두(07 포함)는 「한글을 누가 만들었는지는 기록이 없다」를 당연하게 여긴다. 07 이 걸리는 것은 관측기의 「주어 칸 손상」 탐지뿐.
  * 현실 재기록(DIALOGUE_GUIDE §1-10): 소실 사실(ERASED0)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 갖는다 —
  * 한 선임의 말도, 07 의 답도. 복원되면 대화 기록 전체에서 그 자리에서 조용히 다시 쓰인다(표시 없음).
@@ -27,36 +28,13 @@ const named = (id: string, step: Step): Step => ({ ...step, id }) as Step;
 export const BURSTS0: Burst[] = [
   {
     id: 'ev.start',
-    steps: [
-      sys('관측기: #C-2209 · 문장 손상 2건'),
-      han('07, 아직 있어?'),
-      han('실록은 날짜 밑에 일이 한 꼭지씩 적혀 있어.'),
-      han('그중 한 꼭지가 구멍투성이가 됐어.'),
-      han('홈 카드 봐, 거의 다 뚫렸지?'),
-      {
-        kind: 'choice',
-        id: 'c0_start',
-        allowNoReply: true,
-        options: [
-          { id: 'hole', text: '왜 이렇게 뚫렸어요?', then: [han('사실 하나가 지워지면 닿은 문장이 다 무너져.')] },
-          { id: 'ok', text: '네, 보여요.', then: [han('남은 조각부터 맞춰 보자.')] },
-        ],
-      },
-    ],
+    steps: [sys('관측기: #C-2209 · 문장 손상 2건'), han('07, 홈 카드 봐, 실록 한 꼭지가 다 뚫렸어.')],
   },
-  {
-    id: 'ev0.eye_rule',
-    steps: [
-      han('관측기는 그날을 적은 사람 눈으로만 봐.'),
-      han('이번 건 그날 명단에 남은 사람 눈이야.'),
-      han('줄 맨 끝자리.'),
-    ],
-  },
+  { id: 'ev0.eye_rule', steps: [han('관측기는 그날을 적은 사람 눈으로만 봐.')] },
   {
     id: 'ev0.erasure',
     steps: [
-      han('카드 아래 옆 기록도 똑같이 뚫렸지?'),
-      named('m0_hangul', han('한글 누가 만들었는지 적힌 데야.', { restored: '세종대왕이 한글 지은 그 기록.', facts: HANGUL })),
+      named('m0_hangul', han('옆 기록은 한글 누가 만들었는지 적힌 데야.', { restored: '옆 기록은 세종대왕이 한글 지은 그 기록이야.', facts: HANGUL })),
       {
         kind: 'choice',
         id: 'c0_hangul',
@@ -67,38 +45,13 @@ export const BURSTS0: Burst[] = [
         ],
         after: [
           named('m0_nolog', han('응, 한글은 쓰는데 만든 사람은 기록에 없지.', { restored: '응, 그러니까 더 이상하지.', facts: HANGUL })),
-          han('지워지면 사람 머리에서도 같이 지워지니까.'),
-          han('근데 관측기는 문장 구멍을 잡아.', { heavy: true }),
+          han('지워지면 기억도 지워지는데, 관측기는 구멍을 잡아.', { heavy: true }),
         ],
       },
     ],
   },
-  { id: 'ev.linger_cut.E0', spontaneous: true, steps: [han('남의 눈으로 보는 거 처음엔 좀 어지럽지.')] },
-  { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
-  { id: 'ev0.decoy.rank', steps: [han('두루마리 첫머리 다시 봐.'), han('카드랑 자리 이름이 다르잖아.')] },
-  { id: 'ev0.choi_named', steps: [han('맞네.'), han('이름 붙이면 카드 줄에 붉은 밑줄이 가.'), han('남은 건 높은 자리 그 사람.')] },
-  { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('높은 자리 사람은 자기를 뭐라고 불렀지?')] },
-  { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.'), han('그 사람들은 꾸중 듣던 쪽이잖아.')] },
-  { id: 'ev.card_link', steps: [han('카드 하나 더 붙었네.'), han('줄 안 이름도 눌러 볼 수 있어.')] },
-  { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 고정해 봐.')] },
-  {
-    id: 'ev.write_open',
-    steps: [
-      han('본 것만으로 고정해.'),
-      han('고정하면 세상이 그 기록대로 굳어.'),
-      han('실록과 맞는 문장만 고정돼.'),
-      {
-        kind: 'choice',
-        id: 'c0_write',
-        allowNoReply: true,
-        options: [
-          { id: 'then', text: '고정되면요?', then: [han('그 문장이 다시 기록이 돼.'), han('기록이 돌아오면 사람들 기억도 돌아와.')] },
-          { id: 'ok', text: '네.', then: [] },
-        ],
-      },
-    ],
-  },
-  { id: 'ev.write_miss', steps: [han('고정이 안 됐네.'), han('칸에 넣은 이름만 다시 봐.')] },
+  { id: 'ev0.king_named', steps: [han('이제 고정해 봐.')] },
+  { id: 'ev.write_open', steps: [han('고정하면 세상이 그 기록대로 굳어.')] },
   {
     id: 'ev.restore',
     postRestore: true,
@@ -124,12 +77,7 @@ export const BURSTS0: Burst[] = [
   {
     id: 'ev.teaser',
     postRestore: true,
-    steps: [
-      { kind: 'system', id: 'e0m_bridge_sys', text: '관측기: 같은 손상 흔적 1건 더' },
-      han('어, 하나 더 떴다.'),
-      han('이번엔 이름은 남고 사유가 빠졌대.'),
-      han('그건 위에서 너한테 줄 거야.'),
-    ],
+    steps: [{ kind: 'system', id: 'e0m_bridge_sys', text: '관측기: 같은 손상 흔적 1건 더' }, han('어, 하나 더 떴다.'), han('이번엔 이름은 남고 사유가 빠졌대.')],
   },
   { id: 'ev.resume.notag', repeatable: true, steps: [han('왔어? 그 구멍 난 거 그대로야.')] },
 ];
@@ -150,9 +98,9 @@ export const LADDERS0: HintLadder[] = [
     activeWhen: { allViewed: ['e0-1'], tagsNotDone: ['T0a'] },
     doneWhen: { tagsDone: ['T0a'] },
     steps: [
-      { id: 'h0_choi_1', text: '모르는 얼굴 있으면 눌러 봐.', afterS: 25, fails: 1 },
-      { id: 'h0_choi_2', text: '두루마리에 뭐라고 적혀 있지?', afterS: 30, fails: 2 },
-      { id: 'h0_choi_3', text: '두루마리 첫머리랑 같은 줄 있는 카드.', afterS: 30, fails: 3 },
+      { id: 'h0_choi_1', text: '모르는 얼굴 있으면 눌러 봐.', afterS: 25, fails: 2 },
+      { id: 'h0_choi_2', text: '두루마리에 뭐라고 적혀 있지?', afterS: 30, fails: 3 },
+      { id: 'h0_choi_3', text: '두루마리 첫머리랑 같은 줄 있는 카드.', afterS: 30, fails: 4 },
     ],
   },
   {
@@ -162,9 +110,9 @@ export const LADDERS0: HintLadder[] = [
     activeWhen: { tagsDone: ['T0a'], allViewed: ['e0-1', 'e0-2', 'e0-3'], tagsNotDone: ['T0b'] },
     doneWhen: { tagsDone: ['T0b'] },
     steps: [
-      { id: 'h0_king_1', text: '그 사람이 자기를 뭐라고 불렀지?', afterS: 25, fails: 1 },
-      { id: 'h0_king_2', text: '최만리 카드를 펼쳐 봐.', afterS: 30, fails: 2 },
-      { id: 'h0_king_3', text: '카드 줄에 밑줄 친 이름 있지?', afterS: 30, fails: 3 },
+      { id: 'h0_king_1', text: '그 사람이 자기를 뭐라고 불렀지?', afterS: 25, fails: 2 },
+      { id: 'h0_king_2', text: '최만리 카드를 펼쳐 봐.', afterS: 30, fails: 3 },
+      { id: 'h0_king_3', text: '카드 줄에 밑줄 친 이름 있지?', afterS: 30, fails: 4 },
     ],
   },
   {
@@ -180,8 +128,8 @@ export const LADDERS0: HintLadder[] = [
     activeWhen: { rewriteOpen: true },
     doneWhen: { allRestored: true },
     steps: [
-      { id: 'h0_write_1', text: '그 말 한 사람 이름, 이제 알잖아.', afterS: 40, fails: 1 },
-      { id: 'h0_write_2', text: '칸에 넣을 이름만 다시 골라 봐.', afterS: 30, fails: 2 },
+      { id: 'h0_write_1', text: '그 말 한 사람 이름, 이제 알잖아.', afterS: 40, fails: 2 },
+      { id: 'h0_write_2', text: '칸에 넣을 이름만 다시 골라 봐.', afterS: 30, fails: 3 },
     ],
   },
 ];

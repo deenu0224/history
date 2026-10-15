@@ -1,6 +1,7 @@
 /**
  * 메신저 대본(docs/DIALOGUE_GUIDE.md §4) — 한 선임(가상, 반말)·오 실장(가상, 두 번만)·시스템 줄.
  * 사건(§3) 하나 = 묶음(Burst) 하나. 말풍선 하나 = 문장 하나(≤30자). 정답(인물 이름·연도·사건 이름) 금지.
+ * 말수 예산(§1-11, 검증기 ⑬): 사건 하나 ≤3 한 선임 말풍선(ev.restore ≤4), Ep1 한 선임 ≤35줄. 틀린 시도·화면이 알리는 일엔 묶음이 없다.
  * 현실 재기록(§1-10): 소실 사실(ERASED1)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 함께 갖는다 —
  * 한 선임·오 실장의 말도, 07 의 답도. 복원되면 대화 기록 전체에서 조용히 다시 쓰인다(표시 없음). 모두 provenance: fictional.
  * 관측기가 말한 것(시스템 줄, 탐지·재계산·「관측 불가」를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
@@ -32,100 +33,21 @@ export const BURSTS: Burst[] = [
     steps: [
       oh('07, #C-2217 너한테 갔다.'),
       named('m_oh_priority', oh('우선순위 낮음. 아침 전에 정리해.', { restored: '다 아는 건이니 아침 전에 정리해.', facts: DAY })),
-      han('아까 하나 더 떴다던 그거야.'),
-      han('이름은 남고 사유가 빠진 거.'),
-      han('그 건엔 명단이 하나 붙어 있더라.'),
-      han('거기서 셋만 먼저 뽑아서 카드 올려놨어.'),
+      han('명단에서 셋만 뽑아 카드 올려놨어.'),
       han('나머진 필요하면 찾기로 봐.'),
-      {
-        kind: 'choice',
-        id: 'c_start',
-        allowNoReply: true,
-        options: [
-          { id: 'thanks', text: '고마워요.', then: [han('응.')] },
-          { id: 'which', text: '무슨 명단이에요?', then: [han('무슨 관청 상 받은 사람들 명단.'), han('이름 칸만 멀쩡하더라.')] },
-        ],
-      },
     ],
   },
-  { id: 'ev.linger_cut.E1', spontaneous: true, steps: [han('남의 눈으로 보는 거 처음엔 좀 어지럽지.')] },
-  { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
-  { id: 'ev.tag_unmerged', steps: [han('그 말이 누구 얘기였는지부터 봐.'), han('방에서 같은 시각을 봐.')] },
-  { id: 'ev.write_miss', steps: [han('고정이 안 됐네.'), han('칸 하나가 어긋난 거야.')] },
-  { id: 'ev.tag_anon', steps: [han('그 사람 카드는 없을걸.'), han('모든 사람이 기록에 남진 않아.')] },
-  {
-    id: 'ev.eye_open.E2',
-    steps: [
-      han('열렸다.'),
-      han('이름 맞으면 그 사람 눈이 붙어.'),
-      han('관측기가 기록 있는 사람 눈만 빌리잖아.'),
-      {
-        kind: 'choice',
-        id: 'c_e2',
-        allowNoReply: true,
-        options: [
-          { id: 'go', text: '두 번째 관측 볼게요.', then: [] },
-          { id: 'whose', text: '첫 번째 관측은 누가 본 거예요?', then: [han('그건 나도 몰라.'), han('그 기록 이름 칸이 깎여 있었어.')] },
-        ],
-      },
-    ],
-  },
+  { id: 'ev.eye_open.E2', steps: [han('첫 번째 관측은 이름 칸이 깎여 있었어.')] },
   {
     id: 'ev.search_kim',
     steps: [
-      han('김일손?'),
       named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.', facts: KIM })),
       named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?', facts: CAUSE })),
-      han('…관측도 안 된다고 나오고.', heavy),
-      {
-        kind: 'choice',
-        id: 'c_kim',
-        options: [
-          { id: 'noday', text: '그날을 가리키는 기록이 없대요.', then: [] },
-          { id: 'odd', text: '이상하네요.', then: [] },
-        ],
-        after: [named('m_kim_noday', han('사람은 있는데 그날이 없는 거네.', { restored: '그날은 다 아는데, 그 사람 눈만 없네.', facts: DAY })), han('그런 거 가끔 있어.')],
-      },
     ],
   },
-  { id: 'ev.room_open', steps: [han('본 사람이 둘이면 방 그림이 나와.'), han('누가 어디 앉아 있었는지.')] },
-  { id: 'ev.merge_first', steps: [han('겹쳤네.'), han('같은 시각, 같은 자리면 같은 사람이야.')] },
-  { id: 'ev.decoy.T2', steps: [han('성은 맞는데.'), han('그 사람, 그 방에서 일한 기록 있어?')] },
-  {
-    id: 'ev.owner_named',
-    steps: [
-      han('첫 번째 관측, 누가 본 건지 찾았네.'),
-      han('자기 자리에서 남이 본 거로.'),
-      {
-        kind: 'choice',
-        id: 'c_owner',
-        allowNoReply: true,
-        options: [{ id: 'works', text: '이게 되네요.', then: [han('그 방 그림 내가 제일 좋아하는 기능이야.')] }],
-      },
-    ],
-  },
-  { id: 'ev.decoy.T3', steps: [han('그 사람 카드 줄 다시 읽어 봐.'), han('같은 일에 반대였는지 찬성이었는지.')] },
-  { id: 'ev.eye_open.E3', steps: [han('셋.'), han('나 잠깐 다른 건 좀 볼게.'), { kind: 'status', presence: 'away' }] },
-  { id: 'ev.decoy.T4', steps: [han('명단엔 셋이잖아.'), han('그중에 그 방에서 일한 기록은?')] },
-  { id: 'ev.tag_noevidence', steps: [han('그 사람 얘기는 아무도 안 했어.'), han('근거 없으면 이름 못 붙여.')] },
-  { id: 'ev.eye_open.E4', steps: [{ kind: 'status', presence: 'online' }, han('넷.'), han('이 사람 자리 꽤 구석이다.')] },
-  {
-    id: 'ev.x1',
-    steps: [
-      han('잠깐.'),
-      han('첫 번째 관측이랑 말이 다르네.'),
-      han('「모두」랑 「여섯 조목만」.', heavy),
-      {
-        kind: 'choice',
-        id: 'c_x1',
-        allowNoReply: true,
-        options: [
-          { id: 'who', text: '누가 맞아요?', then: [han('그건 네가 봐야지.'), han('둘 다 거짓말은 아닐 거야.')] },
-          { id: 'room', text: '방에서 볼게요.', then: [han('응.')] },
-        ],
-      },
-    ],
-  },
+  { id: 'ev.eye_open.E3', steps: [han('나 잠깐 다른 건 좀 볼게.'), { kind: 'status', presence: 'away' }] },
+  { id: 'ev.eye_open.E4', steps: [{ kind: 'status', presence: 'online' }, han('이 사람 자리 꽤 구석이다.')] },
+  { id: 'ev.x1', steps: [han('잠깐, 첫 번째 관측이랑 말이 다르네.', heavy)] },
   {
     id: 'ev.closure',
     steps: [
@@ -133,16 +55,15 @@ export const BURSTS: Burst[] = [
       oh('관측기 한 바퀴 돌았다.'),
       named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '교과서 건이니 남은 걸로 깔끔하게 해.', facts: DAY })),
       han('…닫혔어?', heavy),
-      han('본 건 남아. 네가 본 건 안 지워지니까.'),
-      han('못 본 건… 끝이고.'),
       {
         kind: 'choice',
         id: 'c_closure',
         options: [
-          { id: 'missed', text: '하나 못 봤어요.', then: [han('그럴 때 있어.', heavy)] },
-          { id: 'all', text: '다 봤어요.', then: [han('다행이다.')] },
+          { id: 'missed', text: '하나 못 봤어요.', then: [] },
+          { id: 'all', text: '다 봤어요.', then: [] },
         ],
         after: [
+          han('본 건 남고, 못 본 건… 끝이야.', heavy),
           han('관측기 기록 좀 뒤져 볼게.'),
           { kind: 'status', presence: 'away' },
           { kind: 'async', event: 'ev.old_report', minS: 40, maxS: 90, capS: 120 },
@@ -154,9 +75,7 @@ export const BURSTS: Burst[] = [
     id: 'ev.old_report',
     steps: [
       { kind: 'status', presence: 'online' },
-      han('야.'),
       han('이거 1년 전 네 거야.', heavy),
-      han('같은 빈자리.'),
       { kind: 'attach', id: 'm_att_old', docId: 'doc_old_report', label: '관측 기록 · #C-2217 · 1년 전 · 대조관 07' },
       {
         kind: 'choice',
@@ -165,30 +84,12 @@ export const BURSTS: Burst[] = [
           { id: 'forgot', text: '기억 안 나요.', then: [] },
           { id: 'me', text: '제가요?', then: [] },
         ],
-        after: [han('맨 끝에 뭐라고 적었는지 봐.'), han('1년 전에 너도 거기서 멈췄어.'), han('사람 기억은 관측기가 안 지켜 주잖아.')],
+        after: [han('맨 끝 봐, 1년 전에도 너 거기서 멈췄어.'), han('사람 기억은 관측기가 안 지켜 주잖아.')],
       },
     ],
   },
-  { id: 'ev.x1_resolved', steps: [han('멀어서 임금의 첫 명령을 못 들은 거였네.'), han('전해 들은 말은 순서가 섞이기도 해.')] },
-  {
-    id: 'ev.write_open',
-    steps: [
-      han('이제 고정해 봐.'),
-      han('본 것만.'),
-      {
-        kind: 'choice',
-        id: 'c_write',
-        allowNoReply: true,
-        options: [
-          { id: 'only', text: '본 것만이요?', then: [han('실록도 본 걸 적은 거니까.')] },
-          { id: 'ok', text: '네.', then: [] },
-        ],
-      },
-    ],
-  },
-  { id: 'ev.x2', steps: [han('종이 수가 또 다르네.'), han('셀 수 있었던 눈이 누군지 봐.')] },
-  { id: 'ev.witness_line', steps: [han('그 줄은 남아.'), han('근데 기록은 안 돼.'), han('본 사람이 있어도, 적힌 데가 없으면.', heavy)] },
-  { id: 'ev.write_partial', steps: [han('몇 문장은 고정됐네.'), han('고정 안 된 문장은 칸 하나가 어긋난 거야.')] },
+  { id: 'ev.write_open', steps: [han('이제 고정해 봐, 본 것만.')] },
+  { id: 'ev.witness_line', steps: [han('본 사람이 있어도, 적힌 데가 없으면 기록은 안 돼.', heavy)] },
   {
     id: 'ev.restore',
     postRestore: true,
@@ -203,7 +104,6 @@ export const BURSTS: Burst[] = [
           { id: 'day', text: '그날 기록이요.', then: [] },
         ],
         after: [
-          han('무오사화를?'),
           han('우리 부서에 그걸 모르는 사람이 어디 있어.'),
           han('너 신입 때 나한테 그걸로 발표했잖아.'),
           { kind: 'pause', ms: 4000, fakeTyping: true },
@@ -213,13 +113,11 @@ export const BURSTS: Burst[] = [
       },
     ],
   },
-  { id: 'ev.restore_room', postRestore: true, steps: [han('임금께 말씀 올린 사람이 넷이네.'), han('둘은 네 눈엔 이름이 안 남았고.')] },
   {
     id: 'ev.teaser',
     postRestore: true,
     steps: [
-      han('아 그리고.'),
-      han('아까 관측기 기록 뒤지다 본 건데.'),
+      han('아까 기록 뒤지다 본 건데.'),
       han('너, 2년 전에도 뭐 하나 붙들고 있었더라.'),
       { kind: 'attach', id: 'm_att_c0408', docId: 'doc_c0408', label: '#C-0408 · 2년 전 · 대조관 07 · 관측 오류 · 종결' },
       {
@@ -233,7 +131,7 @@ export const BURSTS: Burst[] = [
       },
     ],
   },
-  // ev.resume — 진행 상태별 한 줄(§4.12)
+  // ev.resume — 진행 상태별 한 줄(§4.10)
   { id: 'ev.resume.notag', repeatable: true, steps: [han('왔어? 카드 세 장 그대로 있어.')] },
   { id: 'ev.resume.room', repeatable: true, steps: [han('방 그림 그대로야.')] },
   { id: 'ev.resume.x1', repeatable: true, steps: [han('그 「모두」 얘기 아직이지?')] },
@@ -312,9 +210,9 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { revealed: ['X1'], unresolved: ['X1'] },
     doneWhen: { resolved: ['X1'] },
     steps: [
-      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 1 },
-      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 2 },
-      { id: 'h_x1_3', text: '멀리 앉은 사람은 들은 걸까, 전해 들은 걸까.', afterS: 60, fails: 3 },
+      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 2 },
+      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 3 },
+      { id: 'h_x1_3', text: '멀리 앉은 사람은 들은 걸까, 전해 들은 걸까.', afterS: 60, fails: 4 },
     ],
   },
   {
@@ -323,9 +221,9 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { revealed: ['X2'], unresolved: ['X2'] },
     doneWhen: { resolved: ['X2'] },
     steps: [
-      { id: 'h_x2_1', text: '셀 수 있었던 눈이 누군지 봐.', afterS: 60, fails: 1 },
-      { id: 'h_x2_2', text: '책상 가운데 뭐 쌓여 있었지?', afterS: 60, fails: 2 },
-      { id: 'h_x2_3', text: '그 더미 너머가 다 보였을까.', afterS: 60, fails: 3 },
+      { id: 'h_x2_1', text: '셀 수 있었던 눈이 누군지 봐.', afterS: 60, fails: 2 },
+      { id: 'h_x2_2', text: '책상 가운데 뭐 쌓여 있었지?', afterS: 60, fails: 3 },
+      { id: 'h_x2_3', text: '그 더미 너머가 다 보였을까.', afterS: 60, fails: 4 },
     ],
   },
   {

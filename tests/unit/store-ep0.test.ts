@@ -97,7 +97,7 @@ describe('store — Ep0 correct path', () => {
       verdict: 'not_pointing',
       feedback: '근거가 이 사람을 가리키지 않는다',
     });
-    expect(h.st().messenger.fired).toContain('ev0.decoy.rank');
+    expect(h.st().messenger.fired).not.toContain('ev0.decoy.rank'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     // T0a 정답
     const a = h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
     expect(verdict(a)).toBe('ok');
@@ -110,7 +110,7 @@ describe('store — Ep0 correct path', () => {
     expect(verdict(h.st().tag('fig_king', 'choi_manri', 'l_e0_gunsang', 'e0-3'))).toBe('contradicts');
     // 신하 카드(최만리·정창손·김문): 군상(임금)이라 자기를 부른 사람을 가리키지 않는다
     expect(verdict(h.st().tag('fig_king', 'jeong_changson', 'l_e0_gunsang', 'e0-2'))).toBe('not_pointing');
-    expect(h.st().messenger.fired).toContain('ev0.decoy.choi');
+    expect(h.st().messenger.fired).not.toContain('ev0.decoy.choi'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_gunsang', 'e0-2'))).toBe('not_pointing');
     // 상소 첫 줄(「언문을 제작하신」)은 그 사람을 가리키지만 판정 사실이 없다 — 누가 만들었는지는 지워진 사실, 다시 쓰기의 결론
     expect(verdict(h.st().tag('fig_king', 'kim_mun', 'l_e0_memorial', 'e0-1'))).toBe('not_pointing');
@@ -153,7 +153,7 @@ describe('store — Ep0 correct path', () => {
     let sub = h.st().submitRewrite();
     expect('results' in sub && sub.results[L]).toBe('not_recorded');
     expect(selectRewrite(EP0, h.st()).fixRate.pct).toBe(0);
-    expect(h.st().messenger.fired).toContain('ev.write_miss');
+    expect(h.st().messenger.fired).not.toContain('ev.write_miss'); // 틀린 시도에는 말이 없다(힌트 사다리만)
     h.st().fillSlot(L, 'who', '세종');
     sub = h.st().submitRewrite();
     expect('complete' in sub && sub.complete).toBe(true);
@@ -177,7 +177,7 @@ describe('store — Ep0 correct path', () => {
     expect(selectCard(EP0, h.st(), 'sejong')!.facts.map((f) => f.id)).toContain('f_sj_eonmun');
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('세종대왕이 만든 거 모르는 사람이 어디 있어.');
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')?.restored).toBe('세종대왕이 한글 지은 그 기록.');
+    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')?.restored).toBe('옆 기록은 세종대왕이 한글 지은 그 기록이야.');
     expect(selectRestoration(EP0, h.st())!.messages.map((m) => m.id)).toEqual(expect.arrayContaining(['m0_hangul', 'm0_nolog']));
 
     // 다리 → 23:04 → Ep1
@@ -200,7 +200,7 @@ describe('store — Ep0 correct path', () => {
     expect(selectEpisodes(h.st()).map((e) => e.state)).toEqual(['done', 'current']);
     // 대화는 이어지고, Ep0 의 ⟲ 말풍선은 복원 뒤 글로 굳었다
     expect(h.st().messenger.log.length).toBe(logBefore);
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '세종대왕이 한글 지은 그 기록.', bakedFrom: '한글 누가 만들었는지 적힌 데야.' });
+    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '옆 기록은 세종대왕이 한글 지은 그 기록이야.', bakedFrom: '옆 기록은 한글 누가 만들었는지 적힌 데야.' });
     h.advance(10_000);
     expect(h.st().messenger.log.slice(logBefore).map((m) => m.text)[0]).toBe('07, #C-2217 너한테 갔다.');
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);

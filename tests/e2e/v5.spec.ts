@@ -447,7 +447,7 @@ test.describe('v5 전체 플레이', () => {
     await mineNow.scrollIntoViewIfNeeded();
     await expect(mineNow).toHaveCount(1);
     await expect(mineNow).toHaveAttribute('data-rewritten', 'true');
-    await expect(chat).toContainText('세종대왕이 한글 지은 그 기록.');
+    await expect(chat).toContainText('옆 기록은 세종대왕이 한글 지은 그 기록이야.');
     await expect(chat).toContainText('응, 그러니까 더 이상하지.');
     await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
     await expect(chat).not.toContainText('만든 사람은 기록에 없지');

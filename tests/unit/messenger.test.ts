@@ -174,19 +174,16 @@ describe('messenger timing model (DIALOGUE_GUIDE §2)', () => {
 });
 
 describe('messenger in the store (EP1 script)', () => {
-  it('ev.start: 오 실장 → 한 선임, stops at 4 bubbles until opened, then offers the reply', () => {
+  it('ev.start: 오 실장 둘 → 한 선임 둘, 답장 없이 끝난다(말수 예산)', () => {
     const h = makeStore(21);
     h.st().startEpisode();
     h.advance(30_000);
     expect(h.st().messenger.log.map((m) => m.from)).toEqual(['oh', 'oh', 'han', 'han']);
-    expect(h.st().messenger.stalled).toBe(true);
+    expect(h.st().messenger.log.slice(-2).map((m) => m.text)).toEqual(['명단에서 셋만 뽑아 카드 올려놨어.', '나머진 필요하면 찾기로 봐.']);
     h.st().openMessenger();
     h.advance(40_000);
-    expect(h.st().messenger.log).toHaveLength(7);
-    expect(h.st().messenger.choice?.step.options.map((o) => o.text)).toEqual(['고마워요.', '무슨 명단이에요?']);
-    expect(h.st().chooseReply('which')).toBe(true);
-    h.advance(15_000);
-    expect(h.st().messenger.log.slice(-2).map((m) => m.text)).toEqual(['무슨 관청 상 받은 사람들 명단.', '이름 칸만 멀쩡하더라.']);
+    expect(h.st().messenger.log).toHaveLength(4);
+    expect(h.st().messenger.choice).toBeFalsy();
   });
 
   it('two stores with the same seed and clock produce the same chat', () => {
