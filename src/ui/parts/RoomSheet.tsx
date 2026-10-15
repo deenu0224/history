@@ -32,7 +32,7 @@ function cone(x: number, y: number, facing: number, half: number, r: number) {
 }
 
 const WORD: Record<string, string> = { clear: '또렷', garbled: '흐림', none: '안 들림', countable: '셀 수 있음', occluded: '가려짐', far: '멀다', out_of_view: '시야 밖' };
-const ownerChar = (label: string) => (label.endsWith('의 기억') ? label[0]! : '?');
+const ownerChar = (label: string) => (/^(?!.*번째).+(의 기억| 관측)$/.test(label) ? label[0]! : '?');
 
 function Base({ room, children }: { room: ReturnType<typeof selectRoom>; children?: React.ReactNode }) {
   const W = room.w * C;
@@ -323,7 +323,7 @@ export function RoomSheet() {
                   {marker.merged ? ' · 같은 사람으로 겹쳤다' : ''}
                 </>
               ) : (
-                <span className="t-m">눈이나 사람을 탭하면 시야와 컷을 볼 수 있다</span>
+                <span className="t-m">관측이나 사람을 탭하면 시야와 컷을 볼 수 있다</span>
               )}
             </div>
             {eye?.cutId ? (

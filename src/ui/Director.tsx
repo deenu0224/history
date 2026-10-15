@@ -21,11 +21,11 @@ function handle(f: Fx) {
   switch (f.kind) {
     case 'eye_open':
       fx('eye_open');
-      ui.showToast('눈이 하나 열렸다', 'amber');
+      ui.showToast('관측이 하나 열렸다', 'amber');
       break;
     case 'eye_close':
       fx('eye_close');
-      ui.showToast('열린 눈 하나가 닫혔다', 'cold');
+      ui.showToast('관측이 끊겼다', 'cold');
       break;
     case 'tag':
       fx(f.verdict === 'ok' ? 'tag_ok' : 'tag_no');

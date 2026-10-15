@@ -64,8 +64,8 @@ async function tagWith(page: Page, cut: string, fig: string, card: string, ev: s
   await tid(page, 'tag-confirm').click();
 }
 
-/** 메신저를 열어 밀린 말을 다 읽는다(답장은 늘 첫 선택지). 실제 플레이어가 하듯이 */
-async function readChat(page: Page) {
+/** 메신저를 열어 밀린 말을 다 읽는다(답장은 늘 첫 선택지). 실제 플레이어가 하듯이. back=false 면 메신저에 머문다 */
+async function readChat(page: Page, back = true) {
   await tid(page, 'dock-messenger').click();
   let stable = 0;
   let last = -1;
@@ -81,7 +81,7 @@ async function readChat(page: Page) {
     last = n;
     await page.waitForTimeout(1000);
   }
-  await tid(page, 'messenger-back').click();
+  if (back) await tid(page, 'messenger-back').click();
 }
 
 const holdSubmit = async (page: Page) => {
@@ -94,71 +94,238 @@ const holdSubmit = async (page: Page) => {
   await page.mouse.up();
 };
 
+/** 컷을 실제로 밀어 넘긴다(오른쪽 → 왼쪽 드래그) */
+const swipeLeft = async (page: Page) => {
+  const sb = (await tid(page, 'stage').boundingBox())!;
+  await page.mouse.move(sb.x + sb.width * 0.85, sb.y + sb.height * 0.62);
+  await page.mouse.down();
+  await page.mouse.move(sb.x + sb.width * 0.3, sb.y + sb.height * 0.62, { steps: 8 });
+  await page.mouse.up();
+};
+
 test.describe('v5 전체 플레이', () => {
-  test.setTimeout(420_000);
+  test.setTimeout(600_000);
   test.beforeEach(({ page: _p }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', '휴대폰 세로(390×844)에서만 전체 경로를 돈다');
   });
 
-  test('콜드 오픈부터 예고까지 — 실제 탭으로', async ({ page }) => {
+  test('새 게임: 에피소드 0 「하룻밤」에서 에피소드 1 까지 — 실제 탭으로', async ({ page }) => {
     const errs = watchErrors(page);
     shotNo = 0;
-    // 이전 전체 경로 캡처(00~89)를 비운다 — 번호가 섞이지 않게(90번대는 따로 찍는 화면)
-    for (const f of fs.readdirSync(SHOTS)) if (/^[0-8]\d-.*\.png$/.test(f)) fs.unlinkSync(`${SHOTS}/${f}`);
+    ep0No = 0;
+    // 이전 전체 경로 캡처(00~89, ep0-)를 비운다 — 번호가 섞이지 않게(90번대는 따로 찍는 화면)
+    for (const f of fs.readdirSync(SHOTS)) if (/^[0-8]\d-.*\.png$/.test(f) || /^ep0-.*\.png$/.test(f)) fs.unlinkSync(`${SHOTS}/${f}`);
     await page.goto('/?test=1&boot=1');
 
-    // ── 부트 → 프롤로그(건너뛰기) → 콜드 오픈 → 홈
+    // ═══ 에피소드 0 「하룻밤」 ═══
+    // ── 부트 → 프롤로그(건너뛰기) → 콜드 오픈 22:31 → 홈
     await expect(tid(page, 'start')).toBeVisible();
-    await shot(page, 'title');
+    await shot0(page, 'title');
     await tid(page, 'start').click();
     await expect(tid(page, 'boot-line')).toContainText('언제부터인지');
-    await shot(page, 'prologue');
+    await shot0(page, 'prologue');
+    await expectReadings(page, '프롤로그');
     await tid(page, 'next').click();
     await tid(page, 'next').click();
     await tid(page, 'skip').click();
-    await expect(tid(page, 'boot-line')).toContainText('23:04');
-    await shot(page, 'cold-open');
+    await expect(tid(page, 'boot-line')).toContainText('22:31');
+    await shot0(page, 'cold-open');
     await tid(page, 'next').click();
     await tid(page, 'next').click();
-    await expect(tid(page, 'assign-card')).toBeVisible();
+    await expect(tid(page, 'assign-card')).toContainText('#C-2209');
     await expect(tid(page, 'home-date')).toHaveText('####');
     await expect(tid(page, 'home-place')).toHaveText('미확인');
-    await shot(page, 'home');
+    // 에피소드 0 에는 찾기·그날의 방이 없다 — 버튼도 없다
+    await expect(tid(page, 'dock-search')).toHaveCount(0);
+    await expect(tid(page, 'btn-rewrite')).toHaveCount(0);
+    await shot0(page, 'home');
     // 설정에서 「메시지 빠르게」(시험을 짧게) — 이것도 실제 탭
     await tid(page, 'open-settings').click();
-    await shot(page, 'settings');
     await tid(page, 'sw-fast').click();
     await expect(tid(page, 'sw-fast')).toHaveAttribute('aria-checked', 'true');
     await tid(page, 'settings-back').click();
 
+    // ── 넘기기: 하위지의 기억 세 장(한 사람의 기억 = 고정 컷)
+    await tid(page, 'btn-memories').click();
+    await expect(tid(page, 'viewer-title')).toHaveText('하위지 관측');
+    await expect(tid(page, 'cut-time')).toHaveText('10:00');
+    await expect(page.locator('[data-cut="e0-1"] [data-testid="bubble"]')).toBeVisible();
+    await expect(tid(page, 'btn-room')).toHaveCount(0);
+    await shot0(page, 'viewer-first-cut');
+    // 두루마리 세부를 탭하면 본 것이 한글 읽기와 함께 뜬다(사람 상자보다 먼저 눌린다)
+    await page.locator('[data-cut="e0-1"] [data-detail="d_scroll_head"]').click();
+    await expect(tid(page, 'detail-note')).toContainText('부제학 최만리(副提學 崔萬理)');
+    await expectReadings(page, '컷 세부');
+    await shot0(page, 'viewer-detail');
+    await tid(page, 'detail-note').click();
+    await expect(tid(page, 'detail-note')).toHaveCount(0);
+    await swipeLeft(page);
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '1');
+    await expect(tid(page, 'cut-time')).toHaveText('10:05');
+    await expect(page.locator('[data-cut="e0-2"] [data-testid="bubble"]').first()).toBeVisible({ timeout: 8000 });
+    await shot0(page, 'viewer-second-cut');
+    await swipeLeft(page);
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '2');
+    await expect(page.locator('[data-cut="e0-3"] [data-testid="bubble"]').first()).toContainText('운서', { timeout: 8000 });
+    await shot0(page, 'viewer-third-cut');
+
+    // ── 메신저: 한 선임 — 내가 먼저 묻기(「어디부터 볼까요?」)
+    await tid(page, 'viewer-back').click();
+    await readChat(page, false);
+    await expect(tid(page, 'ask-hint')).toBeVisible();
+    await tid(page, 'ask-hint').click();
+    await expect(tid(page, 'my-msg').last()).toContainText('어디부터 볼까요?');
+    await expect(tid(page, 'their-msg').last()).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(2500);
+    await shot0(page, 'messenger-ask-hint');
+    await tid(page, 'messenger-back').click();
+
+    // ── 이름 붙이기 T0a: 두루마리 → 최만리 (미끼 정창손 → 실패는 공짜)
+    await tid(page, 'btn-memories').click();
+    await toCut(page, 0, 1);
+    await figure(page, 'e0-1', 'fig_choi').click();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await expect(tid(page, 'tag-room-link')).toHaveCount(0);
+    await expect(tid(page, 'tag-search-more')).toHaveCount(0);
+    await expect(tid(page, 'ev-d_scroll_head')).toBeVisible(); // 들은 말·본 것만(카드 줄 없음)
+    await shot0(page, 'tag-sheet');
+    await tid(page, 'card-jeong_changson').click();
+    await tid(page, 'ev-d_scroll_head').click();
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-feedback')).toContainText('근거가 이 사람을 가리키지 않는다');
+    await shot0(page, 'tag-not-pointing');
+    await tid(page, 'card-choi_manri').click();
+    await tid(page, 'ev-d_scroll_head').click();
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await expect(figure(page, 'e0-1', 'fig_choi')).toHaveAttribute('data-named', 'true');
+    await shot0(page, 'tag-ok');
+
+    // ── 최만리 카드: 먹선이 그어졌고, 줄 안의 「세종」을 탭하면 인물 카드 +1
+    await figure(page, 'e0-1', 'fig_choi').click();
+    await expect(tid(page, 'card-name')).toHaveText('최만리');
+    await expect(page.locator('[data-fact="f_choi_list"] [data-testid="ink-line"]')).toContainText('두루마리');
+    await expectReadings(page, '인물 카드');
+    await shot0(page, 'card-ink-line');
+    await tid(page, 'flink-sejong').click();
+    await expect(tid(page, 'toast')).toContainText('인물 카드 +1');
+    await expect(tid(page, 'flink-sejong')).toHaveClass(/found/);
+    await shot0(page, 'card-link-gained');
+    await tid(page, 'card-close').click();
+
+    // ── 이름 붙이기 T0b: 높은 자리 → 세종 (상소 첫 줄이 근거)
+    await toCut(page, 0, 3);
+    await figure(page, 'e0-3', 'fig_king').click();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await tid(page, 'card-sejong').click();
+    await tid(page, 'ev-l_e0_unseo').click(); // 임금의 말 자체는 사실을 담지 않는다
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-feedback')).toBeVisible();
+    await tid(page, 'card-sejong').click();
+    await tid(page, 'ev-l_e0_memorial').click();
+    await shot0(page, 'tag-sheet-king');
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await expect(figure(page, 'e0-3', 'fig_king')).toHaveAttribute('data-named', 'true');
+
+    // ── 기록 다시 쓰기: 미리 놓인 한 줄, 칸 하나
+    await tid(page, 'viewer-back').click();
+    await expect(tid(page, 'btn-rewrite')).toBeVisible();
+    await shot0(page, 'home-rewrite-ready');
+    await tid(page, 'btn-rewrite').click();
+    await expect(tid(page, 'line-pc_R0')).toBeVisible();
+    await expect(tid(page, 'btn-add-line')).toHaveCount(0);
+    await shot0(page, 'rewrite-preplaced');
+    await tid(page, 'slot-pc_R0-who').click();
+    await expect(tid(page, 'slot-sheet')).toBeVisible();
+    await shot0(page, 'rewrite-slot-sheet');
+    await tid(page, 'opt-상소를 올린 사람들').click();
+    await holdSubmit(page);
+    await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'not_recorded');
+    await shot0(page, 'rewrite-miss');
+    await tid(page, 'slot-pc_R0-who').click();
+    await tid(page, 'opt-세종').click();
+    await holdSubmit(page);
+    await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'restored');
+    await expect(tid(page, 'line-source')).toBeVisible();
+    await expectReadings(page, '다시 쓴 줄');
+    await shot0(page, 'rewrite-restored');
+    await tid(page, 'btn-restore').click();
+
+    // ── 복원: 전문(상소 단락은 접힘) → 홈 → 메시지 → 이웃 기록 → 독백 → 다리
+    const article = tid(page, 'restored-article');
+    await expect(article).toContainText('만일 내가 그 운서를 바로잡지 아니하면');
+    await expect(article).not.toContainText('번독하나이다');
+    await expect(tid(page, 'article-long-toggle')).toBeVisible();
+    await shot0(page, 'restore-article');
+    await tid(page, 'article-long-toggle').click();
+    await expect(article).toContainText('번독하나이다');
+    await expectReadings(page, '복원 전문');
+    await shot0(page, 'restore-article-long');
+    await tid(page, 'article-long-toggle').click();
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'restore-date')).toContainText('세종 26년 2월 20일', { timeout: 6000 });
+    await shot0(page, 'restore-home');
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'restore-messages')).toBeVisible();
+    await expect(tid(page, 'rewritten-msg').first()).toBeVisible();
+    await tid(page, 'reply-hangul').click({ timeout: 60_000 });
+    await expect(tid(page, 'restore-messages')).toContainText('세종대왕이 만든 거 모르는 사람이 어디 있어', { timeout: 30_000 });
+    await shot0(page, 'restore-messages');
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'restore-neighbour')).toBeVisible();
+    await page.waitForTimeout(3200); // 먹 번짐(글자가 굳는 시간)
+    await expect(tid(page, 'aside-rec0_eonmun28')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데');
+    await expectReadings(page, '이웃 기록');
+    await shot0(page, 'restore-neighbour');
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'restore-monologue')).toContainText('모두가 아는 이름이');
+    await page.waitForTimeout(4500);
+    await shot0(page, 'restore-monologue');
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'bridge-clock')).toHaveText('23:04');
+    await expect(tid(page, 'restore-bridge')).toContainText('좌표 재계산 · 같은 손상 흔적 1건 더', { timeout: 30_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('어, 하나 더 떴다.', { timeout: 30_000 });
+    await page.waitForTimeout(3000);
+    await shot0(page, 'restore-bridge');
+    await expect(tid(page, 'restore-next')).toHaveText('다음 빈자리 ▸');
+
+    // ═══ 에피소드 1 「한 사관의 흔적」 — 다리 뒤 콜드 오픈 23:04 ═══
+    await tid(page, 'restore-next').click();
+    await expect(tid(page, 'boot-line')).toContainText('23:04');
+    await shot(page, 'cold-open');
+    await tid(page, 'next').click();
+    await tid(page, 'next').click();
+    await expect(tid(page, 'assign-card')).toContainText('#C-2217');
+    await expect(tid(page, 'home-date')).toHaveText('####');
+    await expect(tid(page, 'home-place')).toHaveText('미확인');
+    await expect(tid(page, 'dock-search')).toBeVisible(); // 이제 찾기가 생겼다
+    await shot(page, 'home');
+
     // ── 起: 첫 번째 기억 — 넘기기. 이름 붙이기 전엔 연도·장소·인물을 알려주지 않는다
     await tid(page, 'btn-memories').click();
-    await expect(tid(page, 'viewer-title')).toHaveText('첫 번째 기억');
+    await expect(tid(page, 'viewer-title')).toHaveText('첫 번째 관측');
     await expect(tid(page, 'cut-time')).toHaveText('09:10');
     await expect(page.locator('[data-cut="e1-1"] [data-testid="bubble"]')).toBeVisible();
     await shot(page, 'viewer-first-cut');
-    // 실제 밀기(드래그)로 다음 컷
-    const stage = tid(page, 'stage');
-    const sb = (await stage.boundingBox())!;
-    await page.mouse.move(sb.x + sb.width * 0.85, sb.y + sb.height * 0.4);
-    await page.mouse.down();
-    await page.mouse.move(sb.x + sb.width * 0.3, sb.y + sb.height * 0.4, { steps: 8 });
-    await page.mouse.up();
+    await swipeLeft(page);
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '1');
     await expect(tid(page, 'cut-time')).toHaveText('11:40');
     for (let n = 3; n <= 5; n++) await toCut(page, 1, n);
     await toCut(page, 1, 4);
     await expect(page.locator('[data-cut="e1-4"] [data-testid="bubble"]').first()).toContainText('사초', { timeout: 8000 });
+    await expectReadings(page, '에피소드 1 컷');
     await shot(page, 'viewer-order-line');
     await toCut(page, 1, 2);
 
     // ── T1: 이름 붙이기 — 실패(공짜) 한 번, 그다음 정답
     await figure(page, 'e1-2', 'fig_yi').click();
     await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await expect(tid(page, 'tag-room-link')).toHaveCount(0); // 방은 아직
     await shot(page, 'tag-cards');
     await tid(page, 'card-eo_segyeom').click();
-    await shot(page, 'tag-evidence');
     await tid(page, 'ev-l_e1_2a').click();
+    await shot(page, 'tag-evidence');
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-feedback')).toContainText('근거가 이 사람을 가리키지 않는다');
     await shot(page, 'tag-not-pointing');
@@ -167,20 +334,56 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-cut="e1-2"] [data-figure="fig_yi"]')).toHaveAttribute('data-named', 'true');
-    await expect(tid(page, 'toast')).toContainText('눈이 하나 열렸다');
+    await expect(tid(page, 'toast')).toContainText('관측이 하나 열렸다');
     await shot(page, 'tag-ok-eye-opens');
     await expect(page.locator('[data-eye="E2"]')).toHaveAttribute('data-state', 'open');
 
-    // ── 인물 카드(이름 붙인 사람을 탭)
+    // ── 인물 카드(이름 붙인 사람을 탭) — 맞는 줄에 먹선
     await figure(page, 'e1-2', 'fig_yi').click();
     await expect(tid(page, 'card-name')).toHaveText('이극돈');
+    await expect(page.locator('[data-testid="ink-line"]').first()).toBeVisible();
     await shot(page, 'person-card');
     await tid(page, 'card-close').click();
 
-    // ── 承: 두 번째 기억 · 그날의 방 · 겹침
+    // ── 承: 두 번째 기억. 그날의 방은 아직(찾기가 먼저) → T2: 찾기로 더 → 돌아와 이름 붙이기
     await page.locator('[data-eye="E2"]').click();
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
+    await expect(tid(page, 'btn-room')).toHaveCount(0);
+    await toCut(page, 2, 1);
+    await expect(figure(page, 'e2-1', 'fig_yun')).toBeVisible();
+    await figure(page, 'e2-1', 'fig_yun').click();
+    await tid(page, 'tag-search-more').click();
+    await expect(tid(page, 'search-input')).toHaveValue('윤'); // 들은 말에서 미리 채운다
+    await expect(tid(page, 'hit-person-yun_hyoson')).toBeVisible();
+    await expect(tid(page, 'hit-person-yun_pilsang')).toBeVisible();
+    await shot(page, 'search-yun');
+    await tid(page, 'hit-person-yun_hyoson').click();
+    await expect(tid(page, 'card-name')).toHaveText('윤효손');
+    await tid(page, 'card-close').click();
+    await tid(page, 'search-back').click(); // 시트로 돌아간다 — 방금 본 카드를 고른 채
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await expect(tid(page, 'card-yun_hyoson')).toHaveAttribute('aria-pressed', 'true');
+    await shot(page, 'tag-after-search');
+    // 미끼(윤필상) → 정답(윤효손)
+    await tid(page, 'card-yun_pilsang').click();
+    await tid(page, 'ev-l_e2_1').click();
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-feedback')).toBeVisible();
+    await tid(page, 'card-yun_hyoson').click();
+    await tid(page, 'ev-l_e2_1').click();
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await expect(page.locator('[data-eye="E1"]')).toHaveAttribute('data-state', 'open');
+    // 첫 번째 눈의 주인이 밝혀졌다
+    await page.locator('[data-eye="E1"]').click();
+    await expect(tid(page, 'viewer-title')).toHaveText('윤효손 관측');
+    await viewAll(page, 1);
+    await page.locator('[data-eye="E2"]').click();
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
+
+    // ── 그날의 방이 열렸다 · 겹침
     await expect(tid(page, 'btn-room')).toBeVisible();
+    await toCut(page, 2, 1);
     await tid(page, 'btn-room').click();
     await expect(tid(page, 'room-sheet')).toBeVisible();
     await expect(tid(page, 'same-person')).toBeVisible();
@@ -191,14 +394,9 @@ test.describe('v5 전체 플레이', () => {
     await page.getByRole('button', { name: '닫기' }).last().click();
     await expect(tid(page, 'room-sheet')).toBeHidden();
 
-    // 찾기: 「윤」 — 인물 둘이 나온다
+    // 찾기(홈 → 찾기): 「대내로 들여오라」는 기사가 없다
     await tid(page, 'viewer-back').click();
     await tid(page, 'dock-search').click();
-    await tid(page, 'search-input').fill('윤');
-    await tid(page, 'search-go').click();
-    await expect(tid(page, 'hit-person-yun_hyoson')).toBeVisible();
-    await expect(tid(page, 'hit-person-yun_pilsang')).toBeVisible();
-    await shot(page, 'search-yun');
     await tid(page, 'search-input').fill('대내로 들여오라');
     await tid(page, 'search-go').click();
     await expect(tid(page, 'search-message')).toContainText('해당 기사 없음.');
@@ -207,27 +405,17 @@ test.describe('v5 전체 플레이', () => {
     await page.locator('[data-eye="E2"]').click();
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
 
-    // T2: 미끼(윤필상) → 정답(윤효손)
-    await toCut(page, 2, 1);
-    await expect(figure(page, 'e2-1', 'fig_yun')).toBeVisible();
-    await tagWith(page, 'e2-1', 'fig_yun', 'yun_pilsang', 'l_e2_1');
-    await expect(tid(page, 'tag-feedback')).toBeVisible();
-    await tid(page, 'card-yun_hyoson').click();
-    await tid(page, 'ev-l_e2_1').click();
-    await tid(page, 'tag-confirm').click();
-    await expect(tid(page, 'tag-sheet')).toBeHidden();
-    await expect(page.locator('[data-eye="E1"]')).toHaveAttribute('data-state', 'open');
-    // 첫 번째 눈의 주인이 밝혀졌다
-    await page.locator('[data-eye="E1"]').click();
-    await expect(tid(page, 'viewer-title')).toHaveText('윤효손의 기억');
-    await viewAll(page, 1);
-    await page.locator('[data-eye="E2"]').click();
-    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
-
-    // T3: 13:20 겹침 뒤에 근거가 뜬다
+    // ── T3: 그 말이 누구 얘기인지 아직 모른다 → 「이 시각, 그날의 방」 → 겹침 → 다시 이름 붙이기
     await toCut(page, 2, 2);
-    await tid(page, 'btn-room').click();
-    await tid(page, 'chip-13:20').click();
+    await figure(page, 'e2-2', 'fig_eo').click();
+    await expect(tid(page, 'tag-room-link')).toBeVisible();
+    await tid(page, 'card-eo_segyeom').click();
+    await tid(page, 'ev-l_e1_3').click();
+    await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-feedback')).toContainText('그 말이 이 사람 얘기인지 아직 모른다');
+    await shot(page, 'tag-not-linked');
+    await tid(page, 'tag-room-link').click();
+    await expect(tid(page, 'room-sheet')).toBeVisible();
     await expect(tid(page, 'room-plan')).toBeVisible();
     await shot(page, 'room-1320');
     await page.getByRole('button', { name: '닫기' }).last().click();
@@ -242,13 +430,17 @@ test.describe('v5 전체 플레이', () => {
     await figure(page, 'e3-1', 'fig_hong').click();
     await expect(tid(page, 'tag-sheet')).toBeVisible();
     await expect(tid(page, 'card-hong_gwidal')).toHaveCount(0); // 아직 카드가 없다
-    await page.getByText('찾기로 더').click();
+    await tid(page, 'tag-search-more').click();
     await tid(page, 'search-input').fill('국장 도감');
     await tid(page, 'search-go').click();
     await tid(page, 'hit-record-rec_r02').click();
+    await expect(tid(page, 'toast')).toContainText('인물 카드 +4');
     await shot(page, 'search-record');
     await tid(page, 'search-back').click();
-    await tagWith(page, 'e3-1', 'fig_hong', 'hong_gwidal', 'l_e3_1');
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await tid(page, 'card-hong_gwidal').click();
+    await tid(page, 'ev-l_e3_1').click();
+    await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E4"]')).toHaveAttribute('data-state', 'open');
     await shot(page, 'four-eyes');

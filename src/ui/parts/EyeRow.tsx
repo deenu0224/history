@@ -6,10 +6,10 @@ export const lookOf = (e: EyeView): EyeLook => (e.state === 'open' ? (e.ownerUnk
 /** 눈 줄: 열린(또는 닫힌) 눈은 탭해서 그 사람의 기억으로. 아직 열리지 않은 눈은 점선. */
 export function EyeRow({ eyes, onPick, size = 24 }: { eyes: EyeView[]; onPick?: (eyeId: string) => void; size?: number }) {
   return (
-    <div className="eyes" role="group" aria-label="열린 눈">
+    <div className="eyes" role="group" aria-label="관측 가능">
       {eyes.map((e) => {
         const usable = e.state === 'open' || e.state === 'closed';
-        const label = usable ? `${e.label}${e.state === 'closed' ? ' (닫힘)' : ''}` : e.state === 'never' ? '열리지 않는 눈' : '아직 열리지 않은 눈';
+        const label = usable ? `${e.label}${e.state === 'closed' ? ' (닫힘)' : ''}` : e.state === 'never' ? '관측 불가' : '아직 열리지 않은 관측';
         return (
           <button
             key={e.eyeId}

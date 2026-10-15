@@ -176,6 +176,12 @@ const hit = (b: { x: number; y: number; w: number; h: number }) => {
     y = Math.max(0, Math.min(box.h - h, y));
     return { left: x, top: y, width: w, height: h };
   };
+  // 겹치면 작은 상자가 위(큰 가구 위의 사람, 사람 앞의 두루마리 머리글 모두 눌린다)
+  const zOf = new Map<string, number>(
+    [...(entry?.figures ?? []), ...(entry?.details ?? [])]
+      .sort((a, b) => b.w * b.h - a.w * a.h)
+      .map((b, i) => [b.id, 10 + i] as [string, number]),
+  );
   const openDetail = detail ? cut.details.find((d) => d.id === detail) : undefined;
   return (
     <div className="vslide" data-cut={cutId} data-avail={cut.availability}>
@@ -208,7 +214,7 @@ const hit = (b: { x: number; y: number; w: number; h: number }) => {
             <button
               key={b.id}
               className={`figure ${f.named ? 'named' : 'unnamed'}${sel ? ' sel' : ''}`}
-              style={{ left: x, top: y, width: w, height: h }}
+              style={{ left: x, top: y, width: w, height: h, zIndex: zOf.get(b.id) }}
               data-figure={b.id}
               data-named={f.named ? 'true' : 'false'}
               aria-label={f.named ? `${f.label}, 이름 붙인 사람` : `모르는 사람, ${f.label}`}
@@ -238,7 +244,7 @@ const hit = (b: { x: number; y: number; w: number; h: number }) => {
             <button
               key={b.id}
               className={`detailbox${detail === b.id ? ' sel' : ''}`}
-              style={hit(b)}
+              style={{ ...hit(b), zIndex: zOf.get(b.id) }}
               data-detail={b.id}
               aria-label={`자세히 보기: ${d.label}`}
               aria-expanded={detail === b.id}

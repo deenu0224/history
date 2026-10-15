@@ -94,13 +94,13 @@ export function Home() {
         <div className="divider" />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
           <span className="t-m" style={{ marginRight: 4 }}>
-            열린 눈
+            관측 가능
           </span>
           <EyeRow eyes={home.eyes} onPick={enterMemory} />
         </div>
         {home.resume.eyesOpen > 1 && !restored ? (
           <p className="t-m" style={{ margin: '4px 0 0' }} data-testid="resume-line">
-            열린 눈 {home.resume.eyesOpen}
+            관측 가능 {home.resume.eyesOpen}
             {home.resume.contradictionsLeft ? ` · 남은 모순 ${home.resume.contradictionsLeft}` : ''}
           </p>
         ) : null}
@@ -116,7 +116,7 @@ export function Home() {
               memories();
             }}
           >
-            기억 보기
+            관측하기
           </button>
         ) : null}
         {home.buttons.includes('rewrite') ? (
@@ -140,7 +140,7 @@ export function Home() {
         <button aria-current="true" onClick={memories} data-testid="dock-memory">
           <IMemory />
           <span className="t-m" style={{ lineHeight: '18px', color: 'inherit' }}>
-            기억
+            관측기
           </span>
         </button>
         {home.episode.verbs.search ? (
