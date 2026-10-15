@@ -148,12 +148,17 @@ describe('store — Ep0 correct path', () => {
     expect(selectSlotOptions(EP0, h.st(), 'who').map((o) => o.value)).toEqual(['최만리', '세종', '상소를 올린 사람들']);
     const L = rw.lines[0].id;
     h.st().fillSlot(L, 'who', '상소를 올린 사람들');
+    // 그날 고정률: 필수 문장 하나 → 0% / 100%. 판정 전·흐릿한 줄은 세지 않는다
+    expect(selectRewrite(EP0, h.st()).fixRate).toEqual({ fixed: 0, total: 1, pct: 0 });
     let sub = h.st().submitRewrite();
     expect('results' in sub && sub.results[L]).toBe('not_recorded');
+    expect(selectRewrite(EP0, h.st()).fixRate.pct).toBe(0);
     expect(h.st().messenger.fired).toContain('ev.write_miss');
     h.st().fillSlot(L, 'who', '세종');
     sub = h.st().submitRewrite();
     expect('complete' in sub && sub.complete).toBe(true);
+    expect(selectRewrite(EP0, h.st()).fixRate).toEqual({ fixed: 1, total: 1, pct: 100 });
+    expect(selectHome(EP0, h.st()).fixRate.pct).toBe(100);
     expect(h.st().clock).toBe('22:52');
     const done = selectRewrite(EP0, h.st()).lines[0];
     expect(done.render.parts.map((p) => p.text).join('')).toBe('임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…너희들이 설총은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐. … 만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐. …"');

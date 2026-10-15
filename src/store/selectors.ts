@@ -8,7 +8,7 @@ import { appearances, heldEvidence, idx, type Appearance } from '@/core/ep';
 import { cutAvailability, eyeLabel, eyeState, ownerKnown, type CutAvailability, type EyeState } from '@/core/eyes';
 import { view as messengerView, type MessengerView } from '@/core/messenger';
 import { alteredView, articleView, figureRestoredLabel, glossInline, homeView, visibleFacts, type AlteredView, type ArticlePartView } from '@/core/reality';
-import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slotOptions, type LineRender, type LineResult, type SlotOption } from '@/core/rewrite';
+import { availablePieces, fixRate, pieceLabel, renderLine, sentenceOf, sentenceSlots, slotOptions, type LineRender, type LineResult, type SlotOption } from '@/core/rewrite';
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
 import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
@@ -56,6 +56,12 @@ export function selectTagProgress(ep: Episode, s: PersistedState) {
   return { done, total: req.length, complete: req.length > 0 && done >= req.length };
 }
 
+/** 그날 고정률 NN% — 복원 뒤엔 100 */
+export function selectFixRate(ep: Episode, s: PersistedState) {
+  const r = fixRate(ep, s.rewrite.results, s.rewrite.lines);
+  return s.restored ? { ...r, fixed: r.total, pct: 100 } : r;
+}
+
 // ── 홈 ───────────────────────────────────────────────────────────
 export type HomeButton = 'memories' | 'rewrite' | 'restored';
 
@@ -78,6 +84,8 @@ export function selectHome(ep: Episode, s: PersistedState) {
     nextEpisode: s.epilogueDone && ep.next ? ep.next : null,
     /** 「이름 붙이기 n/m」 */
     tags: selectTagProgress(ep, s),
+    /** 그날 고정률 */
+    fixRate: selectFixRate(ep, s),
     /** 다음 할 일 = 역사 고정(주요 버튼이 그쪽으로 바뀐다) */
     rewriteReady: rewriteAvailable(ep, s) && !s.restored,
   };
@@ -554,7 +562,7 @@ export interface RewriteLineView {
 const RESULT_TEXT: Record<LineResult, string> = {
   restored: '',
   witness: '실록이 적지 않은 일 — 내가 본 것에만 남는다',
-  not_recorded: '고정되지 않았다',
+  not_recorded: '흐릿함 — 그날에 붙지 않았다',
   incomplete: '빈 칸이 있다',
 };
 
@@ -595,6 +603,8 @@ export function selectRewrite(ep: Episode, s: PersistedState) {
     complete: s.rewrite.complete,
     restored: s.restored,
     submits: s.rewrite.submits,
+    /** 그날 고정률(꼭 돌아와야 할 문장 기준, 판정 뒤에만 오른다) */
+    fixRate: selectFixRate(ep, s),
   };
 }
 

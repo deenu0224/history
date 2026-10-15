@@ -712,8 +712,8 @@ HISTORICAL_SOURCES §11(실록 원문 재확인)의 판정표 §11.8 을 에피�
 | P2 | 세 장을 다 보면 한 선임: 옆 기사도 같은 칸 — 「한글 만든 사람 칸.」 / (07: 「그건 원래 기록이 없잖아요.」) / 「응, 기록에 없으면 없는 거지.」 / 「지워지면 사람 머리에서도 같이 지워지니까.」 — 셋 다 복원 뒤 조용히 다시 쓰인다(§14.7) | (소실 규칙) | 2 |
 | P3 | T0a 두루마리 → 최만리(카드 줄에 붉은 밑줄) | 이름 붙이기 | 2–3 |
 | P4 | 최만리 카드의 「세종」 → 카드 +1 → T0b | (한 단계 더) | 3–4 |
-| P5 | 홈 [기록 다시 쓰기] → 한 줄, 칸 하나 → 길게 눌러 남긴다 · 한 선임 「맞는 줄은 실록 문장으로 돌아와.」 | 기록 다시 쓰기 | 4–5 |
-| P6 | 복원: 다시 쓴 줄만 크게(채운 칸 「임금」 밝게, 전문은 「전문 펼치기」 뒤) → 홈(짧은 발췌, 채운 칸만 밝게) → 이웃 기록(是月) → 07 독백 → 다리(보통 대화창: 「기록 확인: 바뀐 것 없음.」·한 선임의 말·「관측기: 같은 손상 흔적 1건 더」), 시계 **23:04** → Ep1 콜드 오픈 | — | 5–6 |
+| P5 | 마지막 이름(T0b) → 「모두 밝혀졌다」·뷰어 아래 「역사 고정 ›」(한 선임 「이제 고정해 봐.」) → 고정할 문장 하나, 칸 하나 → 길게 눌러 역사 고정 · 한 선임 「고정하면 세상이 그 기록대로 굳어.」 · 그날 고정률 0% → 100% | 역사 고정 | 4–5 |
+| P6 | 복원(세 박자, §14.10): 역사 고정 화면 안에서 칸이 채워지고 출처 → 「기록이 돌아왔다 ›」 → 홈 카드가 뒤집혀 「고정됨」(짧은 발췌, 채운 칸만 밝게, 이웃 기록(是月) 한 줄, 전문은 「전문 펼치기」) → 07 독백 → 다리(보통 대화창: 「기록 확인: 바뀐 것 없음.」·한 선임의 말·「관측기: 같은 손상 흔적 1건 더」), 시계 **23:04** → Ep1 콜드 오픈 | — | 5–6 |
 
 찾기·그날의 방은 Ep1 에서 하나씩(찾기 → 방).
 이름 붙이기 시트(모든 에피소드): 작은 카드(이름(한자) + 사실 한 줄), 카드 줄은 시트 위에 고정되고 근거 목록만 그 아래에서 스크롤된다(390×844 확인).
@@ -729,7 +729,7 @@ HISTORICAL_SOURCES §11(실록 원문 재확인)의 판정표 §11.8 을 에피�
 
 ### 14.6 엔진·스토어 계약(UI 가 연결할 것)
 - **에피소드**: 상태에 `episodeId`·`unlocked`·`completed`. 새 저장은 `ep0` 에서 시작, Ep1 은 Ep0 를 끝내야 열린다. `startEpisode(id?)`(id 없으면 지금 에피소드; 잠겼으면 `'locked'`) — 다른 에피소드로 가면 진행은 새로, **대화 기록은 이어지고** 지난 에피소드에서 다시 쓰인 말풍선(내 답 포함)은 복원 뒤 글로 굳는다(`MsgItem.bakedFrom`, §14.7). `selectEpisodes(state)`(에피소드 선택: current/done/available/locked), `currentEpisode(state)`, `useEpisode()`, `useView` 는 지금 에피소드를 넘긴다. `EPISODE` 상수는 싱글턴 스토어를 따라가는 살아 있는 바인딩(옛 UI 호환, 새 코드는 `useEpisode`).
-- **에피소드 데이터**: `Episode.verbs`(Ep0: 찾기·방 없음 → UI 가 버튼을 감춘다), `restoreSteps`(Ep0: article·home·neighbour·monologue·bridge, Ep1: article·home·cards·room·log·monologue·teaser — 「messages」 단계는 없앴다, §14.7), `next`, `rewriteWhen`·`roomWhen`·`triggers`·`searchEvents`·`derivedKeys`·`roomKey`, `RecordSentence.preplaced`, `RestoredPart.long`, `RecordCard.inWorld`(복원 전 fictional 줄), `Figure.inert`, `Detail.refers/keys`, `Fact.links`, 판정 `not_linked`.
+- **에피소드 데이터**: `Episode.verbs`(Ep0: 찾기·방 없음 → UI 가 버튼을 감춘다), `restoreSteps`(Ep0: home·monologue·bridge, Ep1: home·cards·monologue·teaser — 「messages」 단계는 없앴다 §14.7, article·neighbour·room·log 는 §14.10 에서 합치거나 뺐다), `requiredTags`(「이름 붙이기 n/m」의 m), `next`, `rewriteWhen`·`roomWhen`·`triggers`·`searchEvents`·`derivedKeys`·`roomKey`, `RecordSentence.preplaced`, `RestoredPart.long`, `RecordCard.inWorld`(복원 전 fictional 줄), `Figure.inert`, `Detail.refers/keys`, `Fact.links`, 판정 `not_linked`.
 - **끝**: 에필로그가 끝나면 fx `episode_end {episodeId, next}`, `selectHome().nextEpisode` → UI 가 다리 연출 뒤 `startEpisode(next)`.
 - **저장 v7**: v6(에피소드 1 진행) → `episodeId 'ep1'`, Ep0·Ep1 열림.
 
@@ -756,3 +756,20 @@ HISTORICAL_SOURCES §11(실록 원문 재확인)의 판정표 §11.8 을 에피�
 - 한 선임은 그 카드를 가리킨다: 「그중 한 꼭지가 구멍투성이가 됐어.」/「홈 카드 봐, 거의 다 뚫렸지?」, 「카드 아래 옆 기록도 똑같이 뚫렸지?」. 동료들은 「한글은 쓰지만 누가 만들었는지는 기록이 없다」를 당연하게 여긴다(「응, 한글은 쓰는데 만든 사람은 기록에 없지.」 — 복원 뒤 조용히 다시 쓰인다, §14.7).
 - Ep1 은 그날 기록이 통째로 지워졌으므로 보여 줄 문장이 없다 — 홈은 「그날 실록」 이름표와 빈 기록 그림만.
 - 화면·대사에서 「기사」를 쓰지 않는다: 「실록에 없음.」(옛 「해당 기사 없음.」), 「그날 실록의 명단」, 「그날 실록에는 장소가 없다」. 한 선임이 Ep0 첫머리에 한 번: 「실록은 날짜 밑에 일이 한 꼭지씩 적혀 있어.」 관직 기사관(記事官)은 그대로.
+
+### 14.10 실기기 플레이테스트 반영 — 복원 세 박자 · 이름 붙이기 진행 · 아래 막대 · 역사 고정 · 그날 고정률 (2026-10-15)
+사용자가 휴대폰으로 해 본 결과 세 가지 + 낱말·계기 두 가지(사용자 승인). Ep0·Ep1 모두.
+
+1. **복원 뒤 화면이 같은 단락을 거듭 보였다** → 세 박자로.
+   - ① 복원의 순간은 **역사 고정 화면 안에서**: 그날 고정률이 100% 가 되면 칸이 그 자리에서 먹으로 채워지고(한 번의 연출) 출처 한 줄, 버튼 하나 「기록이 돌아왔다 ›」.
+   - ② 홈 카드가 뒤집혀 「고정됨」: 일시·장소 채움, 돌아온 줄 두 줄, **이웃 기록은 같은 카드 안 한 줄**(+ 「세종 카드에 이 줄이 돌아왔다…」 꼬리표), 전문은 「전문 펼치기」(홈 카드에도 같은 버튼).
+   - ③ 짧은 독백 → 다리(Ep0 → 23:04) / 예고(Ep1).
+   - 단계 목록: Ep0 `article·home·neighbour·monologue·bridge` → **`home·monologue·bridge`**. Ep1 `article·home·cards·room·log·monologue·teaser` → **`home·cards·monologue·teaser`** — `cards` 는 새 정보만 남겨 합쳤다: 인물 카드에서 바뀐 줄(사인·파직·좌천, verified + 출처) + 그날의 방 「?」 의 짝 이름 「유순·안침」 + 「내 관측 로그는 그대로」 한 줄(부재의 증거). `article`(다시 쓴 줄 반복 → ①로)·`neighbour`(→ ②)·`room`(→ cards)·`log`(→ cards 한 줄)는 없앴다. 엔진 `RESTORE_STEPS` 도 같이.
+2. **이름 붙이기가 끝났는지 몰랐다**(세종 뒤 10분 헤맴) → 진행과 다음 할 일.
+   - 뷰어 머리·홈 카드 「이름 붙이기 n/m」: m = `Episode.requiredTags`(Ep0 T0a·T0b = 2, Ep1 T1~T4 = 4) — 목표 수일 뿐 누구인지는 없다(`selectTagProgress`).
+   - 맞게 붙이면: 시트가 도장 「이름 · 한자 · 이름 붙음」을 찍고 내려가고, 컷 속 이름표가 호박색으로 한 번 튄다.
+   - 마지막 필수 이름: 알림 「모두 밝혀졌다」 + 작은 소리(fx `tags_done`). 역사 고정을 열 수 있으면 뷰어 아래 가운데 칸이 「역사 고정 ›」(바로 그 화면), 홈 주요도 「역사 고정 ›」 강조. Ep0 한 선임 `ev0.king_named` 「붙었다.」/「이제 고정해 봐.」. Ep1 은 마지막 이름(T4) 뒤에도 닫힘·X1 이 남아 있어 가운데 칸은 그날의 방 — 열 수 있게 되면(`rewriteWhen`) 바뀌고 `h_write_open` 이 한 줄.
+3. **뒤로가 엄지에서 멀었다** → 아래 막대 3칸 [‹ 뒤로] [주요 동작] [메신저•](높이 56, 칸 ≥44) — 뷰어·메신저·찾기·인물 카드·역사 고정·설정·그날의 방 시트. 위쪽 뒤로 버튼은 모두 없앴다(머리글은 제목·시각만). 홈은 독 [관측기] [찾기] [메신저](Ep0 2칸). 왼쪽 가장자리에서 밀면 뒤로(iOS 식). UI_STYLE_GUIDE §2.0.
+4. **낱말 「역사 고정」**: 동사·화면 「기록 다시 쓰기」 → 「역사 고정」, 쓰는 줄 → 「고정할 문장」, 확인 → 「길게 눌러 역사 고정」, 상태 「복원됨」 → 「고정됨」, 안 맞은 줄 → 「흐릿함 — 그날에 붙지 않았다」(증인 줄은 「실록이 적지 않은 일」 그대로). 한 선임이 한 번 설명: 「고정하면 세상이 그 기록대로 굳어.」(Ep0 `ev.write_open`). 내부 이름(rewrite·restore)은 그대로. 목록 WORDING_AUDIT §8.
+5. **그날 고정률 NN%**(하루 전체 막대 하나): 값 = 고정된(판정 `restored`) 필수 문장 / `requiredSentences`(Ep0 R0 하나 → 0% / 100%, Ep1 L1~L4 → 25% 단위; 선택 S 줄·증인 줄은 세지 않는다). `core/rewrite.fixRate` → `selectFixRate`(`selectHome().fixRate`·`selectRewrite().fixRate`, 복원 뒤 100). 길게 눌러 역사 고정한 뒤에만 오르고(차오름 1.1s), 줄마다·칸마다의 수치·피드백은 없다. 100% = 그날이 굳는 순간 → 위 1-①. 보이는 곳: 역사 고정 화면 위, 홈 빈자리 카드.
+

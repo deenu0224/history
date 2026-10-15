@@ -154,4 +154,16 @@ export const allRequiredRestored = (ep: Episode, results: Readonly<Record<Id, Li
     lines.some((l) => results[l.id] === 'restored' && ep.pieces.find((p) => p.id === l.pieceId)?.sentenceId === sid),
   );
 
+/**
+ * 그날 고정률(0~100): 꼭 돌아와야 할 실록 문장(requiredSentences) 중 고정된(판정 'restored') 문장의 비율.
+ * 선택 문장(S…)·증인만 본 줄은 세지 않는다. 판정(길게 눌러 역사 고정) 뒤에만 오른다 — 줄마다·칸마다의 수치는 없다.
+ */
+export function fixRate(ep: Episode, results: Readonly<Record<Id, LineResult>>, lines: readonly DraftLine[]): { fixed: number; total: number; pct: number } {
+  const total = ep.requiredSentences.length;
+  const fixed = ep.requiredSentences.filter((sid) =>
+    lines.some((l) => results[l.id] === 'restored' && ep.pieces.find((p) => p.id === l.pieceId)?.sentenceId === sid),
+  ).length;
+  return { fixed, total, pct: total ? Math.round((fixed / total) * 100) : 0 };
+}
+
 export const contradictionsOf = (ep: Episode): Contradiction[] => ep.contradictions;

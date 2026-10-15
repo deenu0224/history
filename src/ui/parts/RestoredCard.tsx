@@ -11,6 +11,7 @@ import { GlossText } from './GlossText';
 import { HomeRecord } from './HomeRecord';
 import { IChevD, IExt } from './icons';
 import { Scramble } from './Scramble';
+import { FixMeter } from './FixMeter';
 
 type R = NonNullable<ReturnType<typeof selectRestoration>>;
 
@@ -130,6 +131,11 @@ export function RestoredCard({ animate = false, children, testId }: { animate?: 
         <p className="t-m keep" style={{ margin: '8px 0 0' }}>
           {a.placeNote}
         </p>
+      ) : null}
+      {animate ? (
+        <div style={{ marginTop: 10 }}>
+          <FixMeter pct={100} />
+        </div>
       ) : null}
       <FullPassage r={r} />
       {children}

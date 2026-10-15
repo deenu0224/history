@@ -527,6 +527,10 @@ export function Viewer() {
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onWheel={onWheel}
+        // 숨은 넘침(overflow:hidden)도 초점·스크롤 때문에 밀릴 수 있다 — 컷 줄은 transform 으로만 움직인다
+        onScroll={(e) => {
+          if (e.currentTarget.scrollLeft) e.currentTarget.scrollLeft = 0;
+        }}
         data-testid="stage"
       >
         <div className={`vstrip${snap ? ' snap' : ''}`} style={{ width: box.pw * total, transform: `translateX(${offset}px)` }}>

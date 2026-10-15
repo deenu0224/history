@@ -363,13 +363,16 @@ describe('store — mistakes are free and informative', () => {
     const G = (h.st().placePiece('w_corner') as { lineId: string }).lineId;
     const sub = h.st().submitRewrite();
     expect('results' in sub && sub.results).toEqual({ [L2]: 'not_recorded', [G]: 'witness' });
-    expect(selectRewrite(EP1, h.st()).lines.find((l) => l.id === L2)!.resultText).toBe('고정되지 않았다');
+    expect(selectRewrite(EP1, h.st()).lines.find((l) => l.id === L2)!.resultText).toBe('흐릿함 — 그날에 붙지 않았다');
     expect(h.st().messenger.fired).toContain('ev.witness_line');
     expect(h.st().restore()).toBe('not_ready');
     // 한 줄만 고쳐 다시 — 공짜
     h.st().fillSlot(L2, 'speaker', '당상(이극돈 등)');
     const one = h.st().submitLine(L2);
     expect('results' in one && one.results).toEqual({ [L2]: 'restored' });
+    // 그날 고정률: 필수 L1~L4 중 하나 = 25%. 증인 줄(w_corner)은 세지 않는다
+    expect(selectRewrite(EP1, h.st()).fixRate).toEqual({ fixed: 1, total: 4, pct: 25 });
+    expect(selectHome(EP1, h.st()).fixRate.pct).toBe(25);
     expect(h.st().messenger.fired).toContain('ev.write_partial');
     expect(h.st().placePiece('pc_L2').status).toBe('already');
     expect(h.st().placePiece('pc_S1').status).toBe('not_held'); // 3-4 를 못 봤다(닫히는 눈의 선택 줄)

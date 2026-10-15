@@ -11,6 +11,7 @@ import { fx } from '../lib/fx';
 import { HoldButton } from '../parts/HoldButton';
 import { IClose, IExt, IWarn } from '../parts/icons';
 import { NavBar } from '../parts/NavBar';
+import { FixMeter } from '../parts/FixMeter';
 import { GlossText } from '../parts/GlossText';
 import { Sheet } from '../parts/Sheet';
 import { useUi } from '../uiStore';
@@ -66,7 +67,7 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
           실록이 적지 않은 일
         </div>
       ) : null}
-      {l.result === 'not_recorded' ? <div className="res">고정되지 않았다</div> : null}
+      {l.result === 'not_recorded' ? <div className="res">흐릿함 — 그날에 붙지 않았다</div> : null}
       {l.result === 'incomplete' ? <div className="res">빈 칸이 있다</div> : null}
       {!restored ? (
         <button className="x" aria-label="이 문장 빼기" onClick={onRemove}>
@@ -184,6 +185,9 @@ export function Rewrite() {
             고정됨
           </span>
         ) : null}
+      </div>
+      <div style={{ padding: '0 16px 10px' }}>
+        <FixMeter pct={rw.fixRate.pct} />
       </div>
       <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}`} data-testid="paper">
         {rw.lines.length === 0 ? (

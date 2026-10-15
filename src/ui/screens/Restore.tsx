@@ -93,24 +93,39 @@ export function Restore() {
             <div className="t-m" style={{ margin: '4px 0 10px' }}>
               인물 카드에서 바뀐 줄
             </div>
-            {r.cards.flatMap((c) =>
-              c.changes.map((ch, i) => (
-                <div key={`${c.cardId}${i}`} className="ba">
-                  <div className="t-b" style={{ fontWeight: 600 }}>
-                    {c.name}
-                  </div>
-                  <div className="t-b was keep">{ch.before.text || `${ch.before.label}: 기록이 지워졌다`}</div>
-                  <div className="t-b now keep read">
-                    <ScrambleGloss from={ch.before.text || ch.before.label} to={ch.after.text} ms={1800} delay={500} reduce={reduce} />
-                  </div>
-                  {ch.after.source ? (
-                    <a className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={ch.after.source.url} target="_blank" rel="noreferrer noopener">
-                      {ch.after.source.title} <IExt size={14} />
-                    </a>
-                  ) : null}
+            {/* 같은 실록 문장으로 바뀐 카드 줄은 한 번만(이름을 모아) — 같은 글을 거듭 보이지 않는다 */}
+            {Object.values(
+              r.cards
+                .flatMap((c) => c.changes.map((ch) => ({ name: c.name, ch })))
+                .reduce<Record<string, { names: string[]; ch: (typeof r.cards)[number]['changes'][number]; was: string[] }>>((acc, x) => {
+                  const k = x.ch.after.text;
+                  const was = x.ch.before.text || `${x.ch.before.label}: 기록이 지워졌다`;
+                  if (acc[k]) {
+                    acc[k]!.names.push(x.name);
+                    if (!acc[k]!.was.includes(was)) acc[k]!.was.push(was);
+                  } else acc[k] = { names: [x.name], ch: x.ch, was: [was] };
+                  return acc;
+                }, {}),
+            ).map((g, i) => (
+              <div key={i} className="ba" data-testid="restore-card-change">
+                <div className="t-b" style={{ fontWeight: 600 }}>
+                  {g.names.join(' · ')}
                 </div>
-              )),
-            )}
+                {g.was.map((w) => (
+                  <div key={w} className="t-b was keep">
+                    {w}
+                  </div>
+                ))}
+                <div className="t-b now keep read">
+                  <ScrambleGloss from={g.was[0]!} to={g.ch.after.text} ms={1800} delay={500} reduce={reduce} />
+                </div>
+                {g.ch.after.source ? (
+                  <a className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={g.ch.after.source.url} target="_blank" rel="noreferrer noopener">
+                    {g.ch.after.source.title} <IExt size={14} />
+                  </a>
+                ) : null}
+              </div>
+            ))}
             {r.room ? (
               <div className="ba" data-testid="restore-room">
                 <div className="t-m">그날의 방 · 「?」 로 남았던 두 관원</div>

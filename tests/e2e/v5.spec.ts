@@ -169,6 +169,9 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'home-record-0')).toContainText(/\[ \? \] 소\(疏\)를 보고, \[ ─+ \] 설총\(薛聰\)의 \[ ─+ \] 운서\(韻書\)를 아느냐\. \[ ─+ \] 누가 이를 바로잡을 것이냐\./);
     await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
     await expect(tid(page, 'home-record-1')).toContainText('똑같이 무너진 옆 기록');
+    // 그날 고정률(하루 전체 하나)
+    await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '0');
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
     await expect(tid(page, 'home-record-1')).toContainText(/이달에 \[ \? \] 친히 \[ ─+ \] 그 글자가 \[ ─+ \]/);
     // 구멍은 글자([ ── ])가 아니라 길이가 다른 짧은 밑줄로 보인다(읽기 도구용 글만 숨어 있다)
     await expect(tid(page, 'home-record-0').locator('.hr-hole')).toHaveCount(4);
@@ -341,6 +344,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'btn-to-rewrite').click();
     await expect(tid(page, 'line-pc_R0')).toBeVisible();
     await expect(tid(page, 'btn-add-line')).toHaveCount(0);
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
     await expectNavBar(page, '다시 쓰기');
     await shot0(page, 'rewrite-preplaced');
     await tid(page, 'slot-pc_R0-who').click();
@@ -350,6 +354,8 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'opt-상소를 올린 사람들').click();
     await holdSubmit(page);
     await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'not_recorded');
+    await expect(tid(page, 'line-pc_R0')).toContainText('흐릿함 — 그날에 붙지 않았다');
+    await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '0'); // 붙지 않은 문장은 세지 않는다
     await shot0(page, 'rewrite-miss');
     await tid(page, 'slot-pc_R0-who').click();
     await tid(page, 'opt-세종').click();
@@ -360,6 +366,8 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'line-source')).toBeVisible();
     await expect(tid(page, 'btn-restore')).toHaveText('기록이 돌아왔다 ›');
     await expect(tid(page, 'btn-submit')).toHaveCount(0);
+    await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '100');
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('100%', { timeout: 4000 }); // 차오른다
     await expectReadings(page, '다시 쓴 줄');
     await page.waitForTimeout(1600); // 빈칸이 먹으로 채워지는 시간
     await shot0(page, 'rewrite-restored');
@@ -671,6 +679,13 @@ test.describe('v5 전체 플레이', () => {
     await fill('pc_L2', 'speaker', '당상(이극돈 등)');
     await add('pc_L3');
     await fill('pc_L3', 'speaker', '당상(이극돈 등)');
+    // 세 문장만 먼저 고정 → 그날 고정률 75%(필수 L1~L4 중 셋). 줄마다의 수치는 없다
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
+    await holdSubmit(page);
+    await expect(tid(page, 'line-pc_L1')).toHaveAttribute('data-result', 'restored');
+    await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '75');
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('75%', { timeout: 4000 });
+    await shot(page, 'rewrite-fix-75');
     await add('pc_L4');
     await fill('pc_L4', 'who', '이극돈');
     await fill('pc_L4', 'whose', '김일손');
@@ -697,6 +712,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'line-pc_S3')).toHaveAttribute('data-result', 'restored');
     await expect(tid(page, 'line-w_alive')).toHaveAttribute('data-result', 'witness');
     await expect(tid(page, 'line-witness').first()).toContainText('실록이 적지 않은 일');
+    await expect(tid(page, 'fix-rate-pct')).toHaveText('100%', { timeout: 4000 });
     await shot(page, 'rewrite-verdict');
 
     // ── 복원: 다시 쓰기 화면 안에서 → 홈 카드(뒤집힘) → 바뀐 것(카드 줄·방의 짝 이름·로그 한 줄) → 독백 → 예고
@@ -714,6 +730,9 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-cards')).toBeVisible();
     await expect(tid(page, 'restore-room')).toContainText('유순·안침');
+    // 같은 실록 문장으로 바뀐 카드 줄은 한 번만(이름을 모아)
+    expect(await tid(page, 'restore-card-change').count()).toBeLessThan(5);
+    await expect(tid(page, 'restore-card-change').filter({ hasText: '파직하고' })).toHaveCount(1);
     await expect(tid(page, 'restore-log')).toContainText('실록에 없음');
     await page.waitForTimeout(2600); // 먹 번짐(글자가 굳는 시간)
     await shot(page, 'restore-cards');

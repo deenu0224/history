@@ -7,6 +7,7 @@ import { goNextEpisode } from '../lib/flow';
 import { EyeRow } from '../parts/EyeRow';
 import { HomeRecord } from '../parts/HomeRecord';
 import { RestoredCard } from '../parts/RestoredCard';
+import { FixMeter } from '../parts/FixMeter';
 import { openMessenger } from '../lib/nav';
 import { IChat, IGear, IMemory, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
@@ -67,7 +68,10 @@ export function Home() {
       <div className="home-scroll">
       {restored ? (
         <RestoredCard testId="assign-card">
-          <div className="divider" style={{ marginTop: 6 }} />
+          <div style={{ marginTop: 8 }}>
+            <FixMeter pct={home.fixRate.pct} />
+          </div>
+          <div className="divider" style={{ marginTop: 10 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
           <span className="t-m" style={{ marginRight: 4 }}>
             관측 가능
@@ -102,7 +106,8 @@ export function Home() {
             <GapGraphic />
           </>
         )}
-        <div className="divider" />
+        <FixMeter pct={home.fixRate.pct} />
+        <div className="divider" style={{ marginTop: 12 }} />
         <p className="t-b keep" style={{ margin: '14px 0' }}>
           {home.card.task}
         </p>
