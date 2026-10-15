@@ -38,6 +38,8 @@ export interface MsgItem {
   docId?: Id;
   /** 내 말: 한 선임이 읽은 시각 */
   readAt?: number;
+  /** 지난 에피소드에서 복원 때 다시 쓰인 말풍선의 원래 글 */
+  bakedFrom?: string;
 }
 
 export interface Planned {
@@ -400,3 +402,39 @@ export function view(s: MessengerState, now: number, restored: boolean): Messeng
 
 /** 대기 중인 일이 있는가(테스트·UI 의 틱 주기 조절용) */
 export const isBusy = (s: MessengerState) => !!(s.planned || s.queue.length || s.active || s.tasks.length);
+
+/** 내가 먼저 말한다(「어디부터 볼까요?」 같은 빠른 질문). 선택지가 떠 있으면 하지 않는다. */
+export function sayMine(s: MessengerState, id: Id, text: string, now: number): MessengerState {
+  if (s.choice) return s;
+  const r = new Run(s, { bursts: new Map() });
+  const readAt = now + (r.s.presence === 'online' ? r.rand(800, 2500) : r.rand(20_000, 60_000));
+  r.s.log.push({ id, from: 'me', kind: 'mine', text, at: now, burstId: id, readAt });
+  r.s.lastAt = Math.max(r.s.lastAt, readAt);
+  return r.s;
+}
+
+/**
+ * 다음 에피소드로 대화를 이어 간다: 지난 대화(log)는 남기고, 줄·계획·선택지·비동기·보낸 묶음은 비운다.
+ * 지난 에피소드가 복원되었다면 ⟲ 말풍선은 복원 뒤 글로 굳힌다(이전 글은 bakedFrom).
+ */
+export function carryOver(s: MessengerState, now: number, prevRestored: boolean): MessengerState {
+  return {
+    ...s,
+    log: s.log.map((m) => {
+      if (!m.restored) return m;
+      const { restored, ...rest } = m;
+      return prevRestored ? { ...rest, text: restored, bakedFrom: m.text } : rest;
+    }),
+    queue: [],
+    active: null,
+    planned: null,
+    stalled: false,
+    choice: null,
+    tasks: [],
+    fired: [],
+    lastSpontaneousAt: null,
+    lastAt: now,
+    heldForTouch: false,
+    lastReadAt: now,
+  };
+}

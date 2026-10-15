@@ -81,6 +81,26 @@ export interface Fact {
   source: SourceRef;
   /** 사화의 달 기사 등: 복원 뒤에만 카드에 보인다 */
   afterRestore?: true;
+  /** 줄 안의 낱말 링크: 탭하면 그 인물 카드를 얻는다(「인물 카드 +1」). 찾기가 아니다 */
+  links?: FactLink[];
+}
+
+/** 카드 줄 안의 낱말 → 인물 카드(탭하면 cardsFound 에 더해진다) */
+export interface FactLink {
+  /** 줄 안에 그대로 있는 낱말(밑줄) */
+  term: string;
+  cardId: Id;
+}
+
+/**
+ * 파생 사실 키: 다른 카드의 검증 사실이 이 카드에 키를 준다(두 단계 추론).
+ * 예) 최만리 카드 「1419년(세종 1) … 급제」 → 세종 카드가 'king_served_by_choi'(최만리가 섬긴 임금)를 가진다.
+ * 판정은 via 카드를 찾았을 때만 이 키를 쓴다(검증기는 원장에 같은 키가 있는지 본다).
+ */
+export interface DerivedKey {
+  key: FactKey;
+  to: Id;
+  via: { cardId: Id; factId: Id };
 }
 
 /** 소실 세계의 '원인 없는 결과'(변조, fictional). 복원 때 restoredText(verified) 로 다시 쓰인다. */
@@ -128,6 +148,8 @@ export interface Figure {
   label: string;
   /** 같은 사람을 알아보는 데만 쓰는 겉모습(정체 증거로 쓰지 않음) */
   visibleTraits: string[];
+  /** 탭할 수 없는 사람(배경 인물·이 에피소드에서 이름 붙이기 대상이 아님) */
+  inert?: true;
   /** 「?」로 남다가 복원 때 짝 이름이 내려앉는다 */
   revealOnRestore?: { personIds: Id[]; pairLabel: string; source: SourceRef };
 }
@@ -178,6 +200,10 @@ export interface Detail {
   /** 가림 너머로 일부만 본 것(검증기: 방 계산과 일치) */
   occludedView?: true;
   terms?: string[];
+  /** 이 본 것이 가리키는 사람(이름 붙이기 근거, 예: 그가 든 두루마리의 첫머리) */
+  refers?: { figureId: Id };
+  /** 이 본 것이 담은 사실 */
+  keys?: FactKey[];
 }
 
 export type EvidenceKind = 'line' | 'detail' | 'fact';
@@ -232,7 +258,8 @@ export interface CutRef {
 }
 
 export type EyeOpenWhen =
-  | { kind: 'given'; ownerHidden: true }
+  /** ownerHidden: 이름 칸 손상(첫 번째 기억) / false: 주인을 처음부터 안다(Ep0) */
+  | { kind: 'given'; ownerHidden: boolean }
   | { kind: 'tag'; figureId: Id }
   | { kind: 'never'; reason: string };
 
@@ -267,7 +294,8 @@ export interface EyeClosure {
 }
 
 // ── 이름 붙이기 ──────────────────────────────────────────────────
-export type TagVerdict = 'ok' | 'not_pointing' | 'contradicts' | 'not_unique' | 'no_room_record';
+/** not_linked: 그 말이 가리키는 자리가 아직 이 사람과 겹치지 않았다(방에서 같은 시각을 보면 이어진다) */
+export type TagVerdict = 'ok' | 'not_pointing' | 'contradicts' | 'not_unique' | 'no_room_record' | 'not_linked';
 
 export interface TagRule {
   id: Id;
@@ -278,6 +306,8 @@ export interface TagRule {
   uniquenessNote: string;
   /** 미끼 카드 → 실패 때 한 선임 반응(이벤트 id) */
   decoys: { personId: Id; event: Id }[];
+  /** 성공 때 사건(눈이 열리지 않는 태그용, 예: Ep0) */
+  okEvent?: Id;
 }
 
 // ── 모순 ────────────────────────────────────────────────────────
@@ -330,6 +360,8 @@ export interface RecordSentence {
   order: number;
   /** 줄 머리 시각(재구성) */
   time: Hhmm;
+  /** 다시 쓰기를 열면 이 줄이 미리 놓인다(조각을 가지고 있을 때) */
+  preplaced?: true;
 }
 
 export interface RecordPiece {
@@ -351,6 +383,8 @@ export interface RestoredPart {
   /** 머리(예: 실록청 당상 … 아뢰기를) */
   header?: true;
   folded?: { reason: 'mistranslation'; original: string; note: string };
+  /** 긴 단락(상소 전문 등): UI 가 접어 둘 수 있다(글자는 그대로) */
+  long?: true;
 }
 
 export interface RestoredArticle {
@@ -377,8 +411,10 @@ export interface RecordCard {
   erasedBeforeRestore?: true;
   /** 카드에 붙는 꼬리표(예: 「김일손의 말을 옮긴 기록(그의 주장)」) */
   tag?: string;
-  /** 「앞뒤 기록」(복원 뒤 호기심 보상) */
+  /** 「앞뒤 기록」(복원 뒤 호기심 보상 / Ep0: 함께 돌아오는 이웃 기록) */
   aside?: 'before' | 'after';
+  /** 소실 세계에서 보이는 줄(fictional, 예: 「이달에 ___ 언문 28자를 지었는데」). 복원 뒤에는 lines(verified) */
+  inWorld?: string[];
   glosses?: Gloss[];
 }
 
@@ -451,6 +487,12 @@ export interface Cond {
   resolved?: Id[];
   closureDone?: boolean;
   rewriteOpen?: boolean;
+  /** 다시 쓰기를 열 수 있다(Episode.rewriteWhen) */
+  rewriteAvailable?: boolean;
+  /** 그날의 방을 열 수 있다 */
+  roomUnlocked?: boolean;
+  /** 이 카드들을 가지고 있다 */
+  cardsFound?: Id[];
   allRestored?: boolean;
   restored?: boolean;
   /** 지금 이 눈의 컷을 보고 있다 */
@@ -485,6 +527,12 @@ export interface HomeCard {
 export interface Episode {
   id: Id;
   title: string;
+  /** 에피소드 선택 화면의 순서(0 = 프롤로그 사건) */
+  order: number;
+  /** 다음 에피소드(끝나면 열린다) */
+  next?: Id;
+  /** 이 에피소드에서 쓰는 동사(UI 가 감출 것을 정한다). 넘기기·이름 붙이기는 언제나 */
+  verbs: { search: boolean; room: boolean; rewrite: boolean };
   room: RoomPlan;
   cards: PersonCard[];
   figures: Figure[];
@@ -508,6 +556,24 @@ export interface Episode {
   home: HomeCard;
   /** 판정용 사실 키 함의 */
   implies: Record<FactKey, FactKey[]>;
+  /** 다른 카드의 사실이 주는 키(두 단계 추론) */
+  derivedKeys?: DerivedKey[];
+  /** '이 방의 카드' 사실 키(기본 sillokcheong_staff). null = 모든 카드가 그 방의 카드(판정 4단계 없음) */
+  roomKey?: FactKey | null;
+  /** 그날의 방이 열리는 조건(눈 둘 이상 + 이 조건). 없으면 눈 둘 */
+  roomWhen?: Cond;
+  /** 기록 다시 쓰기가 열리는 조건 */
+  rewriteWhen: Cond;
+  /** 조건 사건: 조건이 처음 맞을 때 한 번 */
+  triggers?: { when: Cond; event: Id }[];
+  /** 찾기에서 이 인물이 처음 나오면 사건(복원 전만) */
+  searchEvents?: { personId: Id; event: Id }[];
+  /** 「어디부터 볼까요?」에 켜진 사다리가 없을 때 한 선임의 말 */
+  askFallback: string;
+  /** 플레이어가 묻는 말(07, 존댓말) */
+  askText: string;
+  /** 복원 단계(UI 가 차례로 보여 준다) */
+  restoreSteps: readonly string[];
   /** 검증기 전용 원장 */
   ledger: Record<Id, LedgerEntry[]>;
   /** 원장의 사람 이름(성씨 키 계산) */
@@ -528,6 +594,6 @@ export interface Episode {
     /** 현실 재기록 뒤에도 남는 로그 줄(부재의 증거) */
     witnessLogLabel: string;
   };
-  /** 단말 시계 저장점 */
-  clocks: { start: Hhmm; S1: Hhmm; S2: Hhmm; E4: Hhmm; S3: Hhmm; S4: Hhmm; S5: Hhmm };
+  /** 단말 시계 저장점(눈이 열릴 때 S1·S2·E4, 닫힘 S3, 다시 쓰기 완료 S4, 에필로그 S5) */
+  clocks: { start: Hhmm; S1?: Hhmm; S2?: Hhmm; E4?: Hhmm; S3?: Hhmm; S4?: Hhmm; S5?: Hhmm };
 }

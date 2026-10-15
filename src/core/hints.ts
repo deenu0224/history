@@ -16,6 +16,9 @@ export interface Progress {
   resolved: readonly Id[];
   closureDone: boolean;
   rewriteOpen: boolean;
+  rewriteAvailable?: boolean;
+  roomUnlocked?: boolean;
+  cardsFound?: readonly Id[];
   allRestored: boolean;
   restored: boolean;
   viewingEye: Id | null;
@@ -36,6 +39,9 @@ export function check(p: Progress, c: Cond): boolean {
   if (!all(p.resolved, c.resolved)) return false;
   if (c.closureDone !== undefined && p.closureDone !== c.closureDone) return false;
   if (c.rewriteOpen !== undefined && p.rewriteOpen !== c.rewriteOpen) return false;
+  if (c.rewriteAvailable !== undefined && !!p.rewriteAvailable !== c.rewriteAvailable) return false;
+  if (c.roomUnlocked !== undefined && !!p.roomUnlocked !== c.roomUnlocked) return false;
+  if (!all(p.cardsFound ?? [], c.cardsFound)) return false;
   if (c.allRestored !== undefined && p.allRestored !== c.allRestored) return false;
   if (c.restored !== undefined && p.restored !== c.restored) return false;
   if (c.viewingEye !== undefined && p.viewingEye !== c.viewingEye) return false;
@@ -53,6 +59,8 @@ export interface HintState {
   sent: Record<Id, number>;
   /** 사다리 → 마지막으로 보낸 시각 */
   lastSentAt: Record<Id, number>;
+  /** 플레이어가 「어디부터 볼까요?」라고 물은 수 */
+  asked?: number;
 }
 
 export const emptyHintState = (): HintState => ({ activeSince: {}, sent: {}, lastSentAt: {} });
@@ -86,6 +94,20 @@ export function dueHint(ladders: readonly HintLadder[], h: HintState, p: Progres
     const timeOk = now - base >= step.afterS * 1000 * k;
     const failOk = step.fails !== undefined && l.failKey !== undefined && (p.fails[l.failKey] ?? 0) >= step.fails;
     if (timeOk || failOk) return { ladderId: l.id, stepId: step.id, text: step.text, index: sent };
+  }
+  return null;
+}
+
+/**
+ * 플레이어가 묻는다(「어디부터 볼까요?」): 지금 켜진 사다리의 다음 단을 시간·침묵과 관계없이 바로.
+ * 사다리당 3단 상한·정답 금지는 그대로. 켜진 사다리가 없으면 null.
+ */
+export function askHint(ladders: readonly HintLadder[], h: HintState, p: Progress): { ladderId: Id; stepId: Id; text: string; index: number } | null {
+  for (const l of ladders) {
+    if (!check(p, l.activeWhen) || check(p, l.doneWhen)) continue;
+    const sent = h.sent[l.id] ?? 0;
+    const step = l.steps[sent];
+    if (step) return { ladderId: l.id, stepId: step.id, text: step.text, index: sent };
   }
   return null;
 }

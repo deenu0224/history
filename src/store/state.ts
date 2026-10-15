@@ -1,5 +1,6 @@
 /**
- * 저장되는 게임 상태(v6, DESIGN_V5). 구조를 바꾸면 core/save.ts 의 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
+ * 저장되는 게임 상태(v7, DESIGN_V5 §14). 에피소드 하나의 진행 + 에피소드 사이에 남는 것(episodeId·unlocked·completed·설정·대화 기록).
+ * 에피소드를 바꾸면(startEpisode(id)) 진행 칸은 새로 시작하고 대화 기록은 이어진다. 구조를 바꾸면 core/save.ts 의 SAVE_VERSION 을 올리고 migrations 에 변환을 추가한다.
  */
 import { createMessenger, type MessengerState } from '@/core/messenger';
 import { emptyHintState, type HintLevel, type HintState } from '@/core/hints';
@@ -65,6 +66,12 @@ export interface RewriteState {
 }
 
 export interface PersistedState {
+  /** 지금 에피소드 */
+  episodeId: Id;
+  /** 고를 수 있는 에피소드 */
+  unlocked: Id[];
+  /** 에필로그까지 끝낸 에피소드 */
+  completed: Id[];
   seed: number;
   /** 스토어 쪽 난수(태그 실패 30% 반응 등) */
   rng: number;
@@ -85,6 +92,8 @@ export interface PersistedState {
   fails: Record<string, number>;
   cardsFound: Id[];
   cardsOpened: Id[];
+  /** 성공한 태그가 먹선을 그은 카드 줄: 사실 id → 근거 id */
+  factLinks: Record<Id, Id>;
   recordsOpened: Id[];
   docs: Id[];
   docsOpened: Id[];
@@ -119,8 +128,13 @@ export interface PersistedState {
   settings: Settings;
 }
 
-export function freshState(seed = 1, now = 0): PersistedState {
+export const FIRST_EPISODE_ID = 'ep0';
+
+export function freshState(seed = 1, now = 0, episodeId: Id = FIRST_EPISODE_ID): PersistedState {
   return {
+    episodeId,
+    unlocked: [FIRST_EPISODE_ID, ...(episodeId !== FIRST_EPISODE_ID ? [episodeId] : [])],
+    completed: [],
     seed,
     rng: seed ^ 0x5bd1e995,
     started: false,
@@ -136,6 +150,7 @@ export function freshState(seed = 1, now = 0): PersistedState {
     fails: {},
     cardsFound: [],
     cardsOpened: [],
+    factLinks: {},
     recordsOpened: [],
     docs: [],
     docsOpened: [],

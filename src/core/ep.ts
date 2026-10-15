@@ -196,13 +196,12 @@ export function personGroups(ep: Episode, k: Knowledge): Map<string, string> {
 /** 말이 가리키는 등장들(근거가 담긴 본 컷 기준) */
 export function referredAppearances(ep: Episode, k: Knowledge, evidenceId: Id): Appearance[] {
   const I = idx(ep);
-  const l = I.line.get(evidenceId);
-  if (!l?.refers) return [];
+  const r = I.line.get(evidenceId)?.refers ?? I.detail.get(evidenceId)?.refers;
+  if (!r) return [];
   const cuts = (I.evidenceCuts.get(evidenceId) ?? []).filter((c) => k.viewedCuts.includes(c));
   const apps = appearances(ep, cuts);
-  const r = l.refers;
   if ('figureId' in r) return apps.filter((a) => a.kind === 'figure' && a.figureId === r.figureId);
-  return apps.filter((a) => a.kind === 'mention' && a.lineId === l.id);
+  return apps.filter((a) => a.kind === 'mention' && a.lineId === evidenceId);
 }
 
 /** 눈 주인의 그 시각 자리(listener) */

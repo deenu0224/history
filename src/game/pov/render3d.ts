@@ -3,7 +3,7 @@
  * WebGL 컨텍스트 하나를 재사용한다. 대청 기하는 소품 상태별로 캐시.
  */
 import * as THREE from 'three';
-import { buildHall, type HallParts } from './hall';
+import { buildHall, buildHallEp0, type HallParts } from './hall';
 import { povDetail, setPovDetail } from './geo';
 import { withPaint } from './paint';
 import { buildFigure } from './figure';
@@ -128,11 +128,11 @@ const depthMaterial = () =>
     side: THREE.DoubleSide,
   });
 
-function hallFor(coarse = false): HallParts {
-  const key = `hall:${povDetail()}${coarse ? ':coarse' : ''}`;
+function hallFor(coarse = false, room: NonNullable<PovSpec['room']> = 'ep1'): HallParts {
+  const key = `hall:${room === 'ep1' ? '' : room + ':'}${povDetail()}${coarse ? ':coarse' : ''}`;
   let h = hallCache.get(key);
   if (!h) {
-    h = buildHall({ coarse });
+    h = room === 'ep0' ? buildHallEp0({ coarse }) : buildHall({ coarse });
     hallCache.set(key, h);
   }
   return h;
@@ -236,7 +236,9 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   scene.fog = new THREE.Fog('#d9cdb3', 16, 46);
 
   const pixel = style === 'pixel';
-  const hall = hallFor(pixel);
+  const room = spec.room ?? 'ep1';
+  const ep0 = room === 'ep0';
+  const hall = hallFor(pixel, room);
   scene.add(hall.group);
 
   const disposables: (THREE.BufferGeometry | THREE.Material | THREE.Texture)[] = [];
@@ -252,14 +254,20 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
     if (spec.rim && (!spec.rim.ids || spec.rim.ids.includes(f.id)))
       withRim(m.material as THREE.MeshLambertMaterial, { from: new THREE.Vector3(spec.rim.from.x, spec.rim.from.h ?? 1.2, spec.rim.from.y), strength: spec.rim.strength ?? 0.9, power: 2.0 });
     const p = figurePos(f);
-    m.position.set(p.x, 0, p.y);
+    m.position.set(p.x, f.elev ?? 0, p.y);
     m.rotation.y = (-figureFacing(f, spec.figures) * Math.PI) / 180;
     scene.add(m);
     tagged.push(m);
     disposables.push(m.geometry, m.material as THREE.Material);
+    // 사람이 든 물건의 읽을 수 있는 부분(예: 상소 머리글) — 따로 번호 매겨 탭 영역(세부)과 글자 찍기에 쓴다
+    for (const c of m.children as THREE.Mesh[])
+      if (c.isMesh && c.name.startsWith('detail:')) {
+        tagged.push(c);
+        disposables.push(c.geometry, c.material as THREE.Material);
+      }
     const s = new THREE.Mesh(new THREE.CircleGeometry(f.pose.startsWith('seated') || f.pose.startsWith('kneel') ? 0.5 : 0.32, 16), shadowMat);
     s.rotation.x = -Math.PI / 2;
-    s.position.set(p.x, 0.004, p.y);
+    s.position.set(p.x, (f.elev ?? 0) + 0.004, p.y);
     s.renderOrder = 1;
     scene.add(s);
     blobs.push(s);
@@ -267,7 +275,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   });
 
   // 소품
-  for (const o of buildProps(spec.props ?? {}, { pixelTag: pixel })) {
+  for (const o of ep0 ? [] : buildProps(spec.props ?? {}, { pixelTag: pixel })) {
     scene.add(o);
     const mo = o as THREE.Mesh;
     if (mo.name.startsWith('slip:')) tagged.push(mo);
@@ -282,7 +290,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   if (spec.self && spec.self.hands !== 'none') {
     const at = spec.self.at ? new THREE.Vector3(spec.self.at.x, spec.self.at.h ?? R.desk.h + 0.08, spec.self.at.y) : undefined;
     const me = buildSelf(spec.self, pano ? pano.selfCam : cam, at);
-    const rf = spec.self.rimFrom ?? (parseTime(spec.time) < 600 ? { x: 12.2, y: 4.0, h: 1.4 } : { x: 6.0, y: 9.4, h: 1.3 });
+    const rf = spec.self.rimFrom ?? (ep0 ? { x: 6.0, y: 8.8, h: 1.3 } : parseTime(spec.time) < 600 ? { x: 12.2, y: 4.0, h: 1.4 } : { x: 6.0, y: 9.4, h: 1.3 });
     withRim(me.material as THREE.MeshLambertMaterial, { from: new THREE.Vector3(rf.x, rf.h ?? 1.2, rf.y), strength: 1.2, power: 2.2, wrap: 0.32 });
     if (extras) me.name = 'self';
     scene.add(me);
@@ -318,19 +326,30 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   winL.position.set(11.2, 1.4, 4.0);
   const northL = new THREE.PointLight('#e8dcc0', 4.5, 10, 1.5);
   northL.position.set(6, 2.6, 0.6);
+  if (ep0) {
+    // ep0: 사방 닫힌 띠살문 — 해는 한지가 걸러 들인다. 남쪽(내 등 뒤) 문빛이 줄의 등을, 동·서 문빛이 옆을, 북쪽 고창이 단 뒤를 비춘다
+    bounce.intensity = lp.bounce * 0.35;
+    doorSky.position.set(6, 1.4, 8.3);
+    doorSky.intensity = lp.door * 0.9;
+    winL.position.set(11.0, 1.4, 3.2);
+    winL.intensity = lp.window * 0.55;
+    northL.position.set(6, 2.5, 0.25);
+    northL.intensity = 5.5;
+  }
   scene.add(bounce, doorSky, winL, northL);
   const fills: THREE.PointLight[] = [bounce, doorSky, winL, northL];
-  for (const x of [2, 10]) {
+  for (const x of ep0 ? [0.9] : [2, 10]) {
     const pl = new THREE.PointLight('#efdcb8', 1.6 * (spec.latticeGlow ?? 1), 6 + 2 * ((spec.latticeGlow ?? 1) - 1), 1.8);
-    pl.position.set(x, 1.3, 8.4);
+    if (ep0) pl.position.set(x, 1.3, 3.4);
+    else pl.position.set(x, 1.3, 8.4);
     scene.add(pl);
     fills.push(pl);
   }
   // 픽셀아트: 채움광의 거리 감쇠를 눅여 벽에 과녁 같은 동심원 띠가 생기지 않게(넓고 평평한 빛 + 해가 만든 모양 있는 빛 조각)
   if (pixel) {
     // 벽에 바짝 붙은 채움광은 코사인 항만으로도 과녁을 그린다 — 방 안쪽으로 물린다
-    northL.position.z = 2.2;
-    winL.position.x = 9.6;
+    northL.position.z = ep0 ? 0.9 : 2.2;
+    winL.position.x = ep0 ? 10.2 : 9.6;
     for (const l of fills) {
       l.decay *= PIXEL_FILL.decay;
       l.distance *= PIXEL_FILL.reach;
@@ -351,7 +370,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
       scene.add(fl, pl);
     }
   }
-  const vol = painted ? sunShaft(lightDir, spec.seed ?? 7, { n: 240, size: Math.max(1, Math.round(w / 260)), opacity: 0.6 }, 1.25) : sunShaft(lightDir, spec.seed ?? 7);
+  const vol = ep0 ? [] : painted ? sunShaft(lightDir, spec.seed ?? 7, { n: 240, size: Math.max(1, Math.round(w / 260)), opacity: 0.6 }, 1.25) : sunShaft(lightDir, spec.seed ?? 7);
   for (const o of vol) {
     scene.add(o);
     const mo = o as THREE.Mesh;
@@ -567,7 +586,7 @@ async function render3dInner(spec: PovSpec, style: NonNullable<PovSpec['style']>
   const ff = spec.focus ? spec.figures.find((f) => f.id === spec.focus) : undefined;
   if (ff) {
     const p = figurePos(ff);
-    const c = new THREE.Vector3(p.x, figureHeight(ff) * 0.6, p.y).sub(eyeV);
+    const c = new THREE.Vector3(p.x, (ff.elev ?? 0) + figureHeight(ff) * 0.6, p.y).sub(eyeV);
     focusDepth = c.dot(fwdV);
   } else if (spec.focus === 'self') focusDepth = 0.55;
   else if (spec.focus === 'desk') focusDepth = new THREE.Vector3(...cam.target).sub(eyeV).dot(fwdV);

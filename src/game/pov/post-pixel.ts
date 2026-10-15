@@ -18,10 +18,11 @@
  *   - 벽빛: 둥근 비네트 없음 + 방 면 밝은 쪽 압축 + 체커는 띠가 바뀌는 곳 2px 안에서만(과녁 동심원 없음). 채움광 감쇠는 render3d 에서 눅인다.
  *   - 사람: 어두운 옷 한 단 들어 올림, 옷 픽셀은 그 옷 색 계열(+먹)로만, 역광 테 1px, 얼굴에 눈·눈썹 줄과 볼 그늘 몇 픽셀.
  *   - 이름표 「金馹孫」: 8×9 픽셀 글자를 직접 찍는다(glyphs.ts).
+ *   - (ep0) 상소 겉장 머리글 「副提學 崔萬理」: 같은 방식으로 두 줄 세로쓰기(물체 'detail:d_scroll_head').
  */
 import { hexToRgb, rgbToOklab } from './palette';
 import { mulberry32 } from './camera';
-import { NAME_TAG_GLYPHS_SMALL } from './glyphs';
+import { MEMORIAL_HEAD_COLUMNS, MEMORIAL_HEAD_GLYPHS, NAME_TAG_GLYPHS_SMALL } from './glyphs';
 import type { PovOverlay } from './types';
 
 /** 기억(따뜻함) 24색: 먹 4 · 나무 3 · 한지(무명 겸) 3 · 호박 3 · 붉은 3 · 초록 3 · 남 3 · 피부 2 */
@@ -183,7 +184,7 @@ type Kind = 0 | 1 | 2 | 3 | 4; // 0 하늘 · 1 방 · 2 소품 · 3 종이 조�
 /** 띠살 칸의 역할: 1 한지 · 2 세로살 · 3 가로 띠 (render3d 가 style 'pixel' 에서 따로 번호 매긴다) */
 const panelRole = (name: string | undefined): number => (name === 'hanji' ? 1 : name === 'lattice' ? 2 : name === 'lattice-h' ? 3 : 0);
 const kindOf = (name: string | undefined): Kind =>
-  !name ? 0 : name === 'hall' ? 1 : name.startsWith('slip:') ? 3 : name.startsWith('fig_') || name === 'self' ? 4 : 2;
+  !name ? 0 : name === 'hall' ? 1 : name.startsWith('slip:') || name.startsWith('detail:') ? 3 : name.startsWith('fig_') || name === 'self' ? 4 : 2;
 
 export function postPixel(inp: PixelInput): PixelOutput {
   const { w2, h2, overlay } = inp;
@@ -777,6 +778,66 @@ export function postPixel(inp: PixelInput): PixelOutput {
             else if (!edge) out[i] = paper;
           }
         }
+      }
+    }
+  }
+
+  // 7e) (ep0) 상소 겉장 머리글: 겉장 자리에 8×9 글자 두 줄(오른쪽 副提學, 왼쪽 崔萬理)을 직접 찍는다
+  {
+    const hid = inp.objNames.indexOf('detail:d_scroll_head');
+    if (hid > 0) {
+      let x0 = w;
+      let x1 = -1;
+      let y0 = h;
+      let y1 = -1;
+      const hist = new Map<number, number>();
+      for (let i = 0; i < N; i++)
+        if (obj[i] === hid) {
+          const x = i % w;
+          const y = (i / w) | 0;
+          x0 = Math.min(x0, x);
+          x1 = Math.max(x1, x);
+          y0 = Math.min(y0, y);
+          y1 = Math.max(y1, y);
+          hist.set(out[i], (hist.get(out[i]) ?? 0) + 1);
+        }
+      const GW = 8;
+      const GH = 9;
+      const GAP = 2;
+      const cols = MEMORIAL_HEAD_COLUMNS.length;
+      const rows = GH * 3 + 2;
+      const colsW = GW * cols + GAP * (cols - 1);
+      if (x1 - x0 + 1 >= colsW + 2 && y1 - y0 + 1 >= rows + 2) {
+        let paper = -1;
+        let pc = -1;
+        for (const [c, n] of hist)
+          if (palLab[c][0] > 0.3 && n > pc) {
+            pc = n;
+            paper = c;
+          }
+        if (paper < 0) paper = br1[br1[1]];
+        if (palLab[paper][0] < 0.6) paper = br1[paper];
+        if (palLab[paper][0] < 0.6) paper = br1[paper];
+        const top = y0 + Math.floor((y1 - y0 + 1 - rows) / 2);
+        const left = x0 + Math.floor((x1 - x0 + 1 - colsW) / 2);
+        for (let y = y0; y <= y1; y++)
+          for (let x = x0; x <= x1; x++) {
+            const i = y * w + x;
+            if (obj[i] !== hid) continue;
+            const edge = obj[i - 1] !== hid || obj[i + 1] !== hid || obj[i - w] !== hid || obj[i + w] !== hid;
+            const gy = y - top;
+            const gx = x - left;
+            let ink = false;
+            if (gy >= 0 && gy < rows && gx >= 0 && gx < colsW && gx % (GW + GAP) < GW) {
+              // 세로쓰기: 오른쪽 줄이 첫 줄
+              const col = cols - 1 - Math.floor(gx / (GW + GAP));
+              const r = Math.floor(gy / (GH + 1));
+              const ry = gy % (GH + 1);
+              if (r < 3 && ry < GH) ink = MEMORIAL_HEAD_GLYPHS[MEMORIAL_HEAD_COLUMNS[col][r]][ry][gx % (GW + GAP)] === '#';
+            }
+            if (ink) out[i] = 1;
+            else if (!edge) out[i] = paper;
+          }
       }
     }
   }

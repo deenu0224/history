@@ -19,7 +19,7 @@ export function eyeState(_ep: Episode, k: Knowledge, eye: Eye): EyeState {
 /** 눈의 주인 이름이 알려졌는가 */
 export function ownerKnown(_ep: Episode, k: Knowledge, eye: Eye): boolean {
   if (eye.openWhen.kind === 'tag') return k.openedEyes.includes(eye.id) || k.closedEyes.includes(eye.id);
-  if (eye.openWhen.kind === 'given') return !!eye.figureId && k.named[eye.figureId] === eye.personId;
+  if (eye.openWhen.kind === 'given') return !eye.openWhen.ownerHidden || (!!eye.figureId && k.named[eye.figureId] === eye.personId);
   return true;
 }
 

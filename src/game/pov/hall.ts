@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { Builder, trs } from './geo';
-import { ROOM_EP1 as R } from './room';
+import { ROOM_EP0, ROOM_EP1 as R } from './room';
 import { mulberry32 } from './camera';
 
 /** 재질 색(sRGB). 꼭짓점 색이므로 빛을 받아 어두워진다 — 기본값은 밝은 쪽 */
@@ -362,4 +362,94 @@ export function buildHall(opts: { coarse?: boolean } = {}): HallParts {
   }
 
   return { group, glow: [glowMesh], volumetric: [] };
+}
+
+/** 빌더들을 메시로(본체 + 빛 받는 한지 + 성긴 띠살) */
+function hallMeshes(b: Builder, glowB: Builder, lat: Lattice | undefined): HallParts {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  group.add(b.mesh(mat));
+  const glowMesh = new THREE.Mesh(glowB.build(), new THREE.MeshBasicMaterial({ vertexColors: true }));
+  glowMesh.castShadow = true;
+  group.add(glowMesh);
+  if (lat) {
+    glowMesh.name = 'hanji';
+    for (const [lb, name] of [[lat.v, 'lattice'], [lat.h, 'lattice-h']] as const) {
+      const lm = lb.mesh(mat);
+      lm.name = name;
+      group.add(lm);
+    }
+  }
+  return { group, glow: [glowMesh], volumetric: [] };
+}
+
+/**
+ * 에피소드 0 「하룻밤」 대전(ROOM_EP0, reconstructed). 같은 틀(우물마루·기둥·연등천장)에 사방 닫힌 띠살문(한지로 걸러 든 낮빛),
+ * 북쪽 가운데 낮은 단 + 무늬 없는 가리개 + 방석. 일월오봉도·글자·자모 모양은 그리지 않는다(근거 없음).
+ * 겨울 끝(음력 2월)이라 문은 닫혀 있다(연출). 화로는 근거가 없어 두지 않는다.
+ */
+export function buildHallEp0(opts: { coarse?: boolean } = {}): HallParts {
+  const E = ROOM_EP0;
+  const rnd = mulberry32(1444220);
+  const b = new Builder(17);
+  const glowB = new Builder(19);
+  const lat: Lattice | undefined = opts.coarse ? { v: new Builder(23), h: new Builder(25) } : undefined;
+  const W0 = E.w;
+  const D0 = E.h;
+
+  floorPart(b, W0, D0);
+
+  // ── 벽: 북벽 회벽 + 고창, 동·서·남 모두 닫힌 띠살문(문 위 회벽·인방) ──
+  const plasterShade = (_x: number, y: number) => 0.75 + 0.25 * Math.min(1, y / 2.5);
+  b.box(W0 / 2, 0.25, -0.08, W0, 0.5, 0.16, C.woodLacquer);
+  b.box(W0 / 2, 1.45, -0.1, W0, 1.9, 0.12, C.plaster, 0, { shade: plasterShade, ao: false });
+  for (let bay = 0; bay < 3; bay++) latticePanel(b, glowB, bay * 4 + 0.35, bay * 4 + 3.65, 2.45, 2.92, -0.05, 'x', rnd, lat);
+  const doorTop = 2.45;
+  for (let i = 0; i < W0; i++) latticePanel(b, glowB, i, i + 1, 0, doorTop, D0 + 0.02, 'x', rnd, lat);
+  b.box(W0 / 2, (doorTop + 2.95) / 2, D0 + 0.06, W0, 2.95 - doorTop, 0.14, C.plaster, 0, { ao: false });
+  b.box(W0 / 2, doorTop + 0.05, D0 + 0.06, W0, 0.12, 0.18, C.beamDark);
+  for (const [xw, dx] of [[-0.02, -0.06], [W0 + 0.02, 0.06]] as const) {
+    for (let i = 0; i < D0; i++) latticePanel(b, glowB, i, i + 1, 0, doorTop, xw, 'z', rnd, lat);
+    b.box(xw + dx, (doorTop + 2.95) / 2, D0 / 2, 0.14, 2.95 - doorTop, D0, C.plaster, 0, { ao: false });
+    b.box(xw + dx, doorTop + 0.05, D0 / 2, 0.18, 0.12, D0, C.beamDark);
+  }
+
+  pillarPart(b, W0, D0, E.plinth);
+  roofPart(b, W0, D0, E);
+
+  // ── 단(임금 자리): 옻칠 마루 + 테 + 앞 디딤 ──────────────
+  const d = E.dais;
+  b.box((d.x0 + d.x1) / 2, d.h / 2, (d.y0 + d.y1) / 2, d.x1 - d.x0, d.h, d.y1 - d.y0, C.woodLacquer, 0, { ao: false });
+  b.box((d.x0 + d.x1) / 2, d.h + 0.01, (d.y0 + d.y1) / 2, d.x1 - d.x0 - 0.08, 0.02, d.y1 - d.y0 - 0.08, C.wood, 0, { ao: false, jitter: 0.08 });
+  b.box((d.x0 + d.x1) / 2, d.h - 0.05, d.y1 + 0.005, d.x1 - d.x0 + 0.02, 0.06, 0.03, C.beamDark, 0, { ao: false });
+  b.box((d.x0 + d.x1) / 2, d.step.h / 2, (d.y1 + d.step.y1) / 2, (d.x1 - d.x0) * 0.5, d.step.h, d.step.y1 - d.y1, C.woodLacquer, 0, { ao: false });
+  // 단 위 방석(임금 자리)
+  const k = E.seats.K;
+  b.box(k.x, d.h + 0.04, k.y, 0.78, 0.07, 0.72, C.cushionRed, 0, { ao: false, jitter: 0.06 });
+
+  // ── 가리개: 옻칠 테 + 무늬 없는 옅은 비단 판(그림 내용을 주장하지 않는다) ──
+  const sc = E.screen;
+  const pw = (sc.x1 - sc.x0) / sc.panels;
+  for (let i = 0; i < sc.panels; i++) {
+    const cx = sc.x0 + pw * (i + 0.5);
+    const zz = sc.y + (i % 2 === 0 ? 0 : 0.08);
+    const ry = i % 2 === 0 ? 6 : -6;
+    b.box(cx, d.h + sc.h / 2, zz, pw, sc.h, 0.04, C.woodLacquer, ry, { ao: false });
+    b.box(cx, d.h + sc.h / 2 + 0.02, zz + 0.024, pw - 0.08, sc.h - 0.2, 0.01, C.hanjiOld, ry, { ao: false, shade: (_x, y) => 0.78 + 0.22 * Math.min(1, Math.max(0, (y - d.h - 0.3) / 1.2)) });
+  }
+
+  // ── 신하들의 방석(어두운 자리) ──────────────────────────
+  for (const id of ['C', 'R1', 'R2', 'R3', 'HW', 'R5', 'R6'] as const) {
+    const st = E.seats[id];
+    b.box(st.x, 0.025, st.y, 0.6, 0.05, 0.6, C.cushionBlue, st.facingDeg, { ao: false, jitter: 0.08 });
+  }
+
+  // ── 등잔걸이(낮: 불 없음) 둘, 단 양옆 ───────────────────
+  for (const [x, z] of [[d.x0 - 0.5, 1.2], [d.x1 + 0.5, 1.2]] as const) {
+    b.cyl(x, 0, z, 0.13, 0.11, 0.04, C.brass, 8, { ao: false });
+    b.cyl(x, 0.04, z, 0.018, 0.018, 0.92, C.iron, 6, { ao: false });
+    b.cyl(x, 0.96, z, 0.09, 0.05, 0.03, C.brass, 8, { ao: false });
+  }
+
+  return hallMeshes(b, glowB, lat);
 }

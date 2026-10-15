@@ -8,15 +8,15 @@
 import { appearances, heldEvidence, idx, mergesAt, type Knowledge } from '@/core/ep';
 import { closureDue, cutAvailability, eyesOpenedByTag, givenEyes } from '@/core/eyes';
 import { isRevealed, resolve as resolveX } from '@/core/contradiction';
-import { check, dueHint, markSent, trackActive, type Progress } from '@/core/hints';
+import { askHint as nextAskHint, check, dueHint, markSent, trackActive, type Progress } from '@/core/hints';
 import * as M from '@/core/messenger';
 import { nextRandom } from '@/core/rng';
 import { allRequiredRestored, availablePieces, checkSlotValue, judgeLine, type LineResult, type SetSlotResult } from '@/core/rewrite';
 import { minutes, sameMoment } from '@/core/room';
 import { searchIndex, searchMessage, normalizeQuery } from '@/core/search';
-import { judgeTag, type TagJudgement } from '@/core/tag';
+import { judgeTag, matchedFacts, type TagJudgement } from '@/core/tag';
 import type { Burst, Episode, Hhmm, Id, SlotKind } from '@/core/types';
-import type { PersistedState } from './state';
+import { freshState, type PersistedState } from './state';
 
 export interface Ctx {
   ep: Episode;
@@ -36,7 +36,13 @@ export type Fx =
   | { kind: 'clock'; clock: Hhmm }
   | { kind: 'savepoint'; id: Id }
   | { kind: 'message'; id: Id; from: string; text: string }
-  | { kind: 'restore' };
+  | { kind: 'restore' }
+  /** 인물 카드를 얻었다(기록 열기·카드 줄 링크) — UI: 「인물 카드 +N」 */
+  | { kind: 'cards_gained'; ids: Id[]; from: { kind: 'record' | 'fact_link'; id: Id } }
+  /** 성공한 태그가 카드 줄에 먹선을 그었다 */
+  | { kind: 'fact_link'; cardId: Id; factId: Id; evidenceId: Id }
+  /** 에피소드가 끝났다(다음 에피소드가 열림) — UI: 다리 연출 뒤 startEpisode(next) */
+  | { kind: 'episode_end'; episodeId: Id; next?: Id };
 
 export interface Work {
   s: PersistedState;
@@ -50,7 +56,12 @@ export function burstsOf(ep: Episode): Map<Id, Burst> {
   if (hit) return hit;
   const m = new Map<Id, Burst>(ep.bursts.map((b) => [b.id, b]));
   for (const l of ep.ladders)
-    for (const st of l.steps) m.set(`hint.${st.id}`, { id: `hint.${st.id}`, spontaneous: true, steps: [{ kind: 'say', id: `hint.${st.id}`, from: 'han', text: st.text }] });
+    for (const st of l.steps) {
+      m.set(`hint.${st.id}`, { id: `hint.${st.id}`, spontaneous: true, steps: [{ kind: 'say', id: `hint.${st.id}`, from: 'han', text: st.text }] });
+      // 플레이어가 물었을 때(「어디부터 볼까요?」): 자발 간격 제한 없음
+      m.set(`ask.${st.id}`, { id: `ask.${st.id}`, steps: [{ kind: 'say', id: `${ep.id}.ask.${st.id}`, from: 'han', text: st.text }] });
+    }
+  m.set('ask.fallback', { id: 'ask.fallback', repeatable: true, steps: [{ kind: 'say', id: `${ep.id}.ask.fallback`, from: 'han', text: ep.askFallback }] });
   burstCache.set(ep, m);
   return m;
 }
@@ -77,6 +88,11 @@ export function knowledge(s: PersistedState): Knowledge {
 export const tagsDone = (ep: Episode, s: PersistedState) => ep.tags.filter((t) => s.named[t.figureId] === t.personId).map((t) => t.id);
 
 export function progress(ep: Episode, s: PersistedState): Progress {
+  const base = baseProgress(ep, s);
+  return { ...base, rewriteAvailable: check(base, ep.rewriteWhen), roomUnlocked: roomUnlocked(ep, s) };
+}
+
+function baseProgress(ep: Episode, s: PersistedState): Progress {
   return {
     viewed: s.viewedCuts,
     tagsDone: tagsDone(ep, s),
@@ -91,6 +107,7 @@ export function progress(ep: Episode, s: PersistedState): Progress {
     viewingEye: s.viewer?.eyeId ?? null,
     swipes: s.swipes,
     fails: s.fails,
+    cardsFound: s.cardsFound,
   };
 }
 
@@ -133,7 +150,7 @@ function applyClosure(w: Work, c: Ctx, closureId: Id) {
   w.s.openedEyes = w.s.openedEyes.filter((e) => e !== cl.eyeId);
   if (!w.s.closedEyes.includes(cl.eyeId)) w.s.closedEyes.push(cl.eyeId);
   w.fx.push({ kind: 'eye_close', eyeId: cl.eyeId });
-  setClock(w, cl.effect.clock, 'S3');
+  setClock(w, c.ep.clocks.S3 ?? cl.effect.clock, 'S3');
   fireEvent(w, c, 'ev.closure');
 }
 
@@ -183,9 +200,18 @@ export function tickMessenger(w: Work, c: Ctx) {
   }
 }
 
+/** 조건 사건(Episode.triggers): 조건이 처음 맞을 때 한 번 */
+function runTriggers(w: Work, c: Ctx) {
+  const t = c.ep.triggers;
+  if (!t?.length || !w.s.started) return;
+  const p = progress(c.ep, w.s);
+  for (const tr of t) if (!fired(w, tr.event) && check(p, tr.when)) fireEvent(w, c, tr.event);
+}
+
 export function afterAction(w: Work, c: Ctx) {
   checkClosures(w, c);
   checkReveals(w, c);
+  runTriggers(w, c);
   runLinger(w, c);
   runHints(w, c);
   tickMessenger(w, c);
@@ -202,6 +228,25 @@ export function act<R>(s: PersistedState, c: Ctx, fn: (w: Work) => R, opts: { ac
 }
 
 // ── 동작들 ──────────────────────────────────────────────────────
+/**
+ * 에피소드를 바꾼다(순수): 진행 칸은 새로, 에피소드 사이에 남는 것(unlocked·completed·설정·시드·프롤로그·대화 기록)은 그대로.
+ * 대화 기록은 이어지고 지난 에피소드의 ⟲ 말풍선은 굳는다(core/messenger carryOver).
+ */
+export function switchEpisode(s: PersistedState, nextId: Id, now: number): PersistedState {
+  const f = freshState(s.seed, now, nextId);
+  return {
+    ...f,
+    rng: s.rng,
+    unlocked: s.unlocked.includes(nextId) ? [...s.unlocked] : [...s.unlocked, nextId],
+    completed: [...s.completed],
+    prologueSeen: s.prologueSeen,
+    settings: { ...s.settings },
+    messenger: M.carryOver(s.messenger, now, s.restored),
+    lastActionAt: now,
+    lastActiveAt: now,
+  };
+}
+
 export function startEpisode(w: Work, c: Ctx): 'started' | 'already' {
   if (w.s.started) return 'already';
   w.s.started = true;
@@ -264,6 +309,8 @@ export interface TagOutcome {
   judgement: TagJudgement;
   openedEyes: Id[];
   ownerNamed?: Id;
+  /** 성공: 먹선이 그어진 카드 줄 */
+  matchedFacts?: { cardId: Id; factId: Id }[];
 }
 
 export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, evidenceId: Id): TagOutcome {
@@ -282,11 +329,20 @@ export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, eviden
     if (fig?.revealOnRestore && bump(w, 'tag:noevidence') >= 2) fireEvent(w, c, 'ev.tag_noevidence');
     const decoy = rule?.decoys.find((d) => d.personId === cardId);
     if (decoy) fireEvent(w, c, decoy.event);
+    else if (j.verdict === 'not_linked') fireEvent(w, c, 'ev.tag_unmerged');
     else if (w.s.fails['tag:any'] === 1 && rand(w) < 0.3) fireEvent(w, c, 'ev.tag_wrong');
     return out;
   }
   w.s.named[figureId] = cardId;
   completion(w, c);
+  for (const m of matchedFacts(ep, cardId, evidenceId)) {
+    out.matchedFacts = [...(out.matchedFacts ?? []), m];
+    if (!w.s.factLinks[m.factId]) {
+      w.s.factLinks[m.factId] = evidenceId;
+      w.fx.push({ kind: 'fact_link', cardId: m.cardId, factId: m.factId, evidenceId });
+    }
+  }
+  if (rule?.okEvent) fireEvent(w, c, rule.okEvent);
   for (const e of eyesOpenedByTag(ep, figureId)) {
     if (w.s.openedEyes.includes(e.id) || w.s.closedEyes.includes(e.id)) continue;
     w.s.openedEyes.push(e.id);
@@ -295,9 +351,9 @@ export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, eviden
     w.fx.push({ kind: 'eye_open', eyeId: e.id });
     fireEvent(w, c, `ev.eye_open.${e.id}`);
     const opened = w.s.openedEyes.length + w.s.closedEyes.length;
-    if (opened === 2) setClock(w, ep.clocks.S1, 'S1');
-    else if (opened === 3) setClock(w, ep.clocks.S2, 'S2');
-    else if (opened === 4) setClock(w, ep.clocks.E4);
+    if (opened === 2 && ep.clocks.S1) setClock(w, ep.clocks.S1, 'S1');
+    else if (opened === 3 && ep.clocks.S2) setClock(w, ep.clocks.S2, 'S2');
+    else if (opened === 4 && ep.clocks.E4) setClock(w, ep.clocks.E4);
   }
   for (const e of givenEyes(ep))
     if (e.figureId === figureId && e.personId === cardId) {
@@ -308,7 +364,11 @@ export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, eviden
 }
 
 // ── 그날의 방 ────────────────────────────────────────────────────
-export const roomUnlocked = (s: PersistedState) => s.openedEyes.length + s.closedEyes.length >= 2;
+/** 그날의 방을 열 수 있는가: 이 에피소드에 방이 있고, 눈 둘 이상 + Episode.roomWhen */
+export function roomUnlocked(ep: Episode, s: PersistedState): boolean {
+  if (!ep.verbs.room || s.openedEyes.length + s.closedEyes.length < 2) return false;
+  return !ep.roomWhen || check(baseProgress(ep, s), ep.roomWhen);
+}
 
 /** 본 컷의 시각들(±5분은 한 칩) */
 export function timeChips(ep: Episode, viewed: readonly Id[]): Hhmm[] {
@@ -341,7 +401,7 @@ export function selectRoomTime(w: Work, c: Ctx, time: Hhmm): { merges: string[][
 }
 
 export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {
-  if (!roomUnlocked(w.s)) return 'locked';
+  if (!roomUnlocked(c.ep, w.s)) return 'locked';
   leaveCut(w, c);
   if (!w.s.roomOpened) {
     w.s.roomOpened = true;
@@ -359,6 +419,19 @@ export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {
   return 'opened';
 }
 
+/**
+ * 「이 시각, 그날의 방」(이름 붙이기 시트의 링크): 그 컷의 시각으로 방을 열고 겹침을 저절로 만든다.
+ * 돌려주는 merges 는 새로 드러난 겹침.
+ */
+export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 'locked' | 'no_cut'; time?: Hhmm; merges: string[][] } {
+  const cut = idx(c.ep).cut.get(cutId);
+  if (!cut || !w.s.viewedCuts.includes(cutId)) return { status: 'no_cut', merges: [] };
+  const before = w.s.merges.length;
+  const r = openRoom(w, c, cut.time);
+  if (r === 'locked') return { status: 'locked', merges: [] };
+  return { status: 'opened', time: w.s.roomTime ?? cut.time, merges: w.s.merges.slice(before) };
+}
+
 // ── 모순 ─────────────────────────────────────────────────────────
 export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id) {
   const x = c.ep.contradictions.find((y) => y.id === id);
@@ -368,7 +441,7 @@ export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id) {
     w.s.resolved[id] = r.winner;
     w.fx.push({ kind: 'resolve', contradictionId: id });
     completion(w, c);
-    if (id === 'X1') fireEvent(w, c, 'ev.x1_resolved');
+    fireEvent(w, c, `ev.${id.toLowerCase()}_resolved`);
   } else if (r.status === 'retry') bump(w, `contra:${id}`);
   return r;
 }
@@ -398,7 +471,7 @@ export function search(w: Work, c: Ctx, query: string): SearchOutcome {
   if (erasedTop) status = 'no_article';
   for (const r of results) if (r.kind === 'person' && !w.s.cardsFound.includes(r.id)) w.s.cardsFound.push(r.id);
   w.s.searchLog.push({ seq: w.s.searchLog.length + 1, query, normalized: normalizeQuery(query), status, results, clock: w.s.clock });
-  if (results.some((r) => r.kind === 'person' && r.id === 'kim_ilson') && !w.s.restored) fireEvent(w, c, 'ev.search_kim');
+  if (!w.s.restored) for (const se of ep.searchEvents ?? []) if (results.some((r) => r.kind === 'person' && r.id === se.personId)) fireEvent(w, c, se.event);
   if (results.length) completion(w, c);
   return { status, message: searchMessage(status, query, results.length), results };
 }
@@ -414,8 +487,51 @@ export function openRecord(w: Work, c: Ctx, id: Id): boolean {
   if (!r) return false;
   if ((r.afterRestore || r.erasedBeforeRestore) && !w.s.restored) return false;
   if (!w.s.recordsOpened.includes(id)) w.s.recordsOpened.push(id);
-  for (const p of r.personIds ?? []) if (!w.s.cardsFound.includes(p)) w.s.cardsFound.push(p);
+  grantCards(w, r.personIds ?? [], { kind: 'record', id });
   return true;
+}
+
+function grantCards(w: Work, ids: readonly Id[], from: { kind: 'record' | 'fact_link'; id: Id }): Id[] {
+  const gained = ids.filter((p) => !w.s.cardsFound.includes(p));
+  if (!gained.length) return [];
+  w.s.cardsFound.push(...gained);
+  w.fx.push({ kind: 'cards_gained', ids: gained, from });
+  return gained;
+}
+
+/**
+ * 카드 줄 안의 낱말 링크(Fact.links)를 탭: 그 인물 카드를 얻는다(찾기가 아니다).
+ * 그 카드를 가지고 있어야 하고, 그 줄이 지금 보여야 한다.
+ */
+export function followFactLink(w: Work, c: Ctx, factId: Id, targetCardId: Id): { status: 'gained' | 'already' | 'invalid'; cardId?: Id } {
+  const f = idx(c.ep).fact.get(factId);
+  if (!f || !w.s.cardsFound.includes(f.cardId) || (f.fact.afterRestore && !w.s.restored)) return { status: 'invalid' };
+  const link = (f.fact.links ?? []).find((l) => l.cardId === targetCardId);
+  if (!link) return { status: 'invalid' };
+  if (!w.s.cardsOpened.includes(f.cardId)) w.s.cardsOpened.push(f.cardId);
+  const g = grantCards(w, [link.cardId], { kind: 'fact_link', id: factId });
+  if (g.length) {
+    completion(w, c);
+    fireEvent(w, c, 'ev.card_link');
+  }
+  return { status: g.length ? 'gained' : 'already', cardId: link.cardId };
+}
+
+/** 「어디부터 볼까요?」: 07 이 묻고, 켜진 사다리의 다음 단이 바로 온다(없으면 한 선임의 한 줄) */
+export function askHint(w: Work, c: Ctx): { status: 'hint' | 'fallback' | 'busy'; ladderId?: Id } {
+  if (w.s.messenger.choice) return { status: 'busy' };
+  const n = (w.s.hints.asked ?? 0) + 1;
+  w.s.hints = { ...w.s.hints, asked: n };
+  w.s.messenger = M.sayMine(w.s.messenger, `${c.ep.id}.ask${n}`, c.ep.askText, c.now);
+  const p = progress(c.ep, w.s);
+  w.s.hints = trackActive(c.ep.ladders, w.s.hints, p, c.now);
+  const h = nextAskHint(c.ep.ladders, w.s.hints, p);
+  if (h && fireEvent(w, c, `ask.${h.stepId}`)) {
+    w.s.hints = markSent(w.s.hints, h.ladderId, c.now);
+    return { status: 'hint', ladderId: h.ladderId };
+  }
+  fireEvent(w, c, 'ask.fallback');
+  return { status: 'fallback' };
 }
 
 export function openDoc(w: Work, _c: Ctx, id: Id): boolean {
@@ -425,15 +541,22 @@ export function openDoc(w: Work, _c: Ctx, id: Id): boolean {
 }
 
 // ── 기록 다시 쓰기 ───────────────────────────────────────────────
-export const rewriteAvailable = (s: PersistedState) => s.closures.length > 0 && !!s.resolved.X1;
+/** 기록 다시 쓰기를 열 수 있는가(Episode.rewriteWhen) */
+export const rewriteAvailable = (ep: Episode, s: PersistedState) => ep.verbs.rewrite && check(baseProgress(ep, s), ep.rewriteWhen);
 
 const contraState = (s: PersistedState) => ({ revealed: s.revealed, resolved: s.resolved, slotsOpened: s.slotsOpened });
 
 export function composeRewrite(w: Work, c: Ctx): 'opened' | 'locked' | 'restored' {
   if (w.s.restored) return 'restored';
-  if (!rewriteAvailable(w.s)) return 'locked';
+  if (!rewriteAvailable(c.ep, w.s)) return 'locked';
   if (!w.s.rewrite.open) {
     w.s.rewrite.open = true;
+    // 미리 놓이는 줄(RecordSentence.preplaced): 조각을 가지고 있으면 줄을 세워 둔다
+    const have = availablePieces(c.ep, knowledge(w.s));
+    for (const sent of c.ep.sentences.filter((x) => x.preplaced)) {
+      const piece = have.find((p) => p.sentenceId === sent.id);
+      if (piece && !w.s.rewrite.lines.some((l) => l.pieceId === piece.id)) w.s.rewrite.lines.push({ id: `ln${++w.s.rewrite.seq}`, pieceId: piece.id, values: {} });
+    }
     fireEvent(w, c, 'ev.write_open');
   }
   return 'opened';
@@ -502,11 +625,12 @@ function judgeLines(w: Work, c: Ctx, lineIds: Id[]): SubmitOutcome {
   if (witness) fireEvent(w, c, 'ev.witness_line');
   if (complete) {
     w.s.rewrite.complete = true;
-    setClock(w, ep.clocks.S4, 'S4');
+    if (ep.clocks.S4) setClock(w, ep.clocks.S4, 'S4');
     completion(w, c);
   } else {
     bump(w, 'submit');
     if (Object.values(w.s.rewrite.results).includes('restored')) fireEvent(w, c, 'ev.write_partial');
+    else fireEvent(w, c, 'ev.write_miss');
   }
   return { results, complete };
 }
@@ -522,8 +646,10 @@ export function submitLine(w: Work, c: Ctx, lineId: Id): SubmitOutcome | { statu
 }
 
 // ── 복원 ─────────────────────────────────────────────────────────
+/** 에피소드 1 의 복원 단계(다른 에피소드는 Episode.restoreSteps) */
 export const RESTORE_STEPS = ['article', 'home', 'cards', 'messages', 'room', 'log', 'monologue', 'teaser'] as const;
-export type RestoreStep = (typeof RESTORE_STEPS)[number];
+/** 'article' | 'home' | 'cards' | 'messages' | 'room' | 'log' | 'monologue' | 'teaser' | (Ep0) 'neighbour' | 'bridge' */
+export type RestoreStep = string;
 
 export function restore(w: Work, c: Ctx): 'restored' | 'not_ready' | 'already' {
   if (w.s.restored) return 'already';
@@ -538,10 +664,11 @@ export function restore(w: Work, c: Ctx): 'restored' | 'not_ready' | 'already' {
 
 export function advanceRestore(w: Work, c: Ctx): RestoreStep | 'done' {
   if (!w.s.restored) return 'done';
-  if (w.s.restoreStep < RESTORE_STEPS.length - 1) {
+  const steps = c.ep.restoreSteps;
+  if (w.s.restoreStep < steps.length - 1) {
     w.s.restoreStep += 1;
-    const step = RESTORE_STEPS[w.s.restoreStep];
-    if (step === 'teaser') finishEpilogue(w, c);
+    const step = steps[w.s.restoreStep];
+    if (w.s.restoreStep === steps.length - 1) finishEpilogue(w, c);
     return step;
   }
   finishEpilogue(w, c);
@@ -551,9 +678,12 @@ export function advanceRestore(w: Work, c: Ctx): RestoreStep | 'done' {
 export function finishEpilogue(w: Work, c: Ctx) {
   if (w.s.epilogueDone) return;
   w.s.epilogueDone = true;
-  w.s.restoreStep = RESTORE_STEPS.length - 1;
-  setClock(w, c.ep.clocks.S5, 'S5');
+  w.s.restoreStep = c.ep.restoreSteps.length - 1;
+  if (c.ep.clocks.S5) setClock(w, c.ep.clocks.S5, 'S5');
   fireEvent(w, c, 'ev.teaser');
+  if (!w.s.completed.includes(c.ep.id)) w.s.completed.push(c.ep.id);
+  if (c.ep.next && !w.s.unlocked.includes(c.ep.next)) w.s.unlocked.push(c.ep.next);
+  w.fx.push({ kind: 'episode_end', episodeId: c.ep.id, ...(c.ep.next ? { next: c.ep.next } : {}) });
 }
 
 // ── 재개 ─────────────────────────────────────────────────────────
@@ -563,7 +693,8 @@ export function resumeEvent(ep: Episode, s: PersistedState): Id | null {
   if (s.restored) return null;
   if (s.rewrite.open) return 'ev.resume.write';
   if (s.closures.length) return 'ev.resume.after0600';
-  if (s.revealed.includes('X1') && !s.resolved.X1) return 'ev.resume.x1';
+  const open = s.revealed.find((x) => !s.resolved[x]);
+  if (open) return `ev.resume.${open.toLowerCase()}`;
   if (s.openedEyes.length + s.closedEyes.length >= 2) return 'ev.resume.room';
   if (!tagsDone(ep, s).length) return 'ev.resume.notag';
   return null;

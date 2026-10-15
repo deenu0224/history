@@ -1,11 +1,12 @@
 /**
- * 저장(IndexedDB, idb-keyval). v6 = v5 「눈을 빌려 다시 쓰기」.
+ * 저장(IndexedDB, idb-keyval). v6 = v5 「눈을 빌려 다시 쓰기」(에피소드 1 하나), v7 = 여러 에피소드(Ep0 → Ep1).
+ * v6 → v7: 진행은 그대로 에피소드 1 의 진행으로 옮기고(episodeId 'ep1'), Ep0·Ep1 을 둘 다 연 것으로 둔다.
  * 이전 버전(v1~v5: 걷기·대조·근무)의 진행은 v5 구조와 대응하지 않으므로 버리고 설정만 남긴다(DESIGN_V5 §10).
  * 스키마(PersistedState)는 스토어가 정의한다 — 여기서는 버전·마이그레이션·입출력만 다룬다.
  */
 import { del, get, set } from 'idb-keyval';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const SAVE_SCHEMA = 'gyeollok-save';
 export type SaveSlot = 'auto' | 'manual';
 
@@ -39,12 +40,22 @@ export type Migration = (data: Record<string, unknown>) => Record<string, unknow
 /** v1~v5 → v6: 진행을 모두 버리고 설정만 남긴다(스토어가 빈 상태에 settings 를 덮는다). */
 const resetKeepSettings: Migration = (d) => ({ __reset: true, settings: carrySettings(d.settings) });
 
+/** v6 → v7: 한 에피소드 진행 → 여러 에피소드(진행은 에피소드 1 의 것) */
+export const v6toV7: Migration = (d) => ({
+  ...d,
+  episodeId: 'ep1',
+  unlocked: ['ep0', 'ep1'],
+  completed: d.epilogueDone ? ['ep1'] : [],
+  factLinks: {},
+});
+
 export const migrations: Record<number, Migration> = {
   1: resetKeepSettings,
   2: resetKeepSettings,
   3: resetKeepSettings,
   4: resetKeepSettings,
   5: resetKeepSettings,
+  6: v6toV7,
 };
 
 export const slotKey = (slot: SaveSlot) => `${SAVE_SCHEMA}:${slot}`;

@@ -61,11 +61,18 @@ export function slotOptions(ep: Episode, k: Knowledge, kind: SlotKind, cs: Contr
   const held = heldEvidence(ep, k);
   if (kind === 'who') {
     const persons = [...new Set(Object.values(k.named))];
-    return persons.map((p) => {
+    const named: SlotOption[] = persons.map((p) => {
       const figs = Object.entries(k.named).filter(([, pp]) => pp === p).map(([f]) => f);
       const cutIds = ep.cuts.filter((c) => k.viewedCuts.includes(c.id) && c.figures.some((f) => figs.includes(f.figureId))).map((c) => c.id);
-      return { value: I.card.get(p)?.name ?? p, label: I.card.get(p)?.name ?? p, cutIds };
+      return { value: I.card.get(p)?.name ?? p, label: I.card.get(p)?.name ?? p, cutIds } as SlotOption;
     });
+    // 'who' 칸의 다른 값(들은 말에서 확인한 무리 등, 예: Ep0 「상소를 올린 사람들」)
+    for (const c of ep.claims)
+      if (c.slot === 'who' && claimHeld(ep, k, c) && !persons.some((p) => I.card.get(p)?.name === c.value)) {
+        const cutIds = c.from.flatMap((e) => (held.includes(e) ? (I.evidenceCuts.get(e) ?? []).filter((cu) => k.viewedCuts.includes(cu)) : []));
+        named.push({ value: c.value, label: c.label, cutIds: [...new Set(cutIds)] });
+      }
+    return named;
   }
   const out: SlotOption[] = [];
   for (const c of ep.claims) {
