@@ -8,7 +8,6 @@ import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectRewrite, selectSlotOptions, type RewriteLineView } from '@/store/selectors';
 import { fx } from '../lib/fx';
-import { cutNo } from '../lib/format';
 import { HoldButton } from '../parts/HoldButton';
 import { IBack, IClose, IExt, IWarn } from '../parts/icons';
 import { Sheet } from '../parts/Sheet';
@@ -117,7 +116,7 @@ function SlotPicker({ lineId, kind, onClose }: { lineId: string; kind: SlotKind;
         >
           {o.contested ? <IWarn size={20} /> : null}
           <span className="tx t-b keep">{o.label}</span>
-          <span className="tag">{o.contested ? '모순' : o.cutIds.length ? `컷 ${o.cutIds.map(cutNo).join('·')}` : ''}</span>
+          {o.contested ? <span className="tag">모순</span> : null}
         </button>
       ))}
       {cur !== undefined ? (

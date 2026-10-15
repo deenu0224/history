@@ -28,7 +28,7 @@ export const BURSTS0: Burst[] = [
   {
     id: 'ev.start',
     steps: [
-      sys('자동 탐지 · #C-2209 · 문장 손상 2건'),
+      sys('관측기: #C-2209 · 문장 손상 2건'),
       han('07, 아직 있어?'),
       han('실록은 날짜 밑에 일이 한 꼭지씩 적혀 있어.'),
       han('그중 한 꼭지가 구멍투성이가 됐어.'),
@@ -102,7 +102,7 @@ export const BURSTS0: Burst[] = [
     id: 'ev.restore',
     postRestore: true,
     steps: [
-      { kind: 'system', id: 'e0m_restore_sys', text: '통합 역사 DB 동기화: 정상 · 변경 0건.' },
+      { kind: 'system', id: 'e0m_restore_sys', text: '기록 확인: 바뀐 것 없음.' },
       han('07, 아까 그 구멍 난 거 끝났어?'),
       {
         kind: 'choice',
@@ -124,7 +124,7 @@ export const BURSTS0: Burst[] = [
     id: 'ev.teaser',
     postRestore: true,
     steps: [
-      { kind: 'system', id: 'e0m_bridge_sys', text: '좌표 재계산 · 같은 손상 흔적 1건 더' },
+      { kind: 'system', id: 'e0m_bridge_sys', text: '관측기: 같은 손상 흔적 1건 더' },
       han('어, 하나 더 떴다.'),
       han('이번엔 이름은 남고 사유가 빠졌대.'),
       han('그건 위에서 너한테 줄 거야.'),

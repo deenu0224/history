@@ -34,7 +34,7 @@ export const BURSTS: Burst[] = [
       named('m_oh_priority', oh('우선순위 낮음. 아침 전에 정리해.', { restored: '다 아는 건이니 아침 전에 정리해.', facts: DAY })),
       han('아까 하나 더 떴다던 그거야.'),
       han('이름은 남고 사유가 빠진 거.'),
-      han('그 건 좌표 기록에 명단이 하나 붙어 있더라.'),
+      han('그 건엔 명단이 하나 붙어 있더라.'),
       han('거기서 셋만 먼저 뽑아서 카드 올려놨어.'),
       han('나머진 필요하면 찾기로 봐.'),
       {
@@ -129,11 +129,11 @@ export const BURSTS: Burst[] = [
   {
     id: 'ev.closure',
     steps: [
-      sys('06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 관측 가능 1개 끊김'),
-      oh('재계산 돌았다.'),
+      sys('관측기 06:00 · 이 지점을 가리키는 기록 1건 사라짐 · 관측 1개 끊김'),
+      oh('관측기 한 바퀴 돌았다.'),
       named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '교과서 건이니 남은 걸로 깔끔하게 해.', facts: DAY })),
       han('…닫혔어?', heavy),
-      han('본 건 남아. 로그는 안 지워지니까.'),
+      han('본 건 남아. 네가 본 건 안 지워지니까.'),
       han('못 본 건… 끝이고.'),
       {
         kind: 'choice',
@@ -143,7 +143,7 @@ export const BURSTS: Burst[] = [
           { id: 'all', text: '다 봤어요.', then: [han('다행이다.')] },
         ],
         after: [
-          han('재계산 로그 좀 뒤져 볼게.'),
+          han('관측기 기록 좀 뒤져 볼게.'),
           { kind: 'status', presence: 'away' },
           { kind: 'async', event: 'ev.old_report', minS: 40, maxS: 90, capS: 120 },
         ],
@@ -156,8 +156,8 @@ export const BURSTS: Burst[] = [
       { kind: 'status', presence: 'online' },
       han('야.'),
       han('이거 1년 전 네 거야.', heavy),
-      han('같은 좌표.'),
-      { kind: 'attach', id: 'm_att_old', docId: 'doc_old_report', label: '관측 로그 · #C-2217 · 1년 전 · 대조관 07' },
+      han('같은 빈자리.'),
+      { kind: 'attach', id: 'm_att_old', docId: 'doc_old_report', label: '관측 기록 · #C-2217 · 1년 전 · 대조관 07' },
       {
         kind: 'choice',
         id: 'c_old',
@@ -193,7 +193,7 @@ export const BURSTS: Burst[] = [
     id: 'ev.restore',
     postRestore: true,
     steps: [
-      sys('통합 역사 DB 동기화: 정상 · 변경 0건.'),
+      sys('기록 확인: 바뀐 것 없음.'),
       han('07, 아까부터 뭘 그렇게 붙들고 있어?'),
       {
         kind: 'choice',
@@ -219,7 +219,7 @@ export const BURSTS: Burst[] = [
     postRestore: true,
     steps: [
       han('아 그리고.'),
-      han('아까 로그 뒤지다 본 건데.'),
+      han('아까 관측기 기록 뒤지다 본 건데.'),
       han('너, 2년 전에도 뭐 하나 붙들고 있었더라.'),
       { kind: 'attach', id: 'm_att_c0408', docId: 'doc_c0408', label: '#C-0408 · 2년 전 · 대조관 07 · 관측 오류 · 종결' },
       {
@@ -237,7 +237,7 @@ export const BURSTS: Burst[] = [
   { id: 'ev.resume.notag', repeatable: true, steps: [han('왔어? 카드 세 장 그대로 있어.')] },
   { id: 'ev.resume.room', repeatable: true, steps: [han('방 그림 그대로야.')] },
   { id: 'ev.resume.x1', repeatable: true, steps: [han('그 「모두」 얘기 아직이지?')] },
-  { id: 'ev.resume.after0600', repeatable: true, steps: [han('재계산 끝났어. 더 닫힌 건 없어.')] },
+  { id: 'ev.resume.after0600', repeatable: true, steps: [han('관측기 다시 돌았어. 더 닫힌 건 없어.')] },
   { id: 'ev.resume.write', repeatable: true, steps: [han('쓰던 거 그대로 있어.')] },
 ];
 

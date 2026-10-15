@@ -1,13 +1,22 @@
 /**
- * 홈 카드의 「그날 실록」 — 손상된 문장 그대로(검증된 국역, 빈 칸만 청록 [ ? ]). 복원 뒤엔 빈 칸에 글이 돌아온다.
- * before 를 주면(복원 단계 「홈」) 빈 칸이 한 자씩 채워지는 연출.
+ * 홈 카드의 「그날 실록」 — 손상된 문장 그대로(검증된 국역). 지워진 곳은 길이가 다른 짧은 청록 밑줄(빈자리) 하나의 모양,
+ * 「누가」 칸만 밑줄 위에 작은 「?」. 복원 뒤엔 빈자리에 글이 돌아오고, 내가 채운 「누가」 칸만 밝게 보인다.
+ * before 를 주면(복원 단계 「홈」) 빈자리가 한 자씩 채워지는 연출.
  */
 import type { homeView } from '@/core/reality';
+import { useEpisode } from '@/store/hooks';
 import { Scramble } from './Scramble';
 
 type RecordView = NonNullable<ReturnType<typeof homeView>['record']>;
 
+/** 구멍 글([ ? ] · [ ── ])이면 그 길이(─ 개수, 「누가」 칸은 0) */
+const holeLen = (t: string): number | null => {
+  const m = /^\[ (\?|─+) \]$/.exec(t);
+  return m ? (m[1] === '?' ? 0 : m[1]!.length) : null;
+};
+
 export function HomeRecord({ record, before, reduce = false, clamp = false }: { record: RecordView; before?: RecordView; reduce?: boolean; clamp?: boolean }) {
+  const raw = useEpisode().home.record;
   return (
     <div className="home-record" data-testid="home-record">
       <div className="t-m hr-title">{record.title}</div>
@@ -18,10 +27,25 @@ export function HomeRecord({ record, before, reduce = false, clamp = false }: { 
             「
             {l.parts.map((p, j) => {
               if (!p.gap) return <span key={j}>{p.text}</span>;
+              const rp = raw?.lines[i]?.parts[j];
+              const who = !!rp && 'gap' in rp && !!rp.who;
+              const n = holeLen(p.text);
+              if (n !== null)
+                return (
+                  <span
+                    key={j}
+                    className={`hr-hole${who ? ' who' : ''}`}
+                    style={{ width: who ? '1.9em' : `${(1.2 + n * 0.62).toFixed(2)}em` }}
+                    data-testid="home-gap"
+                    role="img"
+                    aria-label={who ? '빈자리: 누가' : '빈자리'}
+                  >
+                    <span className="sr">{p.text}</span>
+                  </span>
+                );
               const was = before?.lines[i]?.parts[j]?.text;
-              const filled = !p.text.startsWith('[ '); // 구멍([ ? ]·[ ── ])이 아니면 돌아온 글
               return (
-                <span key={j} className={`hr-gap${filled ? ' filled' : ''}`} data-testid="home-gap">
+                <span key={j} className={`hr-gap filled${who ? ' who' : ''}`} data-testid="home-gap">
                   {was && was !== p.text ? <Scramble from={was} to={p.text} ms={1400} delay={600 + i * 500} reduce={reduce} /> : p.text}
                 </span>
               );

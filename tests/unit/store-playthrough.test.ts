@@ -213,7 +213,7 @@ describe('store — Ep1 correct path end to end', () => {
     const rw = selectRewrite(EP1, h.st());
     expect(rw.lines.find((l) => l.id === L4)!.render.parts.map((p) => p.text).join('')).toBe('극돈 등이 일손의 사초에서 6조목을 절취하여 봉해 올리니,');
     expect(rw.lines.find((l) => l.id === L4)!.render.sourceUrl).toBe('https://sillok.history.go.kr/id/kja_10407011_001');
-    expect(rw.lines.find((l) => l.id === W)!.resultText).toBe('실록이 적지 않은 일 — 내 관측 로그에만 남는다');
+    expect(rw.lines.find((l) => l.id === W)!.resultText).toBe('실록이 적지 않은 일 — 내가 본 것에만 남는다');
 
     // 현실 재기록
     expect(h.st().restore()).toBe('restored');

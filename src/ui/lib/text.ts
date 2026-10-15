@@ -156,3 +156,17 @@ export function bareHanja(text: string): string[] {
   }
   return out;
 }
+
+/** 괄호 속 한자(「해주(海州)」의 「(海州)」)를 따로 떼어 낸다 — 화면에서 작고 옅게 보이려고. 글자는 그대로. */
+export function hanjaSegs(text: string): { text: string; hj?: true }[] {
+  const out: { text: string; hj?: true }[] = [];
+  let pos = 0;
+  for (const m of text.matchAll(/\([^()]*[\u3400-\u9FFF\uF900-\uFAFF][^()]*\)/g)) {
+    const i = m.index!;
+    if (i > pos) out.push({ text: text.slice(pos, i) });
+    out.push({ text: m[0], hj: true });
+    pos = i + m[0].length;
+  }
+  if (pos < text.length) out.push({ text: text.slice(pos) });
+  return out;
+}

@@ -169,7 +169,7 @@ export function Search() {
         ) : null}
         {logs.length ? (
           <>
-            <div className="seclabel t-m">내 관측 로그</div>
+            <div className="seclabel t-m">지금까지 본 것</div>
             {logs.map((r) => (
               <Hit key={r.id} r={r} />
             ))}

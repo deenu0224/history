@@ -460,6 +460,6 @@ export const CLOSURES: EyeClosure[] = [
     eyeId: 'E3',
     trigger: { eyeOpen: 'E4', anyOf: [{ cutViewed: 'e4-5' }, { secondsAfterEyeOpen: 120 }] },
     effect: { erase: { cardId: 'eo_segyeom', alteredId: 'alt_eo' }, clock: '06:00' },
-    systemLine: '06:00 좌표 재계산 · 이 지점을 가리키는 기록 1건 소실 · 관측 가능 1개 끊김',
+    systemLine: '관측기 06:00 · 이 지점을 가리키는 기록 1건 사라짐 · 관측 1개 끊김',
   },
 ];

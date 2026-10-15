@@ -5,7 +5,7 @@ import { useGameStore } from '@/store/gameStore';
 import { useEpisode, useView } from '@/store/hooks';
 import { selectCard, type CardView } from '@/store/selectors';
 import { fx } from '../lib/fx';
-import { splitTerms } from '../lib/text';
+import { hanjaSegs, splitTerms } from '../lib/text';
 import { EyeIcon } from './icons';
 import { IBack, IChevD, IClose, IExt } from './icons';
 import { useUi } from '../uiStore';
@@ -25,7 +25,24 @@ function Src({ s }: { s: SourceRef }) {
 
 type FactView = CardView['facts'][number];
 
-/** 카드 한 줄: 낱말 링크(탭 → 인물 카드 +1) · 먹선(성공한 이름 붙이기가 그은 근거). 출처는 ▾ 로 펼친다. */
+/** 괄호 속 한자는 작고 옅게(한글 읽기가 앞에 있다) */
+function Hj({ text }: { text: string }) {
+  return (
+    <>
+      {hanjaSegs(text).map((h, i) =>
+        h.hj ? (
+          <span key={i} className="hj">
+            {h.text}
+          </span>
+        ) : (
+          <span key={i}>{h.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+/** 카드 한 줄: 낱말 링크(탭 → 인물 카드 +1) · 먹선(성공한 이름 붙이기가 그은 근거). 긴 줄은 두 줄로 접고 ▾ 로 전문과 출처를 펼친다. */
 function FactRow({ f, open, fresh, evText, onToggle }: { f: FactView; open: boolean; fresh: boolean; evText?: string; onToggle: () => void }) {
   const segs = splitTerms(f.text, f.links.map((l) => l.term));
   const follow = (cardId: string) => {
@@ -38,12 +55,14 @@ function FactRow({ f, open, fresh, evText, onToggle }: { f: FactView; open: bool
     fx('tap');
     g.followFactLink(f.id, cardId);
   };
+  // 아직 얻지 않은 링크가 있거나 먹선이 그어진 줄은 접지 않는다(눌러야 할 것·근거가 가려지지 않게)
+  const clamp = !open && !f.linkedBy && !f.links.some((l) => !l.found);
   return (
     <div className={`fact${f.linkedBy ? ' linked' : ''}${fresh ? ' ink-new' : ''}`} data-fact={f.id} data-linked={f.linkedBy ? 'true' : undefined}>
       <div className="l">
         <span className="sq" />
-        <span className="t-b keep" style={{ flex: 1, color: 'var(--card-ink)' }}>
-          <span className={f.linkedBy ? 'ink' : undefined}>
+        <span className="t-b keep" style={{ flex: 1, minWidth: 0, color: 'var(--card-ink)' }}>
+          <span className={`${f.linkedBy ? 'ink' : ''}${clamp ? ' fclamp' : ''}`}>
             {segs.map((sg, i) => {
               const link = sg.term ? f.links.find((l) => l.term === sg.term) : undefined;
               return link ? (
@@ -51,17 +70,17 @@ function FactRow({ f, open, fresh, evText, onToggle }: { f: FactView; open: bool
                   {sg.text}
                 </button>
               ) : (
-                <span key={i}>{sg.text}</span>
+                <Hj key={i} text={sg.text} />
               );
             })}
           </span>
           {f.linkedBy && evText ? (
             <span className="inkline t-m" data-testid="ink-line">
-              먹선 · {evText}
+              먹선 · <Hj text={evText} />
             </span>
           ) : null}
         </span>
-        <button className="chevbtn" aria-label="출처" aria-expanded={open} onClick={onToggle}>
+        <button className="chevbtn" aria-label={clamp ? '펼치기 · 출처' : '출처'} aria-expanded={open} onClick={onToggle}>
           <span style={{ display: 'flex', transform: open ? 'rotate(180deg)' : undefined }}>
             <IChevD />
           </span>
@@ -115,7 +134,7 @@ export function CardDetail() {
             <span className="t-h" data-testid="card-name">
               {card.name}
             </span>
-            <span className="t-b" style={{ color: '#4b5561' }}>
+            <span className="t-m" style={{ color: '#6a7480' }}>
               {card.hanja}
             </span>
           </div>

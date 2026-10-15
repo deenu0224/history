@@ -1,66 +1,54 @@
 /**
- * 복원 — 돌아오는 기록. 기사 → 홈(일시·장소) → 인물 카드 → 메시지 → 그날의 방 → 로그 → 독백 → 예고.
+ * 복원 — 돌아오는 기록. 기사 → 홈(일시·장소) → 인물 카드 → 메시지 → 그날의 방 → 지금까지 본 것 → 독백 → 예고.
  * 따뜻한 먹 번짐으로 한지에서 시작해 단말로 돌아온다. 현실 재기록: 같은 자리의 글자가 한 자씩 바뀐다. UI_STYLE_GUIDE §2.10
  */
 import { useEffect, useRef, useState } from 'react';
 import { setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
-import { selectMessenger, selectRestoration } from '@/store/selectors';
-import { IExt } from '../parts/icons';
+import { selectMessenger, selectRestoration, selectRewrite } from '@/store/selectors';
+import { IChevD, IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
-import { shorten } from '../lib/text';
 import { FROM_LABEL } from '../lib/format';
 import { HomeRecord } from '../parts/HomeRecord';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
 
+/**
+ * 복원 기사: 내가 다시 쓴 줄(돌아온 핵심 문장)만 크게, 내가 채운 칸은 밝게. 나머지 전문은 「전문 펼치기」 뒤에 접어 둔다.
+ */
 function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }) {
   const [fold, setFold] = useState(false);
-  const [openLong, setOpenLong] = useState<Record<number, boolean>>({});
+  const keys = useView((ep, s) => selectRewrite(ep, s).lines.filter((l) => l.result === 'restored'));
+  const [full, setFull] = useState(keys.length === 0);
   return (
-    <div className="sheetpaper hanji" style={{ margin: '0 4px' }} data-testid="restored-article">
+    <div className="sheetpaper hanji rarticle" style={{ margin: '0 4px' }} data-testid="restored-article">
       <div className="t-m read" style={{ color: '#6b5e45', lineHeight: '22px' }}>
         {r.article.citation}
       </div>
-      <p className="article" style={{ margin: '10px 0 14px' }}>
-        {r.article.parts.map((p, i) => {
-          if (p.folded)
-            return (
-              <button key={i} className="fold" style={{ font: 'inherit' }} onClick={() => setFold(!fold)} aria-expanded={fold}>
-                ……
-              </button>
-            );
-          // 긴 단락(상소 전문 등)은 접어 둘 수 있다 — 글자는 그대로, 펼치면 전문
-          if (p.long) {
-            const sh = shorten(p.text, 78);
-            const open = !sh.truncated || openLong[i];
-            return (
-              <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by} data-long={open ? 'open' : 'folded'}>
-                {i > 0 ? ' ' : ''}
-                {open ? p.text : `${sh.head} `}
-                {sh.truncated ? (
-                  <button className="fold" style={{ font: 'inherit' }} data-testid="article-long-toggle" aria-expanded={!!open} onClick={() => setOpenLong({ ...openLong, [i]: !open })}>
-                    {open ? ' [접기]' : '…… 펼치기'}
-                  </button>
-                ) : null}
-              </span>
-            );
-          }
-          return (
-            <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by}>
-              {i > 0 ? ' ' : ''}
-              {p.text}
-            </span>
-          );
-        })}
-      </p>
-      {fold ? (
-        <p className="t-m" style={{ color: '#6b5e45' }}>
-          {r.article.parts.find((p) => p.folded)?.folded?.note}
-        </p>
+      {keys.length ? (
+        <div className="t-m keylabel" style={{ color: '#6b5e45', marginTop: 14 }}>
+          내가 다시 쓴 줄
+        </div>
       ) : null}
+      {keys.map((l) => (
+        <p key={l.id} className="keyline read keep" data-testid="article-key">
+          {l.render.parts.map((p, i) =>
+            p.slot ? (
+              <mark key={i} className="kslot" data-testid="article-filled">
+                {p.text}
+              </mark>
+            ) : p.editorial ? (
+              <span key={i} className="edit">
+                {p.text}
+              </span>
+            ) : (
+              <span key={i}>{p.text}</span>
+            ),
+          )}
+        </p>
+      ))}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
         <span className="seal" aria-label="실록 도장">
           <b>實錄</b>
@@ -70,6 +58,37 @@ function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }
           {r.article.source.title} <IExt size={14} />
         </a>
       </div>
+      {keys.length ? (
+        <button className="fulltoggle t-b" data-testid="article-full-toggle" aria-expanded={full} onClick={() => setFull(!full)}>
+          {full ? '전문 접기' : '전문 펼치기'}
+          <span style={{ display: 'inline-flex', transform: full ? 'rotate(180deg)' : undefined }}>
+            <IChevD />
+          </span>
+        </button>
+      ) : null}
+      {full ? (
+        <>
+          <p className="article" style={{ margin: '10px 0 14px' }} data-testid="article-full">
+            {r.article.parts.map((p, i) =>
+              p.folded ? (
+                <button key={i} className="fold" style={{ font: 'inherit' }} onClick={() => setFold(!fold)} aria-expanded={fold}>
+                  ……
+                </button>
+              ) : (
+                <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by}>
+                  {i > 0 ? ' ' : ''}
+                  {p.text}
+                </span>
+              ),
+            )}
+          </p>
+          {fold ? (
+            <p className="t-m" style={{ color: '#6b5e45' }}>
+              {r.article.parts.find((p) => p.folded)?.folded?.note}
+            </p>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -152,7 +171,7 @@ export function Restore() {
                 <Scramble from={r.home.before.status} to={r.home.after.status} ms={1000} delay={1400} reduce={reduce} />
               </span>
             </div>
-            {r.home.after.record ? <HomeRecord record={r.home.after.record} before={r.home.before.record} reduce={reduce} /> : null}
+            {r.home.after.record ? <HomeRecord record={r.home.after.record} before={r.home.before.record} reduce={reduce} clamp /> : null}
             {r.home.after.placeNote ? (
               <p className="t-m keep" style={{ margin: '14px 0 0' }}>
                 {r.home.after.placeNote}
@@ -231,7 +250,7 @@ export function Restore() {
         {step === 'log' ? (
           <div data-testid="restore-log">
             <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              내 관측 로그는 그대로 남는다
+              내가 본 것은 그대로 남는다
             </div>
             {r.absence.map((a, i) => (
               <div key={i} className="ba">

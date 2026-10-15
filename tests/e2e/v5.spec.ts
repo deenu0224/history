@@ -138,12 +138,20 @@ test.describe('v5 전체 플레이', () => {
     // 에피소드 0 에는 찾기·그날의 방이 없다 — 버튼도 없다
     await expect(tid(page, 'dock-search')).toHaveCount(0);
     await expect(tid(page, 'btn-rewrite')).toHaveCount(0);
-    // Ep0 엔 찾기가 없다 — 무너진 실록 단락이 홈 카드에 그대로 뜬다(국역 조각만 남고 나머지는 청록 구멍)
+    // Ep0 엔 찾기가 없다 — 무너진 실록 단락이 홈 카드에 그대로 뜬다(국역 조각만 남고 나머지는 청록 빈자리 밑줄 — 한 가지 모양)
     await expect(tid(page, 'home-record')).toContainText('그날 실록');
     await expect(tid(page, 'home-record-0')).toContainText(/\[ \? \] 소\(疏\)를 보고, \[ ─+ \] 설총\(薛聰\)의 \[ ─+ \] 운서\(韻書\)를 아느냐\. \[ ─+ \] 누가 이를 바로잡을 것이냐\./);
     await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
     await expect(tid(page, 'home-record-1')).toContainText('똑같이 무너진 옆 기록');
     await expect(tid(page, 'home-record-1')).toContainText(/이달에 \[ \? \] 친히 \[ ─+ \] 그 글자가 \[ ─+ \]/);
+    // 구멍은 글자([ ── ])가 아니라 길이가 다른 짧은 밑줄로 보인다(읽기 도구용 글만 숨어 있다)
+    await expect(tid(page, 'home-record-0').locator('.hr-hole')).toHaveCount(4);
+    await expect(tid(page, 'home-record-0').locator('.hr-hole.who')).toHaveCount(1);
+    {
+      const ws = await tid(page, 'home-record-0').locator('.hr-hole').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+      expect(new Set(ws).size).toBeGreaterThan(2); // 길이가 다른 밑줄
+      expect(Math.max(...ws)).toBeLessThan(200);
+    }
     await shot0(page, 'home');
     // 설정에서 「메시지 빠르게」(시험을 짧게) — 이것도 실제 탭
     await tid(page, 'open-settings').click();
@@ -157,6 +165,14 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'cut-time')).toHaveText('10:00');
     await expect(page.locator('[data-cut="e0-1"] [data-testid="bubble"]')).toBeVisible();
     await expect(tid(page, 'btn-room')).toHaveCount(0);
+    // 눈이 하나뿐이면 눈 줄을 두지 않는다 — 컷이 머리글 바로 밑에 붙는다
+    await expect(page.locator('.vtop .l2')).toHaveCount(0);
+    await expect(tid(page, 'btn-log')).toHaveText('지금까지 본 것');
+    {
+      const top = (await page.locator('.vtop').boundingBox())!;
+      const cutb = (await page.locator('[data-cut="e0-1"] .cutbox').boundingBox())!;
+      expect(cutb.y - (top.y + top.height)).toBeLessThan(8);
+    }
     await shot0(page, 'viewer-first-cut');
     // 두루마리 세부를 탭하면 본 것이 한글 읽기와 함께 뜬다(사람 상자보다 먼저 눌린다)
     await page.locator('[data-cut="e0-1"] [data-detail="d_scroll_head"]').click();
@@ -169,7 +185,13 @@ test.describe('v5 전체 플레이', () => {
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '1');
     await expect(tid(page, 'cut-time')).toHaveText('10:10');
     await expect(page.locator('[data-cut="e0-2"] [data-testid="bubble"]').first()).toBeVisible({ timeout: 8000 });
+    // 말풍선은 사람을 가리지 않는다(컷 아래 남는 자리에 놓이거나, 탭을 통과시킨다) — 높은 자리의 사람이 눌린다
+    await expect(page.locator('[data-cut="e0-2"] [data-testid="bubble"]')).toHaveCount(1);
     await shot0(page, 'viewer-second-cut');
+    await figure(page, 'e0-2', 'fig_king').click();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
     await swipeLeft(page);
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '2');
     await expect(page.locator('[data-cut="e0-3"] [data-testid="bubble"]').first()).toContainText('운서', { timeout: 8000 });
@@ -218,6 +240,12 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'card-ink-line');
     await tid(page, 'flink-sejong').click();
     await expect(tid(page, 'toast')).toContainText('인물 카드 +1');
+    // 알림이 카드 머리글(이름)을 가리지 않는다
+    {
+      const tb = (await tid(page, 'toast').boundingBox())!;
+      const nb = (await tid(page, 'card-name').boundingBox())!;
+      expect(tb.y > nb.y + nb.height + 40 || tb.y + tb.height < nb.y).toBe(true);
+    }
     await expect(tid(page, 'flink-sejong')).toHaveClass(/found/);
     await shot0(page, 'card-link-gained');
     await tid(page, 'card-close').click();
@@ -258,6 +286,7 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'rewrite-preplaced');
     await tid(page, 'slot-pc_R0-who').click();
     await expect(tid(page, 'slot-sheet')).toBeVisible();
+    await expect(tid(page, 'slot-sheet')).not.toContainText('컷 0-');
     await shot0(page, 'rewrite-slot-sheet');
     await tid(page, 'opt-상소를 올린 사람들').click();
     await holdSubmit(page);
@@ -272,17 +301,18 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'rewrite-restored');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 전문(상소 단락은 접힘) → 홈 → 메시지 → 이웃 기록 → 독백 → 다리
+    // ── 복원: 다시 쓴 줄만 크게(채운 칸은 밝게, 전문은 접힘) → 홈 → 메시지 → 이웃 기록 → 독백 → 다리
     const article = tid(page, 'restored-article');
-    await expect(article).toContainText('만일 내가 그 운서를 바로잡지 아니하면');
+    await expect(tid(page, 'article-key')).toContainText('만일 내가 그 운서를 바로잡지 아니하면');
+    await expect(tid(page, 'article-filled')).toHaveText('임금');
     await expect(article).not.toContainText('번독하나이다');
-    await expect(tid(page, 'article-long-toggle')).toBeVisible();
+    await expect(tid(page, 'article-full-toggle')).toHaveText(/전문 펼치기/);
     await shot0(page, 'restore-article');
-    await tid(page, 'article-long-toggle').click();
+    await tid(page, 'article-full-toggle').click();
     await expect(article).toContainText('번독하나이다');
     await expectReadings(page, '복원 전문');
     await shot0(page, 'restore-article-long');
-    await tid(page, 'article-long-toggle').click();
+    await tid(page, 'article-full-toggle').click();
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-date')).toContainText('세종 26년 2월 20일', { timeout: 6000 });
     // 빈 칸이 채워진다
@@ -291,6 +321,9 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-home').getByTestId('home-record-0')).toContainText('군상(君上)의 하는 일은 그르다', { timeout: 8000 });
     await expect(tid(page, 'restore-home').getByTestId('home-record-1')).toContainText('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데', { timeout: 8000 });
     await expect(tid(page, 'restore-home')).not.toContainText('[ ? ]', { timeout: 8000 });
+    // 밝은 건 내가 채운 「임금」 칸뿐(단락 전체를 칠하지 않는다)
+    await expect(tid(page, 'restore-home').locator('.hr-gap.who').first()).toHaveText('임금이');
+    await expect(tid(page, 'restore-home').locator('.hr-gap.who')).toHaveCount(2);
     await shot0(page, 'restore-home');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-messages')).toBeVisible();
@@ -311,7 +344,8 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'bridge-clock')).toHaveText('23:04');
-    await expect(tid(page, 'restore-bridge')).toContainText('좌표 재계산 · 같은 손상 흔적 1건 더', { timeout: 30_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('관측기: 같은 손상 흔적 1건 더', { timeout: 30_000 });
+    await expect(page.locator('.app')).not.toContainText('좌표');
     await expect(tid(page, 'restore-bridge')).toContainText('어, 하나 더 떴다.', { timeout: 30_000 });
     await page.waitForTimeout(3000);
     await shot0(page, 'restore-bridge');
@@ -594,7 +628,7 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'rewrite-verdict');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 기사 → 홈 → 카드 → 메시지 → 방 → 로그 → 독백 → 예고
+    // ── 복원: 기사 → 홈 → 카드 → 메시지 → 방 → 지금까지 본 것 → 독백 → 예고
     await expect(tid(page, 'restored-article')).toContainText('김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로');
     await shot(page, 'restore-article');
     await tid(page, 'restore-next').click();

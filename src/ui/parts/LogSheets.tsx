@@ -1,4 +1,4 @@
-/** 내 관측 로그 · 문서 시트. 이미 본 컷은 소실에도 남는다(면역). */
+/** 지금까지 본 것 · 문서 시트. 이미 본 컷은 소실에도 남는다(면역). */
 import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { resultView, selectLog } from '@/store/selectors';
@@ -21,7 +21,7 @@ export function LogSheet() {
     if (!ui.stack.includes('viewer')) ui.push('viewer');
   };
   return (
-    <Sheet title="내 관측 로그" onClose={close} testId="log-sheet" maxH="80%">
+    <Sheet title="지금까지 본 것" onClose={close} testId="log-sheet" maxH="80%">
       <div className="t-m" style={{ marginBottom: 8 }}>
         본 컷 {log.cuts.length}장
       </div>

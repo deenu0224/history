@@ -533,7 +533,7 @@ export interface RewriteLineView {
 
 const RESULT_TEXT: Record<LineResult, string> = {
   restored: '',
-  witness: '실록이 적지 않은 일 — 내 관측 로그에만 남는다',
+  witness: '실록이 적지 않은 일 — 내가 본 것에만 남는다',
   not_recorded: '이 줄은 기록이 되지 않았다',
   incomplete: '빈 칸이 있다',
 };
