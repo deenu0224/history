@@ -19,7 +19,7 @@ import { claimById, winningClaims } from './contradiction';
 import { appearances, cutAppearances, idx, trueFigureOf } from './ep';
 import { closureDue } from './eyes';
 import { hearing, hasPos, posOf, sameMoment, seatOf, sight } from './room';
-import { cardKeys, evidenceKeys, judgeTag, ledgerKeys } from './tag';
+import { cardKeys, evidenceKeys, evidenceRefers, judgeTag, ledgerKeys, roomKeyOf } from './tag';
 import type { Episode, Id, Step } from './types';
 
 export interface Issue {
@@ -33,8 +33,15 @@ export interface ValidateExtras {
   cutTimes?: Readonly<Record<string, string>>;
   /** 「김일손」이 복원 전에 나와도 되는 묶음 */
   kimAllowedBursts?: readonly Id[];
-  /** 오역 문장(§11.1) */
-  mistranslated: string;
+  /** 오역 문장(§11.1). 없으면 검사 안 함 */
+  mistranslated?: string;
+}
+
+/** 괄호 밖에 한자가 있는가(한자는 늘 한글 읽기 뒤 괄호 안에 — DEDUCTION_RULES 규칙 7) */
+export function bareHanja(text: string): string | null {
+  const outside = text.replace(/\([^()]*\)/g, '');
+  const m = outside.match(/[\u3400-\u9fff]+/);
+  return m ? m[0] : null;
 }
 
 export const BAN_WORDS = ['영감', '파면', '틀린 소문'];
@@ -132,14 +139,29 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   // ── ① 이름 붙이기 ──
   const relevantKeys = new Set<string>();
   for (const l of ep.lines) for (const k of evidenceKeys(ep, l.id)) relevantKeys.add(k);
+  for (const d of ep.details) for (const k of evidenceKeys(ep, d.id)) relevantKeys.add(k);
+  const roomKey = roomKeyOf(ep);
   const pool = [...new Set([...ep.cards.filter((c) => c.roomAnchored).map((c) => c.id), ...ep.roomPersons])];
   for (const c of ep.cards) {
     const ck = cardKeys(ep, c, true);
     const lk = ledgerKeys(ep, c.id);
     if (!ep.ledger[c.id]) bad('①', `카드 ${c.id} 가 원장에 없다`);
     for (const k of lk) if (relevantKeys.has(k) && !ck.has(k)) bad('①', `카드 ${c.id} 가 원장의 판정 관련 사실 '${k}' 를 숨겼다`);
-    const anchored = ck.has('sillokcheong_staff');
-    if (anchored !== c.roomAnchored) bad('①', `카드 ${c.id} roomAnchored(${c.roomAnchored}) ≠ 실록청 사실(${anchored})`);
+    if (roomKey) {
+      const anchored = ck.has(roomKey);
+      if (anchored !== c.roomAnchored) bad('①', `카드 ${c.id} roomAnchored(${c.roomAnchored}) ≠ 방의 사실(${anchored})`);
+    } else if (!c.roomAnchored) bad('①', `카드 ${c.id}: roomKey 없음 = 모든 카드가 그 방의 카드`);
+    for (const f of c.facts)
+      for (const l of f.links ?? []) {
+        if (!I.card.has(l.cardId)) bad('①', `${c.id}/${f.id}: 링크 카드 ${l.cardId} 없음`);
+        if (!f.text.includes(l.term)) bad('①', `${c.id}/${f.id}: 링크 낱말 '${l.term}' 이 줄에 없다`);
+      }
+  }
+  for (const d of ep.derivedKeys ?? []) {
+    const via = I.fact.get(d.via.factId);
+    if (!via || via.cardId !== d.via.cardId) bad('①', `파생 키 ${d.key}: via ${d.via.cardId}/${d.via.factId} 없음`);
+    if (!I.card.has(d.to)) bad('①', `파생 키 ${d.key}: 카드 ${d.to} 없음`);
+    if (!(ep.ledger[d.to] ?? []).some((e) => e.key === d.key)) bad('①', `파생 키 ${d.key}: ${d.to} 의 원장에 없다`);
   }
   // 모든 것을 본 지식(판정 시뮬레이션용)
   const allCuts = ep.cuts.map((c) => c.id);
@@ -171,11 +193,12 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
       for (const k of keys) if (!ck.has(k)) bad('①', `${r.id}/${e}: 키 '${k}' 가 카드 ${card.id} 에 없다`);
       const holders = pool.filter((p) => [...keys].every((k) => ledgerKeys(ep, p).has(k)));
       if (holders.length !== 1 || holders[0] !== r.personId) bad('①', `${r.id}/${e}: 원장 기준 유일하지 않다(${holders.join(', ')})`);
-      const l = I.line.get(e);
-      if (!l?.refers) bad('①', `${r.id}/${e}: 근거가 아무도 가리키지 않는다`);
-      else if ('figureId' in l.refers && l.refers.figureId !== r.figureId) bad('①', `${r.id}/${e}: 근거가 다른 figure 를 가리킨다`);
-      else if ('posId' in l.refers) {
-        const at = ep.cuts.flatMap((c) => cutAppearances(ep, c.id)).filter((a) => a.kind === 'figure' && a.posId === (l.refers as { posId: string }).posId && sameMoment(a.time, (l.refers as { time: string }).time));
+      const ref = evidenceRefers(ep, e);
+      if (I.fact.has(e)) bad('①', `${r.id}/${e}: 카드 사실 줄은 근거가 아니다(들은 말·본 것만)`);
+      if (!ref) bad('①', `${r.id}/${e}: 근거가 아무도 가리키지 않는다`);
+      else if ('figureId' in ref && ref.figureId !== r.figureId) bad('①', `${r.id}/${e}: 근거가 다른 figure 를 가리킨다`);
+      else if ('posId' in ref) {
+        const at = ep.cuts.flatMap((c) => cutAppearances(ep, c.id)).filter((a) => a.kind === 'figure' && a.posId === ref.posId && sameMoment(a.time, ref.time));
         if (!at.length || at.some((a) => a.kind === 'figure' && a.figureId !== r.figureId)) bad('①', `${r.id}/${e}: 그 자리·시각의 사람이 ${r.figureId} 가 아니다`);
       }
       // 시뮬레이션: 모두 보고, 모든 겹침을 알고, 카드를 다 찾았을 때 그 figure 가 나온 컷에서 ok
@@ -222,6 +245,8 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
       if (h.clarity === 'garbled' && !h.garbledText) bad('②', `컷 ${c.id}: 흐린 말풍선 글자 없음`);
       if (l.refers && 'figureId' in l.refers && h.clarity === 'clear' && !c.figures.some((f) => f.figureId === (l.refers as { figureId: string }).figureId))
         bad('②', `컷 ${c.id}: ${l.id} 가 가리키는 사람이 이 컷에 없다`);
+      const hj = bareHanja(l.text);
+      if (hj) bad('⑦', `${l.id}: 한글 읽기 없는 한자 '${hj}'`);
     }
     for (const f of c.figures) {
       if (f.figureId === eye.figureId) bad('②', `컷 ${c.id}: 눈의 주인이 자기 컷에 나온다`);
@@ -236,6 +261,9 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
       }
       const sg = sight(room, seat, c.viewpoint.dirDeg, posOf(room, d.targetPosId));
       if (!sg.visible) bad('②', `컷 ${c.id}: ${d.id} 가 보이지 않는다(${sg.distance}칸)`);
+      if (d.refers && !c.figures.some((y) => y.figureId === d.refers!.figureId)) bad('②', `컷 ${c.id}: ${d.id} 가 가리키는 사람이 이 컷에 없다`);
+      const hj = bareHanja(d.label);
+      if (hj) bad('⑦', `${d.id}: 한글 읽기 없는 한자 '${hj}'(규칙 7)`);
       if (d.size === 'small') {
         if (d.occludedView) {
           if (!sg.occluded || sg.distance > room.sight.detailRange) bad('②', `컷 ${c.id}: ${d.id} 는 가린 모습인데 계산은 가림 없음`);
@@ -324,14 +352,18 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
 
   // ── ⑥ 메신저·힌트 ──
   const kimOk = new Set(x.kimAllowedBursts ?? []);
+  /** 이름 붙이기 전에는 말하지 않는다 — 그 태그가 끝난 뒤에만 켜지는 사다리는 그 사람 이름을 써도 된다 */
+  let allowedNames = new Set<string>();
+  const hasRevealFigures = ep.figures.some((f) => f.revealOnRestore);
   const checkSay = (where: string, from: string, text: string, pre: boolean, allowKim: boolean) => {
     if (text.length > 30) bad('⑥', `${where}: 말풍선 30자 초과(${text.length}) 「${text}」`);
     if (from === 'han' && HAN_POLITE_RE.test(text)) bad('⑥', `${where}: 한 선임 대사에 존댓말 「${text}」`);
     if (pre) {
       if (YEAR_RE.test(text)) bad('⑥', `${where}: 복원 전 메시지에 연도 「${text}」`);
       for (const w of EVENT_WORDS) if (text.includes(w)) bad('⑥', `${where}: 복원 전 메시지에 사건 이름 '${w}'`);
-      for (const n of cardNames) if (text.includes(n) && !(n === '김일손' && allowKim)) bad('⑥', `${where}: 복원 전 메시지에 인물 이름 '${n}'`);
-      if (/기록에 없/.test(text)) bad('⑥', `${where}: 「기록에 없다」류 금지`);
+      for (const n of cardNames) if (text.includes(n) && !(n === '김일손' && allowKim) && !allowedNames.has(n)) bad('⑥', `${where}: 복원 전 메시지에 인물 이름 '${n}'`);
+      // 「?」(실록에 이름이 있는 사람)가 있는 에피소드에서만: 그들에 대해 「기록에 없다」고 말하지 않는다
+      if (hasRevealFigures && /기록에 없/.test(text)) bad('⑥', `${where}: 「기록에 없다」류 금지`);
     }
   };
   for (const b of ep.bursts) {
@@ -354,7 +386,11 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   }
   for (const l of ep.ladders) {
     if (l.steps.length > 3) bad('⑥', `${l.id}: 사다리 3단 초과`);
+    allowedNames = new Set(
+      ep.tags.filter((t) => (l.activeWhen.tagsDone ?? []).includes(t.id)).map((t) => I.card.get(t.personId)?.name ?? ''),
+    );
     for (const st of l.steps) checkSay(`힌트 ${st.id}`, 'han', st.text, true, false);
+    allowedNames = new Set();
   }
   for (const xc of ep.contradictions) checkSay(`모순 ${xc.id} 다시`, 'sys', xc.retryText, true, false);
 
@@ -362,12 +398,13 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   const full = ep.article.fullText;
   const joined = ep.article.parts.map((p) => p.text).join(' ');
   if (squash(joined) !== squash(full)) bad('⑦', '복원 전문의 조각을 이으면 국역 전문과 다르다');
+  const mis = x.mistranslated;
   for (const p of ep.article.parts) {
-    if (p.text.includes(x.mistranslated) && !p.folded) bad('⑦', '오역 문장이 접히지 않고 복원 전문에 있다');
-    if (p.folded && squash(p.text) !== squash(x.mistranslated)) bad('⑦', '접힌 조각이 오역 문장이 아니다');
+    if (mis && p.text.includes(mis) && !p.folded) bad('⑦', '오역 문장이 접히지 않고 복원 전문에 있다');
+    if (p.folded && (!mis || squash(p.text) !== squash(mis))) bad('⑦', '접힌 조각이 오역 문장이 아니다');
   }
   for (const l of ep.lines) {
-    if (l.text.includes(squash(x.mistranslated).slice(0, 12)) || l.text.includes('들어 아는 바이므로')) bad('⑦', `${l.id}: 오역 문장`);
+    if ((mis && l.text.includes(squash(mis).slice(0, 12))) || l.text.includes('들어 아는 바이므로')) bad('⑦', `${l.id}: 오역 문장`);
     if (l.provenance !== 'verified') continue;
     if (!l.sources?.some((s) => s.id === ep.article.source.id)) continue;
     if (!quotedFrom(l.text, full)) bad('⑦', `${l.id}: 국역과 글자가 다르다 「${l.text}」`);

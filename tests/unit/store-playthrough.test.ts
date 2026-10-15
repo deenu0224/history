@@ -31,9 +31,10 @@ function playToE4(h: Harness) {
   viewAll(h, 'E1');
   expect(verdict(h.st().tag('fig_yi', 'yi_geukdon', 'l_e1_2a', 'e1-2'))).toBe('ok');
   h.st().viewCut('E2', 0);
-  expect(h.st().openRoom()).toBe('opened');
+  expect(h.st().openRoom()).toBe('locked'); // 찾기 먼저(T2), 방은 그 뒤
   expect(h.st().search('윤').results.map((r) => r.id)).toEqual(expect.arrayContaining(['yun_hyoson', 'yun_pilsang']));
   expect(verdict(h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1'))).toBe('ok');
+  expect(h.st().openRoom()).toBe('opened');
   h.st().viewCut('E2', 1);
   h.st().selectRoomTime('13:20');
   expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('ok');
@@ -77,31 +78,55 @@ describe('store — Ep1 correct path end to end', () => {
     const sheet = selectTagSheet(EP1, h.st(), 'e1-2', 'fig_yi', 'yi_geukdon');
     expect(sheet.figure.label).toBe('붉은 관복');
     expect(sheet.evidence[0].fromThisPersonCut).toBe(true);
-    expect(sheet.evidence.map((e) => e.id)).not.toContain('l_e1_3'); // 겹침 근거는 겹친 뒤에만
+    expect(sheet.evidence.every((e) => e.kind !== 'fact')).toBe(true); // 카드 줄은 근거가 아니다
+    expect(sheet.roomLink).toBeNull(); // 방은 아직
+    expect(sheet.searchSeed).toEqual(['이조 판서']);
     const t1 = h.st().tag('fig_yi', 'yi_geukdon', 'l_e1_2a');
     expect(t1.judgement).toEqual({ status: 'judged', verdict: 'ok' });
     expect(t1.openedEyes).toEqual(['E2']);
+    expect(t1.matchedFacts).toEqual([
+      { cardId: 'yi_geukdon', factId: 'f_yi_ijo' },
+      { cardId: 'yi_geukdon', factId: 'f_yi_ijo2' },
+    ]);
+    expect(selectCard(EP1, h.st(), 'yi_geukdon')!.facts.find((f) => f.id === 'f_yi_ijo')!.linkedBy).toBe('l_e1_2a');
     expect(h.st().clock).toBe('00:40');
     expect(h.st().savepoints).toContain('S1');
     expect(selectCut(EP1, h.st(), 'e1-1')!.figures[0]).toMatchObject({ label: '이극돈', named: true, tappable: false });
 
-    // 承 — 둘째 기억, 그날의 방, 겹침
+    // 承 — 둘째 기억: 찾기가 먼저(T2), 그날의 방은 그 뒤에
     h.st().viewCut('E2', 0);
+    expect(selectViewer(EP1, h.st())!.canOpenRoom).toBe(false);
+    h.st().tapFigure('e2-1', 'fig_yun');
+    expect(h.st().searchFromTag('yun_hyoson').seed).toEqual(['윤']);
+    expect(h.st().ui.tagTarget).toBeNull();
+    const sy = h.st().search('윤');
+    expect(sy.results.map((r) => r.id)).toEqual(expect.arrayContaining(['yun_hyoson', 'yun_pilsang']));
+    expect(h.st().returnToTag()).toBe(true);
+    expect(h.st().ui).toMatchObject({ tagTarget: { cutId: 'e2-1', figureId: 'fig_yun' }, tagCard: 'yun_hyoson' });
+    expect(verdict(h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1'))).toBe('ok');
+    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: false, label: '윤효손의 기억' });
+    expect(selectCard(EP1, h.st(), 'yun_hyoson')!.eyeLine).toBe('눈: 열림');
     expect(h.st().openRoom()).toBe('opened');
     const room = selectRoom(EP1, h.st());
     expect(room.time).toBe('11:40');
     expect(room.markers.filter((m) => m.merged).map((m) => m.posId).sort()).toEqual(['W', 'Y']);
     expect(h.st().merges.length).toBe(2);
-    h.st().search('윤');
-    expect(verdict(h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1'))).toBe('ok');
-    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: false, label: '윤효손의 기억' });
-    expect(selectCard(EP1, h.st(), 'yun_hyoson')!.eyeLine).toBe('눈: 열림');
+    h.st().closeRoom();
 
-    // T3 — 13:20 겹침 뒤에만 근거가 뜬다
+    // T3 — 들은 말은 시트에 늘 뜬다. 겹치기 전엔 「그 말이 이 사람 얘기인지 아직 모른다」 → 「이 시각, 그날의 방」
     h.st().viewCut('E2', 1);
-    expect(selectTagSheet(EP1, h.st(), 'e2-2', 'fig_eo', 'eo_segyeom').evidence.map((e) => e.id)).not.toContain('l_e1_3');
-    h.st().selectRoomTime('13:20');
-    expect(selectTagSheet(EP1, h.st(), 'e2-2', 'fig_eo', 'eo_segyeom').evidence[0].id).toBe('l_e1_3');
+    const t3sheet = selectTagSheet(EP1, h.st(), 'e2-2', 'fig_eo', 'eo_segyeom');
+    expect(t3sheet.evidence.map((e) => e.id)).toContain('l_e1_3');
+    expect(t3sheet.roomLink).toEqual({ cutId: 'e2-2', time: '13:20', label: '이 시각, 그날의 방' });
+    expect(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2').judgement).toEqual({
+      status: 'judged',
+      verdict: 'not_linked',
+      feedback: '그 말이 이 사람 얘기인지 아직 모른다',
+    });
+    expect(h.st().messenger.fired).toContain('ev.tag_unmerged');
+    const at = h.st().openRoomAtCut('e2-2');
+    expect(at).toMatchObject({ status: 'opened', time: '13:20' });
+    expect(at.merges.some((m) => m.includes('e2-2#fig_eo') && m.includes('e1-3#say:l_e1_3'))).toBe(true);
     expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('ok');
     expect(h.st().clock).toBe('02:15');
     viewAll(h, 'E2');
@@ -109,7 +134,9 @@ describe('store — Ep1 correct path end to end', () => {
     // 轉 — T4 와 넷째 눈
     h.st().viewCut('E3', 0);
     h.st().search('국장 도감');
+    h.st().ackFx();
     h.st().openRecord('rec_r02');
+    expect(h.st().fx.find((x) => x.kind === 'cards_gained')).toEqual({ kind: 'cards_gained', ids: ['yi_geukgyun', 'han_chihyeong', 'hong_gwidal', 'yu_sun'], from: { kind: 'record', id: 'rec_r02' } });
     expect(h.st().cardsFound).toEqual(expect.arrayContaining(['yi_geukgyun', 'han_chihyeong', 'hong_gwidal', 'yu_sun']));
     expect(verdict(h.st().tag('fig_hong', 'hong_gwidal', 'l_e3_1', 'e3-1'))).toBe('ok');
     expect(h.st().openedEyes).toEqual(['E1', 'E2', 'E3', 'E4']);
@@ -259,9 +286,10 @@ describe('store — mistakes are free and informative', () => {
     o = h.st().tag('fig_yun', 'yi_geukdon', 'l_e2_1', 'e2-1');
     expect(o.judgement).toEqual({ status: 'judged', verdict: 'contradicts', feedback: '근거끼리 모순된다' });
     h.st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1');
-    // T3: 겹치기 전 1-3 귓속말은 가리키지 않는다 · 신승선 미끼 · 총재관 줄 → not_unique
+    // T3: 겹치기 전 1-3 귓속말 → not_linked(방에서 이어진다) · 다른 사람에겐 not_pointing · 신승선 미끼 · 총재관 줄 → not_unique
     h.st().viewCut('E2', 1);
-    expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_pointing');
+    expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_linked');
+    expect(verdict(h.st().tag('fig_clerk', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_pointing'); // 그 자리가 아닌 사람
     h.st().openRoom('13:20');
     expect(verdict(h.st().tag('fig_eo', 'sin_seungseon', 'l_e1_3', 'e2-2'))).toBe('not_pointing');
     expect(h.st().messenger.fired).toContain('ev.decoy.T3');

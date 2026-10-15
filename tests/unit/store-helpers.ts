@@ -1,9 +1,9 @@
 import { createGameStore, type GameStore } from '@/store/gameStore';
 
-/** 가짜 시계를 가진 스토어 */
-export function makeStore(seed = 7) {
+/** 가짜 시계를 가진 스토어(기본: 에피소드 1 에서 시작 — 잠금 해제. Ep0 시험은 'ep0') */
+export function makeStore(seed = 7, episodeId = 'ep1') {
   const clock = { t: 1_000_000 };
-  const store = createGameStore({ now: () => clock.t, seed });
+  const store = createGameStore({ now: () => clock.t, seed, episodeId });
   const st = () => store.getState();
   /** 시간을 흘리며 tick(기본 250ms 간격) */
   const advance = (ms: number, step = 250) => {

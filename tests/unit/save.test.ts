@@ -5,8 +5,8 @@ import { makeStore } from './store-helpers';
 
 beforeEach(() => clear());
 
-describe('save v6', () => {
-  it('is version 6', () => expect(SAVE_VERSION).toBe(6));
+describe('save v7', () => {
+  it('is version 7', () => expect(SAVE_VERSION).toBe(7));
 
   it('round-trips a mid-game state through IndexedDB and the store', async () => {
     const h = makeStore(3);
@@ -16,12 +16,12 @@ describe('save v6', () => {
     h.st().tag('fig_yi', 'yi_geukdon', 'l_e1_2a', 'e1-2');
     await h.st().save('manual');
     const file = await loadGame('manual');
-    expect(file).toMatchObject({ schema: SAVE_SCHEMA, version: 6, slot: 'manual' });
+    expect(file).toMatchObject({ schema: SAVE_SCHEMA, version: 7, slot: 'manual' });
     const h2 = makeStore(3);
     expect(await h2.st().load('manual')).toBe('loaded');
     for (const k of PERSISTED_KEYS) expect(h2.st()[k]).toEqual(h.st()[k]);
     expect(h2.st().named).toEqual({ fig_yi: 'yi_geukdon' });
-    expect(await peekSave('manual')).toMatchObject({ version: 6 });
+    expect(await peekSave('manual')).toMatchObject({ version: 7 });
   });
 
   it('keeps slots separate and returns null / empty for empty slots', async () => {

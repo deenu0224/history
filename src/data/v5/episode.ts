@@ -29,6 +29,15 @@ function buildSearch(): SearchEntry[] {
 export const EP1: Episode = {
   id: 'ep1',
   title: '한 사관의 흔적',
+  order: 1,
+  verbs: { search: true, room: true, rewrite: true },
+  // 한 번에 하나: 찾기(T2 「윤」)를 먼저, 그날의 방은 T2 뒤나 T3 의 얼굴(e2-2)을 본 뒤에
+  roomWhen: { any: [{ tagsDone: ['T2'] }, { allViewed: ['e2-2'] }] },
+  rewriteWhen: { closureDone: true, resolved: ['X1'] },
+  searchEvents: [{ personId: 'kim_ilson', event: 'ev.search_kim' }],
+  askText: '어디부터 볼까요?',
+  askFallback: '지금은 막힌 데 없어 보이는데.',
+  restoreSteps: ['article', 'home', 'cards', 'messages', 'room', 'log', 'monologue', 'teaser'],
   room: ROOM,
   cards: CARDS,
   figures: FIGURES,

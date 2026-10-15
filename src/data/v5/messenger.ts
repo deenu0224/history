@@ -20,7 +20,8 @@ export const BURSTS: Burst[] = [
     steps: [
       oh('07, #C-2217 너한테 갔다.'),
       oh('우선순위 낮음. 아침 전에 정리해.'),
-      han('야근이네.'),
+      han('아까 하나 더 떴다던 그거야.'),
+      han('이름은 남고 사유가 빠진 거.'),
       han('그 건 좌표 기록에 명단이 하나 붙어 있더라.'),
       han('거기서 셋만 먼저 뽑아서 카드 올려놨어.'),
       han('나머진 필요하면 찾기로 봐.'),
@@ -37,6 +38,8 @@ export const BURSTS: Burst[] = [
   },
   { id: 'ev.linger_cut.E1', spontaneous: true, steps: [han('남의 눈으로 보는 거 처음엔 좀 어지럽지.')] },
   { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
+  { id: 'ev.tag_unmerged', steps: [han('그 말이 누구 얘기였는지부터 봐.'), han('방에서 같은 시각을 봐.')] },
+  { id: 'ev.write_miss', steps: [han('안 돌아왔네.'), han('칸 하나가 어긋난 거야.')] },
   { id: 'ev.tag_anon', steps: [han('그 사람 카드는 없을걸.'), han('모든 사람이 기록에 남진 않아.')] },
   {
     id: 'ev.eye_open.E2',
@@ -244,31 +247,40 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { tagsNotDone: ['T1'], any: [{ allViewed: ['e1-1', 'e1-2', 'e1-3', 'e1-4', 'e1-5'] }, { minFails: { key: 'tag:T1', n: 3 } }] },
     doneWhen: { tagsDone: ['T1'] },
     steps: [
-      { id: 'h_tag1_1', text: '모르는 얼굴 있으면 눌러 봐.', afterS: 60, fails: 3 },
-      { id: 'h_tag1_2', text: '누가 누구 얘기하는지 들어 봐. 귓속말 같은 거.', afterS: 60, fails: 5 },
-      { id: 'h_tag1_3', text: '카드에 적힌 일이랑 들은 말이 같은 얘긴지 맞대 봐.', afterS: 60, fails: 7 },
+      { id: 'h_tag1_1', text: '모르는 얼굴 있으면 눌러 봐.', afterS: 45, fails: 2 },
+      { id: 'h_tag1_2', text: '누가 누구 얘기하는지 들어 봐. 귓속말 같은 거.', afterS: 60, fails: 3 },
+      { id: 'h_tag1_3', text: '카드에 적힌 일이랑 들은 말이 같은 얘긴지 맞대 봐.', afterS: 60, fails: 4 },
     ],
   },
   {
     id: 'h_owner',
     failKey: 'tag:T2',
-    activeWhen: { roomOpened: true, tagsNotDone: ['T2'] },
+    // 찾기를 먼저 가르친다(방 없이도 풀린다 — 방은 그 뒤에)
+    activeWhen: { allViewed: ['e2-1'], tagsNotDone: ['T2'] },
     doneWhen: { tagsDone: ['T2'] },
     steps: [
-      { id: 'h_owner_1', text: '방 그림 봤어? 네가 보던 자리에 누가 앉아 있어.', afterS: 60, fails: 3 },
-      { id: 'h_owner_2', text: '그 사람을 누가 뭐라고 불렀는지 들어 봐.', afterS: 60, fails: 5 },
-      { id: 'h_owner_3', text: '부른 말 그대로 찾아 봐. 여럿이면 이 방 기록부터.', afterS: 60, fails: 7 },
+      { id: 'h_owner_1', text: '그 사람을 누가 뭐라고 불렀는지 들어 봐.', afterS: 45, fails: 2 },
+      { id: 'h_owner_2', text: '부른 말 그대로 찾아 봐.', afterS: 60, fails: 3 },
+      { id: 'h_owner_3', text: '여럿 나오면 그 방 기록 있는 사람부터.', afterS: 60, fails: 4 },
     ],
+  },
+  {
+    id: 'h_room',
+    silenceS: 20,
+    activeWhen: { roomUnlocked: true, roomOpened: false },
+    doneWhen: { roomOpened: true },
+    steps: [{ id: 'h_room_1', text: '방 그림 나왔어. 아래 버튼.', afterS: 15 }],
   },
   {
     id: 'h_overlap',
     failKey: 'tag:T3',
-    activeWhen: { tagsDone: ['T2'], tagsNotDone: ['T3'] },
+    // T2 와 상관없이(T2 는 선택) — 얼굴(e2-2)을 본 뒤부터
+    activeWhen: { eyesOpen: ['E2'], allViewed: ['e2-2'], tagsNotDone: ['T3'] },
     doneWhen: { tagsDone: ['T3'] },
     steps: [
-      { id: 'h_overlap_1', text: '같은 시각에 같은 자리면 같은 사람이야.', afterS: 90, fails: 3 },
-      { id: 'h_overlap_2', text: '한 기억엔 말만, 다른 기억엔 얼굴만 있을 수도 있어.', afterS: 60, fails: 5 },
-      { id: 'h_overlap_3', text: '1시 20분. 병풍 앞.', afterS: 60, fails: 7 },
+      { id: 'h_overlap_1', text: '같은 시각에 같은 자리면 같은 사람이야.', afterS: 45, fails: 2 },
+      { id: 'h_overlap_2', text: '한 기억엔 말만, 다른 기억엔 얼굴만 있을 수도 있어.', afterS: 60, fails: 3 },
+      { id: 'h_overlap_3', text: '1시 20분. 병풍 앞.', afterS: 60, fails: 4 },
     ],
   },
   {
@@ -277,9 +289,9 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { eyesOpen: ['E3'], tagsNotDone: ['T4'] },
     doneWhen: { tagsDone: ['T4'] },
     steps: [
-      { id: 'h_t4_1', text: '그 사람이 한 말, 그대로 찾아 봐.', afterS: 90, fails: 3 },
-      { id: 'h_t4_2', text: '기록에 명단이 나오면, 이 방 기록 있는 사람부터.', afterS: 60, fails: 5 },
-      { id: 'h_t4_3', text: '카드에 실록청 줄 있는지 봐.', afterS: 60, fails: 7 },
+      { id: 'h_t4_1', text: '그 사람이 한 말, 그대로 찾아 봐.', afterS: 45, fails: 2 },
+      { id: 'h_t4_2', text: '기록에 명단이 나오면, 이 방 기록 있는 사람부터.', afterS: 60, fails: 3 },
+      { id: 'h_t4_3', text: '카드에 실록청 줄 있는지 봐.', afterS: 60, fails: 4 },
     ],
   },
   {
@@ -288,7 +300,7 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { revealed: ['X1'], unresolved: ['X1'] },
     doneWhen: { resolved: ['X1'] },
     steps: [
-      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 90, fails: 1 },
+      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 1 },
       { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 2 },
       { id: 'h_x1_3', text: '멀리 앉은 사람은 들은 걸까, 전해 들은 걸까.', afterS: 60, fails: 3 },
     ],
@@ -303,6 +315,13 @@ export const LADDERS: HintLadder[] = [
       { id: 'h_x2_2', text: '서안 가운데 뭐 쌓여 있었지?', afterS: 60, fails: 2 },
       { id: 'h_x2_3', text: '그 더미 너머가 다 보였을까.', afterS: 60, fails: 3 },
     ],
+  },
+  {
+    id: 'h_write_open',
+    silenceS: 20,
+    activeWhen: { rewriteAvailable: true, rewriteOpen: false, restored: false },
+    doneWhen: { rewriteOpen: true },
+    steps: [{ id: 'h_write_open_1', text: '이제 써 볼 수 있겠다. 홈에.', afterS: 15 }],
   },
   {
     id: 'h_write',

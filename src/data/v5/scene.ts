@@ -226,7 +226,7 @@ export const DETAILS: Detail[] = [
   { id: 'd_long_page', label: '붉은 관복이 한 장을 오래 들고 있다.', provenance: R, targetPosId: 'Y', size: 'action' },
   { id: 'd_slips_five', label: '사초 더미 너머, 종이 조각 다섯 장.', provenance: R, targetPosId: 'SP', size: 'small', occludedView: true },
   { id: 'd_slips_six', label: '손 앞에 종이 조각 여섯 장.', provenance: R, targetPosId: 'SP', size: 'small' },
-  { id: 'd_nametag', label: '꾸러미 이름표 「金馹孫」.', provenance: R, targetPosId: 'SP', size: 'small', terms: ['金馹孫'] },
+  { id: 'd_nametag', label: '꾸러미 이름표: 김일손(金馹孫).', provenance: R, targetPosId: 'SP', size: 'small', terms: ['김일손', '金馹孫'] },
   { id: 'd_sealed', label: '접어 봉한 꾸러미.', provenance: R, targetPosId: 'SP', size: 'small' },
   { id: 'd_upper_silent', label: '윗자리에서는 아무 말도 나오지 않는다.', provenance: R, targetPosId: 'O', size: 'action' },
   { id: 'd_corner_book', label: '교정 중인 책. 창빛.', provenance: R, targetPosId: 'H', size: 'action' },

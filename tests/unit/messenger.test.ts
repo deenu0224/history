@@ -181,8 +181,8 @@ describe('messenger in the store (EP1 script)', () => {
     expect(h.st().messenger.log.map((m) => m.from)).toEqual(['oh', 'oh', 'han', 'han']);
     expect(h.st().messenger.stalled).toBe(true);
     h.st().openMessenger();
-    h.advance(20_000);
-    expect(h.st().messenger.log).toHaveLength(6);
+    h.advance(40_000);
+    expect(h.st().messenger.log).toHaveLength(7);
     expect(h.st().messenger.choice?.step.options.map((o) => o.text)).toEqual(['고마워요.', '무슨 명단이에요?']);
     expect(h.st().chooseReply('which')).toBe(true);
     h.advance(15_000);
