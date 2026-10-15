@@ -22,7 +22,7 @@ function playEp0ToRestore(h: Harness) {
   drainMessages(h, 3); // 첫 선택지: c0_start 「빈칸 말이에요?」, c0_hangul 「그건 원래 기록이 없잖아요.」
   h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
   h.st().followFactLink('f_choi_exam', 'sejong');
-  h.st().tag('fig_king', 'sejong', 'l_e0_gunsang', 'e0-2');
+  expect(h.st().tag('fig_king', 'sejong', 'l_e0_gunsang', 'e0-3').judgement).toMatchObject({ verdict: 'ok' }); // 같은 기억 속 같은 사람(다른 컷)
   drainMessages(h, 3);
   h.st().composeRewrite();
   const L = h.st().rewrite.lines[0].id;

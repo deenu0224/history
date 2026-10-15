@@ -7,19 +7,19 @@ import { Scramble } from './Scramble';
 
 type RecordView = NonNullable<ReturnType<typeof homeView>['record']>;
 
-export function HomeRecord({ record, before, reduce = false }: { record: RecordView; before?: RecordView; reduce?: boolean }) {
+export function HomeRecord({ record, before, reduce = false, clamp = false }: { record: RecordView; before?: RecordView; reduce?: boolean; clamp?: boolean }) {
   return (
     <div className="home-record" data-testid="home-record">
       <div className="t-m hr-title">{record.title}</div>
       {record.lines.map((l, i) => (
         <div key={i} className={`hr-line${l.minor ? ' minor' : ''}`} data-testid={`home-record-${i}`}>
           {l.note ? <div className="t-m hr-note">{l.note}</div> : null}
-          <p className="read keep hr-text">
+          <p className={`read keep hr-text${clamp ? ' clamp' : ''}`}>
             「
             {l.parts.map((p, j) => {
               if (!p.gap) return <span key={j}>{p.text}</span>;
               const was = before?.lines[i]?.parts[j]?.text;
-              const filled = !p.text.includes('?');
+              const filled = !p.text.startsWith('[ '); // 구멍([ ? ]·[ ── ])이 아니면 돌아온 글
               return (
                 <span key={j} className={`hr-gap${filled ? ' filled' : ''}`} data-testid="home-gap">
                   {was && was !== p.text ? <Scramble from={was} to={p.text} ms={1400} delay={600 + i * 500} reduce={reduce} /> : p.text}

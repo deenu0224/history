@@ -83,7 +83,7 @@ export function Home() {
           </span>
         </div>
         {home.card.record ? (
-          <HomeRecord record={home.card.record} />
+          <HomeRecord record={home.card.record} clamp={restored} />
         ) : restored ? null : (
           <>
             <div className="t-m home-record-label">그날 실록</div>

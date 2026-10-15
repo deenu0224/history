@@ -180,7 +180,7 @@ test.describe('v5 전체 플레이', () => {
     await readChat(page, false);
     // 소실 세계: 07 자신도 「기록이 없다」를 당연하게 여긴다(첫 선택지)
     await expect(tid(page, 'my-msg').filter({ hasText: '그건 원래 기록이 없잖아요.' })).toHaveCount(1);
-    await expect(tid(page, 'chat')).toContainText('응, 기록에 없으면 없는 거지.');
+    await expect(tid(page, 'chat')).toContainText('응, 한글은 쓰는데 만든 사람은 기록에 없지.');
     await expect(tid(page, 'ask-hint')).toBeVisible();
     await tid(page, 'ask-hint').click();
     await expect(tid(page, 'my-msg').last()).toContainText('어디부터 볼까요?');
@@ -225,7 +225,9 @@ test.describe('v5 전체 플레이', () => {
     // ── 이름 붙이기 T0b: 높은 자리 → 세종. 근거 = 그 사람이 자기를 「군상(君上, 임금)」이라 부르며 상소한 「너희들」을 꾸짖는 말
     await toCut(page, 0, 2);
     await expect(page.locator('[data-cut="e0-2"] [data-testid="bubble"]').last()).toContainText('군상(君上, 임금)', { timeout: 8000 });
-    await figure(page, 'e0-2', 'fig_king').click();
+    // 같은 기억 속 같은 사람 — 몸을 기울인 세 번째 컷에서 이름 붙인다(말풍선이 가리지 않는다)
+    await toCut(page, 0, 3);
+    await figure(page, 'e0-3', 'fig_king').click();
     await expect(tid(page, 'tag-sheet')).toBeVisible();
     await tid(page, 'card-sejong').click();
     await tid(page, 'ev-l_e0_unseo').click(); // 운서 말은 사실을 담지 않는다
@@ -241,7 +243,7 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'tag-sheet-king');
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
-    await expect(figure(page, 'e0-2', 'fig_king')).toHaveAttribute('data-named', 'true');
+    await expect(figure(page, 'e0-3', 'fig_king')).toHaveAttribute('data-named', 'true');
 
     // ── 기록 다시 쓰기: 미리 놓인 한 줄, 칸 하나
     await tid(page, 'viewer-back').click();
@@ -339,8 +341,8 @@ test.describe('v5 전체 플레이', () => {
     await expect(chat).toContainText('세종대왕이 언문 지은 그 기록.');
     await expect(chat).toContainText('응, 그러니까 더 이상하지.');
     await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
-    await expect(chat).not.toContainText('기록에 없으면 없는 거지');
-    await expect(chat).not.toContainText('한글 만든 사람 칸.');
+    await expect(chat).not.toContainText('만든 사람은 기록에 없지');
+    await expect(chat).not.toContainText('한글 누가 만들었는지 적힌 데야.');
     // 길게 눌러도 아무것도 뜨지 않는다(원래 글은 화면 어디에도 없다)
     const hb = (await mineNow.boundingBox())!;
     await page.mouse.move(hb.x + hb.width - 20, hb.y + hb.height / 2);

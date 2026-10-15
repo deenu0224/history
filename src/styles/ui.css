@@ -2071,6 +2071,8 @@
   white-space: nowrap;
 }
 .home-record .hr-gap.filled {
+  white-space: normal;
+  padding: 0 2px;
   color: var(--amber);
   background: var(--amber-soft);
   border-color: transparent;
@@ -2145,4 +2147,11 @@
 }
 .cards.compact .pcard.more {
   width: 96px;
+}
+/* 복원 뒤 홈: 돌아온 단락은 세 줄만(전문은 「복원된 기록」에서) */
+.home-record .hr-text.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
