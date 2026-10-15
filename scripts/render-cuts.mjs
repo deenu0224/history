@@ -136,7 +136,7 @@ const manifestPath = join(OUT, 'manifest.json');
 const manifest = existsSync(manifestPath) && only ? JSON.parse(readFileSync(manifestPath, 'utf8')) : null;
 const NOTES = {
   ep1: '미리 구운 기억 컷(src/data/cuts/ep1.ts → scripts/render-cuts.mjs). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위(겹치면 뒤쪽 우선). listed = DESIGN_V5 표가 그 컷에 적은 사람(나머지는 그 시각 그 자리에 있어 보이는 사람).',
-  ep0: '미리 구운 기억 컷(src/data/cuts/ep0.ts → scripts/render-cuts.mjs --episode ep0). 눈 하나(하위지). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위. listed = 탭할 수 있는 사람(fig_row 는 이름 없이 줄에 앉은 여러 사람을 합친 영역, listed:false). details = 컷 안 세부의 탭 영역(d_scroll_head 상소 겉장 머리글 「副提學 崔萬理」 — 글자는 원문 그대로, 겉장에 적어 보이게 한 것은 재구성 연출). 방·자리·빛·옷·임금의 모습은 모두 reconstructed.',
+  ep0: '미리 구운 기억 컷(src/data/cuts/ep0.ts → scripts/render-cuts.mjs --episode ep0). 눈 하나(하위지). 탭 영역은 렌더 id 패스로 계산한 실제 보이는 사람(가림·화면 밖 반영). figures 배열은 뒤쪽이 위. listed = 탭할 수 있는 사람(fig_row 는 이름 없이 줄에 앉은 여러 사람을 합친 영역, listed:false). details = 컷 안 세부의 탭 영역, src/data/v5/ep0/content.ts 의 컷별 details 와 같다(d_scroll_head 상소 겉장 머리글 「副提學 崔萬理」 — 글자는 원문 그대로, 가슴 앞에 펴 든 접은 상소에 적어 보이게 한 것은 재구성 연출 · d_e0_dais 임금의 단·방석, 방 메시의 보이는 부분). 방·자리·빛·옷·임금의 모습은 모두 reconstructed.',
 };
 const out = manifest ?? {
   episode: EPISODE,
