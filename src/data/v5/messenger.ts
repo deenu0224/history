@@ -76,7 +76,7 @@ export const BURSTS: Burst[] = [
       han('김일손?'),
       named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.', facts: KIM })),
       named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?', facts: CAUSE })),
-      han('…관측도 불가라고 나오고.', heavy),
+      han('…관측도 안 된다고 나오고.', heavy),
       {
         kind: 'choice',
         id: 'c_kim',
@@ -165,11 +165,11 @@ export const BURSTS: Burst[] = [
           { id: 'forgot', text: '기억 안 나요.', then: [] },
           { id: 'me', text: '제가요?', then: [] },
         ],
-        after: [han('소견 끝에 뭐라고 썼는지 봐.'), han('1년 전에 너도 거기서 멈췄어.'), han('사람 기억은 관측기가 안 지켜 주잖아.')],
+        after: [han('맨 끝에 뭐라고 적었는지 봐.'), han('1년 전에 너도 거기서 멈췄어.'), han('사람 기억은 관측기가 안 지켜 주잖아.')],
       },
     ],
   },
-  { id: 'ev.x1_resolved', steps: [han('멀어서 첫 전교를 못 들은 거였네.'), han('전해 들은 말은 순서가 섞이기도 해.')] },
+  { id: 'ev.x1_resolved', steps: [han('멀어서 임금의 첫 명령을 못 들은 거였네.'), han('전해 들은 말은 순서가 섞이기도 해.')] },
   {
     id: 'ev.write_open',
     steps: [
@@ -213,7 +213,7 @@ export const BURSTS: Burst[] = [
       },
     ],
   },
-  { id: 'ev.restore_room', postRestore: true, steps: [han('아뢴 사람이 넷이네.'), han('둘은 네 눈엔 이름이 안 남았고.')] },
+  { id: 'ev.restore_room', postRestore: true, steps: [han('임금께 말씀 올린 사람이 넷이네.'), han('둘은 네 눈엔 이름이 안 남았고.')] },
   {
     id: 'ev.teaser',
     postRestore: true,
@@ -303,7 +303,7 @@ export const LADDERS: HintLadder[] = [
     steps: [
       { id: 'h_t4_1', text: '그 사람이 한 말, 그대로 찾아 봐.', afterS: 45, fails: 2 },
       { id: 'h_t4_2', text: '기록에 명단이 나오면, 이 방 기록 있는 사람부터.', afterS: 60, fails: 3 },
-      { id: 'h_t4_3', text: '카드에 실록청 줄 있는지 봐.', afterS: 60, fails: 4 },
+      { id: 'h_t4_3', text: '카드에 실록청(실록 만드는 곳) 줄 있는지 봐.', afterS: 60, fails: 4 },
     ],
   },
   {
@@ -324,7 +324,7 @@ export const LADDERS: HintLadder[] = [
     doneWhen: { resolved: ['X2'] },
     steps: [
       { id: 'h_x2_1', text: '셀 수 있었던 눈이 누군지 봐.', afterS: 60, fails: 1 },
-      { id: 'h_x2_2', text: '서안 가운데 뭐 쌓여 있었지?', afterS: 60, fails: 2 },
+      { id: 'h_x2_2', text: '책상 가운데 뭐 쌓여 있었지?', afterS: 60, fails: 2 },
       { id: 'h_x2_3', text: '그 더미 너머가 다 보였을까.', afterS: 60, fails: 3 },
     ],
   },

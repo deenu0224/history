@@ -164,7 +164,7 @@ describe('store — Ep0 correct path', () => {
     expect(h.st().restore()).toBe('restored');
     expect(selectHome(EP0, h.st()).card).toMatchObject({ date: '세종 26년 2월 20일', status: '복원됨' });
     const r = selectRestoration(EP0, h.st())!;
-    expect(r.steps).toEqual(['article', 'home', 'messages', 'neighbour', 'monologue', 'bridge']);
+    expect(r.steps).toEqual(['article', 'home', 'neighbour', 'monologue', 'bridge']);
     expect(r.article.parts.filter((p) => p.by === 'me').map((p) => p.sentenceId)).toEqual(['R0']);
     expect(r.asides.map((x) => x.id)).toEqual(['rec0_eonmun28']);
     expect(r.asides[0].lines[0].text).toContain('이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데');
@@ -172,7 +172,7 @@ describe('store — Ep0 correct path', () => {
     expect(selectCard(EP0, h.st(), 'sejong')!.facts.map((f) => f.id)).toContain('f_sj_eonmun');
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('세종대왕이 만든 거 모르는 사람이 어디 있어.');
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')?.restored).toBe('세종대왕이 언문 지은 그 기록.');
+    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')?.restored).toBe('세종대왕이 한글 지은 그 기록.');
     expect(selectRestoration(EP0, h.st())!.messages.map((m) => m.id)).toEqual(expect.arrayContaining(['m0_hangul', 'm0_nolog']));
 
     // 다리 → 23:04 → Ep1
@@ -195,7 +195,7 @@ describe('store — Ep0 correct path', () => {
     expect(selectEpisodes(h.st()).map((e) => e.state)).toEqual(['done', 'current']);
     // 대화는 이어지고, Ep0 의 ⟲ 말풍선은 복원 뒤 글로 굳었다
     expect(h.st().messenger.log.length).toBe(logBefore);
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '세종대왕이 언문 지은 그 기록.', bakedFrom: '한글 누가 만들었는지 적힌 데야.' });
+    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '세종대왕이 한글 지은 그 기록.', bakedFrom: '한글 누가 만들었는지 적힌 데야.' });
     h.advance(10_000);
     expect(h.st().messenger.log.slice(logBefore).map((m) => m.text)[0]).toBe('07, #C-2217 너한테 갔다.');
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);

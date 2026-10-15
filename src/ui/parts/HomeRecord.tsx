@@ -6,6 +6,7 @@
 import type { homeView } from '@/core/reality';
 import { useEpisode } from '@/store/hooks';
 import { Scramble } from './Scramble';
+import { GlossText } from './GlossText';
 
 type RecordView = NonNullable<ReturnType<typeof homeView>['record']>;
 
@@ -26,7 +27,12 @@ export function HomeRecord({ record, before, reduce = false, clamp = false }: { 
           <p className={`read keep hr-text${clamp ? ' clamp' : ''}`}>
             「
             {l.parts.map((p, j) => {
-              if (!p.gap) return <span key={j}>{p.text}</span>;
+              if (!p.gap)
+                return (
+                  <span key={j}>
+                    <GlossText text={p.text} />
+                  </span>
+                );
               const rp = raw?.lines[i]?.parts[j];
               const who = !!rp && 'gap' in rp && !!rp.who;
               const n = holeLen(p.text);

@@ -56,7 +56,7 @@ export const BURSTS0: Burst[] = [
     id: 'ev0.erasure',
     steps: [
       han('카드 아래 옆 기록도 똑같이 뚫렸지?'),
-      named('m0_hangul', han('한글 누가 만들었는지 적힌 데야.', { restored: '세종대왕이 언문 지은 그 기록.', facts: HANGUL })),
+      named('m0_hangul', han('한글 누가 만들었는지 적힌 데야.', { restored: '세종대왕이 한글 지은 그 기록.', facts: HANGUL })),
       {
         kind: 'choice',
         id: 'c0_hangul',
@@ -76,7 +76,7 @@ export const BURSTS0: Burst[] = [
   { id: 'ev.linger_cut.E0', spontaneous: true, steps: [han('남의 눈으로 보는 거 처음엔 좀 어지럽지.')] },
   { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
   { id: 'ev0.decoy.rank', steps: [han('두루마리 첫머리 다시 봐.'), han('카드랑 자리 이름이 다르잖아.')] },
-  { id: 'ev0.choi_named', steps: [han('맞네.'), han('이름 붙이면 카드 줄에 먹선이 가.'), han('남은 건 높은 자리 그 사람.')] },
+  { id: 'ev0.choi_named', steps: [han('맞네.'), han('이름 붙이면 카드 줄에 붉은 밑줄이 가.'), han('남은 건 높은 자리 그 사람.')] },
   { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('높은 자리 사람은 자기를 뭐라고 불렀지?')] },
   { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.'), han('그 사람들은 꾸중 듣던 쪽이잖아.')] },
   { id: 'ev.card_link', steps: [han('카드 하나 더 붙었네.'), han('줄 안 이름도 눌러 볼 수 있어.')] },

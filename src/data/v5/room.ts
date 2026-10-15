@@ -24,8 +24,8 @@ export const ROOM: RoomPlan = {
   ],
   screen: [3.4, 0.2, 8.6, 0.6],
   furniture: [
-    { id: 'desk', label: '서안', rect: [4.5, 3.0, 7.5, 4.5], occludes: false },
-    { id: 'stack', label: '사초 더미', rect: [6.6, 3.2, 7.2, 4.2], occludes: true },
+    { id: 'desk', label: '책상', rect: [4.5, 3.0, 7.5, 4.5], occludes: false },
+    { id: 'stack', label: '기록 더미', rect: [6.6, 3.2, 7.2, 4.2], occludes: true },
     { id: 'corner_desk', label: '구석 책상', rect: [10.6, 0.5, 11.8, 1.4], occludes: false },
   ],
   seats: [
@@ -38,10 +38,10 @@ export const ROOM: RoomPlan = {
   ],
   points: [
     { id: 'B', x: 6.0, y: 8.6, label: '문 앞' },
-    { id: 'M2', x: 6.0, y: 5.2, label: '서안 앞' },
-    { id: 'SP', x: 4.6, y: 3.8, label: '봉함 자리' },
+    { id: 'M2', x: 6.0, y: 5.2, label: '책상 앞' },
+    { id: 'SP', x: 4.6, y: 3.8, label: '봉하는 자리' },
     { id: 'DOOR', x: 6.0, y: 9.0, label: '문' },
-    { id: 'HONG_EDGE', x: 8.0, y: 4.8, label: '서안 남동쪽 모서리' },
+    { id: 'HONG_EDGE', x: 8.0, y: 4.8, label: '책상 남동쪽 모서리' },
     { id: 'CLK_0910', x: 7.6, y: 4.8 },
     { id: 'CLK_1140', x: 9.6, y: 4.4 },
     { id: 'CLK_1145', x: 9.0, y: 4.6 },

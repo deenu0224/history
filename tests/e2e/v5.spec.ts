@@ -196,6 +196,11 @@ test.describe('v5 전체 플레이', () => {
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '2');
     await expect(page.locator('[data-cut="e0-3"] [data-testid="bubble"]').first()).toContainText('운서', { timeout: 8000 });
     await shot0(page, 'viewer-third-cut');
+    // 어려운 말은 점선 — 탭하면 짧은 풀이만(Ep0 엔 찾기가 없다: 찾기 밑줄 없음)
+    await expect(page.locator('[data-cut="e0-3"] .term')).toHaveCount(0);
+    await page.locator('[data-cut="e0-3"] [data-testid="bubble"] .gloss', { hasText: '운서' }).click();
+    await expect(page.locator('[data-cut="e0-3"] [data-testid="bubble"] .gl')).toContainText('한자의 소리를 모아 정리한 책');
+    await expect(page.locator('[data-cut="e0-3"] [data-testid="bubble"] .gl')).not.toContainText('찾기');
 
     // ── 메신저: 한 선임 — 내가 먼저 묻기(「어디부터 볼까요?」)
     await tid(page, 'viewer-back').click();
@@ -237,6 +242,10 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'card-name')).toHaveText('최만리');
     await expect(page.locator('[data-fact="f_choi_list"] [data-testid="ink-line"]')).toContainText('두루마리');
     await expectReadings(page, '인물 카드');
+    // 빽빽한 인용 위엔 쉬운 한 줄, 인용 속 어려운 말은 탭하면 풀이
+    await expect(page.locator('[data-fact="f_choi_exam"] [data-testid="fact-plain"]')).toHaveText('과거에 붙고, 이듬해 집현전 학자가 됐다');
+    await page.locator('[data-fact="f_choi_exam"] [data-testid="gloss-word"]', { hasText: '증광문과' }).click();
+    await expect(page.locator('[data-fact="f_choi_exam"] [data-testid="gloss-tip"]')).toHaveText('나라 경사 때 연 과거 시험');
     await shot0(page, 'card-ink-line');
     await tid(page, 'flink-sejong').click();
     await expect(tid(page, 'toast')).toContainText('인물 카드 +1');
@@ -301,7 +310,7 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'rewrite-restored');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 다시 쓴 줄만 크게(채운 칸은 밝게, 전문은 접힘) → 홈 → 메시지 → 이웃 기록 → 독백 → 다리
+    // ── 복원: 다시 쓴 줄만 크게(채운 칸은 밝게, 전문은 접힘) → 홈 → 이웃 기록 → 독백 → 다리
     const article = tid(page, 'restored-article');
     await expect(tid(page, 'article-key')).toContainText('만일 내가 그 운서를 바로잡지 아니하면');
     await expect(tid(page, 'article-filled')).toHaveText('임금');
@@ -325,12 +334,8 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-home').locator('.hr-gap.who').first()).toHaveText('임금이');
     await expect(tid(page, 'restore-home').locator('.hr-gap.who')).toHaveCount(2);
     await shot0(page, 'restore-home');
-    await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-messages')).toBeVisible();
-    await expect(tid(page, 'rewritten-msg').first()).toBeVisible();
-    await tid(page, 'reply-hangul').click({ timeout: 60_000 });
-    await expect(tid(page, 'restore-messages')).toContainText('세종대왕이 만든 거 모르는 사람이 어디 있어', { timeout: 30_000 });
-    await shot0(page, 'restore-messages');
+    // 대화가 다시 쓰인 것은 따로 보여 주지 않는다(바뀐 말 목록·표시·효과 없음)
+    await expect(page.locator('[data-testid="rewritten-msg"]')).toHaveCount(0);
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-neighbour')).toBeVisible();
     await page.waitForTimeout(3200); // 먹 번짐(글자가 굳는 시간)
@@ -344,6 +349,10 @@ test.describe('v5 전체 플레이', () => {
     await shot0(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'bridge-clock')).toHaveText('23:04');
+    // 복원 뒤 대화는 보통 대화창 그대로 — 한 선임은 이미 바뀐 세상에서 말한다
+    await expect(tid(page, 'restore-bridge')).toContainText('기록 확인: 바뀐 것 없음.', { timeout: 30_000 });
+    await tid(page, 'reply-hangul').click({ timeout: 60_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('세종대왕이 만든 거 모르는 사람이 어디 있어', { timeout: 30_000 });
     await expect(tid(page, 'restore-bridge')).toContainText('관측기: 같은 손상 흔적 1건 더', { timeout: 30_000 });
     await expect(page.locator('.app')).not.toContainText('좌표');
     await expect(tid(page, 'restore-bridge')).toContainText('어, 하나 더 떴다.', { timeout: 30_000 });
@@ -372,7 +381,7 @@ test.describe('v5 전체 플레이', () => {
     await mineNow.scrollIntoViewIfNeeded();
     await expect(mineNow).toHaveCount(1);
     await expect(mineNow).toHaveAttribute('data-rewritten', 'true');
-    await expect(chat).toContainText('세종대왕이 언문 지은 그 기록.');
+    await expect(chat).toContainText('세종대왕이 한글 지은 그 기록.');
     await expect(chat).toContainText('응, 그러니까 더 이상하지.');
     await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
     await expect(chat).not.toContainText('만든 사람은 기록에 없지');
@@ -609,7 +618,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'opt-6').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
     await shot(page, 'room-contradiction-x2');
-    await expect(tid(page, 'cev-X2:E1')).toContainText('사초 더미에 가림');
+    await expect(tid(page, 'cev-X2:E1')).toContainText('기록 더미에 가림');
     await tid(page, 'claim-c_count_6').click();
     await tid(page, 'cev-X2:E1').click();
     await tid(page, 'resolve-confirm').click();
@@ -628,7 +637,7 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'rewrite-verdict');
     await tid(page, 'btn-restore').click();
 
-    // ── 복원: 기사 → 홈 → 카드 → 메시지 → 방 → 지금까지 본 것 → 독백 → 예고
+    // ── 복원: 기사 → 홈 → 카드 → 방 → 지금까지 본 것 → 독백 → 예고(대화의 재기록은 따로 보이지 않는다)
     await expect(tid(page, 'restored-article')).toContainText('김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로');
     await shot(page, 'restore-article');
     await tid(page, 'restore-next').click();
@@ -638,12 +647,6 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-cards')).toBeVisible();
     await page.waitForTimeout(2600); // 먹 번짐(글자가 굳는 시간)
     await shot(page, 'restore-cards');
-    await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-messages')).toBeVisible();
-    await expect(tid(page, 'rewritten-msg').first()).toBeVisible();
-    await tid(page, 'reply-muo').click({ timeout: 60_000 });
-    await expect(tid(page, 'restore-messages')).toContainText('그걸 모르는 사람이 어디 있어', { timeout: 30_000 });
-    await shot(page, 'restore-messenger');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'restore-room')).toContainText('유순·안침');
     await shot(page, 'restore-room');
@@ -661,6 +664,14 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'home-date')).toHaveText('연산군 4년 7월 11일');
     await expect(tid(page, 'btn-restored')).toBeVisible();
     await shot(page, 'home-restored');
+    // 복원 뒤 대화는 메신저에서 그대로 이어진다(표시·효과 없이)
+    await tid(page, 'dock-messenger').click();
+    await tid(page, 'reply-muo').click({ timeout: 60_000 });
+    await expect(tid(page, 'chat')).toContainText('그걸 모르는 사람이 어디 있어', { timeout: 30_000 });
+    await expect(page.locator('.inkbleed')).toHaveCount(0);
+    await page.waitForTimeout(1500);
+    await shot(page, 'messenger-after-restore');
+    await tid(page, 'messenger-back').click();
 
     // 설정: 이 장면에 대해
     await tid(page, 'open-settings').click();

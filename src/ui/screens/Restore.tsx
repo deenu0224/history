@@ -1,5 +1,5 @@
 /**
- * 복원 — 돌아오는 기록. 기사 → 홈(일시·장소) → 인물 카드 → 메시지 → 그날의 방 → 지금까지 본 것 → 독백 → 예고.
+ * 복원 — 돌아오는 기록. 기사 → 홈(일시·장소) → 인물 카드 → 그날의 방 → 지금까지 본 것 → 독백 → 예고.
  * 따뜻한 먹 번짐으로 한지에서 시작해 단말로 돌아온다. 현실 재기록: 같은 자리의 글자가 한 자씩 바뀐다. UI_STYLE_GUIDE §2.10
  */
 import { useEffect, useRef, useState } from 'react';
@@ -9,11 +9,17 @@ import { useView } from '@/store/hooks';
 import { selectMessenger, selectRestoration, selectRewrite } from '@/store/selectors';
 import { IChevD, IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
-import { FROM_LABEL } from '../lib/format';
+import { GlossText } from '../parts/GlossText';
 import { HomeRecord } from '../parts/HomeRecord';
 import { Scramble } from '../parts/Scramble';
 import { useUi } from '../uiStore';
 import { ChatList } from './Messenger';
+
+/** 다시 쓰이는 글: 굳으면 어려운 말에 풀이가 붙는다 */
+function ScrambleGloss(props: { from: string; to: string; ms: number; delay: number; reduce: boolean }) {
+  const [done, setDone] = useState(props.reduce);
+  return done ? <GlossText text={props.to} /> : <Scramble {...props} onDone={() => setDone(true)} />;
+}
 
 /**
  * 복원 기사: 내가 다시 쓴 줄(돌아온 핵심 문장)만 크게, 내가 채운 칸은 밝게. 나머지 전문은 「전문 펼치기」 뒤에 접어 둔다.
@@ -44,7 +50,9 @@ function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }
                 {p.text}
               </span>
             ) : (
-              <span key={i}>{p.text}</span>
+              <span key={i}>
+                <GlossText text={p.text} />
+              </span>
             ),
           )}
         </p>
@@ -77,7 +85,7 @@ function Article({ r }: { r: NonNullable<ReturnType<typeof selectRestoration>> }
               ) : (
                 <span key={i} className={p.by === 'me' ? 'me' : 'sk'} data-by={p.by}>
                   {i > 0 ? ' ' : ''}
-                  {p.text}
+                  <GlossText text={p.text} />
                 </span>
               ),
             )}
@@ -102,9 +110,8 @@ export function Restore() {
     return s.epilogueDone ? 0 : s.restoreStep;
   });
   const chatRef = useRef<HTMLDivElement>(null);
-  // 복원 뒤에 온 말만(옛 대화가 밀려 있어도 이 장면은 그 뒤 말을 보인다)
-  const tail = { ...chat, items: chat.items.filter((m) => m.burstId === 'ev.restore') };
-  const bridgeTail = { ...chat, items: chat.items.filter((m) => m.burstId === 'ev.teaser') };
+  // 다리: 복원 뒤에 온 말만(옛 대화가 밀려 있어도 이 장면은 그 뒤 말을 보인다)
+  const bridgeTail = { ...chat, items: chat.items.filter((m) => m.burstId === 'ev.restore' || m.burstId === 'ev.teaser') };
   const clock = useGameStore((s) => s.clock);
   const step = r?.steps[idx];
 
@@ -115,14 +122,19 @@ export function Restore() {
       /* 오디오 없음 */
     }
   }, [step]);
+  // 다리: 복원 뒤 대화는 보통 대화창 그대로 이어진다(바뀐 말을 따로 모아 보이지 않는다)
   useEffect(() => {
-    if (step !== 'messages') return;
+    if (step !== 'bridge') return;
     useGameStore.getState().openMessenger();
     return () => useGameStore.getState().closeMessenger();
   }, [step]);
+  const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = chatRef.current;
     if (el) el.scrollTop = el.scrollHeight;
+    // 다리: 대화가 길어지면 장면 전체를 끝까지 내린다
+    const b = bodyRef.current;
+    if (b && step === 'bridge') b.scrollTop = b.scrollHeight;
   }, [chat.items.length, !!chat.typing, step]);
 
 
@@ -151,7 +163,7 @@ export function Restore() {
           {idx + 1} / {r.steps.length}
         </span>
       </div>
-      <div className="rbody" key={step}>
+      <div className="rbody" key={step} ref={bodyRef}>
         {step === 'article' ? <Article r={r} /> : null}
 
         {step === 'home' ? (
@@ -193,7 +205,7 @@ export function Restore() {
                   </div>
                   <div className="t-b was keep">{ch.before.text || `${ch.before.label}: 기록이 지워졌다`}</div>
                   <div className="t-b now keep read">
-                    <Scramble from={ch.before.text || ch.before.label} to={ch.after.text} ms={1800} delay={500} reduce={reduce} />
+                    <ScrambleGloss from={ch.before.text || ch.before.label} to={ch.after.text} ms={1800} delay={500} reduce={reduce} />
                   </div>
                   {ch.after.source ? (
                     <a className="t-m" style={{ color: 'var(--amber)', textDecoration: 'underline' }} href={ch.after.source.url} target="_blank" rel="noreferrer noopener">
@@ -203,25 +215,6 @@ export function Restore() {
                 </div>
               )),
             )}
-          </div>
-        ) : null}
-
-        {step === 'messages' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }} data-testid="restore-messages">
-            <div className="t-m" style={{ margin: '4px 0 8px' }}>
-              대화에서 다시 쓰인 말
-            </div>
-            {r.messages.length === 0 ? <div className="t-m">바뀐 말이 없다.</div> : null}
-            {r.messages.map((m) => (
-              <div key={m.id} className={`ba${m.from === 'me' ? ' mine' : ''}`} data-testid="rewritten-msg" data-from={m.from}>
-                <div className="t-m">{FROM_LABEL[m.from] ?? ''}</div>
-                <div className="t-b was keep">{m.before}</div>
-                <div className="t-b now keep">
-                  <Scramble from={m.before} to={m.after} ms={2000} delay={600} reduce={reduce} />
-                </div>
-              </div>
-            ))}
-            <ChatList view={tail} now={now} scrollRef={chatRef} />
           </div>
         ) : null}
 
@@ -298,7 +291,7 @@ export function Restore() {
                 <div className="t-b now keep read">
                   {a.lines.map((l, i) => (
                     <div key={i}>
-                      <Scramble from={a.before?.join(' ') ?? ''} to={l.text} ms={2200} delay={600} reduce={reduce} />
+                      <ScrambleGloss from={a.before?.join(' ') ?? ''} to={l.text} ms={2200} delay={600} reduce={reduce} />
                     </div>
                   ))}
                 </div>
@@ -348,7 +341,7 @@ export function Restore() {
           </div>
         ) : null}
       </div>
-      {step === 'messages' && chat.choices && useGameStore.getState().messenger.choice?.burstId === 'ev.restore' ? (
+      {step === 'bridge' && chat.choices && useGameStore.getState().messenger.choice?.burstId === 'ev.restore' ? (
         <div className="replies" data-testid="replies">
           {chat.choices.map((c) => (
             <button key={c.id} className="reply t-b" data-testid={`reply-${c.id}`} onClick={() => useGameStore.getState().chooseReply(c.id)}>

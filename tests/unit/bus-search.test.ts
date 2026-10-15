@@ -38,7 +38,7 @@ describe('search (찾기)', () => {
     h.st().startEpisode();
     h.st().openEye('E1');
     for (let i = 0; i < 5; i++) h.st().viewCut('E1', i);
-    expect(selectSearch(EP1, h.st()).terms).toEqual(['이조 판서', '사관', '김일손', '사초', '대내']);
+    expect(selectSearch(EP1, h.st()).terms).toEqual(['김일손']); // 어려운 말은 풀이만, 찾기 칩은 퍼즐 찾기어만
     const r = h.st().search('대내로 들여오라');
     expect(r).toMatchObject({ status: 'no_article', message: '실록에 없음.' });
     expect(h.st().search('불살라').status).toBe('unknown');

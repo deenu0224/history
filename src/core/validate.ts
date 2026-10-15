@@ -15,6 +15,7 @@
  *  ⑪ 금지 낱말(영감·파면·틀린 소문)
  *  ⑫ 현실 재기록: 소실 사실(erasedFacts)에 기대는 대화 줄(동료·07 의 답)은 facts 로 그 사실을 달고 restored 를 갖는다.
  *     복원 뒤 대화 기록(지난 에피소드에서 이어진 줄 포함)의 어떤 글도 소실 사실의 무늬(tells)에 걸리지 않는다(validateDialogueAcross)
+ *  + 낱말(words): 찾기 밑줄은 찾기 데이터에 있는 말만(찾기 없는 에피소드엔 없음), 풀이는 글 안에 있고 20자 이내
  *  + 컷 id 는 CUT_IDS 안에, 모든 컷 id 에 판정 데이터가 있다, id 중복 없음, provenance·출처
  */
 import { claimById, decisiveWitnesses, geometry, winningClaims } from './contradiction';
@@ -172,6 +173,15 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
   for (const l of ep.lines) verifiedNeedsUrl(`대사 ${l.id}`, l.provenance, l.sources);
   for (const l of ep.lines) for (const g of l.glosses ?? []) if (g.inline && !l.text.includes(`${g.term}(`)) bad('⑦', `${l.id}: 붙여 보일 풀이 「${g.term}(…)」 자리가 국역 글에 없다`);
   for (const d of ep.details) verifiedNeedsUrl(`본 것 ${d.id}`, d.provenance, d.sources);
+  // 낱말: 찾기 밑줄은 데이터가 정한 찾기어(찾기 결과가 있는 말)만, 찾기가 없는 에피소드엔 없다. 풀이는 그 글 안에 있고 짧다
+  const searchable = new Set(ep.search.flatMap((e) => e.terms));
+  for (const it of [...ep.lines.map((l) => ({ id: l.id, terms: l.terms })), ...ep.details.map((d) => ({ id: d.id, terms: d.terms }))])
+    for (const t of it.terms ?? []) {
+      if (!ep.verbs.search) bad('words', `${it.id}: 찾기가 없는 에피소드에 찾기 낱말 「${t}」`);
+      else if (!searchable.has(t)) bad('words', `${it.id}: 찾기 낱말 「${t}」 이 찾기 데이터에 없다`);
+    }
+  for (const l of ep.lines) for (const g of l.glosses ?? []) if (!l.text.includes(g.term)) bad('words', `${l.id}: 풀이 낱말 「${g.term}」 이 글에 없다`);
+  for (const g of ep.glossary ?? []) if (!g.gloss.trim() || [...g.gloss].length > 20) bad('words', `풀이 「${g.term}」: 20자 이내의 풀이가 필요하다`);
   for (const c of ep.cards) {
     for (const f of c.facts) verifiedNeedsUrl(`카드 ${c.id}/${f.id}`, 'verified', [f.source]);
     for (const a of c.altered ?? []) {

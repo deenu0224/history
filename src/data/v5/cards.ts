@@ -67,42 +67,42 @@ export const CARDS: PersonCard[] = [
     eye: { eyeId: 'E2' },
     facts: [
       {
-        id: 'f_yi_ijo',
+        id: 'f_yi_ijo', plain: '이조 판서로서 임금 대신 제사를 지내러 갔다',
         text: '성종 25년(1494) 12월 23일, 「이조 판서(吏曹判書) 이극돈(李克墩)을 사직 기도 행향사(社稷祈禱行香使)로 … 삼았다.」',
         keys: ['ijo_panseo_1494'],
         provenance: V,
         source: SRC.r01,
       },
       {
-        id: 'f_yi_ijo2',
+        id: 'f_yi_ijo2', plain: '이조 판서로서 임금께 보고를 올렸다',
         text: '연산 1년(1495) 2월 25일, 「이조 판서(吏曹判書) 이극돈(李克墩)이 서계하기를」',
         keys: ['ijo_panseo_1494'],
         provenance: V,
         source: SRC.ijo0225,
       },
       {
-        id: 'f_yi_staff',
+        id: 'f_yi_staff', plain: '실록청 높은 관원들이 상으로 말과 옷감을 받았다',
         text: '실록청 당상 — 연산 3년(1497) 12월, 「당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛) … 에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',
         keys: ['sillokcheong_staff'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_yi_order',
+        id: 'f_yi_order', plain: '임금이 이 사람들에게 책을 엮으라 명했다',
         text: '연산 1년(1495) 4월, 「왕이 어세겸(魚世謙)·이극돈(李克墩)·유순(柳洵)·성현(成俔)·권건(權健)·신종호(申從濩)·조위(曺偉)에게 명하여 편찬하게 하였다.」',
         keys: ['compile_order_1495'],
         provenance: V,
         source: SRC.compileOrder,
       },
       {
-        id: 'f_yi_sejo',
+        id: 'f_yi_sejo', plain: '『세조실록』을 엮는 일에 참여했다',
         text: '『세조실록』 찬수에 동지관사(同知館事)로 참여',
         keys: ['sejo_sillok_dongji'],
         provenance: V,
         source: SRC.sejoList,
       },
       {
-        id: 'f_yi_r04',
+        id: 'f_yi_r04', plain: '임금 무덤 자리를 살피는 일을 맡았다',
         text: '연산 즉위년(1494) 12월, 「윤필상(尹弼商)·노사신(盧思愼)·신승선(愼承善)·이극돈(李克墩)·김응기(金應箕)를 산릉 간심사로 삼았다.」',
         keys: ['royal_tomb_inspector_1494'],
         provenance: V,
@@ -129,21 +129,21 @@ export const CARDS: PersonCard[] = [
     eye: { eyeId: 'E3' },
     facts: [
       {
-        id: 'f_eo_r17',
+        id: 'f_eo_r17', plain: '사관이 벼슬 정하는 자리에 꼭 있어야 하냐고 했다',
         text: '연산 3년(1497) 8월, 당직 사관을 정청(政廳)에 참예시키는 일을 의논할 때 어세겸 등이 「어찌 사관이 꼭 참예를 해야만 됩니까?」라고 의논하였다.',
         keys: ['opposed_historian_attend_1497'],
         provenance: V,
         source: SRC.r17,
       },
       {
-        id: 'f_eo_r18',
+        id: 'f_eo_r18', plain: '실록청 으뜸 관원으로 상을 받았다',
         text: '연산 3년(1497) 12월, 「실록청(實錄廳) 총재관(摠裁官) 신승선(愼承善)·어세겸(魚世謙)」에게 말과 표리를 하사하였다.',
         keys: ['chief_compiler_1497'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_eo_order',
+        id: 'f_eo_order', plain: '임금이 이 사람들에게 책을 엮으라 명했다',
         text: '연산 1년(1495) 4월, 「왕이 어세겸(魚世謙)·이극돈(李克墩)·유순(柳洵)·성현(成俔)·권건(權健)·신종호(申從濩)·조위(曺偉)에게 명하여 편찬하게 하였다.」',
         keys: ['compile_order_1495'],
         provenance: V,
@@ -163,21 +163,21 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_sin_r17',
+        id: 'f_sin_r17', plain: '사관이 그 자리에 함께해도 괜찮다고 했다',
         text: '연산 3년(1497) 8월, 당직 사관의 정청 참청을 두고 「이제부터 시행하는 것도 역시 무방하다고 생각됩니다.」라고 의논하였다.',
         keys: ['supported_historian_attend_1497'],
         provenance: V,
         source: SRC.r17,
       },
       {
-        id: 'f_sin_r18',
+        id: 'f_sin_r18', plain: '실록청 으뜸 관원으로 상을 받았다',
         text: '연산 3년(1497) 12월, 「실록청(實錄廳) 총재관(摠裁官) 신승선(愼承善)·어세겸(魚世謙)」에게 말과 표리를 하사하였다.',
         keys: ['chief_compiler_1497'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_sin_r04',
+        id: 'f_sin_r04', plain: '임금 무덤 자리를 살피는 일을 맡았다',
         text: '연산 즉위년(1494) 12월, 산릉 간심사로 삼았다(윤필상·노사신·신승선·이극돈·김응기).',
         keys: ['royal_tomb_inspector_1494'],
         provenance: V,
@@ -196,28 +196,28 @@ export const CARDS: PersonCard[] = [
     eye: { eyeId: 'E1' },
     facts: [
       {
-        id: 'f_yun_r01',
+        id: 'f_yun_r01', plain: '임금 대신 제사를 지내러 갔다',
         text: '성종 25년(1494) 12월 23일, 「우참찬(右參贊) 윤효손(尹孝孫)을 소격서 행향사(昭格署行香使)로 … 삼았다.」',
         keys: ['ucham_chan_1494'],
         provenance: V,
         source: SRC.r01,
       },
       {
-        id: 'f_yun_staff',
+        id: 'f_yun_staff', plain: '실록청 높은 관원들이 상으로 말과 옷감을 받았다',
         text: '실록청 당상 — 연산 3년(1497) 12월, 「당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛) … 에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',
         keys: ['sillokcheong_staff'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_yun_sejo',
+        id: 'f_yun_sejo', plain: '『세조실록』을 엮는 일에 참여했다',
         text: '『세조실록』 찬수에 편수관(編修官)으로 참여',
         keys: ['sejo_sillok_pyeonsu'],
         provenance: V,
         source: SRC.sejoList,
       },
       {
-        id: 'f_yun_testimony',
+        id: 'f_yun_testimony', plain: '심문에서, 일손의 일을 함께 말한 적 없다고 했다',
         text: '공초에서 「신이 사국(史局)에 있을 적에도 일찍이 이목과 더불어 일손의 일을 이야기한 적이 없습니다.」',
         keys: ['sillokcheong_staff'],
         provenance: V,
@@ -237,28 +237,28 @@ export const CARDS: PersonCard[] = [
     eye: { eyeId: 'E4' },
     facts: [
       {
-        id: 'f_hong_r02',
+        id: 'f_hong_r02', plain: '임금 장례를 맡은 관청의 책임자가 됐다',
         text: '연산 즉위년(1494) 12월 25일, 「… 호조 판서(戶曹判書) 홍귀달(洪貴達)을 국장 도감 제조(國葬都監提調)로 삼고」',
         keys: ['state_funeral_commissioner_1494'],
         provenance: V,
         source: SRC.r02,
       },
       {
-        id: 'f_hong_staff',
+        id: 'f_hong_staff', plain: '실록청 높은 관원들이 상으로 말과 옷감을 받았다',
         text: '실록청 당상 — 연산 3년(1497) 12월, 「당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛) … 에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',
         keys: ['sillokcheong_staff'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_hong_sejo',
+        id: 'f_hong_sejo', plain: '『세조실록』을 엮는 일에 참여했다',
         text: '『세조실록』 찬수에 편수관(編修官)으로 참여',
         keys: ['sejo_sillok_pyeonsu'],
         provenance: V,
         source: SRC.sejoList,
       },
       {
-        id: 'f_hong_myoho',
+        id: 'f_hong_myoho', plain: '앞선 임금의 이름을 정할 때 「인」 자를 밀었다',
         text: '연산 1년(1495) 1월, 선왕의 묘호를 의논할 때 성준·홍귀달·유순·성현 등은 「인(仁)」을 주장했다.',
         keys: ['myoho_in_1495'],
         provenance: V,
@@ -285,28 +285,28 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_yu_staff',
+        id: 'f_yu_staff', plain: '실록청 높은 관원들이 상으로 말과 옷감을 받았다',
         text: '실록청 당상 — 연산 3년(1497) 12월, 「당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛) … 에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',
         keys: ['sillokcheong_staff'],
         provenance: V,
         source: SRC.r18,
       },
       {
-        id: 'f_yu_order',
+        id: 'f_yu_order', plain: '임금이 이 사람들에게 책을 엮으라 명했다',
         text: '연산 1년(1495) 4월, 「왕이 어세겸(魚世謙)·이극돈(李克墩)·유순(柳洵)·성현(成俔)·권건(權健)·신종호(申從濩)·조위(曺偉)에게 명하여 편찬하게 하였다.」',
         keys: ['compile_order_1495'],
         provenance: V,
         source: SRC.compileOrder,
       },
       {
-        id: 'f_yu_r02',
+        id: 'f_yu_r02', plain: '임금 무덤 만드는 관청의 책임자가 됐다',
         text: '연산 즉위년(1494) 12월 25일, 「좌참찬(左參贊) 정문형(鄭文炯)·공조 판서(工曹判書) 유순(柳洵) … 를 산릉 도감 제조(山陵都監提調)로 삼았다.」',
         keys: ['royal_tomb_commissioner_1494'],
         provenance: V,
         source: SRC.r02,
       },
       {
-        id: 'f_yu_myoho',
+        id: 'f_yu_myoho', plain: '앞선 임금의 이름을 정할 때 「인」 자를 밀었다',
         text: '연산 1년(1495) 1월, 선왕의 묘호를 의논할 때 성준·홍귀달·유순·성현 등은 「인(仁)」을 주장했다.',
         keys: ['myoho_in_1495'],
         provenance: V,
@@ -325,7 +325,7 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_an_staff',
+        id: 'f_an_staff', plain: '실록청 높은 관원들이 상으로 말과 옷감을 받았다',
         text: '실록청 당상 — 연산 3년(1497) 12월, 「당상(堂上) 이극돈(李克墩)·유순(柳洵)·홍귀달(洪貴達)·윤효손(尹孝孫)·안침(安琛) … 에게는 안장 갖춘 말 한 필과 표리 한 벌을 하사하고」',
         keys: ['sillokcheong_staff'],
         provenance: V,
@@ -346,14 +346,14 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_pil_r04',
+        id: 'f_pil_r04', plain: '임금 무덤 자리를 살피는 일을 맡았다',
         text: '연산 즉위년(1494) 12월, 「윤필상(尹弼商)·노사신(盧思愼)·신승선(愼承善)·이극돈(李克墩)·김응기(金應箕)를 산릉 간심사로 삼았다.」',
         keys: ['royal_tomb_inspector_1494'],
         provenance: V,
         source: SRC.r04,
       },
       {
-        id: 'f_pil_myoho',
+        id: 'f_pil_myoho', plain: '중국에 같은 이름의 황제가 있다며 「인」 자에 반대했다',
         text: '연산 1년(1495) 1월, 선왕의 묘호를 의논할 때 윤필상 등이 「중조에 인종 황제가 있다」며 「인(仁)」에 반대했다.',
         keys: ['myoho_debate_1495'],
         provenance: V,
@@ -371,7 +371,7 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_gg_r02',
+        id: 'f_gg_r02', plain: '임금 장례를 맡은 관청의 책임자가 됐다',
         text: '연산 즉위년(1494) 12월 25일, 「지중추부사(知中樞府事) 이극균(李克均) … 을 국장 도감 제조(國葬都監提調)로 삼고」',
         keys: ['state_funeral_commissioner_1494'],
         provenance: V,
@@ -389,21 +389,21 @@ export const CARDS: PersonCard[] = [
     eye: {},
     facts: [
       {
-        id: 'f_han_r02',
+        id: 'f_han_r02', plain: '임금 장례를 맡은 관청의 책임자가 됐다',
         text: '연산 즉위년(1494) 12월 25일, 「… 좌찬성(左贊成) 한치형(韓致亨) … 을 국장 도감 제조(國葬都監提調)로 삼고」',
         keys: ['state_funeral_commissioner_1494'],
         provenance: V,
         source: SRC.r02,
       },
       {
-        id: 'f_han_r17',
+        id: 'f_han_r17', plain: '사관이 벼슬 정하는 자리에 꼭 있어야 하냐고 했다',
         text: '연산 3년(1497) 8월, 「어세겸(魚世謙)·정문형(鄭文炯)·한치형(韓致亨)은 의논드리기를」 「어찌 사관이 꼭 참예를 해야만 됩니까?」',
         keys: ['opposed_historian_attend_1497'],
         provenance: V,
         source: SRC.r17,
       },
       {
-        id: 'f_han_r01',
+        id: 'f_han_r01', plain: '임금 대신 제사를 지내러 갔다',
         text: '성종 25년(1494) 12월 23일, 「좌찬성(左贊成) 한치형(韓致亨)을 종묘 행향사(宗廟行香使)로」 삼았다.',
         keys: ['jwachanseong_1494'],
         provenance: V,
@@ -432,21 +432,21 @@ export const CARDS: PersonCard[] = [
     facts: [
       { id: 'f_kim_clan', text: '본관 김해(金海). 호 탁영(濯纓).', keys: ['clan_gimhae'], provenance: V, source: SRC.kimIlson },
       {
-        id: 'f_kim_r14',
+        id: 'f_kim_r14', plain: '지방 관원으로 임금께 글을 올렸다',
         text: '연산 1년(1495) 5월, 「충청도 도사(忠淸道都事) 김일손(金馹孫)이 상소하기를」',
         keys: ['office_chungcheong_dosa_1495'],
         provenance: V,
         source: SRC.r14,
       },
       {
-        id: 'f_kim_r15',
+        id: 'f_kim_r15', plain: '바른말 하는 관원으로 임금께 말씀을 올렸다',
         text: '연산 1년(1495) 10월, 「헌납(獻納) 김일손(金馹孫)이 아뢰기를」',
         keys: ['office_heonnap_1495'],
         provenance: V,
         source: SRC.r15,
       },
       {
-        id: 'f_kim_cheongdo',
+        id: 'f_kim_cheongdo', plain: '어머니 장례 뒤 병이 나 청도에서 살고 있었다',
         text: `「${CHEONGDO_0712}」`,
         keys: ['cheongdo_1498'],
         provenance: V,
@@ -477,7 +477,7 @@ export const CARDS: PersonCard[] = [
     facts: [
       { id: 'f_jj_pen', text: '본관 선산(善山). 호 점필재(佔畢齋).', keys: ['pen_name_jeompiljae'], provenance: V, source: SRC.kimJongjik },
       { id: 'f_jj_jouije', text: '「조의제문(弔義帝文)」을 지었다.', keys: ['wrote_jouijemun'], provenance: V, source: SRC.jouijemun },
-      { id: 'f_jj_sejo', text: '『세조실록』 찬수에 기사관(記事官)으로 참여', keys: ['sejo_sillok_gisa'], provenance: V, source: SRC.sejoList },
+      { id: 'f_jj_sejo', plain: '『세조실록』을 엮는 일에 참여했다', text: '『세조실록』 찬수에 기사관(記事官)으로 참여', keys: ['sejo_sillok_gisa'], provenance: V, source: SRC.sejoList },
     ],
   },
 ];

@@ -650,8 +650,9 @@ export function submitLine(w: Work, c: Ctx, lineId: Id): SubmitOutcome | { statu
 
 // ── 복원 ─────────────────────────────────────────────────────────
 /** 에피소드 1 의 복원 단계(다른 에피소드는 Episode.restoreSteps) */
-export const RESTORE_STEPS = ['article', 'home', 'cards', 'messages', 'room', 'log', 'monologue', 'teaser'] as const;
-/** 'article' | 'home' | 'cards' | 'messages' | 'room' | 'log' | 'monologue' | 'teaser' | (Ep0) 'neighbour' | 'bridge' */
+// 대화의 현실 재기록은 조용하다 — 따로 보여 주는 단계가 없다(메신저를 거슬러 올라가야 안다)
+export const RESTORE_STEPS = ['article', 'home', 'cards', 'room', 'log', 'monologue', 'teaser'] as const;
+/** 'article' | 'home' | 'cards' | 'room' | 'log' | 'monologue' | 'teaser' | (Ep0) 'neighbour' | 'bridge' */
 export type RestoreStep = string;
 
 export function restore(w: Work, c: Ctx): 'restored' | 'not_ready' | 'already' {

@@ -103,6 +103,17 @@ describe('validator — catches broken content', () => {
     ep.lines.find((l) => l.id === 'l_e1_2a')!.text = '저 영감께선 선왕 승하하실 무렵 이조 판서셨지요.';
     expect(rules(ep)).toContain('⑪');
   });
+  it('words: search underline only for data-declared search words; glosses short and present', () => {
+    const ep = clone();
+    ep.lines.find((l) => l.id === 'l_remon2')!.terms = ['직필']; // 어려운 말이지만 찾기어가 아니다 → 풀이만
+    expect(rules(ep)).toContain('words');
+    const ep2 = clone();
+    ep2.glossary = [{ term: '사초', gloss: '사관이 적어 둔 기록. 실록을 엮는 바탕이 된다.' }];
+    expect(rules(ep2)).toContain('words');
+    const ep3 = clone();
+    ep3.verbs = { ...ep3.verbs, search: false };
+    expect(rules(ep3)).toContain('words');
+  });
   it('cut ids must exist in CUT_IDS', () => {
     expect(validateEpisode(EP1, { ...X, cutIds: CUT_IDS.filter((c) => c !== 'e2-3') }).map((i) => i.rule)).toContain('cut_ids');
   });

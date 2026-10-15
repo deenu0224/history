@@ -7,6 +7,7 @@ import { selectSearch, type SearchResultView } from '@/store/selectors';
 import { fx } from '../lib/fx';
 import { IBack, ISearch } from '../parts/icons';
 import { useUi } from '../uiStore';
+import { GlossText } from '../parts/GlossText';
 
 function Hit({ r, onPerson }: { r: SearchResultView; onPerson?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -34,8 +35,20 @@ function Hit({ r, onPerson }: { r: SearchResultView; onPerson?: (id: string) => 
           {r.tag}
         </div>
       ) : null}
-      {r.kind === 'person' ? r.lines.map((l, i) => <div key={i} className="ln t-b">{l}</div>) : null}
-      {r.kind === 'record' && open ? r.lines.map((l, i) => <div key={i} className="ln read">{l}</div>) : null}
+      {r.kind === 'person'
+        ? r.lines.map((l, i) => (
+            <div key={i} className="ln t-b">
+              <GlossText text={l} hj />
+            </div>
+          ))
+        : null}
+      {r.kind === 'record' && open
+        ? r.lines.map((l, i) => (
+            <div key={i} className="ln read">
+              <GlossText text={l} hj />
+            </div>
+          ))
+        : null}
       {r.kind === 'record' && !open ? <div className="sub">탭하면 기록이 열린다</div> : null}
       {r.kind === 'log' ? <div className="sub">탭하면 문서가 열린다</div> : null}
     </button>

@@ -2,6 +2,7 @@
  * 에피소드 0 「하룻밤」 번들 — #C-2209, 세종 26년(1444) 2월 20일(DESIGN_V5 §14).
  * 동사는 셋만: 넘기기 → 이름 붙이기(T0a 쉬움 → T0b 한 단계 더) → 기록 다시 쓰기(한 줄, 칸 하나). 찾기·그날의 방은 Ep1 에서.
  */
+import { GLOSSARY0 } from '@/data/glossary';
 import type { Episode } from '@/core/types';
 import { ROOM_EP0 } from './room';
 import { BURSTS0, ERASED0, LADDERS0 } from './messenger';
@@ -35,6 +36,7 @@ export const EP0: Episode = {
   order: 0,
   next: 'ep1',
   verbs: { search: false, room: false, rewrite: true },
+  glossary: GLOSSARY0,
   room: ROOM_EP0,
   cards: CARDS0,
   figures: FIGURES0,
@@ -68,7 +70,7 @@ export const EP0: Episode = {
   ],
   askText: '어디부터 볼까요?',
   askFallback: '지금은 막힌 데 없어 보이는데.',
-  restoreSteps: ['article', 'home', 'messages', 'neighbour', 'monologue', 'bridge'],
+  restoreSteps: ['article', 'home', 'neighbour', 'monologue', 'bridge'],
   ledger: LEDGER0,
   ledgerNames: LEDGER_NAMES0,
   roomPersons: ROOM_PERSONS0,

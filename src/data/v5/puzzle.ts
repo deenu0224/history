@@ -54,7 +54,7 @@ export const CLAIMS: Claim[] = [
   { id: 'c_count_5', slot: 'count', value: '5', label: '다섯', from: ['d_slips_five'] },
   { id: 'c_speaker_dangsang', slot: 'speaker', value: '당상(이극돈 등)', label: '당상(이극돈 등)', from: ['l_remon1', 'l_remon2'] },
   { id: 'c_speaker_upper', slot: 'speaker', value: '윗자리 대감', label: '윗자리 대감', from: ['l_e1_3'] },
-  { id: 'c_speaker_msg', slot: 'speaker', value: '전교를 가져온 사람', label: '전교를 가져온 사람', from: ['l_order1', 'l_order2', 'l_order3'] },
+  { id: 'c_speaker_msg', slot: 'speaker', value: '명령을 전하러 온 사람', label: '명령을 전하러 온 사람', from: ['l_order1', 'l_order2', 'l_order3'] },
 ];
 
 export const CONTRADICTIONS: Contradiction[] = [
@@ -170,12 +170,12 @@ export const SENTENCES: RecordSentence[] = [
 export const REQUIRED_SENTENCES = ['L1', 'L2', 'L3', 'L4'];
 
 export const PIECES: RecordPiece[] = [
-  { id: 'pc_L1', label: '문 앞에서 읽은 첫 전교', from: ['l_order1'], sentenceId: 'L1', provenance: 'verified', time: '14:00' },
+  { id: 'pc_L1', label: '문 앞에서 읽은 임금의 첫 명령', from: ['l_order1'], sentenceId: 'L1', provenance: 'verified', time: '14:00' },
   { id: 'pc_L2', label: '「예로부터 사초는 임금이 스스로 보지 않습니다」', from: ['l_remon1'], sentenceId: 'L2', provenance: 'verified', time: '14:05' },
   { id: 'pc_L3', label: '「임금이 만약 사초를 보면 … 직필이 없기 때문입니다」', from: ['l_remon2'], sentenceId: 'L3', provenance: 'verified', time: '14:05' },
-  { id: 'pc_S1', label: '문 앞에서 다시 읽은 전교', from: ['l_order2'], sentenceId: 'S1', provenance: 'verified', time: '14:20' },
-  { id: 'pc_S2', label: '상고할 곳을 잘라 올리겠다는 청', from: ['l_propose'], sentenceId: 'S2', provenance: 'verified', time: '14:40' },
-  { id: 'pc_S3', label: '서안 앞에서 읽은 「가하다」', from: ['l_order3'], sentenceId: 'S3', provenance: 'verified', time: '14:50' },
+  { id: 'pc_S1', label: '문 앞에서 다시 읽은 임금의 명령', from: ['l_order2'], sentenceId: 'S1', provenance: 'verified', time: '14:20' },
+  { id: 'pc_S2', label: '살펴볼 곳만 잘라 올리겠다는 청', from: ['l_propose'], sentenceId: 'S2', provenance: 'verified', time: '14:40' },
+  { id: 'pc_S3', label: '책상 앞에서 읽은 「가하다」(그리하라)', from: ['l_order3'], sentenceId: 'S3', provenance: 'verified', time: '14:50' },
   {
     id: 'pc_L4',
     label: '종이 조각을 잘라 봉해 올림',
@@ -188,7 +188,7 @@ export const PIECES: RecordPiece[] = [
   { id: 'w_long_page', label: '붉은 관복이 한 장을 오래 들고 있었다', from: ['d_long_page', 'l_e1_2b'], witnessOnly: true, provenance: 'reconstructed', time: '11:40' },
   { id: 'w_upper', label: '윗자리 대감도 지난해 벼슬 정하는 자리에 사관이 꼭 끼어야 하느냐 했다더라', from: ['l_e1_3'], witnessOnly: true, provenance: 'reconstructed', time: '13:20' },
   { id: 'w_funeral', label: '국장 도감 일보다 길다', from: ['l_e3_1'], witnessOnly: true, provenance: 'reconstructed', time: '13:40' },
-  { id: 'w_corner', label: '구석의 대감은 첫 전교를 또렷이 듣지 못했다', from: ['d_far_reading'], witnessOnly: true, provenance: 'reconstructed', time: '14:00' },
+  { id: 'w_corner', label: '구석의 대감은 임금의 첫 명령을 또렷이 듣지 못했다', from: ['d_far_reading'], witnessOnly: true, provenance: 'reconstructed', time: '14:00' },
   { id: 'w_jouije', label: '조의제문이라 했다', from: ['l_e3_5'], witnessOnly: true, provenance: 'reconstructed', time: '15:40' },
   { id: 'w_six_only', label: '여섯 조목만 올리라 했다더라', from: ['l_e4_5a'], witnessOnly: true, provenance: 'reconstructed', time: '16:10', contestedBy: 'X1' },
   { id: 'w_alive', label: '사초를 쓴 사관은 아직 살아 있었다', from: ['l_e4_5b'], witnessOnly: true, provenance: 'reconstructed', time: '16:10' },

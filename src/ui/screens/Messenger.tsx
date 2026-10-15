@@ -1,5 +1,5 @@
 /** 메신저 — 한 선임과의 대화. 한 말풍선 = 한 문장, 입력 중 표시, 망설임, 읽음, 자리 비움, 내 차례의 선택지. UI_STYLE_GUIDE §2.8, DIALOGUE_GUIDE */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { MessengerView, MsgView } from '@/core/messenger';
 import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
@@ -9,42 +9,9 @@ import { FROM_LABEL, FROM_MARK } from '../lib/format';
 import { IBack, IDoc } from '../parts/icons';
 import { useUi } from '../uiStore';
 
-/**
- * 말풍선 글. 현실 재기록으로 바뀐 말은 아무 표시 없이 지금 글만 보인다(원래 글은 화면에 오지 않는다).
- * 복원 뒤 처음 화면에 들어올 때 한 번만 먹이 번진다(움직임 줄이기면 효과 없이 본 것으로만 친다).
- */
+/** 말풍선 글. 현실 재기록으로 바뀐 말은 아무 표시·효과 없이 지금 글만 보인다(원래 글은 화면에 오지 않는다). */
 function BubText({ m }: { m: MsgView }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [ink, setInk] = useState(false);
-  const bleed = m.bleed;
-  useEffect(() => {
-    const el = ref.current;
-    if (!bleed || !el) return;
-    const fire = () => {
-      if (!useGameStore.getState().settings.reduceMotion) setInk(true);
-      useGameStore.getState().markInkSeen([m.id]);
-    };
-    if (typeof IntersectionObserver === 'undefined') {
-      fire();
-      return;
-    }
-    const io = new IntersectionObserver(
-      (es) => {
-        if (es.some((e) => e.isIntersecting)) {
-          io.disconnect();
-          fire();
-        }
-      },
-      { threshold: 0.6 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [bleed, m.id]);
-  return (
-    <span ref={ref} className={ink ? 'inkbleed' : undefined} data-testid="bub-text" onAnimationEnd={() => setInk(false)}>
-      {m.display}
-    </span>
-  );
+  return <span data-testid="bub-text">{m.display}</span>;
 }
 
 export function ChatList({ view, now, scrollRef, limit }: { view: MessengerView; now: number; scrollRef?: React.RefObject<HTMLDivElement | null>; limit?: number }) {

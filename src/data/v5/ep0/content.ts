@@ -86,15 +86,15 @@ export const CARDS0: PersonCard[] = [
     facts: [
       { id: 'f_choi_list', text: '그날 실록의 명단: 「부제학(副提學) 최만리(崔萬理)」', keys: ['bujehak_0220'], provenance: V, source: SRC0.art0220 },
       {
-        id: 'f_choi_exam',
+        id: 'f_choi_exam', plain: '과거에 붙고, 이듬해 집현전 학자가 됐다',
         text: '「1419년(세종 1) 증광문과에 을과로 급제하여 그 이듬해 집현전박사로 임명되었다.」',
         keys: ['served_under_sejong'],
         provenance: V,
         source: SRC0.choi,
         links: [{ term: '세종', cardId: 'sejong' }],
       },
-      { id: 'f_choi_office', text: '「1438년 부제학, 1439년 강원도관찰사, 1440년 집현전부제학으로 복귀하였다.」', keys: ['bujehak_1440'], provenance: V, source: SRC0.choi },
-      { id: 'f_choi_clan', text: '「본관은 해주(海州). 자는 자명(子明), 호는 강호산인(江湖散人).」', keys: ['clan_haeju'], provenance: V, source: SRC0.choi },
+      { id: 'f_choi_office', plain: '부제학·관찰사를 거쳐 다시 부제학이 됐다', text: '「1438년 부제학, 1439년 강원도관찰사, 1440년 집현전부제학으로 복귀하였다.」', keys: ['bujehak_1440'], provenance: V, source: SRC0.choi },
+      { id: 'f_choi_clan', plain: '집안의 고장과 따로 부르던 이름들', text: '「본관은 해주(海州). 자는 자명(子明), 호는 강호산인(江湖散人).」', keys: ['clan_haeju'], provenance: V, source: SRC0.choi },
     ],
   },
   {
@@ -109,9 +109,9 @@ export const CARDS0: PersonCard[] = [
     eye: {},
     facts: [
       { id: 'f_jeong_list', text: '그날 실록의 명단: 「응교(應敎) 정창손(鄭昌孫)」', keys: ['eunggyo_0220'], provenance: V, source: SRC0.art0220 },
-      { id: 'f_jeong_clan', text: '「본관은 동래(東萊). 자는 효중(孝仲).」', keys: ['clan_dongnae'], provenance: V, source: SRC0.jeong },
+      { id: 'f_jeong_clan', plain: '집안의 고장과 따로 부르던 이름', text: '「본관은 동래(東萊). 자는 효중(孝仲).」', keys: ['clan_dongnae'], provenance: V, source: SRC0.jeong },
       {
-        id: 'f_jeong_sillok',
+        id: 'f_jeong_sillok', plain: '부제학으로 있으며 실록 엮는 일도 맡았다',
         text: '「1449년 부제학으로 춘추관편수관과 수사관(修史官)을 겸직하면서」 『세종실록』 등의 편찬에 참여',
         keys: ['bujehak_1449', 'compiled_sejong_sillok'],
         provenance: V,
@@ -131,8 +131,8 @@ export const CARDS0: PersonCard[] = [
     eye: {},
     facts: [
       { id: 'f_kmun_list', text: '그날 실록의 명단: 「직전(直殿) 김문(金汶)」', keys: ['jikjeon_0220'], provenance: V, source: SRC0.art0220 },
-      { id: 'f_kmun_exam', text: '「1420년(세종 2) 식년 문과에 병과로 급제」', keys: ['exam_1420'], provenance: V, source: SRC0.kimMun },
-      { id: 'f_kmun_clan', text: '「본관은 언양(彦陽). 자는 윤보(潤甫), 호는 서헌(西軒).」', keys: ['clan_eonyang'], provenance: V, source: SRC0.kimMun },
+      { id: 'f_kmun_exam', plain: '과거 시험에 셋째 등급으로 붙었다', text: '「1420년(세종 2) 식년 문과에 병과로 급제」', keys: ['exam_1420'], provenance: V, source: SRC0.kimMun },
+      { id: 'f_kmun_clan', plain: '집안의 고장과 따로 부르던 이름들', text: '「본관은 언양(彦陽). 자는 윤보(潤甫), 호는 서헌(西軒).」', keys: ['clan_eonyang'], provenance: V, source: SRC0.kimMun },
     ],
   },
   {
@@ -152,7 +152,7 @@ export const CARDS0: PersonCard[] = [
         provenance: V,
         source: SRC0.art0220,
       },
-      { id: 'f_ha_1444', text: '「1444년 집현전부교리가 되어 『오례의주(五禮儀註)』의 상정(詳定)에 참여하였다.」', keys: ['bugyori_1444'], provenance: V, source: SRC0.ha },
+      { id: 'f_ha_1444', plain: '집현전 벼슬로 나라 의식 책을 함께 정했다', text: '「1444년 집현전부교리가 되어 『오례의주(五禮儀註)』의 상정(詳定)에 참여하였다.」', keys: ['bugyori_1444'], provenance: V, source: SRC0.ha },
     ],
   },
   {
@@ -166,10 +166,10 @@ export const CARDS0: PersonCard[] = [
     eye: {},
     facts: [
       { id: 'f_sj_def', text: '「조선의 제4대(재위: 1418년~1450년) 왕.」', keys: ['king_1418_1450'], provenance: V, source: SRC0.sejong },
-      { id: 'f_sj_name', text: '「본관은 전주(全州). 이름은 이도(李祹), 자는 원정(元正).」', keys: ['clan_jeonju'], provenance: V, source: SRC0.sejong },
-      { id: 'f_sj_accede', text: '「1418년 6월 왕세자에 책봉되었다가 같은 해 8월에 태종의 양위를 받아 즉위하였다.」', keys: ['acceded_1418'], provenance: V, source: SRC0.sejong },
+      { id: 'f_sj_name', plain: '집안의 고장과 이름', text: '「본관은 전주(全州). 이름은 이도(李祹), 자는 원정(元正).」', keys: ['clan_jeonju'], provenance: V, source: SRC0.sejong },
+      { id: 'f_sj_accede', plain: '세자가 된 그해에 임금 자리를 물려받았다', text: '「1418년 6월 왕세자에 책봉되었다가 같은 해 8월에 태종의 양위를 받아 즉위하였다.」', keys: ['acceded_1418'], provenance: V, source: SRC0.sejong },
       // 지워졌던 사실 — 복원 뒤에만
-      { id: 'f_sj_eonmun', text: '「이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데」', keys: ['made_eonmun'], provenance: V, source: SRC0.eonmun28, afterRestore: true },
+      { id: 'f_sj_eonmun', plain: '임금이 몸소 새 글자 28자를 지었다', text: '「이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데」', keys: ['made_eonmun'], provenance: V, source: SRC0.eonmun28, afterRestore: true },
     ],
   },
 ];
@@ -238,7 +238,6 @@ export const LINES0: Line[] = [
     // 상소는 높은 자리의 사람에게 올린 글이다 — 「제작하신」의 주어(언문은 그 사람의 일). 판정 사실은 없다:
     // 「누가 언문을 만들었나」는 지워진 사실이라 어느 카드에도 아직 없다 — 이 줄은 다시 쓰기의 결론으로 간다
     refers: { figureId: 'fig_king' },
-    terms: ['언문'],
     glosses: [
       { term: '언문', gloss: '그 무렵 새 글자를 부르던 말' },
       { term: '신', gloss: '신하가 임금 앞에서 자기를 이르는 말' },
@@ -252,7 +251,6 @@ export const LINES0: Line[] = [
     speaker: KING,
     origin: ['K'],
     volume: 'talk',
-    terms: ['설총', '이두'],
     glosses: [
       { term: '설총', gloss: '신라의 학자' },
       { term: '이두', gloss: '한자를 빌려 우리말을 적던 방법' },
@@ -280,7 +278,6 @@ export const LINES0: Line[] = [
     speaker: KING,
     origin: ['K'],
     volume: 'talk',
-    terms: ['운서'],
     glosses: [{ term: '운서', gloss: '한자의 소리를 모아 정리한 책' }],
   },
 ];
@@ -296,7 +293,6 @@ export const DETAILS0: Detail[] = [
     size: 'small',
     refers: { figureId: 'fig_choi' },
     keys: ['bujehak_0220'],
-    terms: ['부제학', '최만리'],
   },
   { id: 'd_e0_dais', label: '높은 자리의 사람. 얼굴은 어둡다.', provenance: R, targetPosId: 'K', size: 'action' },
 ];

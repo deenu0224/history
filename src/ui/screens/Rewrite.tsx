@@ -10,6 +10,7 @@ import { selectRewrite, selectSlotOptions, type RewriteLineView } from '@/store/
 import { fx } from '../lib/fx';
 import { HoldButton } from '../parts/HoldButton';
 import { IBack, IClose, IExt, IWarn } from '../parts/icons';
+import { GlossText } from '../parts/GlossText';
 import { Sheet } from '../parts/Sheet';
 import { useUi } from '../uiStore';
 
@@ -23,7 +24,16 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
       <div className="tm">{l.render.time}</div>
       <div className="tx">
         {l.render.parts.map((p, i) => {
-          if (!p.slot) return p.editorial ? <span key={i} className="edit">{p.text}</span> : <span key={i}>{p.text}</span>;
+          if (!p.slot)
+            return p.editorial ? (
+              <span key={i} className="edit">
+                {p.text}
+              </span>
+            ) : (
+              <span key={i}>
+                <GlossText text={p.text} />
+              </span>
+            );
           const sv = l.slots.find((x) => x.kind === p.slot);
           if (restored) return <span key={i}>{p.text}</span>;
           const v = sv?.value;

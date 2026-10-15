@@ -43,7 +43,8 @@ function useBox(ref: React.RefObject<HTMLElement | null>) {
 // 없으면 사람 상자를 덜 가리는 쪽(위/아래)에 놓는다. 말풍선 자체는 탭을 통과시킨다(밑의 사람이 눌린다).
 export type BubblePlace = 'below' | 'top' | 'bottom';
 function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; active: boolean; hidden: boolean; place: BubblePlace; lines: number; tap: number }) {
-  const canSearch = useEpisode().verbs.search;
+  const ep = useEpisode();
+  const canSearch = ep.verbs.search;
   const [shown, setShown] = useState(0);
   const [open, setOpen] = useState<{ line: string; term: string; gloss?: string } | null>(null);
   const [more, setMore] = useState<string | null>(null);
@@ -92,7 +93,9 @@ function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; act
   }, [b?.lineId, lines, place]);
 
   if (!active || !total || hidden || !b) return null;
-  const segs = richSegments(glossInline(b.text, b.glosses), canSearch ? b.terms : [], b.glosses);
+  // 풀이: 이 말의 풀이 + 에피소드 풀이 사전(국역 인용 속 어려운 말). 찾기 낱말은 데이터가 정한 것만
+  const gl = [...b.glosses, ...(ep.glossary ?? []).filter((x) => !b.glosses.some((y) => y.term === x.term))];
+  const segs = richSegments(glossInline(b.text, b.glosses), canSearch ? b.terms : [], gl);
   const who = b.speaker && b.speaker !== '?' && !/\(/.test(b.speaker) ? `${b.speaker} · ${VOLUME_LABEL[b.volume]}` : VOLUME_LABEL[b.volume];
   const expanded = more === b.lineId;
   return (
@@ -109,7 +112,7 @@ function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; act
                 onClick={(e) => {
                   e.stopPropagation();
                   const w = sg.term ?? sg.gloss!;
-                  const g = b.glosses.find((x) => x.term === w) ?? GLOSSARY.find((x) => x.term === w);
+                  const g = gl.find((x) => x.term === w) ?? GLOSSARY.find((x) => x.term === w);
                   setOpen(open?.line === b.lineId && open.term === w ? null : { line: b.lineId, term: w, gloss: g?.gloss });
                 }}
               >

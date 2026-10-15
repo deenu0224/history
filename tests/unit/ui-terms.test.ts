@@ -34,3 +34,15 @@ describe('richSegments: 검색어 + 실록 용어 풀이', () => {
     expect(richSegments(text, ['사초'], GLOSSARY).map((s) => s.text).join('')).toBe(text);
   });
 });
+
+describe('glossSegments — hard words get a tap-gloss, the quote stays verbatim', () => {
+  it('longest first, no overlap, text unchanged', async () => {
+    const { glossSegments } = await import('@/ui/lib/text');
+    const { GLOSSARY1 } = await import('@/data/glossary');
+    const t = '수사관(修史官) 등이 사초를 보고도 즉시 아뢰지 않았으므로 … 파직하고';
+    const segs = glossSegments(t, GLOSSARY1);
+    expect(segs.map((s) => s.text).join('')).toBe(t);
+    expect(segs.filter((s) => s.gloss).map((s) => s.term)).toEqual(['수사관', '사초', '아뢰', '파직']);
+    expect(segs.find((s) => s.term === '사초')!.gloss).toBe('사관이 쓴 기록 초고');
+  });
+});

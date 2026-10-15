@@ -33,8 +33,8 @@ export const FIGURES: Figure[] = [
     visibleTraits: ['푸른 관복'],
     revealOnRestore: { personIds: ['yu_sun', 'an_chim'], pairLabel: '유순·안침', source: SRC.order0711 },
   },
-  { id: 'fig_msg', anonymous: true, provenance: R, label: '전교를 가져온 사람', visibleTraits: ['접은 종이'] },
-  { id: 'fig_clerk', anonymous: true, provenance: 'fictional', label: '서리', visibleTraits: ['서리 차림'] },
+  { id: 'fig_msg', anonymous: true, provenance: R, label: '명령을 전하러 온 사람', visibleTraits: ['접은 종이'] },
+  { id: 'fig_clerk', anonymous: true, provenance: 'fictional', label: '심부름꾼', visibleTraits: ['심부름꾼 차림'] },
 ];
 
 /** 실록이 적은 화자 단위(kja_10407011_001 원문 「實錄廳堂上李克墩、柳洵、尹孝孫、安琛啓」 / 「克墩等更啓」) */
@@ -60,7 +60,7 @@ const G = {
   daenae: { term: '대내', gloss: '궁궐 안' },
   jikpil: { term: '직필', gloss: '있는 그대로 곧게 씀' },
   dangsang: { term: '당상', gloss: '높은 관리' },
-  sanggo: { term: '상고', gloss: '살펴 따짐' },
+  sanggo: { term: '상고', gloss: '자세히 살펴봄' },
   jeolchwi: { term: '절취', gloss: '잘라 냄' },
 };
 
@@ -83,7 +83,6 @@ export const LINES: Line[] = [
     volume: 'whisper',
     refers: { figureId: 'fig_yi' },
     keys: ['ijo_panseo_1494'],
-    terms: ['이조 판서'],
   },
   {
     id: 'l_e1_2b',
@@ -103,7 +102,6 @@ export const LINES: Line[] = [
     volume: 'whisper',
     refers: { posId: 'O', time: '13:20' },
     keys: ['opposed_historian_attend_1497'],
-    terms: ['사관'],
   },
   {
     id: 'l_order1',
@@ -113,13 +111,13 @@ export const LINES: Line[] = [
     speaker: { figureId: 'fig_msg' },
     origin: ['B'],
     volume: 'read',
-    terms: ['김일손', '사초', '대내'],
+    terms: ['김일손'],
     glosses: [G.sacho, G.daenae],
   },
   // ── E2 ──
   {
     id: 'l_e2_1',
-    text: '윤 대감, 교정 끝난 권은 이쪽에 두리까?',
+    text: '윤 대감, 교정 끝난 권은 이쪽에 둘까요?',
     provenance: R,
     speaker: { figureId: 'fig_clerk' },
     origin: ['CLK_1145'],
@@ -136,8 +134,6 @@ export const LINES: Line[] = [
     speaker: { groupId: 'g_dangsang', figureIds: ['fig_yi', 'fig_yun', 'fig_u', 'fig_a'] },
     origin: ['Y', 'W', 'U', 'A'],
     volume: 'talk',
-    terms: ['사초', '당상'],
-    glosses: [G.dangsang],
   },
   {
     id: 'l_remon2',
@@ -147,7 +143,6 @@ export const LINES: Line[] = [
     speaker: { groupId: 'g_dangsang', figureIds: ['fig_yi', 'fig_yun', 'fig_u', 'fig_a'] },
     origin: ['Y', 'W', 'U', 'A'],
     volume: 'talk',
-    terms: ['직필'],
     glosses: [G.jikpil],
   },
   {
@@ -158,7 +153,6 @@ export const LINES: Line[] = [
     speaker: { groupId: 'g_geukdon_etc', figureIds: ['fig_yi'] },
     origin: ['Y'],
     volume: 'talk',
-    terms: ['상고', '절취'],
     glosses: [G.sanggo, G.jeolchwi],
   },
   // ── E3 ──
@@ -181,7 +175,6 @@ export const LINES: Line[] = [
     speaker: { figureId: 'fig_msg' },
     origin: ['B'],
     volume: 'read',
-    terms: ['대내'],
   },
   {
     id: 'l_e3_5',
@@ -190,7 +183,6 @@ export const LINES: Line[] = [
     speaker: { figureId: 'fig_clerk' },
     origin: ['CLK_1540'],
     volume: 'talk',
-    terms: ['점필재', '조의제문'],
   },
   // ── E4 ──
   {
@@ -224,14 +216,14 @@ export const LINES: Line[] = [
 export const DETAILS: Detail[] = [
   { id: 'd_bundles', label: '꾸러미마다 이름표가 붙어 있다. 멀어서 읽히지 않는다.', provenance: R, targetPosId: 'SP', size: 'action' },
   { id: 'd_long_page', label: '붉은 관복이 한 장을 오래 들고 있다.', provenance: R, targetPosId: 'Y', size: 'action' },
-  { id: 'd_slips_five', label: '사초 더미 너머, 종이 조각 다섯 장.', provenance: R, targetPosId: 'SP', size: 'small', occludedView: true },
+  { id: 'd_slips_five', label: '기록 더미 너머, 종이 조각 다섯 장.', provenance: R, targetPosId: 'SP', size: 'small', occludedView: true },
   { id: 'd_slips_six', label: '손 앞에 종이 조각 여섯 장.', provenance: R, targetPosId: 'SP', size: 'small' },
   { id: 'd_nametag', label: '꾸러미 이름표: 김일손(金馹孫).', provenance: R, targetPosId: 'SP', size: 'small', terms: ['김일손', '金馹孫'] },
   { id: 'd_sealed', label: '접어 봉한 꾸러미.', provenance: R, targetPosId: 'SP', size: 'small' },
   { id: 'd_upper_silent', label: '윗자리에서는 아무 말도 나오지 않는다.', provenance: R, targetPosId: 'O', size: 'action' },
-  { id: 'd_corner_book', label: '교정 중인 책. 창빛.', provenance: R, targetPosId: 'H', size: 'action' },
+  { id: 'd_corner_book', label: '교정 중인 책. 창으로 빛이 든다.', provenance: R, targetPosId: 'H', size: 'action' },
   { id: 'd_far_reading', label: '멀리 문 앞에서 무언가를 읽는다. 또렷이 들리지 않는다.', provenance: R, targetPosId: 'B', size: 'action' },
-  { id: 'd_desk_far', label: '서안 위의 손과 종이. 멀어서 셀 수 없다.', provenance: R, targetPosId: 'SP', size: 'action' },
+  { id: 'd_desk_far', label: '책상 위의 손과 종이. 멀어서 셀 수 없다.', provenance: R, targetPosId: 'SP', size: 'action' },
   { id: 'd_bundle_leaves', label: '봉한 꾸러미가 문을 나간다.', provenance: R, targetPosId: 'DOOR', size: 'action' },
 ];
 
@@ -245,7 +237,7 @@ const RED = ['붉은 관복'];
 const GREEN = ['초록 관복'];
 const NAVY = ['남색 관복'];
 const BLUE = ['푸른 관복'];
-const CLERK = ['서리 차림'];
+const CLERK = ['심부름꾼 차림'];
 const MSG = ['접은 종이'];
 const UPPER = ['붉은 관복(진한 톤)', '병풍 앞'];
 
@@ -256,14 +248,14 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_yi', 'Y', 'read_paper', RED), fig('fig_clerk', 'CLK_0910', 'stand', CLERK)],
     heard: [{ lineId: 'l_e1_1', clarity: 'clear' }],
     details: ['d_bundles'],
-    alt: '서안 너머 붉은 관복의 관원이 종이를 읽는다. 곁에서 서리가 꾸러미를 내려놓는다.',
+    alt: '책상 너머 붉은 관복의 관원이 종이를 읽는다. 곁에서 심부름꾼이 꾸러미를 내려놓는다.',
   },
   {
     id: 'e1-2', eyeId: 'E1', n: 2, time: '11:40', viewpoint: { dirDeg: 180 }, provenance: R,
     figures: [fig('fig_yi', 'Y', 'hold_page', RED)],
     heard: [{ lineId: 'l_e1_2a', clarity: 'clear' }, { lineId: 'l_e1_2b', clarity: 'clear' }],
     details: ['d_long_page'],
-    alt: '서안 너머 붉은 관복의 관원이 종이 한 장을 들고 있다. 뒤에서 귓속말이 들린다.',
+    alt: '책상 너머 붉은 관복의 관원이 종이 한 장을 들고 있다. 뒤에서 귓속말이 들린다.',
   },
   {
     id: 'e1-3', eyeId: 'E1', n: 3, time: '13:20', viewpoint: { dirDeg: 180 }, provenance: R,
@@ -284,7 +276,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_yi', 'Y', 'cut_slips', RED)],
     heard: [],
     details: ['d_slips_five'],
-    alt: '붉은 관복의 손이 종이 조각을 가려 접는다. 사초 더미가 앞을 가린다.',
+    alt: '붉은 관복의 손이 종이 조각을 가려 접는다. 기록 더미가 앞을 가린다.',
   },
   // ── E2 (이극돈) — 앞쪽 덮개: 붉은 소매
   {
@@ -292,14 +284,14 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_yun', 'W', 'sit', GREEN), fig('fig_clerk', 'CLK_1145', 'stand', CLERK)],
     heard: [{ lineId: 'l_e2_1', clarity: 'clear' }],
     details: [],
-    alt: '서안 너머 초록 관복의 관원. 서리가 그에게 말을 건다.',
+    alt: '책상 너머 초록 관복의 관원. 심부름꾼이 그에게 말을 건다.',
   },
   {
     id: 'e2-2', eyeId: 'E2', n: 2, time: '13:20', viewpoint: { dirDeg: 330 }, provenance: R,
     figures: [fig('fig_eo', 'O', 'sit', UPPER), fig('fig_clerk', 'CLK_1320', 'whisper', CLERK), fig('fig_yun', 'W', 'sit', GREEN)],
     heard: [],
     details: [],
-    alt: '병풍 앞 윗자리에 늙은 관원이 앉아 있다. 서리가 초록 관복 쪽으로 몸을 숙인다.',
+    alt: '병풍 앞 윗자리에 늙은 관원이 앉아 있다. 심부름꾼이 초록 관복 쪽으로 몸을 숙인다.',
   },
   {
     id: 'e2-3', eyeId: 'E2', n: 3, time: '14:05', viewpoint: { dirDeg: 0 }, provenance: R,
@@ -328,7 +320,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_hong', 'HONG_EDGE', 'carry_books', NAVY)],
     heard: [{ lineId: 'l_e3_1', clarity: 'clear' }],
     details: [],
-    alt: '서안 모서리에 책을 내려놓는 남색 관복의 관원.',
+    alt: '책상 모서리에 책을 내려놓는 남색 관복의 관원.',
   },
   {
     id: 'e3-2', eyeId: 'E3', n: 2, time: '14:00', viewpoint: { dirDeg: 90 }, provenance: R,
@@ -342,7 +334,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_u', 'U', 'remonstrate', BLUE), fig('fig_a', 'A', 'remonstrate', BLUE)],
     heard: [{ lineId: 'l_remon1', clarity: 'clear' }, { lineId: 'l_remon2', clarity: 'clear' }],
     details: ['d_upper_silent'],
-    alt: '서안 너머 아래 양옆의 두 관원이 문 쪽으로 아뢴다. 말소리는 서안 양 끝에서도 난다.',
+    alt: '책상 너머 아래 양옆의 두 관원이 문 쪽으로 아뢴다. 말소리는 책상 양 끝에서도 난다.',
   },
   {
     id: 'e3-4', eyeId: 'E3', n: 4, time: '14:20', viewpoint: { dirDeg: 90 }, provenance: R,
@@ -356,7 +348,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_clerk', 'CLK_1540', 'stand', CLERK), fig('fig_hong', 'H', 'sit', NAVY)],
     heard: [{ lineId: 'l_e3_5', clarity: 'clear' }],
     details: [],
-    alt: '구석 책상 옆에서 서리가 남색 관복의 관원에게 말한다.',
+    alt: '구석 책상 옆에서 심부름꾼이 남색 관복의 관원에게 말한다.',
   },
   // ── E4 (홍귀달) — 앞쪽 덮개: 남색 소매. 구석 책상 — 첫 전교를 또렷이 못 들은 증인(X1). 아뢰는 모습 없음
   {
@@ -378,7 +370,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_msg', 'M2', 'stand_read', MSG), fig('fig_yi', 'Y', 'sit', RED)],
     heard: [{ lineId: 'l_order3', clarity: 'clear' }],
     details: ['d_desk_far'],
-    alt: '문 앞의 사람이 서안 앞까지 들어와 짧게 읽는다. 서안 위의 손과 종이는 멀다.',
+    alt: '문 앞의 사람이 책상 앞까지 들어와 짧게 읽는다. 책상 위의 손과 종이는 멀다.',
   },
   {
     id: 'e4-4', eyeId: 'E4', n: 4, time: '15:20', viewpoint: { dirDeg: 124 }, provenance: R,
@@ -392,7 +384,7 @@ export const CUTS: CutRef[] = [
     figures: [fig('fig_clerk', 'CLK_1610', 'whisper', CLERK)],
     heard: [{ lineId: 'l_e4_5a', clarity: 'clear' }, { lineId: 'l_e4_5b', clarity: 'clear' }],
     details: [],
-    alt: '가까이 다가온 서리가 귓속말을 한다.',
+    alt: '가까이 다가온 심부름꾼이 귓속말을 한다.',
   },
 ];
 

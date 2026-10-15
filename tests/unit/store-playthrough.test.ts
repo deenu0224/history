@@ -81,7 +81,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(sheet.evidence[0].fromThisPersonCut).toBe(true);
     expect(sheet.evidence.every((e) => e.kind !== 'fact')).toBe(true); // 카드 줄은 근거가 아니다
     expect(sheet.roomLink).toBeNull(); // 방은 아직
-    expect(sheet.searchSeed).toEqual(['이조 판서']);
+    expect(sheet.searchSeed).toEqual([]); // 찾기 낱말은 퍼즐 찾기어만(이조 판서는 풀이만)
     const t1 = h.st().tag('fig_yi', 'yi_geukdon', 'l_e1_2a');
     expect(t1.judgement).toEqual({ status: 'judged', verdict: 'ok' });
     expect(t1.openedEyes).toEqual(['E2']);
@@ -172,7 +172,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('1년 전에 너도 거기서 멈췄어.');
-    expect(texts(h.store)).toContain('멀어서 첫 전교를 못 들은 거였네.');
+    expect(texts(h.store)).toContain('멀어서 임금의 첫 명령을 못 들은 거였네.');
     expect(h.st().search('#C-2217').results).toEqual([{ kind: 'log', id: 'doc_old_report' }]);
 
     // 기록 다시 쓰기

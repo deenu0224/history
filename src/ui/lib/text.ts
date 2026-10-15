@@ -170,3 +170,10 @@ export function hanjaSegs(text: string): { text: string; hj?: true }[] {
   if (pos < text.length) out.push({ text: text.slice(pos) });
   return out;
 }
+
+/** 풀이 낱말 조각: 풀이 사전의 말(2자 이상)을 긴 것 우선·겹치지 않게 찾고, 조각에 그 풀이 글을 붙인다 */
+export function glossSegments(text: string, glossary: readonly Gloss[]): { text: string; gloss?: string; term?: string }[] {
+  return split(text, glossary.map((x) => x.term), 2, 'gloss').map((sg) =>
+    sg.gloss ? { text: sg.text, term: sg.gloss, gloss: glossary.find((x) => x.term === sg.gloss)?.gloss ?? '' } : { text: sg.text },
+  );
+}

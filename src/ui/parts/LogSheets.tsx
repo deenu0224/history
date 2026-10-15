@@ -4,6 +4,7 @@ import { useView } from '@/store/hooks';
 import { resultView, selectLog } from '@/store/selectors';
 import { cutNo } from '../lib/format';
 import { EyeIcon } from './icons';
+import { GlossText } from './GlossText';
 import { Sheet } from './Sheet';
 import { useUi } from '../uiStore';
 
@@ -43,7 +44,7 @@ export function LogSheet() {
           <div className="seclabel t-m">들은 말 · 본 것</div>
           {log.evidence.map((e) => (
             <div key={e.id} className="t-b keep read" style={{ margin: '0 0 8px', lineHeight: '25px' }}>
-              {e.text}
+              <GlossText text={e.text} />
             </div>
           ))}
         </>

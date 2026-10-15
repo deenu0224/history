@@ -236,7 +236,7 @@ export interface CardView {
   hanja: string;
   lifespan?: string;
   /** linkedBy: 이 줄에 먹선을 그은 근거(성공한 태그) · links: 줄 안의 낱말 링크(탭 → followFactLink) */
-  facts: { id: Id; text: string; source: SourceRef; linkedBy?: Id; links: (FactLink & { found: boolean })[] }[];
+  facts: { id: Id; text: string; plain?: string; source: SourceRef; linkedBy?: Id; links: (FactLink & { found: boolean })[] }[];
   altered: AlteredView[];
   eyeLine: string;
   eyeExtra: { text: string; source: SourceRef }[];
@@ -267,6 +267,7 @@ export function selectCard(ep: Episode, s: PersistedState, cardId: Id): CardView
     facts: visibleFacts(c, world(s)).map((f) => ({
       id: f.id,
       text: f.text,
+      ...(f.plain ? { plain: f.plain } : {}),
       source: f.source,
       ...(s.factLinks[f.id] ? { linkedBy: s.factLinks[f.id] } : {}),
       links: (f.links ?? []).map((l) => ({ ...l, found: s.cardsFound.includes(l.cardId) })),

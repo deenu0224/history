@@ -85,6 +85,8 @@ export interface Fact {
   afterRestore?: true;
   /** 줄 안의 낱말 링크: 탭하면 그 인물 카드를 얻는다(「인물 카드 +1」). 찾기가 아니다 */
   links?: FactLink[];
+  /** 빽빽한 인용 위에 붙이는 쉬운 한 줄(우리가 쓴 풀어 말하기 — 인용이 아니다) */
+  plain?: string;
 }
 
 /** 카드 줄 안의 낱말 → 인물 카드(탭하면 cardsFound 에 더해진다) */
@@ -564,6 +566,8 @@ export interface Episode {
   next?: Id;
   /** 이 에피소드에서 쓰는 동사(UI 가 감출 것을 정한다). 넘기기·이름 붙이기는 언제나 */
   verbs: { search: boolean; room: boolean; rewrite: boolean };
+  /** 국역 인용 속 어려운 말의 풀이(탭하면 보임). 인용 글자는 바꾸지 않는다. 대사·카드·기록·복원 전문에 같이 쓴다 */
+  glossary?: Gloss[];
   room: RoomPlan;
   cards: PersonCard[];
   figures: Figure[];

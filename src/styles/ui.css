@@ -797,13 +797,42 @@
     transform: none;
   }
 }
+/* 찾기 낱말(데이터가 정한 퍼즐 찾기어만): 실선 밑줄 + 옅은 바탕 — 탭하면 풀이와 「찾기」 */
 .term {
-  border-bottom: 2px solid var(--seal);
+  border-bottom: 2.5px solid var(--seal);
+  background: rgba(166, 60, 50, 0.12);
+  border-radius: 3px 3px 0 0;
+  padding: 0 2px;
   cursor: pointer;
 }
+/* 풀이 낱말: 점선 밑줄만 — 탭하면 짧은 풀이(찾기는 없다) */
 .gloss {
-  border-bottom: 1.5px dashed #6b5e45;
+  font: inherit;
+  color: inherit;
+  display: inline;
+  padding: 0;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
   cursor: pointer;
+}
+.gw {
+  display: inline;
+}
+.gtip {
+  display: inline;
+  margin: 0 4px;
+  padding: 1px 7px;
+  border-radius: 7px;
+  font-family: var(--f-ui);
+  font-size: 0.78em;
+  font-weight: 500;
+  line-height: 1.5;
+  background: rgba(92, 154, 149, 0.2);
+  color: inherit;
+  white-space: normal;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 .vbottom {
   flex: none;
@@ -883,6 +912,10 @@
   box-shadow: none;
   color: var(--alert);
   font-weight: 600;
+}
+/* 인물 카드 위: 카드 아래 빈 바닥에 */
+.app:has([data-screen='card']) .toast {
+  bottom: 28px;
 }
 .app:has([data-screen='viewer']):not(:has([data-screen='card'])) .toast {
   top: 54px;
@@ -2036,6 +2069,17 @@
 .flink.found::after {
   content: '';
 }
+/* 카드 줄: 빽빽한 인용 위의 쉬운 한 줄(우리가 쓴 말), 아래 인용은 조금 옅게 */
+.fact .fplain {
+  display: block;
+  font-family: var(--f-ui);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.fact .fquote {
+  color: #3c4652;
+  font-size: 0.92em;
+}
 /* 카드 줄: 괄호 속 한자는 작고 옅게, 긴 줄은 두 줄로 접는다 */
 .fact .hj,
 .inkline .hj {
@@ -2128,25 +2172,6 @@
   font-weight: 600;
 }
 
-/* 현실 재기록: 다시 쓰인 말풍선이 복원 뒤 처음 화면에 들어올 때 한 번, 아주 짧게 먹이 번진다(표시는 남지 않는다) */
-.inkbleed {
-  display: inline;
-  animation: inkbleed 0.7s ease-out 1;
-}
-@keyframes inkbleed {
-  0% { filter: blur(1.6px); opacity: 0.25; }
-  35% { filter: blur(0.6px); opacity: 0.85; }
-  55% { filter: blur(0.9px); opacity: 0.55; }
-  100% { filter: none; opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .inkbleed { animation: none; }
-}
-/* 복원 단계: 내가 보낸 말도 다시 쓰인다 */
-.ba.mine {
-  margin-left: 36px;
-  border-color: var(--ink3);
-}
 
 /* 홈 카드 「그날 실록」: 손상된 문장 그대로. 빈 칸은 청록(지워짐), 복원되면 먹으로 채워진다 */
 .home-record {
