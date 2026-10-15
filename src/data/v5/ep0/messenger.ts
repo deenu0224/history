@@ -80,7 +80,7 @@ export const BURSTS0: Burst[] = [
   { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('높은 자리 사람은 자기를 뭐라고 불렀지?')] },
   { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.'), han('그 사람들은 꾸중 듣던 쪽이잖아.')] },
   { id: 'ev.card_link', steps: [han('카드 하나 더 붙었네.'), han('줄 안 이름도 눌러 볼 수 있어.')] },
-  { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 그 빈 칸, 채울 수 있겠다.')] },
+  { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 다시 써 봐.')] },
   {
     id: 'ev.write_open',
     steps: [

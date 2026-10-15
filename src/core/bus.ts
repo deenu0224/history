@@ -20,6 +20,8 @@ export type FeedbackKind =
   | 'swipe'
   | 'tag_ok'
   | 'tag_no'
+  /** 꼭 붙여야 할 이름을 모두 붙였다(「모두 밝혀졌다」) */
+  | 'tags_done'
   | 'eye_open'
   | 'eye_close'
   | 'merge'

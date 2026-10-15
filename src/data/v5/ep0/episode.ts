@@ -70,7 +70,9 @@ export const EP0: Episode = {
   ],
   askText: '어디부터 볼까요?',
   askFallback: '지금은 막힌 데 없어 보이는데.',
-  restoreSteps: ['article', 'home', 'neighbour', 'monologue', 'bridge'],
+  // 복원은 다시 쓰기 화면에서 → 홈 카드(복원됨 + 이웃 기록 한 줄) → 독백 → 다리(23:04)
+  restoreSteps: ['home', 'monologue', 'bridge'],
+  requiredTags: ['T0a', 'T0b'],
   ledger: LEDGER0,
   ledgerNames: LEDGER_NAMES0,
   roomPersons: ROOM_PERSONS0,

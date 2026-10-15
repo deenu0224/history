@@ -609,7 +609,7 @@ export interface Episode {
   askFallback: string;
   /** 플레이어가 묻는 말(07, 존댓말) */
   askText: string;
-  /** 복원 단계(UI 가 차례로 보여 준다) */
+  /** 복원 단계(UI 가 차례로 보여 준다). 복원의 순간(구멍이 채워지고 출처가 붙음)은 기록 다시 쓰기 화면 안에서 — 단계가 아니다 */
   restoreSteps: readonly string[];
   /** 검증기 전용 원장 */
   ledger: Record<Id, LedgerEntry[]>;
@@ -621,6 +621,8 @@ export interface Episode {
   surnameKeys: Record<string, FactKey>;
   /** 다시 쓰기에 꼭 돌아와야 하는 문장 */
   requiredSentences: Id[];
+  /** 꼭 붙여야 할 이름 붙이기(진행 「이름 붙이기 n/m」의 m — 목표 수일 뿐 답이 아니다). 없으면 tags 전부 */
+  requiredTags?: Id[];
   /** 복원 뒤 이야기 */
   epilogue: {
     monologue: string[];

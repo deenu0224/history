@@ -17,6 +17,7 @@ export const FEEDBACK: Record<FeedbackKind, FeedbackSpec> = {
   swipe: { sfx: 'page', anim: 'cut-snap' },
   tag_ok: { sfx: 'success', anim: 'ink-line-name', haptic: [18] },
   tag_no: { sfx: 'fail', anim: 'sheet-line' },
+  tags_done: { sfx: 'stamp_correct', anim: 'all-named', haptic: [12, 50, 24] },
   eye_open: { sfx: 'discover', anim: 'eyelid-open', haptic: [20, 40, 20] },
   eye_close: { sfx: 'none', anim: 'eye-cold-line' },
   merge: { sfx: 'select', anim: 'circles-merge', haptic: [10] },

@@ -39,7 +39,9 @@ export const EP1: Episode = {
   searchEvents: [{ personId: 'kim_ilson', event: 'ev.search_kim' }],
   askText: '어디부터 볼까요?',
   askFallback: '지금은 막힌 데 없어 보이는데.',
-  restoreSteps: ['article', 'home', 'cards', 'room', 'log', 'monologue', 'teaser'],
+  // 복원은 다시 쓰기 화면에서 → 홈 카드 → 바뀐 것(인물 카드 줄 + 방의 「?」 짝 이름 + 그대로 남은 로그 한 줄) → 독백 → 예고
+  restoreSteps: ['home', 'cards', 'monologue', 'teaser'],
+  requiredTags: ['T1', 'T2', 'T3', 'T4'],
   room: ROOM,
   cards: CARDS,
   figures: FIGURES,

@@ -240,6 +240,8 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
     }
     return out;
   })();
+  // 진행 「이름 붙이기 n/m」의 m: 꼭 붙여야 할 이름은 실제 규칙이어야 한다
+  for (const id of ep.requiredTags ?? []) if (!ep.tags.some((t) => t.id === id)) bad('①', `requiredTags: ${id} 규칙 없음`);
   for (const r of ep.tags) {
     const card = I.card.get(r.personId);
     const fig = I.figure.get(r.figureId);

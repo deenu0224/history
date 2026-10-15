@@ -12,7 +12,7 @@ import { availablePieces, pieceLabel, renderLine, sentenceOf, sentenceSlots, slo
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
 import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
-import { canAskHint, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary } from './engine';
+import { canAskHint, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary, tagsDone } from './engine';
 import type { PersistedState, SearchLogEntry } from './state';
 
 const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
@@ -45,6 +45,17 @@ export function selectEyes(ep: Episode, s: PersistedState): EyeView[] {
     });
 }
 
+// ── 진행: 이름 붙이기 n/m ────────────────────────────────────────
+/**
+ * 꼭 붙여야 할 이름(Episode.requiredTags, 없으면 규칙 전부) 중 붙인 수. m 은 목표 수일 뿐 — 누구인지는 내보내지 않는다.
+ * complete: 마지막 이름을 붙였다(「모두 밝혀졌다」). rewriteReady: 다음 할 일이 기록 다시 쓰기다.
+ */
+export function selectTagProgress(ep: Episode, s: PersistedState) {
+  const req = ep.requiredTags ?? ep.tags.map((t) => t.id);
+  const done = tagsDone(ep, s).filter((id) => req.includes(id)).length;
+  return { done, total: req.length, complete: req.length > 0 && done >= req.length };
+}
+
 // ── 홈 ───────────────────────────────────────────────────────────
 export type HomeButton = 'memories' | 'rewrite' | 'restored';
 
@@ -65,6 +76,10 @@ export function selectHome(ep: Episode, s: PersistedState) {
     episode: { id: ep.id, title: ep.title, verbs: ep.verbs },
     /** 끝났으면 다음 에피소드(다리 연출 뒤 startEpisode(next)) */
     nextEpisode: s.epilogueDone && ep.next ? ep.next : null,
+    /** 「이름 붙이기 n/m」 */
+    tags: selectTagProgress(ep, s),
+    /** 다음 할 일 = 기록 다시 쓰기(주요 버튼이 그쪽으로 바뀐다) */
+    rewriteReady: rewriteAvailable(ep, s) && !s.restored,
   };
 }
 
@@ -184,6 +199,10 @@ export function selectViewer(ep: Episode, s: PersistedState) {
     dots: eye.cuts.map((id) => ({ cutId: id, viewed: s.viewedCuts.includes(id), current: id === cutId })),
     eyes: selectEyes(ep, s),
     canOpenRoom: roomUnlocked(ep, s),
+    /** 「이름 붙이기 n/m」 */
+    tags: selectTagProgress(ep, s),
+    /** 다음 할 일 = 기록 다시 쓰기(아래 주요 버튼이 「기록 다시 쓰기 ›」 로) */
+    rewriteReady: rewriteAvailable(ep, s) && !s.restored,
   };
 }
 
