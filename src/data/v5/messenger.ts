@@ -52,8 +52,8 @@ export const BURSTS: Burst[] = [
         id: 'c_e2',
         allowNoReply: true,
         options: [
-          { id: 'go', text: '다음 사람이 본 것 볼게요.', then: [] },
-          { id: 'whose', text: '처음 거, 누가 본 거예요?', then: [han('그건 나도 몰라.'), han('그 기록 이름 칸이 깎여 있었어.')] },
+          { id: 'go', text: '두 번째 관측 볼게요.', then: [] },
+          { id: 'whose', text: '첫 번째 관측은 누가 본 거예요?', then: [han('그건 나도 몰라.'), han('그 기록 이름 칸이 깎여 있었어.')] },
         ],
       },
     ],
@@ -82,7 +82,7 @@ export const BURSTS: Burst[] = [
   {
     id: 'ev.owner_named',
     steps: [
-      han('누가 본 건지 찾았네.'),
+      han('첫 번째 관측, 누가 본 건지 찾았네.'),
       han('자기 자리에서 남이 본 거로.'),
       {
         kind: 'choice',
@@ -101,7 +101,7 @@ export const BURSTS: Burst[] = [
     id: 'ev.x1',
     steps: [
       han('잠깐.'),
-      han('처음 본 사람 말이랑 다르네.'),
+      han('첫 번째 관측이랑 말이 다르네.'),
       han('「모두」랑 「여섯 조목만」.', heavy),
       {
         kind: 'choice',

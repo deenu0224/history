@@ -52,13 +52,13 @@ describe('store — Ep1 correct path end to end', () => {
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);
     expect(selectHome(EP1, h.st()).card).toMatchObject({ code: '#C-2217', date: '####', place: '미확인', status: '빈자리' });
     expect(selectEyes(EP1, h.st()).map((e) => e.state)).toEqual(['open', 'unopened', 'unopened', 'unopened', 'never']);
-    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: true, label: '누군가 본 것' });
+    expect(selectEyes(EP1, h.st())[0]).toMatchObject({ ownerUnknown: true, label: '첫 번째 관측' });
     // 첫 기억 다섯 컷
     expect(h.st().openEye('E1')).toMatchObject({ status: 'viewed', cutId: 'e1-1', index: 0 });
     viewAll(h, 'E1');
     expect(h.st().swipes).toBe(4);
     const v = selectViewer(EP1, h.st())!;
-    expect(v.eyeLabel).toBe('누군가 본 것');
+    expect(v.eyeLabel).toBe('첫 번째 관측');
     expect(v.cut!.time).toBe('15:00');
     const c14 = selectCut(EP1, h.st(), 'e1-4')!;
     expect(c14.bubbles[0]).toMatchObject({ text: '김일손(金馹孫)의 사초(史草)를 모두 대내(大內)로 들여오라.', garbled: false });
