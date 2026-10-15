@@ -575,7 +575,7 @@ export function Viewer() {
         primary={
           primary === 'rewrite' ? (
             <button className="btn primary navprimary breath" onClick={toRewrite} data-testid="btn-to-rewrite">
-              기록 다시 쓰기 ›
+              역사 고정 ›
             </button>
           ) : primary === 'room' ? (
             <button className="btn primary navprimary" onClick={openRoom} data-testid="btn-room">

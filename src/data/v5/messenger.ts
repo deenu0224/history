@@ -51,7 +51,7 @@ export const BURSTS: Burst[] = [
   { id: 'ev.linger_cut.E1', spontaneous: true, steps: [han('남의 눈으로 보는 거 처음엔 좀 어지럽지.')] },
   { id: 'ev.tag_wrong', spontaneous: true, steps: [han('아닌가 보네.'), han('근거를 바꿔 봐.')] },
   { id: 'ev.tag_unmerged', steps: [han('그 말이 누구 얘기였는지부터 봐.'), han('방에서 같은 시각을 봐.')] },
-  { id: 'ev.write_miss', steps: [han('안 돌아왔네.'), han('칸 하나가 어긋난 거야.')] },
+  { id: 'ev.write_miss', steps: [han('고정이 안 됐네.'), han('칸 하나가 어긋난 거야.')] },
   { id: 'ev.tag_anon', steps: [han('그 사람 카드는 없을걸.'), han('모든 사람이 기록에 남진 않아.')] },
   {
     id: 'ev.eye_open.E2',
@@ -173,7 +173,7 @@ export const BURSTS: Burst[] = [
   {
     id: 'ev.write_open',
     steps: [
-      han('이제 써 봐.'),
+      han('이제 고정해 봐.'),
       han('본 것만.'),
       {
         kind: 'choice',
@@ -188,7 +188,7 @@ export const BURSTS: Burst[] = [
   },
   { id: 'ev.x2', steps: [han('종이 수가 또 다르네.'), han('셀 수 있었던 눈이 누군지 봐.')] },
   { id: 'ev.witness_line', steps: [han('그 줄은 남아.'), han('근데 기록은 안 돼.'), han('본 사람이 있어도, 적힌 데가 없으면.', heavy)] },
-  { id: 'ev.write_partial', steps: [han('몇 줄은 돌아왔네.'), han('안 돌아온 줄은 칸 하나가 어긋난 거야.')] },
+  { id: 'ev.write_partial', steps: [han('몇 문장은 고정됐네.'), han('고정 안 된 문장은 칸 하나가 어긋난 거야.')] },
   {
     id: 'ev.restore',
     postRestore: true,
@@ -333,7 +333,7 @@ export const LADDERS: HintLadder[] = [
     silenceS: 20,
     activeWhen: { rewriteAvailable: true, rewriteOpen: false, restored: false },
     doneWhen: { rewriteOpen: true },
-    steps: [{ id: 'h_write_open_1', text: '이제 써 볼 수 있겠다. 홈에.', afterS: 15 }],
+    steps: [{ id: 'h_write_open_1', text: '이제 고정할 수 있겠다. 홈에.', afterS: 15 }],
   },
   {
     id: 'h_write',
@@ -342,7 +342,7 @@ export const LADDERS: HintLadder[] = [
     doneWhen: { allRestored: true },
     steps: [
       { id: 'h_write_1', text: '본 것만 써. 실록도 본 걸 적은 거니까.', afterS: 120, fails: 2 },
-      { id: 'h_write_2', text: '안 돌아온 줄은 칸 하나가 어긋난 거야.', afterS: 60, fails: 3 },
+      { id: 'h_write_2', text: '고정 안 된 문장은 칸 하나가 어긋난 거야.', afterS: 60, fails: 3 },
       { id: 'h_write_3', text: "줄마다 '누가'랑 '몇'부터 다시 봐.", afterS: 60, fails: 4 },
     ],
   },

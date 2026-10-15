@@ -66,10 +66,10 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
           실록이 적지 않은 일
         </div>
       ) : null}
-      {l.result === 'not_recorded' ? <div className="res">이 줄은 기록이 되지 않았다</div> : null}
+      {l.result === 'not_recorded' ? <div className="res">고정되지 않았다</div> : null}
       {l.result === 'incomplete' ? <div className="res">빈 칸이 있다</div> : null}
       {!restored ? (
-        <button className="x" aria-label="이 줄 빼기" onClick={onRemove}>
+        <button className="x" aria-label="이 문장 빼기" onClick={onRemove}>
           <IClose />
         </button>
       ) : null}
@@ -80,7 +80,7 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
 function PiecePicker({ onClose }: { onClose: () => void }) {
   const rw = useView(selectRewrite);
   return (
-    <Sheet title="줄 더하기" onClose={onClose} testId="piece-sheet" maxH="72%">
+    <Sheet title="고정할 문장 더하기" onClose={onClose} testId="piece-sheet" maxH="72%">
       {rw.pieces.length === 0 ? <div className="placeholder t-m">더할 수 있는 조각이 없다</div> : null}
       {rw.pieces.map((p) => (
         <button
@@ -181,14 +181,14 @@ export function Rewrite() {
         </div>
         {rw.complete ? (
           <span className="t-m amber" data-testid="rewrite-restored">
-            복원됨
+            고정됨
           </span>
         ) : null}
       </div>
       <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}`} data-testid="paper">
         {rw.lines.length === 0 ? (
           <p className="read keep" style={{ margin: '28px 4px', fontSize: 17, lineHeight: '30px', color: '#6b5e45' }}>
-            {rw.pieces.length ? '본 것으로만 쓴다. 줄을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 쓴다.'}
+            {rw.pieces.length ? '본 것으로만 고정한다. 고정할 문장을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 고정한다.'}
           </p>
         ) : null}
         {rw.lines.map((l) => (
@@ -198,7 +198,7 @@ export function Rewrite() {
       {!rw.complete && rw.pieces.length ? (
         <div className="foot slim">
           <button className="btn secondary" onClick={() => setPicker(true)} data-testid="btn-add-line">
-            줄 더하기
+            고정할 문장 더하기
           </button>
         </div>
       ) : null}
@@ -211,7 +211,7 @@ export function Rewrite() {
             </button>
           ) : (
             <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0} className="btn primary navprimary">
-              ● 기록을 남긴다 <small className="hint">{holdMode === 'hold' ? '(길게)' : '(두 번)'}</small>
+              {holdMode === 'hold' ? '길게 눌러 역사 고정' : '두 번 눌러 역사 고정'}
             </HoldButton>
           )
         }

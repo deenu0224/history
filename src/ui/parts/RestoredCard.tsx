@@ -72,7 +72,7 @@ function KeyLine() {
   if (!first) return null;
   return (
     <div className="home-record" data-testid="restored-keyline">
-      <div className="t-m hr-title">돌아온 줄</div>
+      <div className="t-m hr-title">고정된 문장</div>
       <p className="read keep hr-text clamp2">
         「
         {first.render.parts.map((p, i) =>
@@ -88,7 +88,7 @@ function KeyLine() {
         )}
         」
       </p>
-      {lines.length > 1 ? <div className="t-m hr-src">다시 쓴 줄 {lines.length}줄이 모두 실록으로 돌아왔다</div> : null}
+      {lines.length > 1 ? <div className="t-m hr-src">고정한 문장 {lines.length}개가 모두 실록으로 돌아왔다</div> : null}
     </div>
   );
 }

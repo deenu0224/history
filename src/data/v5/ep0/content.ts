@@ -449,7 +449,7 @@ export const HOME0: HomeCard = {
   place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '그날 실록에는 장소가 없다' },
   task: '이 날의 기록이 구멍투성이다. 그 자리에 있던 사람의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2209 · 일시 #### · 문장 손상 2건',
-  status: { before: '부분 손상', after: '복원됨' },
+  status: { before: '부분 손상', after: '고정됨' },
 };
 
 export const EPILOGUE0 = {

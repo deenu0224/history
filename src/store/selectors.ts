@@ -78,7 +78,7 @@ export function selectHome(ep: Episode, s: PersistedState) {
     nextEpisode: s.epilogueDone && ep.next ? ep.next : null,
     /** 「이름 붙이기 n/m」 */
     tags: selectTagProgress(ep, s),
-    /** 다음 할 일 = 기록 다시 쓰기(주요 버튼이 그쪽으로 바뀐다) */
+    /** 다음 할 일 = 역사 고정(주요 버튼이 그쪽으로 바뀐다) */
     rewriteReady: rewriteAvailable(ep, s) && !s.restored,
   };
 }
@@ -201,7 +201,7 @@ export function selectViewer(ep: Episode, s: PersistedState) {
     canOpenRoom: roomUnlocked(ep, s),
     /** 「이름 붙이기 n/m」 */
     tags: selectTagProgress(ep, s),
-    /** 다음 할 일 = 기록 다시 쓰기(아래 주요 버튼이 「기록 다시 쓰기 ›」 로) */
+    /** 다음 할 일 = 역사 고정(아래 주요 버튼이 「역사 고정 ›」 로) */
     rewriteReady: rewriteAvailable(ep, s) && !s.restored,
   };
 }
@@ -554,7 +554,7 @@ export interface RewriteLineView {
 const RESULT_TEXT: Record<LineResult, string> = {
   restored: '',
   witness: '실록이 적지 않은 일 — 내가 본 것에만 남는다',
-  not_recorded: '이 줄은 기록이 되지 않았다',
+  not_recorded: '고정되지 않았다',
   incomplete: '빈 칸이 있다',
 };
 

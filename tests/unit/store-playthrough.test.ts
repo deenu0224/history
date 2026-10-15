@@ -218,7 +218,7 @@ describe('store — Ep1 correct path end to end', () => {
     // 현실 재기록
     expect(h.st().restore()).toBe('restored');
     const home = selectHome(EP1, h.st());
-    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '실록청(춘추관 안)', status: '복원됨', placeNote: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다' });
+    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '실록청(춘추관 안)', status: '고정됨', placeNote: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다' });
     expect(home.buttons).toEqual(['memories', 'restored']);
     const kimR = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kimR.altered[0]).toMatchObject({ state: 'restored', provenance: 'verified' });
@@ -363,7 +363,7 @@ describe('store — mistakes are free and informative', () => {
     const G = (h.st().placePiece('w_corner') as { lineId: string }).lineId;
     const sub = h.st().submitRewrite();
     expect('results' in sub && sub.results).toEqual({ [L2]: 'not_recorded', [G]: 'witness' });
-    expect(selectRewrite(EP1, h.st()).lines.find((l) => l.id === L2)!.resultText).toBe('이 줄은 기록이 되지 않았다');
+    expect(selectRewrite(EP1, h.st()).lines.find((l) => l.id === L2)!.resultText).toBe('고정되지 않았다');
     expect(h.st().messenger.fired).toContain('ev.witness_line');
     expect(h.st().restore()).toBe('not_ready');
     // 한 줄만 고쳐 다시 — 공짜

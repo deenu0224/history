@@ -80,24 +80,25 @@ export const BURSTS0: Burst[] = [
   { id: 'ev0.decoy.choi', steps: [han('그 사람은 두루마리 읽던 쪽이잖아.'), han('높은 자리 사람은 자기를 뭐라고 불렀지?')] },
   { id: 'ev0.decoy.king', steps: [han('그 카드엔 높은 자리 얘기가 없네.'), han('그 사람들은 꾸중 듣던 쪽이잖아.')] },
   { id: 'ev.card_link', steps: [han('카드 하나 더 붙었네.'), han('줄 안 이름도 눌러 볼 수 있어.')] },
-  { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 다시 써 봐.')] },
+  { id: 'ev0.king_named', steps: [han('붙었다.'), han('이제 고정해 봐.')] },
   {
     id: 'ev.write_open',
     steps: [
-      han('본 것만 써.'),
-      han('맞는 줄은 실록 문장으로 돌아와.'),
+      han('본 것만으로 고정해.'),
+      han('고정하면 세상이 그 기록대로 굳어.'),
+      han('실록과 맞는 문장만 고정돼.'),
       {
         kind: 'choice',
         id: 'c0_write',
         allowNoReply: true,
         options: [
-          { id: 'then', text: '돌아오면요?', then: [han('그 문장이 다시 기록이 돼.'), han('기록이 돌아오면 사람들 기억도 돌아와.')] },
+          { id: 'then', text: '고정되면요?', then: [han('그 문장이 다시 기록이 돼.'), han('기록이 돌아오면 사람들 기억도 돌아와.')] },
           { id: 'ok', text: '네.', then: [] },
         ],
       },
     ],
   },
-  { id: 'ev.write_miss', steps: [han('안 돌아왔네.'), han('칸에 넣은 이름만 다시 봐.')] },
+  { id: 'ev.write_miss', steps: [han('고정이 안 됐네.'), han('칸에 넣은 이름만 다시 봐.')] },
   {
     id: 'ev.restore',
     postRestore: true,
@@ -171,7 +172,7 @@ export const LADDERS0: HintLadder[] = [
     silenceS: 15,
     activeWhen: { rewriteAvailable: true, rewriteOpen: false, restored: false },
     doneWhen: { rewriteOpen: true },
-    steps: [{ id: 'h0_write_open_1', text: '이제 그 칸 채울 수 있겠다. 홈에.', afterS: 10 }],
+    steps: [{ id: 'h0_write_open_1', text: '이제 고정할 수 있겠다. 홈에.', afterS: 10 }],
   },
   {
     id: 'h0_write',

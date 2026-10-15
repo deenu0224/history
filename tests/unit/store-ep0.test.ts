@@ -162,7 +162,7 @@ describe('store — Ep0 correct path', () => {
     // 복원: 홈 카드, 이웃 기록(是月), 동료의 말
     expect(selectRecord(EP0, h.st(), 'rec0_eonmun28')!.provenance).toBe('fictional');
     expect(h.st().restore()).toBe('restored');
-    expect(selectHome(EP0, h.st()).card).toMatchObject({ date: '세종 26년 2월 20일', status: '복원됨' });
+    expect(selectHome(EP0, h.st()).card).toMatchObject({ date: '세종 26년 2월 20일', status: '고정됨' });
     const r = selectRestoration(EP0, h.st())!;
     expect(r.steps).toEqual(['home', 'monologue', 'bridge']);
     expect(r.article.parts.filter((p) => p.by === 'me').map((p) => p.sentenceId)).toEqual(['R0']);

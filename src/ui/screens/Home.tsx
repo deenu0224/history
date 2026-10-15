@@ -41,7 +41,7 @@ export function enterMemory(eyeId: string) {
 export function Home() {
   const home = useView(selectHome);
   const { push } = useUi.getState();
-  const restored = home.card.status === '복원됨';
+  const restored = home.buttons.includes('restored');
   const unseen = home.unread > 0;
 
   const memories = () => {
@@ -127,7 +127,7 @@ export function Home() {
       <div className="home-body">
         {home.rewriteReady ? (
           <button className="btn primary breath" data-testid="btn-rewrite" onClick={() => push('rewrite')}>
-            기록 다시 쓰기 ›
+            역사 고정 ›
           </button>
         ) : null}
         {home.buttons.includes('memories') && !home.nextEpisode ? (
@@ -144,7 +144,7 @@ export function Home() {
         ) : null}
         {home.buttons.includes('restored') && !home.nextEpisode ? (
           <button className="btn secondary" data-testid="btn-restored" onClick={() => push('restore')}>
-            복원된 기록
+            고정된 기록
           </button>
         ) : null}
         {home.nextEpisode ? (

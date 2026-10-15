@@ -1,7 +1,7 @@
 /**
  * 복원 뒤 — 세 박자. 복원의 순간(빈칸이 채워지고 출처가 붙음)은 기록 다시 쓰기 화면 안에서 이미 지나갔다.
  *  ① 홈 카드가 뒤집혀 「복원됨」(일시·장소, 돌아온 줄 짧게, 이웃 기록 한 줄, 전문은 「전문 펼치기」)
- *  (Ep1 만) 바뀐 것 — 인물 카드에서 다시 쓰인 줄 · 그날의 방 「?」의 짝 이름 · 그대로 남은 로그 한 줄
+ *  (Ep1 만) 바뀐 것 — 인물 카드에서 바뀐 줄 · 그날의 방 「?」의 짝 이름 · 그대로 남은 로그 한 줄
  *  ② 짧은 독백 → ③ 다리(Ep0: 대화창 23:04) / 예고(Ep1). UI_STYLE_GUIDE §2.10
  */
 import { useEffect, useRef, useState } from 'react';
@@ -91,7 +91,7 @@ export function Restore() {
         {step === 'cards' ? (
           <div data-testid="restore-cards">
             <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              인물 카드에서 다시 쓰인 줄
+              인물 카드에서 바뀐 줄
             </div>
             {r.cards.flatMap((c) =>
               c.changes.map((ch, i) => (

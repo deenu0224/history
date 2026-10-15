@@ -152,7 +152,7 @@ export const DOCS: LogDocument[] = [
     officer: '대조관 07',
     fields: [
       { label: '관측 가능', value: '2' },
-      { label: '기록 다시 쓰기', value: '미완(근거끼리 모순)' },
+      { label: '역사 고정', value: '미완(근거끼리 모순)' },
       { label: '첨부 컷', value: '보존 기간 만료로 폐기' },
     ],
     note: '「모두」인가, 「여섯 조목」인가. 들은 자리가 다르다. 다음 관측 때 방을 다시 그려 볼 것.',
@@ -187,7 +187,7 @@ export const HOME: HomeCard = {
   },
   task: '이 날의 기록이 비어 있다. 그날 그 자리에 있던 사람들의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건',
-  status: { before: '빈자리', after: '복원됨' },
+  status: { before: '빈자리', after: '고정됨' },
 };
 
 export const EPILOGUE = {

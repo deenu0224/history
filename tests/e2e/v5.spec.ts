@@ -320,7 +320,7 @@ test.describe('v5 전체 플레이', () => {
     // 마지막 이름: 「모두 밝혀졌다」 + 아래 가운데 칸이 「기록 다시 쓰기 ›」 로
     await expect(tid(page, 'toast')).toHaveText('모두 밝혀졌다', { timeout: 6000 });
     await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 2/2');
-    await expect(tid(page, 'btn-to-rewrite')).toHaveText('기록 다시 쓰기 ›');
+    await expect(tid(page, 'btn-to-rewrite')).toHaveText('역사 고정 ›');
     await expect(tid(page, 'btn-log')).toBeVisible(); // 지금까지 본 것은 작은 아이콘으로
     await shot0(page, 'tags-all-done');
 
