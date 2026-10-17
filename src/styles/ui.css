@@ -766,14 +766,13 @@
 .bubble .txt {
   font-size: var(--fs-b);
   line-height: 26px;
-  /* 낱말 버튼의 위아래 탭 여백이 잘리지 않게(줄 배치는 그대로) */
-  padding-block: 9px;
-  margin-block: -9px;
 }
-/* 말풍선 낱말(찾기·풀이): 줄 높이는 그대로, 탭 영역만 위아래로 넓혀 높이 44px(QA_UX_R3) */
+/* 말풍선 낱말(찾기·풀이): 줄 높이는 그대로, 탭 영역만 위아래로 넓혀 높이 44px(QA_UX_R3).
+   버튼은 inline-block 처럼 놓이므로 패딩만큼 음수 여백을 줘 줄 높이에 보태지 않는다 */
 .bubble .txt .term,
 .bubble .txt .gloss {
   padding-block: 9px;
+  margin-block: -9px;
   background-clip: content-box;
 }
 .bubble .txt .term {
@@ -2198,7 +2197,12 @@
   margin-left: 4px;
   font-weight: 700;
 }
+/* 얻은 뒤: 글 속 낱말로 돌아간다(밑줄만). 탭 영역 44px 는 보이지 않는 덧칸으로 */
 .flink.found {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
   font-weight: 600;
   color: #2d5f7a;
   background: transparent;
@@ -2210,6 +2214,9 @@
 }
 .flink.found::after {
   content: '';
+  position: absolute;
+  inset: -10px -8px;
+  margin: 0;
 }
 /* 카드 줄: 빽빽한 인용 위의 쉬운 한 줄(우리가 쓴 말), 아래 인용은 조금 옅게 */
 .fact .fplain {
