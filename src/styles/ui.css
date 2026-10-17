@@ -793,11 +793,15 @@
 .bubble {
   position: relative;
 }
+/* 접힌 동안 이름 줄이 길면 말줄임(펼치면 다 보인다) */
 .bubble.hasmore .who {
   padding-right: 92px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.bubble.hasmore.open .who {
+  white-space: normal;
 }
 .bubble .bmore {
   position: absolute;
@@ -844,7 +848,7 @@
   font: inherit;
   color: inherit;
   display: inline;
-  padding: 13px 0;
+  padding: 14px 0;
   text-decoration: underline dotted;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -3015,17 +3019,6 @@
   line-height: 28px;
 }
 
-/* 방 시트의 잇기·놓기 안내: 시트 아래 막대 바로 위에 붙어 늘 보인다(QA_UX_R4) */
-.sheet .sbody .fb.stick {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
-  background: linear-gradient(var(--teal-soft), var(--teal-soft)), var(--ink1);
-  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.45);
-}
-.sheet .sbody .fb.stick.ok {
-  background: linear-gradient(var(--amber-soft), var(--amber-soft)), var(--ink1);
-}
 /* 한국어 칩 글은 낱말 중간에서 끊지 않는다(「지난/해」, 「사/관」 — QA_UX_R4) */
 .heardchip .tx,
 .claimchip,
@@ -3043,7 +3036,7 @@
 
 /* 바깥 출처 링크(복원 카드·인물 카드·역사 고정): 글 속 인라인 그대로, 탭 높이 44px 는 위아래 투명 덧칸(QA_UX_R4) */
 a[href][target='_blank'] {
-  padding-block: 13px;
+  padding-block: 14px;
 }
 /* 그날의 방 모순 도면의 거리 글은 읽는 글 — 탭을 받지 않고 밑의 자리로 지나간다(QA_UX_R4) */
 .plan .lbl {

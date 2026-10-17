@@ -38,14 +38,21 @@ function useFloat(key: number | undefined, ref: React.RefObject<HTMLElement | nu
     put();
     // 떠 있는 동안 화면이 바뀌면(시트가 올라옴·방이 열림·화면이 바뀜) 다시 잰다
     const t = setInterval(put, 350);
+    // 바뀐 직후 + 시트가 닫히는 연출(도장 시트 등)이 끝난 뒤에 한 번 더 잰다(QA_UX_R4 — 닫힌 뒤 알림이 말풍선 위에 남았다)
+    const later: ReturnType<typeof setTimeout>[] = [];
+    const soon = () => {
+      requestAnimationFrame(put);
+      later.push(setTimeout(put, 160), setTimeout(put, 420));
+    };
     const unsub = useUi.subscribe((s, p) => {
-      if (s.stack !== p.stack || s.card !== p.card || s.logOpen !== p.logOpen || s.docId !== p.docId) requestAnimationFrame(put);
+      if (s.stack !== p.stack || s.card !== p.card || s.logOpen !== p.logOpen || s.docId !== p.docId) soon();
     });
     const unsubG = useGameStore.subscribe((s, p) => {
-      if (s.ui !== p.ui) requestAnimationFrame(put);
+      if (s.ui !== p.ui) soon();
     });
     return () => {
       clearInterval(t);
+      later.forEach(clearTimeout);
       unsub();
       unsubG();
     };

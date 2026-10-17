@@ -36,7 +36,11 @@ function watchErrors(page: Page) {
     if (m.type() === 'error') errs.push(`console.error: ${m.text()}`);
   });
   page.on('pageerror', (e) => errs.push(`pageerror: ${e.message}`));
-  page.on('requestfailed', (r) => errs.push(`requestfailed: ${r.url()}`));
+  // 화면이 바뀌며 브라우저가 거둔 요청(마지막 컷 이미지 미리 받기 등 — net::ERR_ABORTED)은 실패가 아니다
+  page.on('requestfailed', (r) => {
+    if (/ERR_ABORTED|NS_BINDING_ABORTED/.test(r.failure()?.errorText ?? '') && ['image', 'font', 'media', 'fetch', 'other'].includes(r.resourceType())) return;
+    errs.push(`requestfailed: ${r.url()} ${r.failure()?.errorText ?? ''}`);
+  });
   page.on('response', (r) => {
     if (r.status() >= 400) errs.push(`http ${r.status()}: ${r.url()}`);
   });
@@ -700,7 +704,9 @@ test.describe('v5 전체 플레이', () => {
       const row = (await tid(page, 'tag-cards').boundingBox())!;
       const tiles = await tid(page, 'tag-cards').locator('.pcard').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })));
       const visibleW = tiles.map((t) => Math.max(0, Math.min(t.r, row.x + row.width) - Math.max(t.l, row.x)));
-      expect(visibleW[0]! >= 90 && visibleW[1]! >= 90 && visibleW[2]! >= 90, `앞 세 장이 보인다 ${visibleW}`).toBe(true);
+      // 폭은 화면에 따라 다르다(390: 90 넘게, 360: 86) — 장 폭에 견준다
+      const full = tiles.slice(0, 3).map((t, i) => visibleW[i]! >= t.r - t.l - 2);
+      expect(full.every(Boolean), `앞 세 장이 다 보인다 ${visibleW}`).toBe(true);
     }
     await tid(page, 'card-eo_segyeom').click();
     await tid(page, 'ev-l_e1_3').click();
@@ -809,7 +815,9 @@ test.describe('v5 전체 플레이', () => {
     for (const w of ['또렷', '흐림', '안 들림']) await expect(tid(page, 'conflict-plan')).not.toContainText(w);
     // 근거 2칸: ① 판단 + ② 근거(자리 사실)
     await expect(tid(page, 'contra-slots')).toContainText('근거 2칸');
-    await expect(tid(page, 'cev-X1:E4')).toContainText('홍귀달 자리 — 문 앞에서 약 9칸, 들림 반경 8칸');
+    // ② 근거 줄 = 자리 × 사실(거리 줄 · 사이 줄) — 둘 다 결론 없는 기하 사실(QA_FUN_R4 R4-1)
+    await expect(tid(page, 'cev-X1:E4:dist')).toContainText('홍귀달 자리 — 문 앞에서 약 9칸, 들림 반경 8칸');
+    await expect(tid(page, 'cev-X1:E4:line')).toContainText('홍귀달 자리 — 문 앞 사이에 있는 것: 없음');
     // 자리를 탭하면 그 자리에서 말한 자리까지 선과 거리가 그려진다
     await tid(page, 'seat-E4').click();
     await expect(tid(page, 'seat-line')).toBeVisible();
@@ -837,17 +845,22 @@ test.describe('v5 전체 플레이', () => {
       expect(Math.min(r.width, r.height), '모순 자리 탭 영역').toBeGreaterThanOrEqual(44);
     }
     await expect(tid(page, 'resolve-confirm')).toBeDisabled();
-    await tid(page, 'cev-X1:E4').click();
+    await tid(page, 'cev-X1:E4:dist').click();
     await tid(page, 'resolve-confirm').click();
-    await expect(tid(page, 'retry-text')).toHaveText('다른 말을 한 자리에 그 말이 닿았는지 보자');
+    await expect(tid(page, 'retry-text')).toHaveText('그 자리에서 무엇이 그 말을 막았는지 보자');
     await shot(page, 'room-contradiction-retry');
     // 맞는 판단 + 이긴 말을 받치는 자리(또렷이 들은 윤효손) → 통과하지 않는다: 근거는 진 말을 깨는 자리
     await tid(page, 'claim-c_scope_all').click();
-    await tid(page, 'cev-X1:E1').click();
+    await tid(page, 'cev-X1:E1:dist').click();
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'retry-text')).toBeVisible();
+    // 맞는 판단 + 진 말의 자리라도 막은 사실이 아닌 줄(사이 줄) → 통과하지 않는다
     await tid(page, 'claim-c_scope_all').click();
-    await tid(page, 'cev-X1:E4').click();
+    await tid(page, 'cev-X1:E4:line').click();
+    await tid(page, 'resolve-confirm').click();
+    await expect(tid(page, 'retry-text')).toHaveText('그 자리에서 무엇이 그 말을 막았는지 보자');
+    await tid(page, 'claim-c_scope_all').click();
+    await tid(page, 'cev-X1:E4:dist').click();
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
     await expect(tid(page, 'contra-first-try')).toHaveCount(0); // 두 번 틀렸다
@@ -898,14 +911,15 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'opt-6').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
     await shot(page, 'room-contradiction-x2');
-    await expect(tid(page, 'cev-X2:E1')).toContainText('셀 수 있는 거리 5칸');
+    await expect(tid(page, 'cev-X2:E1:dist')).toContainText('셀 수 있는 거리 5칸');
+    await expect(tid(page, 'cev-X2:E1:line')).toContainText('윤효손 자리 — 봉하는 자리를 보는 시선 위: 기록 더미');
     await expect(tid(page, 'occluder')).toBeVisible();
     for (const w of ['셀 수 있음', '가려짐', '멀다']) await expect(tid(page, 'conflict-plan')).not.toContainText(w);
     await tid(page, 'seat-E1').click();
     await expect(tid(page, 'seat-line')).toBeVisible();
     // 칸에서 고른 6 이 판단으로 미리 골라져 있다(같은 값을 다시 고르지 않는다)
     await expect(tid(page, 'claim-c_count_6')).toHaveAttribute('aria-pressed', 'true');
-    await tid(page, 'cev-X2:E1').click();
+    await tid(page, 'cev-X2:E1:line').click();
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
     await expect(tid(page, 'contra-first-try')).toHaveText('단번에 풀림'); // 틀린 시도 없이 풀었다
@@ -936,6 +950,7 @@ test.describe('v5 전체 플레이', () => {
     // 사건 이름은 복원 카드에 먼저(출처와 함께) — 메신저 선택지보다 앞서
     await expect(tid(page, 'restore-event')).toContainText('무오사화(戊午士禍)');
     await expect(tid(page, 'restore-event-source')).toHaveAttribute('href', /encykorea/);
+    expect((await tid(page, 'restore-event-source').boundingBox())!.height, '출처 링크 탭 높이').toBeGreaterThanOrEqual(44);
     // 작은 집계: 단번에 맞힌 이름 n/m · 더한 문장 · 실록이 적지 않은 일(역사 고정 화면에서 쓴 말 그대로)
     await expect(tid(page, 'restore-tally')).toContainText(/단번에 맞힘 \d\/4/);
     await expect(tid(page, 'restore-tally')).toContainText('더한 문장 1');
@@ -1077,7 +1092,7 @@ test.describe('v5 틀', () => {
       const row = (await tid(page, 'tag-cards').boundingBox())!;
       const tiles = await tid(page, 'tag-cards').locator('.pcard').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right })));
       const vis = tiles.map((t) => Math.max(0, Math.min(t.r, row.x + row.width) - Math.max(t.l, row.x)));
-      expect(vis.slice(0, 3).every((w) => w >= 80), `360: 앞 세 장 ${vis}`).toBe(true);
+      expect(tiles.slice(0, 3).every((t, i) => vis[i]! >= t.r - t.l - 2), `360: 앞 세 장이 다 보인다 ${vis}`).toBe(true);
       expect(vis[3]! > 0, '넷째 장이 엿보인다').toBe(true);
     }
     await page.screenshot({ path: `${SHOTS}/94-tag-cards-360.png` });
@@ -1108,6 +1123,111 @@ test.describe('v5 틀', () => {
     await tid(page, 'claim-c_scope_six').tap();
     for (const w of await page.locator('[data-testid^="witness-E"]').all()) await expect(w).toHaveAttribute('opacity', '1');
     await page.screenshot({ path: `${SHOTS}/95-contradiction-360.png` });
+    expect(errs, errs.join('\n')).toEqual([]);
+    await ctx.close();
+  });
+
+  test('360×740 터치: 조작 QA 4차 — 첫 말풍선·튕김·잇기 안내·배너 미룸·알림·작은 탭 대상', async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', '터치 기기에서만');
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    const errs = watchErrors(page);
+    const st = (fn: string) => page.evaluate(fn);
+    const inView = async (id: string) => {
+      const r = (await tid(page, id).boundingBox())!;
+      const hit = await page.evaluate(([x, y, t]) => !!(document.elementFromPoint(x as number, y as number) as HTMLElement | null)?.closest(`[data-testid="${t}"]`), [r.x + r.width / 2, r.y + r.height / 2, id] as const);
+      return { r, hit };
+    };
+
+    // ── Ep0: 첫 말풍선의 「…더 보기」가 컷 아래 자리 안에 다 들어온다(ux4-03)
+    await page.goto('/?test=1');
+    await expect(tid(page, 'assign-card')).toBeVisible();
+    // 홈 카드의 풀이 낱말 탭 높이 ≥44(투명 덧칸)
+    for (const g of await tid(page, 'assign-card').locator('[data-testid="gloss-word"]').all()) expect((await g.boundingBox())!.height, '홈 풀이 낱말').toBeGreaterThanOrEqual(44);
+    await tid(page, 'btn-memories').tap();
+    await expect(tid(page, 'bubble-more')).toBeVisible({ timeout: 8000 });
+    {
+      const { r, hit } = await inView('bubble-more');
+      const stage = (await tid(page, 'stage').boundingBox())!;
+      expect(r.height, '더 보기 높이').toBeGreaterThanOrEqual(44);
+      expect(r.y + r.height, '더 보기가 컷 자리 안').toBeLessThanOrEqual(stage.y + stage.height + 1);
+      expect(hit, '더 보기가 눌린다').toBe(true);
+      const bub = (await page.locator('[data-cut="e0-1"] [data-testid="bubble"]').boundingBox())!;
+      expect(bub.y + bub.height, '말풍선이 잘리지 않는다').toBeLessThanOrEqual(stage.y + stage.height + 1);
+    }
+    // 짧고 빠른 튕김(18%, 약 40ms) — 360 에서도
+    await flickLeft(page);
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '1');
+    // T0a 를 붙이고 최만리 카드의 「세종」을 얻은 뒤에도 탭 영역 ≥44
+    await st(`(() => { const g = window.__STORE__.getState(); g.tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1'); })()`);
+    await toCut(page, 0, 1);
+    await figure(page, 'e0-1', 'fig_choi').tap();
+    await expect(tid(page, 'card-name')).toHaveText('최만리');
+    for (const g of await page.locator('[data-testid="gloss-word"]').all()) if (await g.isVisible()) expect((await g.boundingBox())!.height, '카드 풀이 낱말').toBeGreaterThanOrEqual(44);
+    await tid(page, 'flink-sejong').tap();
+    await expect(tid(page, 'flink-sejong')).toHaveClass(/found/);
+    {
+      const r = (await tid(page, 'flink-sejong').boundingBox())!;
+      expect(Math.min(r.width, r.height), '찾은 뒤 「세종」').toBeGreaterThanOrEqual(44);
+    }
+    // 알림은 메신저로 따라가지 않는다(ux4-06)
+    await expect(tid(page, 'toast')).toBeVisible();
+    await tid(page, 'nav-messenger').last().tap();
+    await expect(page.locator('[data-screen=messenger]')).toBeVisible();
+    await expect(tid(page, 'toast')).toHaveCount(0);
+
+    // ── Ep1
+    await page.goto('/?test=1&ep=1');
+    await expect(tid(page, 'assign-card')).toBeVisible();
+    await tid(page, 'btn-memories').tap();
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E1');
+    // 첫 컷 「?」 표가 컷 위에서 잘리지 않는다(ux4-05)
+    {
+      const cut = (await page.locator('[data-cut="e1-1"] .cutbox').boundingBox())!;
+      for (const q of await page.locator('[data-cut="e1-1"] [data-testid="q-label"]').all()) expect((await q.boundingBox())!.y, '「?」 표 위 가장자리').toBeGreaterThanOrEqual(cut.y - 0.5);
+    }
+    // 이름 붙이기 시트: 고른 카드는 닫았다 다시 열어도 그대로
+    await toCut(page, 1, 2);
+    await figure(page, 'e1-2', 'fig_yi').tap();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    const first = tid(page, 'tag-cards').locator('.pcard').first();
+    const firstId = (await first.getAttribute('data-testid'))!;
+    await first.tap();
+    await expect(tid(page, firstId)).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await figure(page, 'e1-2', 'fig_yi').tap();
+    await expect(tid(page, firstId)).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    // T3 까지(스토어로) → 그날의 방 13:20 에서 틀린 잇기: 안내가 아래 막대 위에 보인다(ux4-04)
+    await st(`(() => { const g = window.__STORE__.getState(); for (let i = 0; i < 5; i++) g.viewCut('E1', i); g.tag('fig_yi', 'yi_geukdon', 'l_e1_2a', 'e1-2'); g.viewCut('E2', 0); g.search('윤'); g.tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1'); g.viewCut('E2', 1); g.closeViewer(); g.openRoom('13:20'); })()`);
+    await expect(tid(page, 'room-sheet')).toBeVisible();
+    const mk = (key: string) => page.locator(`[data-testid="room-plan"] [data-keys~="${key}"]`);
+    await mk('e2-2#fig_eo').tap();
+    await mk('e1-3#owner').tap();
+    await expect(tid(page, 'link-feedback')).toContainText('같은 자리가 아니다');
+    {
+      const { r, hit } = await inView('link-feedback');
+      const bar = (await page.locator('[data-testid="room-sheet"] nav.navbar').boundingBox())!;
+      expect(r.y + r.height, '안내가 아래 막대 위').toBeLessThanOrEqual(bar.y + 1);
+      expect(hit, '안내가 보인다(다른 것에 덮이지 않음)').toBe(true);
+    }
+    expect(await tid(page, 'heard-e1-3#say:l_e1_3').locator('.tx').evaluate((el) => getComputedStyle(el).wordBreak)).toBe('keep-all');
+    await page.screenshot({ path: `${SHOTS}/96-room-link-wrong-360.png` });
+    // X1 까지(스토어로) → ⚠ 모순 칩 높이 44 · 모순 보기가 열린 동안 배너는 미룬다(ux4-01·02)
+    await st(`(() => { const g = window.__STORE__.getState(); g.placeMention('e1-3#say:l_e1_3', 'O'); g.linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3'); g.tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'); g.closeRoom(); g.viewCut('E3', 0); g.search('국장 도감'); g.openRecord('rec_r02'); g.tag('fig_hong', 'hong_gwidal', 'l_e3_1', 'e3-1'); for (let i = 0; i < 5; i++) g.viewCut('E4', i); window.__UI__.getState().push('viewer'); })()`);
+    await expect(tid(page, 'alert-chip')).toBeVisible();
+    expect((await tid(page, 'alert-chip').boundingBox())!.height, '⚠ 모순 칩 높이').toBeGreaterThanOrEqual(44);
+    await tid(page, 'alert-chip').tap();
+    await expect(tid(page, 'conflict-plan')).toBeVisible();
+    await st(`window.__UI__.getState().showBanner('한 선임', '배너 미룸 확인')`);
+    await page.waitForTimeout(1200);
+    await expect(tid(page, 'banner')).toHaveCount(0);
+    // 거리 글은 탭을 받지 않는다(밑의 자리로 지나간다)
+    await tid(page, 'seat-E4').tap();
+    expect(await tid(page, 'seat-distance').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+    await tid(page, 'room-nav-back').tap();
+    await expect(tid(page, 'banner')).toBeVisible({ timeout: 3000 });
     expect(errs, errs.join('\n')).toEqual([]);
     await ctx.close();
   });

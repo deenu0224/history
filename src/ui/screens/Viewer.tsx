@@ -124,8 +124,8 @@ function Bubbles({ cut, active, hidden, place, lines, tap, maxH }: { cut: CutVie
   const expanded = more === b.lineId;
   return (
     <div className={`bubbles ${place}`} aria-live="polite" data-place={place}>
-      <div ref={bubRef} key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}${over || expanded ? ' hasmore' : ''}`} data-testid="bubble" data-line={b.lineId}>
-        <div className="who">{b.garbled ? `${who} · 흐릿하게 들림` : who}</div>
+      <div ref={bubRef} key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}${over || expanded ? ' hasmore' : ''}${expanded ? ' open' : ''}`} data-testid="bubble" data-line={b.lineId}>
+        <div className="who" title={b.garbled ? `${who} · 흐릿하게 들림` : who}>{b.garbled ? `${who} · 흐릿하게 들림` : who}</div>
         <div ref={txtRef} className={`txt${expanded ? '' : ' clamp'}`} style={expanded ? undefined : { WebkitLineClamp: fit }}>
           {segs.map((sg, i) =>
             sg.term || sg.gloss ? (

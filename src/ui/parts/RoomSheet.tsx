@@ -669,8 +669,8 @@ export function RoomSheet() {
               )}
             </div>
             {linkFb ? (
-              // 시트 아래 막대 위에 붙어 늘 보인다(sticky) — 360 에서 잇기 안내가 막대 밑에 숨었다(QA_UX_R4)
-              <div ref={fbRef} className={`fb stick${linkFb.ok ? ' ok' : ''}`} role="status" data-testid="link-feedback" data-ok={linkFb.ok ? 'true' : 'false'}>
+              // 생기면 시트 안에서 보이게 민다(아래 막대 위) — 360 에서 잇기 안내가 막대 밑에 숨었다(QA_UX_R4)
+              <div ref={fbRef} className={`fb${linkFb.ok ? ' ok' : ''}`} role="status" data-testid="link-feedback" data-ok={linkFb.ok ? 'true' : 'false'}>
                 <span className="t-b">{linkFb.text}</span>
               </div>
             ) : null}
