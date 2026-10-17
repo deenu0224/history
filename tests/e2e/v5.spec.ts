@@ -762,8 +762,10 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'card-eo_segyeom')).toHaveAttribute('aria-pressed', 'true');
     await tid(page, 'ev-l_e1_3').click();
     await tid(page, 'tag-confirm').click();
-    // 가르친 길(판정 → 「아직 모른다」 → 방 → 다시)은 벌이 아니다 — 「단번에 맞힘」(QA_FUN_R3 R3-2)
-    await expect(tid(page, 'tag-first-try')).toHaveText('단번에 맞힘');
+    // 가르친 길(판정 → 「아직 모른다」 → 방 → 다시)은 벌이 아니지만(QA_FUN_R3 R3-2), 들은 말을 틀린 자리에 한 번 놓았다 —
+    // 틀린 놓기는 「단번에」를 건다(QA_FUN_R4 R4-2, 손해는 없음: 그대로 이름이 붙는다)
+    await expect(tid(page, 'tag-ok-stamp')).toContainText('어세겸');
+    await expect(tid(page, 'tag-first-try')).toHaveCount(0);
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E3"]')).toHaveAttribute('data-state', 'open');
     await viewAll(page, 2);
