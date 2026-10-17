@@ -446,7 +446,7 @@ export const HOME0: HomeCard = {
     ],
   },
   date: { before: '####', after: '세종 26년 2월 20일' },
-  place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220, note: '그날 실록에는 장소가 없다' },
+  place: { before: '미확인', after: '기록 없음(그림 속 방은 재구성)', source: SRC0.art0220 }, // 「장소 없음」은 한 번만(QA_STORY_R3 R3-4)
   task: '이 날의 기록이 구멍투성이다. 그 자리에 있던 사람의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2209 · 일시 #### · 문장 손상 2건',
   status: { before: '빈자리', after: '고정됨' },

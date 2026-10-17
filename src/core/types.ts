@@ -556,7 +556,7 @@ export interface HomeCard {
   /** 손상된 문장 자체(Ep0). 없으면 홈은 빈 기록 그림만 — 통째로 지워진 날(Ep1) */
   record?: { title: string; lines: HomeRecordLine[] };
   date: { before: string; after: string };
-  place: { before: string; after: string; source: SourceRef; note: string };
+  place: { before: string; after: string; source: SourceRef; note?: string };
   task: string;
   detection: string;
   status: { before: string; after: string };
@@ -639,6 +639,8 @@ export interface Episode {
   epilogue: {
     monologue: string[];
     teaserDocId: Id;
+    /** 예고 화면에 바로 보이는 물음 한 줄(메신저 ev.teaser 의 한 선임 줄과 같은 글) */
+    teaserQuestion?: string;
     oldReportDocId: Id;
     /** 「이 장면에 대해」 */
     aboutScene: string;

@@ -2886,3 +2886,28 @@
     height: min(28vh, calc((100cqw) * 0.75));
   }
 }
+
+/* 예고(Ep1 4/4): 받을 문서의 겉장 + 물음 한 줄(QA_FUN_R3 R3-5) */
+.teasercard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px auto 0;
+  max-width: 320px;
+  padding: 14px 16px;
+  border: 1px solid var(--amber);
+  border-radius: 12px;
+  background: var(--ink2);
+  text-align: left;
+}
+.teasercard .tc-title {
+  font-weight: 600;
+}
+.teasercard .tc-sub {
+  color: var(--alert);
+}
+.mono.teaser .teaserq {
+  margin-top: 18px;
+  font-size: 18px;
+  line-height: 28px;
+}

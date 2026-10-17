@@ -802,9 +802,12 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
     witnessLines: selectLog(ep, s).witness,
     monologue: ep.epilogue.monologue,
     teaser: resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }),
+    teaserQuestion: ep.epilogue.teaserQuestion ?? null,
     asides: ep.records.filter((r) => r.aside).map((r) => ({ id: r.id, when: r.aside!, title: r.title, lines: r.lines, tag: r.tag, ...(r.inWorld ? { before: r.inWorld } : {}) })),
     epilogueDone: s.epilogueDone,
     tally: selectTally(ep, s),
+    /** 집계의 증인 줄 이름 — 역사 고정 화면에서 쓴 말(「실록이 적지 않은 일」) */
+    witnessLabel: ep.epilogue.witnessLogLabel,
     /** 끝나면 열리는 다음 에피소드 */
     next: ep.next ?? null,
   };

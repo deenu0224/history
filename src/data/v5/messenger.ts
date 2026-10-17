@@ -7,6 +7,7 @@
  * 관측기가 말한 것(시스템 줄, 탐지·재계산·「관측 불가」를 전하는 말)은 소실·복원을 타지 않으므로 남는다.
  */
 import type { Burst, ErasedFact, HintLadder, Id, Step } from '@/core/types';
+import { TEASER_QUESTION } from './records';
 
 /** Ep1 의 소실 세계에서만 참인 사실 */
 export const ERASED1: ErasedFact[] = [
@@ -40,7 +41,7 @@ export const BURSTS: Burst[] = [
       han('거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.'),
     ],
   },
-  { id: 'ev.eye_open.E2', steps: [han('첫 번째 관측은 이름 칸이 깎여 있었어.')] },
+  { id: 'ev.eye_open.E2', steps: [han('그 기록, 이름 칸만 깎여 있더라.')] },
   {
     id: 'ev.search_kim',
     steps: [
@@ -126,7 +127,7 @@ export const BURSTS: Burst[] = [
       han('아까 기록 뒤지다 본 건데.'),
       han('너, 2년 전에도 뭐 하나 붙들고 있었더라.'),
       // Ep2 예고의 물음 하나(QA_FUN_R2 상위 5-5) — 답은 주지 않는다
-      han('그때 넌 뭘 찾고 있었던 거야?'),
+      han(TEASER_QUESTION),
       { kind: 'attach', id: 'm_att_c0408', docId: 'doc_c0408', label: '#C-0408 · 2년 전 · 대조관 07 · 관측 오류 · 종결' },
       {
         kind: 'choice',

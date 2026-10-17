@@ -9,7 +9,7 @@ import { setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectMessenger, selectRestoration } from '@/store/selectors';
-import { IExt } from '../parts/icons';
+import { EyeIcon, IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
 import { openMessenger } from '../lib/nav';
 import { GlossText } from '../parts/GlossText';
@@ -88,19 +88,21 @@ export function Restore() {
       </div>
       <div className="rbody" key={step} ref={bodyRef}>
         {step === 'home' ? <RestoredCard animate testId="restore-home" /> : null}
-        {step === 'home' ? (
+        {/* 집계는 더할 줄이 있는 에피소드(Ep1~)만 — Ep0 의 절정 화면은 점수로 깎지 않는다(QA_STORY_R3 R3-1).
+            낱말은 역사 고정 화면에서 쓴 말 그대로(「고정할 문장 더하기」·「실록이 적지 않은 일」) */}
+        {step === 'home' && (r.tally.optional !== undefined || r.tally.witness !== undefined) ? (
           <div className="tally t-m" data-testid="restore-tally">
             <span>
               단번에 맞힘 <b>{r.tally.firstTry}/{r.tally.total}</b>
             </span>
             {r.tally.optional !== undefined ? (
               <span>
-                선택 줄 <b>{r.tally.optional}</b>
+                더한 문장 <b>{r.tally.optional}</b>
               </span>
             ) : null}
             {r.tally.witness !== undefined ? (
               <span>
-                증인 줄 <b>{r.tally.witness}</b>
+                {r.witnessLabel} <b>{r.tally.witness}</b>
               </span>
             ) : null}
           </div>
@@ -184,9 +186,22 @@ export function Restore() {
         ) : null}
 
         {step === 'teaser' && r.teaser ? (
-          // 예고: 문서는 한 선임이 보낸 것 — 대화창에서 받는다(문서가 먼저 내 손에 있지 않게, QA_STORY_R2 N9)
-          <div data-testid="restore-teaser" className="mono" style={{ paddingTop: 40 }}>
-            <p className="keep">한 선임이 문서 하나를 보냈다.</p>
+          // 예고: 문서는 한 선임이 보내는 것 — 대화창에서 받는다(복원 물음에 답한 뒤 온다 — 「보냈다」고 앞서 말하지 않는다, QA_STORY_R3 R3-2).
+          // 화면에는 그 문서의 겉장(코드 픽셀 아트의 닫힌 눈)과 물음 한 줄을 바로 보인다(QA_FUN_R3 R3-5)
+          <div data-testid="restore-teaser" className="mono teaser" style={{ paddingTop: 28 }}>
+            <p className="keep">한 선임이 문서 하나를 보내려 한다.</p>
+            <div className="teasercard" data-testid="teaser-card" aria-label={`첨부 문서 ${r.teaser.title} · ${r.teaser.subtitle}`}>
+              <EyeIcon look="closed" size={72} />
+              <div className="tc-body">
+                <div className="t-b tc-title">{r.teaser.title}</div>
+                <div className="t-m tc-sub">{r.teaser.subtitle}</div>
+              </div>
+            </div>
+            {r.teaserQuestion ? (
+              <p className="keep read teaserq" data-testid="teaser-question">
+                「{r.teaserQuestion}」
+              </p>
+            ) : null}
             <button
               className="btn secondary"
               style={{ marginTop: 18 }}

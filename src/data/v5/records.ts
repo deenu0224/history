@@ -187,9 +187,10 @@ export const HOME: HomeCard = {
   date: { before: '####', after: '연산군 4년 7월 11일' },
   place: {
     before: '미확인',
-    after: '『성종실록』 편찬 실록청(춘추관 안)',
+    // 장소는 칸 안에서 재구성임을 밝힌다(QA_STORY_R3 R3-4) — 그날 실록에는 장소가 없다
+    after: '『성종실록』 편찬 실록청(춘추관 안) · 재구성',
     source: SRC.seongjongSillok,
-    note: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다',
+    note: '전달 방식은 재구성',
   },
   task: '이 날의 기록이 비어 있다. 그날 그 자리에 있던 사람들의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건',
@@ -197,6 +198,9 @@ export const HOME: HomeCard = {
   event: HOME_EVENT,
 };
 
+
+/** Ep2 예고의 물음(답은 주지 않는다) — 예고 화면과 메신저 ev.teaser 가 같은 글을 쓴다 */
+export const TEASER_QUESTION = '그때 넌 뭘 찾고 있었던 거야?';
 
 export const EPILOGUE = {
   monologue: [
@@ -208,6 +212,7 @@ export const EPILOGUE = {
     '그는 그날 그 방에 없었다.',
   ],
   teaserDocId: 'doc_c0408',
+  teaserQuestion: TEASER_QUESTION,
   oldReportDocId: 'doc_old_report',
   aboutScene: '말과 몸짓은 사료를 바탕으로 만든 재구성이다. 그날 실록에는 장소와 전교를 전한 방식이 없다.',
   witnessLogLabel: '실록이 적지 않은 일',
