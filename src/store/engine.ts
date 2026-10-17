@@ -458,7 +458,8 @@ const isDemoTime = (ep: Episode, time: Hhmm) => (ep.autoMergeAt ?? []).some((t) 
 export function selectRoomTime(w: Work, c: Ctx, time: Hhmm): { merges: string[][] } {
   w.s.roomTime = time;
   const fresh: string[][] = [];
-  if (isDemoTime(c.ep, time))
+  // 복원 뒤의 방은 보상 — 같은 사람은 모두 이어진 채로 보인다
+  if (isDemoTime(c.ep, time) || w.s.restored)
     for (const m of mergesAt(c.ep, w.s.viewedCuts, time)) {
       const key = m.keys.join('|');
       if (w.s.merges.some((x) => x.join('|') === key)) continue;
@@ -530,10 +531,10 @@ export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 
 export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id, evidenceId?: Id) {
   const x = c.ep.contradictions.find((y) => y.id === id);
   if (!x || !w.s.revealed.includes(id) || w.s.resolved[id]) return { status: 'invalid' as const };
+  const shown = geometry(c.ep, knowledge(w.s), x).witnesses.map((m) => witnessEvidenceId(x, m.eyeId));
+  if (!evidenceId || !shown.includes(evidenceId) || !x.claims.includes(claimId)) return { status: 'invalid' as const };
   // 긴장 순서: 아직 기다리는 것(1년 전 보고서 등)이 오기 전엔 판정하지 않는다 — 고른 것은 그대로, 손해 없음
   if (!contradictionGateOpen(c.ep, w.s, x)) return { status: 'wait' as const };
-  const shown = geometry(c.ep, knowledge(w.s), x).witnesses.map((m) => witnessEvidenceId(x, m.eyeId));
-  if (!evidenceId || !shown.includes(evidenceId)) return { status: 'invalid' as const };
   const r = resolveX(c.ep, x, claimId, evidenceId);
   if (r.status === 'resolved') {
     w.s.resolved[id] = r.winner;

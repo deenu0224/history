@@ -139,7 +139,7 @@ export function Restore() {
             ) : null}
             {r.absence.length || r.witnessLines.length ? (
               <div className="t-m keep" style={{ marginTop: 4 }} data-testid="restore-log">
-                내 관측 로그는 그대로 —{' '}
+                내 관측 기록은 그대로 —{' '}
                 {[...r.absence.map((a) => `${a.clock} 찾기 「${a.query}」 → ${a.text}`), ...r.witnessLines.map((w) => `「${w.text}」 ${w.note}`)].join(' · ')}
               </div>
             ) : null}

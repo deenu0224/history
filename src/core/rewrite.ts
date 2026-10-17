@@ -7,6 +7,7 @@
  */
 import { claimHeld, isRevealed } from './contradiction';
 import { heldEvidence, idx, type Knowledge } from './ep';
+import { josaAfter } from './josa';
 import type { Contradiction, Episode, Id, RecordPiece, RecordSentence, SlotKind } from './types';
 
 export interface DraftLine {
@@ -131,14 +132,22 @@ export function renderLine(ep: Episode, line: DraftLine, result?: LineResult): L
   const s = sentenceOf(ep, piece.sentenceId);
   if (!s) return { parts: [{ text: piece.label }], time: piece.time };
   const restored = result === 'restored';
+  const parts: LineRender['parts'] = [];
+  for (const g of s.segments) {
+    if (!g.slot) {
+      // 칸 값 바로 뒤의 조사는 값에 맞춘다(「최만리」 + 「이 소를…」 → 「최만리가 소를…」)
+      const prev = parts[parts.length - 1];
+      const text = prev?.slot && prev.text ? josaAfter(prev.text, g.text) : g.text;
+      parts.push({ text, ...(g.editorial ? { editorial: true } : {}) });
+      continue;
+    }
+    const v = line.values[g.slot.kind];
+    const text = restored || v === g.slot.accepts ? g.slot.display : (v ?? '');
+    parts.push({ text, slot: g.slot.kind, filled: v !== undefined, ...(g.editorial ? { editorial: true } : {}) });
+  }
   return {
     time: s.time,
-    parts: s.segments.map((g) => {
-      if (!g.slot) return { text: g.text, ...(g.editorial ? { editorial: true } : {}) };
-      const v = line.values[g.slot.kind];
-      const text = restored || v === g.slot.accepts ? g.slot.display : (v ?? '');
-      return { text, slot: g.slot.kind, filled: v !== undefined, ...(g.editorial ? { editorial: true } : {}) };
-    }),
+    parts,
     ...(restored ? { sourceUrl: s.source.url, sourceTitle: s.source.title } : {}),
   };
 }

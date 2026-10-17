@@ -84,6 +84,17 @@ async function readChat(page: Page, back = true) {
   if (back) await tid(page, 'messenger-back').click();
 }
 
+/** 메신저 화면에서: 답장은 첫 선택지로 하며 이 글이 올 때까지 기다린다 */
+async function chatUntil(page: Page, text: string, maxS = 120) {
+  for (let i = 0; i < maxS; i++) {
+    if ((await tid(page, 'chat').innerText()).includes(text)) return;
+    const reply = tid(page, 'replies').locator('button').first();
+    if (await reply.isVisible()) await reply.click();
+    await page.waitForTimeout(1000);
+  }
+  throw new Error(`메신저에 「${text}」가 오지 않았다`);
+}
+
 const holdSubmit = async (page: Page) => {
   const b = tid(page, 'btn-submit');
   await b.scrollIntoViewIfNeeded();
@@ -568,10 +579,12 @@ test.describe('v5 전체 플레이', () => {
     await page.locator('[data-eye="E2"]').click();
     await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-eye', 'E2');
 
-    // ── T3: 그 말이 누구 얘기인지 아직 모른다 → 「이 시각, 그날의 방」 → 겹침 → 다시 이름 붙이기
+    // ── T3: 그 말이 누구 얘기인지 아직 모른다 → 「이 시각, 그날의 방」 → 플레이어가 「같은 사람 잇기」 → 시트로 돌아와 다시 이름 붙이기
     await toCut(page, 2, 2);
     await figure(page, 'e2-2', 'fig_eo').click();
     await expect(tid(page, 'tag-room-link')).toBeVisible();
+    // 시트의 카드 타일엔 판정 열쇠말이 없다(이름 + 생몰만)
+    await expect(tid(page, 'card-eo_segyeom')).not.toContainText('사관');
     await tid(page, 'card-eo_segyeom').click();
     await tid(page, 'ev-l_e1_3').click();
     await tid(page, 'tag-confirm').click();
@@ -579,10 +592,35 @@ test.describe('v5 전체 플레이', () => {
     await shot(page, 'tag-not-linked');
     await tid(page, 'tag-room-link').click();
     await expect(tid(page, 'room-sheet')).toBeVisible();
-    await expect(tid(page, 'room-plan')).toBeVisible();
+    await expect(tid(page, 'chip-13:20')).toHaveAttribute('aria-pressed', 'true');
+    // 저절로 겹치지 않는다: 병풍 앞(O)에 아직 따로인 표시 둘
+    const mk = (key: string) => page.locator(`[data-testid="room-plan"] [data-keys~="${key}"]`);
+    await expect(mk('e2-2#fig_eo')).toHaveCount(1);
+    await expect(mk('e1-3#say:l_e1_3')).toHaveCount(1);
+    await expect(tid(page, 'same-person')).toHaveCount(0);
+    await expect(tid(page, 'link-start')).toBeDisabled();
     await shot(page, 'room-1320');
+    // 틀린 잇기(공짜): 병풍 앞의 관원 ↔ 첫 번째 관측의 주인 자리 → 같은 자리가 아니다
+    await mk('e2-2#fig_eo').click();
+    await tid(page, 'link-start').click();
+    await expect(tid(page, 'link-prompt')).toBeVisible();
+    await mk('e1-3#owner').click();
+    await expect(tid(page, 'link-feedback')).toHaveText('같은 자리가 아니다');
+    await shot(page, 'room-link-wrong');
+    // 맞는 잇기: 같은 시각 같은 자리 — 귓속말이 가리킨 자리 ↔ 두 번째 관측의 윗자리 관원(첫 표시는 고른 채 남아 있다)
+    await expect(mk('e2-2#fig_eo')).toHaveAttribute('data-sel', 'true');
+    await tid(page, 'link-start').click();
+    await mk('e1-3#say:l_e1_3').click();
+    await expect(tid(page, 'same-person')).toBeVisible();
+    await expect(tid(page, 'link-feedback')).toHaveText('같은 사람으로 이었다');
+    await expect(mk('e2-2#fig_eo')).toHaveAttribute('data-keys', /e1-3#say:l_e1_3/);
+    await shot(page, 'room-link-ok');
+    // 방을 닫으면 시트로 돌아온다(고른 카드 그대로)
     await page.getByRole('button', { name: '닫기' }).last().click();
-    await tagWith(page, 'e2-2', 'fig_eo', 'eo_segyeom', 'l_e1_3');
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    await expect(tid(page, 'card-eo_segyeom')).toHaveAttribute('aria-pressed', 'true');
+    await tid(page, 'ev-l_e1_3').click();
+    await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E3"]')).toHaveAttribute('data-state', 'open');
     await viewAll(page, 2);
@@ -606,9 +644,11 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'tag-confirm').click();
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E4"]')).toHaveAttribute('data-state', 'open');
-    // 마지막 이름(T4): 진행 4/4 · 「모두 밝혀졌다」(눈이 열린 알림 뒤에)
+    // 마지막 이름(T4): 진행 4/4 만 — 닫힘·모순이 남아 있으니 「모두 밝혀졌다」(끝 신호)는 아직 없다
     await expect(tid(page, 'tag-progress')).toHaveText('이름 붙이기 4/4');
-    await expect(tid(page, 'toast')).toHaveText('모두 밝혀졌다', { timeout: 6000 });
+    await expect(tid(page, 'toast')).toContainText('관측이 하나 열렸다');
+    await page.waitForTimeout(2500);
+    await expect(page.getByText('모두 밝혀졌다')).toHaveCount(0);
     // Ep1 은 아직 다시 쓸 수 없다(닫힘·모순이 남았다) — 아래 가운데는 그대로 그날의 방
     await expect(tid(page, 'btn-to-rewrite')).toHaveCount(0);
     await shot(page, 'four-eyes');
@@ -624,14 +664,30 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'alert-chip')).toBeVisible();
     await shot(page, 'viewer-contradiction-chip');
 
-    // ── 모순 X1: 그날의 방에서 풀기(틀린 쪽 → 다시 → 정답)
+    // ── 모순 X1: 그날의 방에서 풀기. 도면은 기하만(원·자리·거리) — 결론 낱말이 없다
     await tid(page, 'alert-chip').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
-    // 근거 2칸: ① 판단 + ② 근거(자리 사실). 두 칸이 차야 확인할 수 있다
+    await expect(tid(page, 'hearing-circle')).toBeVisible();
+    for (const w of ['또렷', '흐림', '안 들림']) await expect(tid(page, 'conflict-plan')).not.toContainText(w);
+    // 근거 2칸: ① 판단 + ② 근거(자리 사실)
     await expect(tid(page, 'contra-slots')).toContainText('근거 2칸');
-    await expect(tid(page, 'resolve-confirm')).toBeDisabled();
-    await expect(tid(page, 'cev-X1:E4')).toContainText('홍귀달 자리 — 문 앞에서 9.21칸, 들림 반경 8칸');
+    await expect(tid(page, 'cev-X1:E4')).toContainText('홍귀달 자리 — 문 앞에서 약 9칸, 들림 반경 8칸');
+    // 자리를 탭하면 그 자리에서 말한 자리까지 선과 거리가 그려진다
+    await tid(page, 'seat-E4').click();
+    await expect(tid(page, 'seat-line')).toBeVisible();
+    await expect(tid(page, 'seat-distance')).toHaveText('약 9칸');
+    // 06:00 — 방을 여는 순간 눈이 닫혔고, 1년 전 보고서가 오기 전에는 판정하지 않는다(긴장 순서)
+    await expect(tid(page, 'resolve-waiting')).toBeVisible();
     await shot(page, 'room-contradiction');
+    await tid(page, 'resolve-wait').click();
+    // ── 메신저: 06:00 → 「…닫혔어?」 → 1년 전 보고서
+    await expect(page.locator('[data-screen=messenger]')).toBeVisible();
+    await shot(page, 'messenger');
+    await chatUntil(page, '맨 끝 봐, 1년 전에도 너 거기서 멈췄어.');
+    await tid(page, 'messenger-back').click();
+    await expect(page.locator('[data-screen=viewer]')).toBeVisible();
+    await tid(page, 'alert-chip').click();
+    await expect(tid(page, 'resolve-confirm')).toBeDisabled();
     // 틀린 판단 + 맞는 자리 → 어느 칸이 틀렸는지는 말하지 않는다
     await tid(page, 'claim-c_scope_six').click();
     await expect(tid(page, 'resolve-confirm')).toBeDisabled();
@@ -643,27 +699,24 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'cev-X1:E4').click();
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
+    // 이제 할 일이 남지 않았다 → 「모두 밝혀졌다」
+    await expect(tid(page, 'toast')).toHaveText('모두 밝혀졌다', { timeout: 6000 });
     await shot(page, 'room-contradiction-resolved');
     await tid(page, 'room-back').click();
     await page.getByRole('button', { name: '닫기' }).last().click();
 
-    // 06:00 — 뷰어를 떠나는 순간 눈이 닫힌다
     await tid(page, 'viewer-back').click();
     await expect(page.locator('[data-eye="E3"]')).toHaveAttribute('data-state', 'closed');
     await expect(tid(page, 'btn-rewrite')).toBeVisible();
+    await expect(tid(page, 'home-tag-progress')).toContainText('모두 밝혀졌다');
     await shot(page, 'home-eye-closed');
-
-    // ── 메신저: 한 선임
-    await expect(tid(page, 'unread-dot')).toBeVisible();
-    await tid(page, 'dock-messenger').click();
-    await expect(tid(page, 'their-msg').first()).toBeVisible();
-    await shot(page, 'messenger');
-    await tid(page, 'messenger-back').click();
-    await readChat(page);
 
     // ── 結: 기록 다시 쓰기
     await tid(page, 'btn-rewrite').click();
-    await shot(page, 'rewrite-empty');
+    // 꼭 돌아와야 할 L1~L4 는 시각순으로 미리 놓여 있다(빼기 없음) — 칸만 채운다
+    for (const pc of ['pc_L1', 'pc_L2', 'pc_L3', 'pc_L4']) await expect(tid(page, `line-${pc}`)).toBeVisible();
+    await expect(tid(page, 'line-pc_L1').getByRole('button', { name: '이 문장 빼기' })).toHaveCount(0);
+    await shot(page, 'rewrite-preplaced');
     const add = async (piece: string) => {
       await tid(page, 'btn-add-line').click();
       await tid(page, `piece-${piece}`).click();
@@ -672,13 +725,11 @@ test.describe('v5 전체 플레이', () => {
       await tid(page, `slot-${piece}-${kind}`).click();
       await tid(page, `opt-${value}`).click();
     };
-    await add('pc_L1');
     await fill('pc_L1', 'whose', '김일손');
     await fill('pc_L1', 'scope', '모두');
-    await add('pc_L2');
+    // 화자 칸은 한 번 고르면 L2·L3 같이
     await fill('pc_L2', 'speaker', '당상(이극돈 등)');
-    await add('pc_L3');
-    await fill('pc_L3', 'speaker', '당상(이극돈 등)');
+    await expect(tid(page, 'slot-pc_L3-speaker')).toContainText('당상(이극돈 등)');
     // 세 문장만 먼저 고정 → 그날 고정률 75%(필수 L1~L4 중 셋). 줄마다의 수치는 없다
     await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
     await holdSubmit(page);
@@ -686,7 +737,6 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '75');
     await expect(tid(page, 'fix-rate-pct')).toHaveText('75%', { timeout: 4000 });
     await shot(page, 'rewrite-fix-75');
-    await add('pc_L4');
     await fill('pc_L4', 'who', '이극돈');
     await fill('pc_L4', 'whose', '김일손');
     // 「몇」 칸을 열면 X2 — 값을 고르면 그날의 방 모순 보기로
@@ -696,7 +746,11 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'opt-6').click();
     await expect(tid(page, 'conflict-plan')).toBeVisible();
     await shot(page, 'room-contradiction-x2');
-    await expect(tid(page, 'cev-X2:E1')).toContainText('기록 더미에 가림');
+    await expect(tid(page, 'cev-X2:E1')).toContainText('셀 수 있는 거리 5칸');
+    await expect(tid(page, 'occluder')).toBeVisible();
+    for (const w of ['셀 수 있음', '가려짐', '멀다']) await expect(tid(page, 'conflict-plan')).not.toContainText(w);
+    await tid(page, 'seat-E1').click();
+    await expect(tid(page, 'seat-line')).toBeVisible();
     await tid(page, 'claim-c_count_6').click();
     await tid(page, 'cev-X2:E1').click();
     await tid(page, 'resolve-confirm').click();
@@ -722,6 +776,9 @@ test.describe('v5 전체 플레이', () => {
     await expect(page.locator('[data-screen=restore]')).toHaveAttribute('data-step', 'home');
     await expect(tid(page, 'restore-date')).toContainText('연산군 4년 7월 11일', { timeout: 6000 });
     await expect(tid(page, 'restored-keyline')).toContainText('김일손');
+    // 사건 이름은 복원 카드에 먼저(출처와 함께) — 메신저 선택지보다 앞서
+    await expect(tid(page, 'restore-event')).toContainText('무오사화(戊午士禍)');
+    await expect(tid(page, 'restore-event-source')).toHaveAttribute('href', /encykorea/);
     await page.waitForTimeout(2200);
     await shot(page, 'restore-home');
     await tid(page, 'article-full-toggle').click();
@@ -737,7 +794,7 @@ test.describe('v5 전체 플레이', () => {
     await page.waitForTimeout(2600); // 먹 번짐(글자가 굳는 시간)
     await shot(page, 'restore-cards');
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-monologue')).toContainText('그의 관측은 끝내 이뤄지지 않았다');
+    await expect(tid(page, 'restore-monologue')).toContainText('김일손의 눈은 끝내 열리지 않았다');
     await page.waitForTimeout(4500);
     await shot(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
@@ -784,11 +841,12 @@ test.describe('v5 눈 닫힘과 잃은 컷', () => {
       for (let i = 0; i < 5; i++) st().viewCut('E1', i);
       st().tag('fig_yi', 'yi_geukdon', 'l_e1_2a', 'e1-2');
       st().viewCut('E2', 0);
-      st().openRoom();
       st().search('윤');
       st().tag('fig_yun', 'yun_hyoson', 'l_e2_1', 'e2-1');
+      st().openRoom();
       st().viewCut('E2', 1);
       st().selectRoomTime('13:20');
+      st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
       st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
       st().viewCut('E3', 0);
       st().search('국장 도감');

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectContradictionView, selectContradictions, selectRoom, type NeutralGeometry, type RoomMarker } from '@/store/selectors';
+import { cellsText } from '@/core/josa';
 import { fx } from '../lib/fx';
 import { cutNo } from '../lib/format';
 import { backdropSrc } from '../lib/manifest';
@@ -33,8 +34,6 @@ function cone(x: number, y: number, facing: number, half: number, r: number) {
 }
 
 const ownerChar = (label: string) => (/번째|누군가|^\?/.test(label) ? '?' : label[0]!);
-/** 칸 거리(소수 한 자리) */
-const cellsTxt = (n: number) => `${Math.round(n * 10) / 10}칸`;
 
 function Base({ room, children }: { room: ReturnType<typeof selectRoom>; children?: React.ReactNode }) {
   const W = room.w * C;
@@ -263,7 +262,7 @@ function Conflict({ geo, room, focusClaim, selSeat, onSeat }: { geo: NeutralGeom
       })}
       {sel ? (
         <text className="lbl" x={Math.max(34, Math.min(W - 34, (P(sel.x) + sx) / 2))} y={(P(sel.y) + sy) / 2 - 8} textAnchor="middle" fill={AMBER} fontSize="16" fontWeight="600" data-testid="seat-distance">
-          {cellsTxt(sel.distance)}
+          {cellsText(sel.distance, geo.kind === 'hearing' ? geo.radius : geo.detailRange)}
         </text>
       ) : null}
       <circle cx={sx} cy={sy} r="9" fill="#0b0a09" stroke={AMBER} strokeWidth="2.2" strokeDasharray="2 3" />

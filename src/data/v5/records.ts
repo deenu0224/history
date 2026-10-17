@@ -176,6 +176,12 @@ export const DOC_TERMS: Record<string, string[]> = {
   doc_c0408: ['#C-0408', 'C-0408', '0408', '2년 전'],
 };
 
+/**
+ * 복원 카드에 보일 사건 이름(복원 뒤에만, 출처와 함께) — 메신저 선택지 「무오사화요.」보다 먼저 화면에 나와야 한다(QA_STORY 발견 7).
+ * HISTORICAL_SOURCES §3(「무오사화」 E0019174). HomeCard.event 로 복원 카드에 보인다.
+ */
+export const HOME_EVENT: { name: string; source: SourceRef } = { name: '무오사화(戊午士禍)', source: SRC.muoSahwa };
+
 export const HOME: HomeCard = {
   code: '#C-2217',
   date: { before: '####', after: '연산군 4년 7월 11일' },
@@ -188,13 +194,9 @@ export const HOME: HomeCard = {
   task: '이 날의 기록이 비어 있다. 그날 그 자리에 있던 사람들의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건',
   status: { before: '빈자리', after: '고정됨' },
+  event: HOME_EVENT,
 };
 
-/**
- * 복원 카드에 보일 사건 이름(복원 뒤에만, 출처와 함께) — 메신저 선택지 「무오사화요.」보다 먼저 화면에 나와야 한다(QA_STORY 발견 7).
- * HISTORICAL_SOURCES §3(「무오사화」 E0019174). 아직 HomeCard 타입·복원 카드가 읽지 않는다 — 연결은 엔진/UI 쪽(HomeCard.event 로 옮길 것).
- */
-export const HOME_EVENT: { name: string; source: SourceRef } = { name: '무오사화(戊午士禍)', source: SRC.muoSahwa };
 
 export const EPILOGUE = {
   monologue: [

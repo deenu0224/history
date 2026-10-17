@@ -120,6 +120,17 @@ export function RestoredCard({ animate = false, children, testId }: { animate?: 
         <span className="t-b" data-testid={animate ? 'restore-place' : 'home-place'}>
           {animate ? <Scramble from={b.place} to={a.place} ms={1400} delay={900} reduce={reduce} /> : a.place}
         </span>
+        {a.event ? (
+          <>
+            <span className="t-m">사건</span>
+            <span className="t-b" data-testid="restore-event">
+              {a.event.name}{' '}
+              <a className="t-m" href={a.event.source.url} target="_blank" rel="noreferrer noopener" data-testid="restore-event-source">
+                출처 <IExt size={14} />
+              </a>
+            </span>
+          </>
+        ) : null}
       </div>
       {a.record ? <HomeRecord record={a.record} before={animate ? b.record : undefined} reduce={reduce} short /> : <KeyLine />}
       {asideTag ? (

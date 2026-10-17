@@ -1,4 +1,4 @@
-import { josa } from '@/core/josa';
+import { cellsText, josa } from '@/core/josa';
 /**
  * 화면별 보기(셀렉터) — UI_STYLE_GUIDE §1 화면 목록에 맞춘다. 모두 (ep, state) → 순수한 보기 객체.
  * 원칙: 정답·숨은 정체를 내보내지 않는다(이름은 붙인 뒤에만, 연도·장소는 복원 뒤에만).
@@ -499,8 +499,6 @@ function neutralGeometry(g: ContradictionGeometry): NeutralGeometry {
   };
 }
 
-/** 칸 거리(사람 말처럼 소수 한 자리) */
-const cells = (n: number) => `${Math.round(n * 10) / 10}칸`;
 
 /**
  * 모순의 근거 칸에 고를 수 있는 자리 사실(지금 방에 보이는 눈마다 하나). 글은 데이터에서 계산한다 — 거리와 기준만 적고
@@ -524,8 +522,8 @@ export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): {
     const who = ownerKnown(ep, k, eye) ? (I.card.get(eye.personId)?.name ?? '?') : eyeLabel(ep, k, eye);
     const text =
       g.kind === 'hearing'
-        ? `${who} 자리 — ${srcLabel}에서 ${cells(w.distance)}, 들림 반경 ${g.radius}칸`
-        : `${who} 자리 — ${srcLabel}까지 ${cells(w.distance)}, 셀 수 있는 거리 ${g.detailRange}칸`;
+        ? `${who} 자리 — ${srcLabel}에서 ${cellsText(w.distance, g.radius)}, 들림 반경 ${g.radius}칸`
+        : `${who} 자리 — ${srcLabel}까지 ${cellsText(w.distance, g.detailRange)}, 셀 수 있는 거리 ${g.detailRange}칸`;
     out.push({ id: `${x.id}:${w.eyeId}`, eyeId: w.eyeId, text });
   }
   return out;

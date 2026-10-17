@@ -560,6 +560,8 @@ export interface HomeCard {
   task: string;
   detection: string;
   status: { before: string; after: string };
+  /** 복원 뒤 카드에 보이는 사건 이름(verified, 출처와 함께) — 복원 전엔 보이지 않는다 */
+  event?: { name: string; source: SourceRef };
 }
 
 export interface Episode {

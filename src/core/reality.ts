@@ -40,6 +40,8 @@ export function homeView(home: HomeCard, w: WorldFlags) {
     task: home.task,
     detection: home.detection,
     status: w.restored ? home.status.after : home.status.before,
+    /** 사건 이름(복원 뒤에만, 출처와 함께) */
+    event: w.restored ? home.event : undefined,
     record: home.record
       ? {
           title: home.record.title,

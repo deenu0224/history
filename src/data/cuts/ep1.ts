@@ -387,7 +387,7 @@ export const EP1_CUTS: readonly CutRenderSpec[] = [
     id: 'e4-2',
     eye: 4,
     time: '14:00',
-    note: '멀리 작게 보이는 낭독자(문까지 9.21칸 — 낭독 반경 8 밖). 앞의 초록 관복에 아래가 가린다.',
+    note: '멀리 작게 보이는 낭독자(문까지 약 9칸 — 낭독 반경 8 밖). 앞의 초록 관복에 아래가 가린다.',
     listed: ['fig_msg'],
     spec: {
       witnessId: 'hong_gwidal',

@@ -12,7 +12,7 @@ const F = 'fictional' as const;
 export const COLD_OPEN: Record<string, ScriptLine[]> = {
   ep0: [
     { text: '22:31. 기록대조과. 야근.', provenance: F },
-    { text: '모니터에 배정 하나. 부분 손상. 우선순위 낮음.', provenance: F },
+    { text: '모니터에 배정 하나. 우선순위 낮음.', provenance: F },
   ],
   ep1: EPISODE_1.coldOpen,
 };
