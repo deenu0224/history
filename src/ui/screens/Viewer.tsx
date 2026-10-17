@@ -26,6 +26,9 @@ export const PEEK_PX = 8;
 /** 컷 아래 말풍선 자리의 위 여백(.bubbles-below padding-top — 「…더 보기」 탭 영역이 위로 나온다) + 아래 여유 */
 const BELOW_PAD = 18;
 
+/** 입력이 일어난 때(ms, performance.now 기준). 이벤트 시각이 없으면 지금 */
+const evTime = (e: React.PointerEvent) => (e.timeStamp > 0 ? e.timeStamp : performance.now());
+
 /** pw = 컷 한 장(슬라이드)의 폭 = 무대 폭 − 엿보기 */
 function useBox(ref: React.RefObject<HTMLElement | null>, peek = 0) {
   const [box, setBox] = useState({ pw: 0, ph: 0, w: CUT_W, h: CUT_H });
@@ -425,7 +428,8 @@ export function Viewer() {
     // 왼쪽 가장자리에서 시작한 밀기는 뒤로 가기(lib/nav) — 컷을 넘기지 않는다
     const sl = stageRef.current?.getBoundingClientRect().left ?? 0;
     if (e.clientX - sl <= EDGE_PX) return;
-    st.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, on: false, dx: 0, samples: [{ x: e.clientX, t: performance.now() }] };
+    const t = evTime(e);
+    st.current = { x: e.clientX, y: e.clientY, t, id: e.pointerId, on: false, dx: 0, samples: [{ x: e.clientX, t }] };
     useGameStore.getState().setTouching(true);
   };
   const onMove = (e: React.PointerEvent) => {
@@ -433,8 +437,10 @@ export function Viewer() {
     if (!s || s.id !== e.pointerId) return;
     const dx = e.clientX - s.x;
     const dy = e.clientY - s.y;
-    s.samples.push({ x: e.clientX, t: performance.now() });
-    if (s.samples.length > 8) s.samples.shift();
+    // 손가락이 움직인 때(이벤트 시각)로 잰다 — 화면이 바빠 이벤트가 늦게·뭉쳐 와도 속도가 깎이지 않게(뭉친 표본도 펼친다)
+    const co = typeof e.nativeEvent.getCoalescedEvents === 'function' ? e.nativeEvent.getCoalescedEvents() : [];
+    for (const c of co.length ? co : [e.nativeEvent]) s.samples.push({ x: c.clientX, t: c.timeStamp || evTime(e) });
+    while (s.samples.length > 12) s.samples.shift();
     if (!s.on) {
       if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
       s.on = true;
@@ -459,7 +465,7 @@ export function Viewer() {
     setDrag(0);
     // 멀리 밀었거나(30%) 빠르게 튕겼으면(pointermove 표본의 최근 속도, 또는 짧은 시간 안의 튕김) 넘긴다 — game/logic/swipe.
     // pointerup 표본은 넣지 않는다(움직임 없이 시간만 더해 속도를 깎는다 — QA_UX_R4)
-    const now = performance.now();
+    const now = evTime(e);
     const step = swipeStep(s.dx, releaseVelocity(s.samples, now), box.pw, now - s.t);
     if (step) goTo(index + step);
   };

@@ -165,6 +165,18 @@ const expectNavBar = async (page: Page, where: string) => {
  * 진짜 손가락으로 짧고 빠르게 튕긴다(CDP 터치) — 30% 를 못 넘겨도 빠르면 넘어간다(QA_UX_R3). 휴대폰이 아니면 마우스로 같은 움직임.
  */
 const flickLeft = async (page: Page, ratio = 0.18, ms = 40) => {
+  // 손가락 흉내는 CDP 이벤트를 하나씩 보낸다 — 페이지가 바쁘면(첫 이미지 해독 등) 40ms 튕김이 수백 ms 로 늘어나 「느린 밀기」가 된다.
+  // 튕기기 전에 화면이 한가해질 때까지 기다린다(사람 손은 화면이 바빠도 빠르다 — 판정은 이벤트 시각으로 잰다)
+  await page.evaluate(
+    () =>
+      new Promise<void>((res) => {
+        const imgs = [...document.querySelectorAll('img')].filter((i) => !i.complete);
+        Promise.all(imgs.map((i) => new Promise((r) => i.addEventListener('load', r, { once: true })))).then(() =>
+          requestAnimationFrame(() => ('requestIdleCallback' in window ? requestIdleCallback(() => res(), { timeout: 1500 }) : setTimeout(res, 200))),
+        );
+        setTimeout(res, 3000);
+      }),
+  );
   const sb = (await tid(page, 'stage').boundingBox())!;
   const y = sb.y + sb.height * 0.62;
   const x0 = sb.x + sb.width * 0.7;
