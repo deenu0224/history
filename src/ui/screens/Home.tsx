@@ -85,10 +85,7 @@ export function Home() {
       ) : (
       <div className="card-assign" data-testid="assign-card">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <div className="t-h">
-            {home.card.status === '빈자리' ? '빈자리 ' : ''}
-            {home.card.code}
-          </div>
+          <div className="t-h">{home.card.code}</div>
           <span className="t-m">{home.card.status}</span>
         </div>
         <div className="kv">
@@ -109,7 +106,8 @@ export function Home() {
             <GapGraphic />
           </>
         )}
-        <FixMeter pct={home.fixRate.pct} />
+        {/* 그날 고정률: 역사 고정이 무엇인지 알게 되는 때(열릴 수 있을 때)부터 — Ep0 첫 화면의 뜻 없는 계기판을 감춘다(QA_STORY_R2 N7) */}
+        {home.showFixRate ? <FixMeter pct={home.fixRate.pct} /> : null}
         <div className="divider" style={{ marginTop: 12 }} />
         <p className="t-b keep" style={{ margin: '14px 0' }}>
           {home.card.task}

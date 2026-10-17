@@ -106,6 +106,8 @@ export function selectHome(ep: Episode, s: PersistedState) {
     tags: selectTagProgress(ep, s),
     /** 그날 고정률 */
     fixRate: selectFixRate(ep, s),
+    /** 고정률 계기를 보일까: 첫 에피소드는 역사 고정을 열 수 있을 때부터(그 전엔 「고정」이 무엇인지 모른다 — QA_STORY_R2 N7) */
+    showFixRate: ep.order > 0 || rewriteAvailable(ep, s) || s.restored,
     /** 다음 할 일 = 역사 고정(주요 버튼이 그쪽으로 바뀐다) */
     rewriteReady: rewriteAvailable(ep, s) && !s.restored,
     /** 다음 할 일 하나(주요 버튼) */
@@ -510,6 +512,8 @@ export function selectContradictions(ep: Episode, s: PersistedState) {
         return {
           id: cid,
           label: c.label,
+          /** 이 주장이 칸에 넣는 값(역사 고정 칸에서 고른 값과 맞춰 판단을 미리 고른다) */
+          value: c.value,
           held: claimHeld(ep, k, c),
           lost: !!winner && winner !== cid,
           lostLabel: winner && winner !== cid ? x.loserLabel : undefined,
@@ -770,6 +774,8 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
       changes: (c.altered ?? []).map((a) => ({
         label: a.label,
         before: alteredView(a, { restored: false, closures: s.closures }),
+        /** 지워졌던 줄(06:00 에 사라짐)도 카드 원문 꼴로 보인다(QA_STORY_R2 N10) */
+        display: a.display,
         after: alteredView(a, world(s)),
       })),
     }));

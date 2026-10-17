@@ -12,7 +12,7 @@ import { cutNo, VOLUME_LABEL } from '../lib/format';
 import { cutSrc, preloadCut, useManifest, type CutEntry } from '../lib/manifest';
 import { glossInline, richSegments } from '../lib/text';
 import { EyeRow } from '../parts/EyeRow';
-import { IChevL, IChevR, IDoc, IPlan, IWarn } from '../parts/icons';
+import { IDoc, IPlan, IWarn } from '../parts/icons';
 import { NavBar } from '../parts/NavBar';
 import { EDGE_PX } from '../lib/nav';
 import { useUi } from '../uiStore';
@@ -554,17 +554,11 @@ export function Viewer() {
               <IDoc />
             </button>
           )}
-          <button className="arrow" aria-label="이전 컷" disabled={index === 0} onClick={() => goTo(index - 1)} data-testid="prev-cut">
-            <IChevL />
-          </button>
           {v.dots.map((d, i) => (
             <button key={d.cutId} className="dotbtn" aria-label={`컷 ${i + 1}`} aria-current={d.current} onClick={() => goTo(i)} data-testid={`dot-${cutNo(d.cutId)}`}>
               <i className={d.current ? 'cur' : d.viewed ? 'seen' : ''} />
             </button>
           ))}
-          <button className="arrow" aria-label="다음 컷" disabled={index >= total - 1} onClick={() => goTo(index + 1)} data-testid="next-cut">
-            <IChevR />
-          </button>
           {v.canOpenRoom && primary !== 'room' ? (
             <button className={`dotside${hasWarn ? ' warn' : ''}`} aria-label="그날의 방" onClick={openRoom} data-testid="btn-room">
               <IPlan />

@@ -11,6 +11,7 @@ import { useView } from '@/store/hooks';
 import { selectMessenger, selectRestoration } from '@/store/selectors';
 import { IExt } from '../parts/icons';
 import { goNextEpisode } from '../lib/flow';
+import { openMessenger } from '../lib/nav';
 import { GlossText } from '../parts/GlossText';
 import { RestoredCard } from '../parts/RestoredCard';
 import { Scramble } from '../parts/Scramble';
@@ -116,7 +117,7 @@ export function Restore() {
                 .flatMap((c) => c.changes.map((ch) => ({ name: c.name, ch })))
                 .reduce<Record<string, { names: string[]; ch: (typeof r.cards)[number]['changes'][number]; was: string[] }>>((acc, x) => {
                   const k = x.ch.after.text;
-                  const was = x.ch.before.text || `${x.ch.before.label}: 기록이 지워졌다`;
+                  const was = x.ch.before.text || x.ch.display;
                   if (acc[k]) {
                     acc[k]!.names.push(x.name);
                     if (!acc[k]!.was.includes(was)) acc[k]!.was.push(was);
@@ -183,24 +184,21 @@ export function Restore() {
         ) : null}
 
         {step === 'teaser' && r.teaser ? (
-          <div data-testid="restore-teaser">
-            <div className="t-m" style={{ margin: '4px 0 10px' }}>
-              새로 들어온 문서
-            </div>
-            <div className="ba">
-              <div className="t-b" style={{ fontWeight: 600 }}>
-                {r.teaser.title}
-              </div>
-              <div className="t-m">{r.teaser.subtitle}</div>
-              {r.teaser.lines.map((l, i) => (
-                <div key={i} className="t-b keep" style={{ marginTop: 6 }}>
-                  {l}
-                </div>
-              ))}
-            </div>
-            <p className="t-m keep" style={{ marginTop: 18 }}>
-              다음 빈자리가 기다린다.
-            </p>
+          // 예고: 문서는 한 선임이 보낸 것 — 대화창에서 받는다(문서가 먼저 내 손에 있지 않게, QA_STORY_R2 N9)
+          <div data-testid="restore-teaser" className="mono" style={{ paddingTop: 40 }}>
+            <p className="keep">한 선임이 문서 하나를 보냈다.</p>
+            <button
+              className="btn secondary"
+              style={{ marginTop: 18 }}
+              data-testid="teaser-messenger"
+              onClick={() => {
+                useGameStore.getState().finishEpilogue();
+                useUi.getState().home();
+                openMessenger();
+              }}
+            >
+              메신저에서 보기 ›
+            </button>
           </div>
         ) : null}
       </div>

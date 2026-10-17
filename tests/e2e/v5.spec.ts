@@ -95,7 +95,25 @@ async function chatUntil(page: Page, text: string, maxS = 120) {
   throw new Error(`메신저에 「${text}」가 오지 않았다`);
 }
 
+/**
+ * 「길게 눌러 역사 고정」: 휴대폰에서는 진짜 손가락(CDP Input.dispatchTouchEvent — 터치 → pointer·click 흐름이 기기와 같다).
+ * 손을 뗄 때 같은 자리에 새로 생긴 「기록이 돌아왔다 ›」가 같이 눌리면 안 된다(QA_UX ux-01).
+ */
+const touchHold = async (page: Page, testId: string, ms: number) => {
+  const b = tid(page, testId);
+  await b.scrollIntoViewIfNeeded();
+  const box = (await b.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1, radiusX: 4, radiusY: 4, force: 1 }] });
+  await page.waitForTimeout(ms);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+};
 const holdSubmit = async (page: Page) => {
+  const touch = await page.evaluate(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0);
+  if (touch) return touchHold(page, 'btn-submit', 1500);
   const b = tid(page, 'btn-submit');
   await b.scrollIntoViewIfNeeded();
   const box = (await b.boundingBox())!;
@@ -103,6 +121,14 @@ const holdSubmit = async (page: Page) => {
   await page.mouse.down();
   await page.waitForTimeout(1500);
   await page.mouse.up();
+};
+/** 손을 뗀 뒤에도 역사 고정 화면 안에 머물러 복원의 순간이 보인다(「기록이 돌아왔다 ›」는 눌리지 않았다) */
+const expectInPlaceRestore = async (page: Page) => {
+  await page.waitForTimeout(700);
+  await expect(page.locator('[data-screen=rewrite]')).toBeVisible();
+  await expect(page.locator('[data-screen=restore]')).toHaveCount(0);
+  await expect(tid(page, 'btn-restore')).toBeVisible();
+  await expect(tid(page, 'filled-slot').first()).toBeVisible();
 };
 
 /** 왼쪽 가장자리에서 오른쪽으로 밀기(iOS 식 뒤로) */
@@ -181,8 +207,8 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'home-record-0')).not.toContainText('만리(萬理) 등에게');
     await expect(tid(page, 'home-record-1')).toContainText('똑같이 무너진 옆 기록');
     // 그날 고정률(하루 전체 하나)
-    await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '0');
-    await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
+    // 그날 고정률은 Ep0 첫 화면엔 없다 — 역사 고정이 열릴 때부터(QA_STORY_R2 N7)
+    await expect(tid(page, 'fix-rate')).toHaveCount(0);
     await expect(tid(page, 'home-record-1')).toContainText(/이달에 \[ \? \] 친히 \[ ─+ \] 그 글자가 \[ ─+ \]/);
     // 구멍은 글자([ ── ])가 아니라 길이가 다른 짧은 밑줄로 보인다(읽기 도구용 글만 숨어 있다)
     await expect(tid(page, 'home-record-0').locator('.hr-hole')).toHaveCount(4);
@@ -363,6 +389,12 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'slot-sheet')).not.toContainText('컷 0-');
     await shot0(page, 'rewrite-slot-sheet');
     await tid(page, 'opt-상소를 올린 사람들').click();
+    // 짧게 누르면 아무 일 없이 끝나지 않는다: 「길게 누르세요」가 한 번 숨쉰다(손해 없음)
+    await touchHold(page, 'btn-submit', 250);
+    await expect(tid(page, 'btn-submit')).toHaveAttribute('data-hint', 'true');
+    await expect(tid(page, 'btn-submit')).toContainText('길게 누르세요');
+    await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', '');
+    await page.waitForTimeout(1700);
     await holdSubmit(page);
     await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'not_recorded');
     await expect(tid(page, 'line-pc_R0')).toContainText('흐릿함 — 그날에 붙지 않았다');
@@ -371,6 +403,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'slot-pc_R0-who').click();
     await tid(page, 'opt-세종').click();
     await holdSubmit(page);
+    await expectInPlaceRestore(page);
     // ① 복원의 순간은 이 화면 안에서: 빈칸이 그 자리에서 채워지고, 출처 한 줄, 버튼 하나
     await expect(tid(page, 'line-pc_R0')).toHaveAttribute('data-result', 'restored');
     await expect(tid(page, 'filled-slot')).toHaveText('임금');
@@ -593,24 +626,39 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'tag-room-link').click();
     await expect(tid(page, 'room-sheet')).toBeVisible();
     await expect(tid(page, 'chip-13:20')).toHaveAttribute('aria-pressed', 'true');
-    // 저절로 겹치지 않는다: 병풍 앞(O)에 아직 따로인 표시 둘
+    // 저절로 겹치지 않는다. 「윗자리 대감…」(들은 말)은 아직 도면에 없다 — 칩으로만 있고, 플레이어가 그 말이 가리킨 자리에 놓는다
     const mk = (key: string) => page.locator(`[data-testid="room-plan"] [data-keys~="${key}"]`);
+    const heard = tid(page, 'heard-e1-3#say:l_e1_3');
     await expect(mk('e2-2#fig_eo')).toHaveCount(1);
-    await expect(mk('e1-3#say:l_e1_3')).toHaveCount(1);
+    await expect(mk('e1-3#say:l_e1_3')).toHaveCount(0);
+    await expect(heard).toBeVisible();
     await expect(tid(page, 'same-person')).toHaveCount(0);
     await expect(tid(page, 'link-start')).toBeDisabled();
     await shot(page, 'room-1320');
-    // 틀린 잇기(공짜): 병풍 앞의 관원 ↔ 첫 번째 관측의 주인 자리 → 같은 자리가 아니다
+    // 표시마다 탭 영역 ≥44px, 서로 겹치지 않는다
+    {
+      const boxes = await page.locator('[data-testid="room-plan"] .mk[data-keys]').evaluateAll((els) => els.map((e) => (e.querySelector('circle') as SVGCircleElement).getBoundingClientRect()).map((r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width })));
+      for (const b of boxes) expect(b.w).toBeGreaterThanOrEqual(44);
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(Math.hypot(boxes[i]!.x - boxes[j]!.x, boxes[i]!.y - boxes[j]!.y)).toBeGreaterThanOrEqual(44);
+    }
+    // 틀린 잇기(공짜): 병풍 앞의 관원을 고른 채 첫 번째 관측의 주인 자리를 바로 탭 → 잇기를 해 본다 → 같은 자리가 아니다
     await mk('e2-2#fig_eo').click();
-    await tid(page, 'link-start').click();
-    await expect(tid(page, 'link-prompt')).toBeVisible();
     await mk('e1-3#owner').click();
     await expect(tid(page, 'link-feedback')).toHaveText('같은 자리가 아니다');
     await shot(page, 'room-link-wrong');
-    // 맞는 잇기: 같은 시각 같은 자리 — 귓속말이 가리킨 자리 ↔ 두 번째 관측의 윗자리 관원(첫 표시는 고른 채 남아 있다)
-    await expect(mk('e2-2#fig_eo')).toHaveAttribute('data-sel', 'true');
-    await tid(page, 'link-start').click();
-    await mk('e1-3#say:l_e1_3').click();
+    // 들은 말 놓기: 틀린 자리 → 보이는 이유만, 맞는 자리 → 그 자리에 「?」 가 생긴다(골라진 채)
+    await heard.click();
+    await expect(tid(page, 'place-prompt')).toBeVisible();
+    await mk('e1-3#owner').click();
+    await expect(tid(page, 'link-feedback')).toHaveText('그 말이 가리킨 자리가 아니다');
+    await heard.click();
+    await mk('e2-2#fig_eo').click();
+    await expect(mk('e1-3#say:l_e1_3')).toHaveCount(1);
+    await expect(mk('e1-3#say:l_e1_3')).toHaveAttribute('data-sel', 'true');
+    await expect(tid(page, 'room-heard')).toHaveCount(0);
+    await shot(page, 'room-heard-placed');
+    // 맞는 잇기: 골라진 「?」 에서 다른 관측의 윗자리 관원을 바로 탭(버튼 없이)
+    await mk('e2-2#fig_eo').click();
     await expect(tid(page, 'same-person')).toBeVisible();
     await expect(tid(page, 'link-feedback')).toHaveText('같은 사람으로 이었다');
     await expect(mk('e2-2#fig_eo')).toHaveAttribute('data-keys', /e1-3#say:l_e1_3/);
@@ -642,6 +690,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'card-hong_gwidal').click();
     await tid(page, 'ev-l_e3_1').click();
     await tid(page, 'tag-confirm').click();
+    await expect(tid(page, 'tag-first-try')).toHaveText('단번에 맞힘'); // 틀린 시도 없이 맞혔다
     await expect(tid(page, 'tag-sheet')).toBeHidden();
     await expect(page.locator('[data-eye="E4"]')).toHaveAttribute('data-state', 'open');
     // 마지막 이름(T4): 진행 4/4 만 — 닫힘·모순이 남아 있으니 「모두 밝혀졌다」(끝 신호)는 아직 없다
@@ -695,6 +744,11 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'retry-text')).toBeVisible();
     await shot(page, 'room-contradiction-retry');
+    // 맞는 판단 + 이긴 말을 받치는 자리(또렷이 들은 윤효손) → 통과하지 않는다: 근거는 진 말을 깨는 자리
+    await tid(page, 'claim-c_scope_all').click();
+    await tid(page, 'cev-X1:E1').click();
+    await tid(page, 'resolve-confirm').click();
+    await expect(tid(page, 'retry-text')).toBeVisible();
     await tid(page, 'claim-c_scope_all').click();
     await tid(page, 'cev-X1:E4').click();
     await tid(page, 'resolve-confirm').click();
@@ -751,17 +805,20 @@ test.describe('v5 전체 플레이', () => {
     for (const w of ['셀 수 있음', '가려짐', '멀다']) await expect(tid(page, 'conflict-plan')).not.toContainText(w);
     await tid(page, 'seat-E1').click();
     await expect(tid(page, 'seat-line')).toBeVisible();
-    await tid(page, 'claim-c_count_6').click();
+    // 칸에서 고른 6 이 판단으로 미리 골라져 있다(같은 값을 다시 고르지 않는다)
+    await expect(tid(page, 'claim-c_count_6')).toHaveAttribute('aria-pressed', 'true');
     await tid(page, 'cev-X2:E1').click();
     await tid(page, 'resolve-confirm').click();
     await expect(tid(page, 'resolved-text')).toBeVisible();
     await tid(page, 'room-back').click();
     await page.getByRole('button', { name: '닫기' }).last().click();
-    await fill('pc_L4', 'count', '6');
+    // 풀고 돌아오면 「몇」 칸에 그 값이 그대로
+    await expect(tid(page, 'slot-pc_L4-count')).toHaveText('6');
     await add('pc_S3');
     await add('w_alive');
     await shot(page, 'rewrite-compose');
     await holdSubmit(page);
+    await expectInPlaceRestore(page);
     await expect(tid(page, 'line-pc_L4')).toHaveAttribute('data-result', 'restored');
     await expect(tid(page, 'line-pc_S3')).toHaveAttribute('data-result', 'restored');
     await expect(tid(page, 'line-w_alive')).toHaveAttribute('data-result', 'witness');
@@ -779,6 +836,10 @@ test.describe('v5 전체 플레이', () => {
     // 사건 이름은 복원 카드에 먼저(출처와 함께) — 메신저 선택지보다 앞서
     await expect(tid(page, 'restore-event')).toContainText('무오사화(戊午士禍)');
     await expect(tid(page, 'restore-event-source')).toHaveAttribute('href', /encykorea/);
+    // 작은 집계: 단번에 맞힌 이름 n/m · 선택 줄 · 증인 줄
+    await expect(tid(page, 'restore-tally')).toContainText(/단번에 맞힘 \d\/4/);
+    await expect(tid(page, 'restore-tally')).toContainText('선택 줄 1');
+    await expect(tid(page, 'restore-tally')).toContainText('증인 줄 1');
     await page.waitForTimeout(2200);
     await shot(page, 'restore-home');
     await tid(page, 'article-full-toggle').click();
@@ -798,7 +859,7 @@ test.describe('v5 전체 플레이', () => {
     await page.waitForTimeout(4500);
     await shot(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'restore-teaser')).toBeVisible();
+    await expect(tid(page, 'restore-teaser')).toContainText('한 선임이 문서 하나를 보냈다');
     await shot(page, 'restore-teaser');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'home-date')).toHaveText('연산군 4년 7월 11일');
@@ -846,6 +907,7 @@ test.describe('v5 눈 닫힘과 잃은 컷', () => {
       st().openRoom();
       st().viewCut('E2', 1);
       st().selectRoomTime('13:20');
+      st().placeMention('e1-3#say:l_e1_3', 'O');
       st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
       st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
       st().viewCut('E3', 0);
@@ -909,6 +971,36 @@ test.describe('v5 틀', () => {
     expect(errs, errs.join('\n')).toEqual([]);
   });
 
+  test('시트: 손잡이를 끌어 내리면 닫히고, 시트 위 가장자리 밀기도 닫는다(진짜 터치)', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile', '휴대폰에서만');
+    await page.goto('/?test=1&ep=1');
+    await tid(page, 'btn-memories').click();
+    await toCut(page, 1, 2);
+    const swipe = async (x0: number, y0: number, x1: number, y1: number) => {
+      const cdp = await page.context().newCDPSession(page);
+      const pt = (x: number, y: number) => [{ x, y, id: 1, radiusX: 4, radiusY: 4, force: 1 }];
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(x0, y0) });
+      for (let i = 1; i <= 10; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(x0 + ((x1 - x0) * i) / 10, y0 + ((y1 - y0) * i) / 10) });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await cdp.detach();
+    };
+    await figure(page, 'e1-2', 'fig_yi').click();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    const g = (await tid(page, 'tag-sheet-grab').boundingBox())!;
+    await swipe(g.x + g.width / 2, g.y + 8, g.x + g.width / 2, g.y + 260);
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await figure(page, 'e1-2', 'fig_yi').click();
+    await expect(tid(page, 'tag-sheet')).toBeVisible();
+    const sb = (await tid(page, 'tag-sheet').boundingBox())!;
+    const ab = (await page.locator('.app').boundingBox())!;
+    await swipe(ab.x + 6, sb.y + sb.height * 0.6, ab.x + 170, sb.y + sb.height * 0.6 + 8);
+    await expect(tid(page, 'tag-sheet')).toBeHidden();
+    await expect(page.locator('[data-screen=viewer]')).toBeVisible(); // 시트만 닫혔다
+  });
+
   test('저장 이어하기: 새로 고침 뒤 「이어하기」로 같은 곳', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', '휴대폰에서만');
     await page.goto('/?test=1&boot=1');
@@ -921,6 +1013,9 @@ test.describe('v5 틀', () => {
     await page.waitForTimeout(2600); // 자동 저장 간격
     await page.reload();
     await tid(page, 'continue').click();
+    // 마지막으로 보던 화면(뷰어, 3번째 컷)으로 바로 돌아온다 — 뒤로 가면 홈
+    await expect(page.locator('[data-screen=viewer]')).toHaveAttribute('data-index', '2');
+    await tid(page, 'viewer-back').click();
     await expect(tid(page, 'assign-card')).toBeVisible();
     await expect(page.locator('[data-eye="E0"]')).toHaveAttribute('data-state', 'open');
     const viewed = await page.evaluate(() => (window as unknown as { __STORE__: { getState: () => { viewedCuts: string[] } } }).__STORE__.getState().viewedCuts);

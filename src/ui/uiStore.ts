@@ -4,7 +4,7 @@
  *  - 시트(이름 붙이기·그날의 방·인물 카드·로그·문서)는 스토어 ui(tagTarget, roomOpen)나 여기 값으로 연다.
  */
 import { create } from 'zustand';
-import type { Id } from '@/core/types';
+import type { Id, SlotKind } from '@/core/types';
 
 export type Screen = 'home' | 'viewer' | 'search' | 'messenger' | 'rewrite' | 'restore' | 'settings';
 export type BootStep = 'title' | 'prologue' | 'cold';
@@ -32,6 +32,8 @@ export interface UiStore {
   docId: Id | null;
   /** 그날의 방에서 열어 둘 모순 */
   roomFocus: Id | null;
+  /** 역사 고정 칸에서 고른 값이 모순에 걸려 방으로 왔다 — 판단을 미리 고르고, 풀리면 그 칸에 다시 넣는다 */
+  pendingFill: { lineId: Id; kind: SlotKind; value: string; contradictionId: Id } | null;
   /** 찾기 입력 미리 채움 */
   searchSeed: string | null;
   /** 이름 붙이기 시트에서 넘어온 찾기: 그 컷에서 들은 밑줄 낱말들 */
@@ -61,6 +63,7 @@ export interface UiStore {
   setLog(on: boolean): void;
   setDoc(id: Id | null): void;
   setRoomFocus(id: Id | null): void;
+  setPendingFill(p: UiStore['pendingFill']): void;
   setSearchSeed(q: string | null): void;
   showToast(text: string, tone?: Toast['tone']): void;
   showBanner(from: string, text: string): void;
@@ -80,6 +83,7 @@ export const useUi = create<UiStore>()((set, get) => ({
   logOpen: false,
   docId: null,
   roomFocus: null,
+  pendingFill: null,
   searchSeed: null,
   seedTerms: [],
   inkNew: [],
@@ -108,6 +112,7 @@ export const useUi = create<UiStore>()((set, get) => ({
   setLog: (logOpen) => set({ logOpen }),
   setDoc: (docId) => set({ docId }),
   setRoomFocus: (roomFocus) => set({ roomFocus }),
+  setPendingFill: (pendingFill) => set({ pendingFill }),
   setSearchSeed: (searchSeed) => set({ searchSeed }),
   showToast: (text, tone = 'amber') => {
     const key = ++seq;
@@ -137,3 +142,25 @@ export const useUi = create<UiStore>()((set, get) => ({
 }));
 
 export const topScreen = (s: UiStore): Screen => s.stack[s.stack.length - 1];
+
+/**
+ * 이어하기: 마지막으로 보던 화면을 이 기기에만 기억한다(편의 — 진행은 저장 파일에). 안전한 화면만 되돌린다:
+ * 뷰어(보던 관측이 저장에 있으면) · 역사 고정(열려 있고 복원 전) · 메신저 · 찾기. 복원 장면·설정은 홈으로.
+ */
+const LAST_KEY = 'gyeollok.lastScreen';
+useUi.subscribe((s, prev) => {
+  if (s.stack === prev.stack || s.phase !== 'game') return;
+  try {
+    localStorage.setItem(LAST_KEY, topScreen(s));
+  } catch {
+    /* 저장소 없음 */
+  }
+});
+export function lastScreen(): Screen | null {
+  try {
+    const v = localStorage.getItem(LAST_KEY);
+    return v === 'viewer' || v === 'rewrite' || v === 'messenger' || v === 'search' ? v : null;
+  } catch {
+    return null;
+  }
+}

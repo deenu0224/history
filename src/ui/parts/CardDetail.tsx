@@ -106,9 +106,9 @@ export function CardDetail() {
   }, [ref]);
   if (!ref || !card) return null;
   const close = () => useUi.getState().closeCard();
-  const eyeLook = card.eyeLine.includes('열림') ? 'open' : card.eyeLine.includes('닫힘') ? 'closed' : 'never';
+  const eyeLook = card.eyeLine.includes('열림') ? 'open' : card.eyeLine.includes('끊김') ? 'closed' : 'never';
   return (
-    <div className="scr" style={{ zIndex: 40, background: '#0b0a09' }} data-screen="card" data-card={card.id}>
+    <div className="scr" style={{ zIndex: 40, background: '#0b0a09' }} data-screen="card" data-card={card.id} data-float="bottom">
       <div className="body" style={{ paddingTop: 16 }}>
         <div className="cardfull" data-testid="card-full">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>

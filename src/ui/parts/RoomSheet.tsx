@@ -3,7 +3,7 @@
  * 일반 보기(시각 칩 · 눈의 시야 · 「같은 사람 잇기」: 표시 A 를 고르고 → 잇기 → 다른 관측의 표시 B 를 탭, 엔진이 시각·자리로 판정)
  * 모순 보기(기하만 — 반경 원·시선·가림 빗금·자리·거리. 자리를 탭하면 선이 그려진다. 결론 낱말은 없다 · 판단 + 근거 2칸).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectContradictionView, selectContradictions, selectRoom, type NeutralGeometry, type RoomMarker } from '@/store/selectors';
@@ -120,6 +120,11 @@ function PersonMark({
 
 const markerKey = (m: RoomMarker) => m.keys[0]!;
 
+function fadeChips(el: HTMLElement) {
+  el.classList.toggle('fade-l', el.scrollLeft > 2);
+  el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+}
+
 // ── 일반 보기 ──
 function Plan({
   room,
@@ -130,6 +135,7 @@ function Plan({
   onMarker,
   justMerged,
   mergePos,
+  placing,
 }: {
   room: ReturnType<typeof selectRoom>;
   selEye: string | null;
@@ -139,6 +145,8 @@ function Plan({
   onMarker: (m: RoomMarker) => void;
   justMerged: boolean;
   mergePos: string | null;
+  /** 들은 말을 놓는 중(도면의 자리를 탭) */
+  placing?: boolean;
 }) {
   const half = room.eyes[0]?.halfAngleDeg ?? 50;
   const sel = room.eyes.find((e) => e.eyeId === selEye);
@@ -146,7 +154,7 @@ function Plan({
   const seen = new Map<string, number>();
   return (
     <div className="planwrap">
-      <svg className="plan" viewBox={`0 0 ${room.w * C} ${room.h * C}`} role="img" aria-label="그날의 방 도면" data-testid="room-plan" data-linking={linkFrom ? 'true' : undefined}>
+      <svg className="plan" viewBox={`0 0 ${room.w * C} ${room.h * C}`} role="img" aria-label="그날의 방 도면" data-testid="room-plan" data-linking={linkFrom ? 'true' : undefined} data-placing={placing ? 'true' : undefined}>
         <Base room={room}>
           {sel && sel.state !== 'closed' ? <path d={cone(sel.x, sel.y, sel.facingDeg, half, 5)} fill="rgba(92,154,149,.2)" stroke={TEAL} strokeWidth="1.2" /> : null}
           {sel && sel.state !== 'closed' ? <path d={cone(sel.x, sel.y, sel.facingDeg, half, 10)} fill="none" stroke={TEAL} strokeWidth="1" strokeDasharray="3 4" opacity=".6" /> : null}
@@ -164,7 +172,7 @@ function Plan({
           const py = Math.cos(a) * 4.5;
           const closed = e.state === 'closed';
           return (
-            <g key={e.eyeId} className="mk" onClick={() => onEye(e.eyeId)} data-testid={`eye-${e.eyeId}`} role="button" aria-label={`${e.label}${closed ? ' (닫힘)' : ''}`}>
+            <g key={e.eyeId} className="mk" onClick={() => onEye(e.eyeId)} data-testid={`eye-${e.eyeId}`} role="button" aria-label={`${e.label}${closed ? ' (끊김)' : ''}`}>
               <circle cx={P(e.x)} cy={P(e.y)} r="22" fill="transparent" />
               {closed ? <circle cx={P(e.x)} cy={P(e.y)} r="17" fill="none" stroke={TEAL} strokeWidth="1.5" strokeDasharray="3 3" /> : <path d={`M${tx + Math.cos(a) * 6},${ty + Math.sin(a) * 6} L${tx + px},${ty + py} L${tx - px},${ty - py} Z`} fill={AMBER} />}
               {e.selected && !closed ? <circle cx={P(e.x)} cy={P(e.y)} r="18" fill="none" stroke={AMBER} strokeWidth="1.5" opacity=".55" /> : null}
@@ -176,10 +184,10 @@ function Plan({
           seen.set(m.posId, n);
           const k = markerKey(m);
           return (
-            <g key={m.keys.join('|')} className={m.merged && justMerged && m === mergedMarker ? 'merged-anim' : undefined} style={{ transformOrigin: `${P(m.x + m.ox)}px ${P(m.y)}px` }}>
+            <g key={m.keys.join('|')} className={m.merged && justMerged && m === mergedMarker ? 'merged-anim' : undefined} style={{ transformOrigin: `${P(m.x + m.ox)}px ${P(m.y + m.oy)}px` }}>
               <PersonMark
                 x={m.x + m.ox}
-                y={m.y}
+                y={m.y + m.oy}
                 label={m.label}
                 merged={m.merged}
                 count={m.count}
@@ -187,7 +195,7 @@ function Plan({
                 dashed={m.label === '?' && !m.owner}
                 sel={selKey === k || linkFrom === k}
                 linking={linkFrom === k}
-                hit={m.ox ? 19 : 22}
+                hit={23}
                 testId={n === 1 ? `marker-${m.posId}` : `marker-${m.posId}-${n}`}
                 keys={m.keys.join(' ')}
                 aria={`${m.label === '?' ? '모르는 사람' : m.label}${m.kind === 'mention' ? ' (말이 가리킨 자리)' : ''}`}
@@ -198,7 +206,7 @@ function Plan({
         })}
       </svg>
       {justMerged && mergedMarker ? (
-        <span className="tagmerge" data-testid="same-person" style={{ left: `${((mergedMarker.x + mergedMarker.ox) / room.w) * 100}%`, top: `calc(${(mergedMarker.y / room.h) * 100}% - 52px)` }}>
+        <span className="tagmerge" data-testid="same-person" style={{ left: `${((mergedMarker.x + mergedMarker.ox) / room.w) * 100}%`, top: `calc(${((mergedMarker.y + mergedMarker.oy) / room.h) * 100}% - 52px)` }}>
           같은 사람
         </span>
       ) : null}
@@ -287,6 +295,8 @@ export function RoomSheet() {
   /** 「같은 사람 잇기」 중: 첫 표시(A)의 키와 설명 */
   const [linkFrom, setLinkFrom] = useState<{ key: string; label: string; time: string } | null>(null);
   const [linkFb, setLinkFb] = useState<{ text: string; ok: boolean } | null>(null);
+  /** 「들은 말」을 놓는 중: 그 말의 등장 키 */
+  const [placing, setPlacing] = useState<string | null>(null);
   const [claim, setClaim] = useState<string | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
   /** 근거 2칸의 ② 근거(자리 사실 id). ① 판단은 claim */
@@ -305,17 +315,32 @@ export function RoomSheet() {
     setSelKey(null);
     setLinkFrom(null);
     setLinkFb(null);
-    setMode(focusId && xs.some((x) => x.id === focusId && x.status !== 'hidden') ? focusId : null);
+    setPlacing(null);
+    const m = focusId && xs.some((x) => x.id === focusId && x.status !== 'hidden') ? focusId : null;
+    setMode(m);
+    // 역사 고정 칸에서 고른 값으로 왔다면 그 값의 판단을 미리 고른다
+    const pf = useUi.getState().pendingFill;
+    if (m && pf?.contradictionId === m) setClaim(xs.find((x) => x.id === m)?.claims.find((c) => c.value === pf.value)?.id ?? null);
     setSelEye(room.eyes.find((e) => e.selected)?.eyeId ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, focusId]);
 
   const view = useView((ep, s) => (mode ? selectContradictionView(ep, s, mode) : null), [mode]);
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const evRef = useRef<HTMLDivElement>(null);
+  // 고른 시각 칩이 보이게 밀어 두고, 넘치는 쪽 가장자리를 흐린다
+  useEffect(() => {
+    const el = chipsRef.current;
+    if (!el) return;
+    el.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    fadeChips(el);
+  }, [open, room.time, room.chips.length, mode]);
   if (!open) return null;
 
   const close = () => {
     useGameStore.getState().closeRoom();
     useUi.getState().setRoomFocus(null);
+    useUi.getState().setPendingFill(null);
   };
   const g = useGameStore.getState();
   const justMerged = mergeUntil > Date.now();
@@ -336,24 +361,61 @@ export function RoomSheet() {
   const eyeName = (id: string) => room.eyes.find((e) => e.eyeId === id)?.label ?? '';
   const markerName = (m: RoomMarker) => (m.label === '?' ? (m.kind === 'mention' ? '말이 가리킨 사람' : '모르는 사람') : m.label);
 
-  /** 표시 탭: 잇는 중이면 B 로 판정, 아니면 고르기 */
+  /** 들은 말을 이 자리에 놓아 본다(판정은 엔진 — 말이 가리킨 자리인가) */
+  const tryPlace = (posId: string) => {
+    if (!placing) return false;
+    const r = g.placeMention(placing, posId);
+    if (r.verdict === 'ok') {
+      fx('merge');
+      setLinkFb({ text: '말이 가리킨 자리에 「?」 를 놓았다 — 같은 사람이면 이어 보자', ok: true });
+      setSelKey(r.key); // 놓은 「?」 가 골라진 채 — 바로 다른 관측의 사람을 탭하면 잇는다
+    } else if (r.verdict === 'wrong') {
+      fx('tag_no');
+      setLinkFb({ text: r.feedback, ok: false });
+    }
+    setPlacing(null);
+    return true;
+  };
+  /** 등장 키의 관측(눈): 키는 「컷 id#…」 */
+  const eyeOfKey = (key: string) => currentEpisode(useGameStore.getState()).eyes.find((e) => e.cuts.includes(key.split('#')[0]!))?.id;
+  /** B 의 등장이 모두 A 의 관측에서 왔나(그러면 잇기가 아니라 고르기를 옮긴다) */
+  const sameEye = (a: RoomMarker, b: RoomMarker) => b.eyeIds.every((e) => a.eyeIds.includes(e));
+  const tryLink = (fromKey: string, m: RoomMarker) => {
+    // B 쪽 키는 A 와 다른 관측의 것으로(이어진 묶음이면 그중 다른 관측의 등장)
+    const fromEye = eyeOfKey(fromKey);
+    const toKey = m.keys.find((k) => eyeOfKey(k) !== fromEye) ?? markerKey(m);
+    const j = g.linkMarkers(fromKey, toKey);
+    if (j.verdict === 'ok') {
+      setLinkFb({ text: '같은 사람으로 이었다', ok: true });
+      setSelKey(markerKey(m));
+    } else if (j.feedback) {
+      fx('tag_no');
+      setLinkFb({ text: j.feedback, ok: false });
+    }
+  };
+  /**
+   * 표시 탭: 들은 말을 놓는 중이면 그 자리에 놓기 · 잇는 중이면 B 로 판정 ·
+   * 표시 A 가 골라져 있고 **다른 관측**의 표시를 탭하면 바로 잇기를 시도한다(버튼 없이도 — QA_UX ux-03) ·
+   * 같은 관측의 표시면 고르기만 옮긴다.
+   */
   const tapMarker = (m: RoomMarker) => {
     fx('tap');
     setSelEye(null);
+    if (placing) {
+      tryPlace(m.posId);
+      return;
+    }
     if (linkFrom) {
       if (m.keys.includes(linkFrom.key)) {
         setLinkFrom(null);
         return;
       }
-      const j = g.linkMarkers(linkFrom.key, markerKey(m));
-      if (j.verdict === 'ok') {
-        setLinkFb({ text: '같은 사람으로 이었다', ok: true });
-        setSelKey(markerKey(m));
-      } else if (j.feedback) {
-        fx('tag_no');
-        setLinkFb({ text: j.feedback, ok: false });
-      }
+      tryLink(linkFrom.key, m);
       setLinkFrom(null);
+      return;
+    }
+    if (marker && selKey && !m.keys.includes(selKey) && !sameEye(marker, m)) {
+      tryLink(selKey, m);
       return;
     }
     setLinkFb(null);
@@ -396,7 +458,7 @@ export function RoomSheet() {
         onClose={close}
         scrim="none"
         testId="room-sheet"
-        maxH="82%"
+        maxH={view && !view.resolved ? '90%' : '82%'}
         foot={
           <NavBar
             className="insheet"
@@ -404,6 +466,7 @@ export function RoomSheet() {
             onBack={() => {
               // 모순 보기에서는 방(도면)으로, 잇는 중이면 잇기 그만, 방에서는 닫기
               if (view) resetConflict();
+              else if (placing) setPlacing(null);
               else if (linkFrom) setLinkFrom(null);
               else close();
             }}
@@ -431,7 +494,14 @@ export function RoomSheet() {
                         fx('tag_no');
                         setClaim(null);
                         setEvid(null);
-                      } else if (r.status === 'resolved') setRetry(null);
+                      } else if (r.status === 'resolved') {
+                        setRetry(null);
+                        // 칸에서 고른 값이 이긴 말이면 그 칸에 그대로 넣어 둔다
+                        const pf = useUi.getState().pendingFill;
+                        const won = cx?.claims.find((c) => c.id === r.winner)?.value;
+                        if (pf && pf.contradictionId === view.id && won === pf.value) useGameStore.getState().fillSlot(pf.lineId, pf.kind, pf.value);
+                        useUi.getState().setPendingFill(null);
+                      }
                     }}
                   >
                     {view.judgements.find((j) => j.claimId === claim)?.text ?? '판단과 근거를 고른다'}
@@ -448,7 +518,7 @@ export function RoomSheet() {
       >
         {!view ? (
           <>
-            <div className="chips" data-testid="room-chips">
+            <div className="chips" data-testid="room-chips" ref={chipsRef} onScroll={(e) => fadeChips(e.currentTarget)}>
               {open1.length ? (
                 <button className="chip warn" data-testid="chip-contradiction" onClick={() => { setMode(open1[0]!.id); setClaim(null); setRetry(null); setSeat(null); setLinkFrom(null); }}>
                   <IWarn size={18} /> 모순
@@ -465,6 +535,7 @@ export function RoomSheet() {
                     g.selectRoomTime(t);
                     // 잇는 중이면 첫 표시는 그대로 — 다른 시각의 표시와도 이어 볼 수 있다
                     if (!linkFrom) setSelKey(null);
+                    setPlacing(null);
                     setLinkFb(null);
                   }}
                 >
@@ -480,15 +551,47 @@ export function RoomSheet() {
               selKey={selKey}
               linkFrom={linkFrom?.key ?? null}
               onEye={(id) => {
+                if (placing) {
+                  const e = room.eyes.find((x) => x.eyeId === id);
+                  if (e) tryPlace(e.seatId);
+                  return;
+                }
                 setSelEye(id === selEye ? null : id);
                 if (!linkFrom) setSelKey(null);
               }}
               onMarker={tapMarker}
               justMerged={justMerged}
               mergePos={mergePos}
+              placing={!!placing}
             />
+            {room.heard.length ? (
+              <div className="heard" data-testid="room-heard">
+                <span className="t-m">들은 말 — 어느 자리 얘기일까</span>
+                {room.heard.map((h) => (
+                  <button
+                    key={h.key}
+                    className={`heardchip${placing === h.key ? ' on' : ''}`}
+                    data-testid={`heard-${h.key}`}
+                    aria-pressed={placing === h.key}
+                    onClick={() => {
+                      fx('tap');
+                      setLinkFrom(null);
+                      setLinkFb(null);
+                      setPlacing(placing === h.key ? null : h.key);
+                    }}
+                  >
+                    <span className="clock t-m">{cutNo(h.cutId)}</span>
+                    <span className="tx">「{h.text}」</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="t-m" style={{ marginTop: 10, color: 'var(--hanji)' }} data-testid="room-info">
-              {linkFrom ? (
+              {placing ? (
+                <span data-testid="place-prompt">
+                  <span className="amber">◌</span> 그 말이 가리킨 자리를 도면에서 탭
+                </span>
+              ) : linkFrom ? (
                 <span data-testid="link-prompt">
                   <span className="amber">◌</span> {linkFrom.label} · {linkFrom.time} — 같은 사람을 다른 관측에서 탭
                 </span>
@@ -500,10 +603,10 @@ export function RoomSheet() {
                 <>
                   {markerName(marker)} · {room.time}
                   {marker.eyeIds.length ? ` · ${marker.eyeIds.map(eyeName).join(' · ')}` : ''}
-                  {marker.merged ? ' · 같은 사람으로 이었다' : ''}
+                  {marker.merged ? ' · 같은 사람으로 이었다' : ' — 같은 사람이면 다른 관측에서 탭'}
                 </>
               ) : (
-                <span className="t-m">사람을 탭하면 시야와 컷을 본다 · 둘이 같은 사람이면 「같은 사람 잇기」</span>
+                <span className="t-m">사람을 탭하면 시야와 컷을 본다 · 고른 채 다른 관측의 사람을 탭하면 잇는다</span>
               )}
             </div>
             {linkFb ? (
@@ -527,9 +630,8 @@ export function RoomSheet() {
         ) : (
           <>
             <div className="t-m slotsline" data-testid="contra-slots">
-              근거 {view.slots}칸 · ① 판단 + ② 근거
+              근거 {view.slots}칸 · ① 판단 — 어느 말을 남기나
             </div>
-            <div className="t-m" style={{ marginTop: 6 }}>① 판단 — 어느 말을 남기나</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               {cx?.claims.map((c) => (
                 <button
@@ -542,20 +644,24 @@ export function RoomSheet() {
                     fx('tap');
                     setClaim(claim === c.id ? null : c.id);
                     setRetry(null);
+                    // 판단을 고르면 ② 근거가 보이게(작은 화면에서 아래로 밀려 있지 않게)
+                    if (claim !== c.id) setTimeout(() => evRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
                   }}
                 >
                   {c.label}
                 </button>
               ))}
             </div>
+            <div className="contra-plan">
             <Conflict geo={view.geometry} room={room} focusClaim={claim} selSeat={seat} onSeat={(id) => { fx('tap'); setSeat(seat === id ? null : id); }} />
-            <div className="t-m" style={{ marginTop: 8 }} data-testid="conflict-caption">
+            </div>
+            <div className="t-m" style={{ marginTop: 8 }} data-testid="conflict-caption" data-float-avoid>
               {view.geometry.kind === 'hearing'
                 ? `${view.geometry.time} · 원 = 들림 반경 ${view.geometry.radius}칸 · 자리를 탭하면 거리`
                 : `${view.geometry.time} · 원 = 셀 수 있는 거리 ${view.geometry.detailRange}칸 · 빗금 = 가리는 것 · 자리를 탭하면 시선`}
             </div>
-            <div className="t-m" style={{ marginTop: 10 }}>② 근거 — 그 판단을 받치는 자리 하나</div>
-            <div data-testid="contra-evidence" style={{ marginTop: 4 }}>
+            <div className="t-m" style={{ marginTop: 8 }} ref={evRef}>② 근거 — 다른 말이 왜 틀렸나, 그 자리 하나</div>
+            <div className="contra-ev" data-testid="contra-evidence" style={{ marginTop: 4 }}>
               {view.evidence.map((e) => (
                 <button
                   key={e.id}
@@ -579,7 +685,7 @@ export function RoomSheet() {
             </div>
             {view.waiting ? (
               <div className="fb" role="status" data-testid="resolve-waiting">
-                <span className="t-b">한 선임이 뭔가 찾고 있다 — 메신저를 먼저 보자</span>
+                <span className="t-b">메신저를 먼저 보자</span>
               </div>
             ) : null}
             {retry ? (

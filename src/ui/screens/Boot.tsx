@@ -2,9 +2,10 @@
 import { useEffect, useState } from 'react';
 import { peekSave } from '@/core/save';
 import { EPISODE_1 } from '@/data/script';
-import { useGameStore } from '@/store/gameStore';
+import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { coldOpenFor } from '../lib/flow';
-import { useUi } from '../uiStore';
+import { lastScreen, useUi } from '../uiStore';
+import { openMessenger } from '../lib/nav';
 
 export function Boot() {
   const step = useUi((s) => s.boot);
@@ -44,8 +45,15 @@ export function Boot() {
     const g = useGameStore.getState();
     const r = await g.load('auto');
     if (r === 'loaded' && useGameStore.getState().started) {
+      const last = lastScreen();
       useGameStore.getState().resume();
       useUi.getState().enterGame();
+      // 마지막으로 보던 화면으로(안전한 것만 — 홈이 바닥에 깔린다)
+      const s = useGameStore.getState();
+      if (last === 'viewer' && s.viewer) useUi.getState().push('viewer');
+      else if (last === 'rewrite' && s.rewrite.open && !s.restored) useUi.getState().push('rewrite');
+      else if (last === 'messenger') openMessenger();
+      else if (last === 'search' && currentEpisode(s).verbs.search) useUi.getState().push('search');
     } else startNew();
   };
 

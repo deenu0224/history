@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { MUSIC } from '@/data/feedback';
 import { installAudioUnlock, setMusic } from '@/game/audio';
 import { useGameStore } from '@/store/gameStore';
 import { Director } from './Director';
 import { installFeedback } from './lib/fx';
+import { placeFloat } from './lib/floatPlace';
 import { EDGE_GO_PX, EDGE_PX, goBack, openMessenger } from './lib/nav';
 import { CardDetail } from './parts/CardDetail';
 import { DocSheet, LogSheet } from './parts/LogSheets';
@@ -21,18 +22,44 @@ import { topScreen, useUi } from './uiStore';
 
 const params = () => new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
+/** 알림·배너는 머리글 아래, 탭 대상이 없는 띠에 놓는다(lib/floatPlace) — 떠 있는 동안 화면이 바뀌면 다시 잰다 */
+function useFloat(key: number | undefined, ref: React.RefObject<HTMLElement | null>, avoid: () => HTMLElement[]) {
+  useLayoutEffect(() => {
+    if (key === undefined) return;
+    const put = () => {
+      const el = ref.current;
+      if (!el) return;
+      const y = placeFloat(el, avoid());
+      if (y !== null) {
+        el.style.top = `${Math.round(y)}px`;
+        el.style.bottom = 'auto';
+      }
+    };
+    put();
+    // 떠 있는 동안 화면이 바뀌면(시트가 올라옴·방이 열림) 다시 잰다
+    const t = setInterval(put, 350);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+}
+
 function Layers() {
   const toast = useUi((s) => s.toast);
   const banner = useUi((s) => s.banner);
+  const toastRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLButtonElement>(null);
+  useFloat(banner?.key, bannerRef, () => []);
+  useFloat(toast?.key, toastRef, () => (bannerRef.current ? [bannerRef.current] : []));
   return (
     <>
       {toast ? (
-        <div key={toast.key} className={`toast ${toast.tone === 'amber' ? '' : toast.tone}`} role="status" data-testid="toast">
+        <div ref={toastRef} key={toast.key} className={`toast ${toast.tone === 'amber' ? '' : toast.tone}`} role="status" data-testid="toast">
           <span className="t-b">{toast.text}</span>
         </div>
       ) : null}
       {banner ? (
         <button
+          ref={bannerRef}
           key={banner.key}
           className="banner"
           data-testid="banner"
@@ -56,21 +83,21 @@ function useEdgeBack() {
   useEffect(() => {
     let st: { x: number; y: number; id: number; done: boolean; hint: HTMLDivElement | null } | null = null;
     const app = () => document.querySelector<HTMLElement>('.app');
-    const down = (e: PointerEvent) => {
+    const down = (x: number, y: number, id: number) => {
       const el = app();
-      if (!el || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (!el) return;
       const r = el.getBoundingClientRect();
-      if (e.clientX - r.left > EDGE_PX || e.clientX < r.left) return;
+      if (x - r.left > EDGE_PX || x < r.left) return;
       const top = topScreen(useUi.getState());
       const g = useGameStore.getState();
       const overlay = !!useUi.getState().card || g.ui.roomOpen || !!g.ui.tagTarget || useUi.getState().logOpen || !!useUi.getState().docId;
       if (!overlay && (top === 'home' || top === 'restore')) return;
-      st = { x: e.clientX, y: e.clientY, id: e.pointerId, done: false, hint: null };
+      st = { x, y, id, done: false, hint: null };
     };
-    const move = (e: PointerEvent) => {
-      if (!st || st.id !== e.pointerId || st.done) return;
-      const dx = e.clientX - st.x;
-      const dy = Math.abs(e.clientY - st.y);
+    const move = (x: number, y: number, id: number) => {
+      if (!st || st.id !== id || st.done) return;
+      const dx = x - st.x;
+      const dy = Math.abs(y - st.y);
       if (dy > 40 && dy > dx) {
         st.hint?.remove();
         st = null;
@@ -85,7 +112,7 @@ function useEdgeBack() {
       }
       if (st.hint) {
         st.hint.style.transform = `translateX(${Math.min(dx, EDGE_GO_PX) * 0.6}px)`;
-        st.hint.style.top = `${e.clientY - (app()?.getBoundingClientRect().top ?? 0) - 22}px`;
+        st.hint.style.top = `${y - (app()?.getBoundingClientRect().top ?? 0) - 22}px`;
         st.hint.classList.toggle('go', dx >= EDGE_GO_PX);
       }
       if (dx >= EDGE_GO_PX && dy < dx * 0.6) {
@@ -93,21 +120,47 @@ function useEdgeBack() {
         goBack();
       }
     };
-    const up = (e: PointerEvent) => {
-      if (!st || st.id !== e.pointerId) return;
+    const up = (id: number) => {
+      if (!st || st.id !== id) return;
       const h = st.hint;
       if (h) setTimeout(() => h.remove(), st.done ? 160 : 0);
       st = null;
     };
-    window.addEventListener('pointerdown', down, true);
-    window.addEventListener('pointermove', move, true);
-    window.addEventListener('pointerup', up, true);
-    window.addEventListener('pointercancel', up, true);
+    // 손가락은 터치 이벤트로 따라간다: 시트 위에서는 브라우저가 스크롤을 잡으며 pointercancel 을 보내지만
+    // touchmove 는 계속 온다(시트 위 가장자리 밀기 = 시트 닫기, QA_UX). 마우스·펜은 포인터 이벤트.
+    const pd = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      down(e.clientX, e.clientY, e.pointerId);
+    };
+    const pm = (e: PointerEvent) => e.pointerType !== 'touch' && move(e.clientX, e.clientY, e.pointerId);
+    const pu = (e: PointerEvent) => e.pointerType !== 'touch' && up(e.pointerId);
+    const ts = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (t && e.touches.length === 1) down(t.clientX, t.clientY, -1 - t.identifier);
+    };
+    const tm = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) move(t.clientX, t.clientY, -1 - t.identifier);
+    };
+    const te = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) up(-1 - t.identifier);
+    };
+    window.addEventListener('pointerdown', pd, true);
+    window.addEventListener('pointermove', pm, true);
+    window.addEventListener('pointerup', pu, true);
+    window.addEventListener('pointercancel', pu, true);
+    window.addEventListener('touchstart', ts, { capture: true, passive: true });
+    window.addEventListener('touchmove', tm, { capture: true, passive: true });
+    window.addEventListener('touchend', te, { capture: true, passive: true });
+    window.addEventListener('touchcancel', te, { capture: true, passive: true });
     return () => {
-      window.removeEventListener('pointerdown', down, true);
-      window.removeEventListener('pointermove', move, true);
-      window.removeEventListener('pointerup', up, true);
-      window.removeEventListener('pointercancel', up, true);
+      window.removeEventListener('pointerdown', pd, true);
+      window.removeEventListener('pointermove', pm, true);
+      window.removeEventListener('pointerup', pu, true);
+      window.removeEventListener('pointercancel', pu, true);
+      window.removeEventListener('touchstart', ts, true);
+      window.removeEventListener('touchmove', tm, true);
+      window.removeEventListener('touchend', te, true);
+      window.removeEventListener('touchcancel', te, true);
     };
   }, []);
 }

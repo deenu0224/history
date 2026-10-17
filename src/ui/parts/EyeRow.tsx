@@ -9,7 +9,7 @@ export function EyeRow({ eyes, onPick, size = 24 }: { eyes: EyeView[]; onPick?: 
     <div className="eyes" role="group" aria-label="관측 가능">
       {eyes.map((e) => {
         const usable = e.state === 'open' || e.state === 'closed';
-        const label = usable ? `${e.label}${e.state === 'closed' ? ' (닫힘)' : ''}` : e.state === 'never' ? '관측 불가' : '아직 열리지 않은 관측';
+        const label = usable ? `${e.label}${e.state === 'closed' ? ' (끊김)' : ''}` : e.state === 'never' ? '관측 불가' : '아직 열리지 않은 관측';
         return (
           <button
             key={e.eyeId}

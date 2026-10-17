@@ -127,6 +127,8 @@ function SlotPicker({ lineId, kind, onClose }: { lineId: string; kind: SlotKind;
             } else if (r.status === 'contested') {
               fx('tag_no');
               onClose();
+              // 고른 값은 방에서 판단으로 미리 골라 두고, 풀리면 이 칸에 그대로 넣는다(같은 값을 세 번 고르지 않게 — QA_UX ux-08)
+              useUi.getState().setPendingFill({ lineId, kind, value: o.value, contradictionId: r.contradictionId });
               useUi.getState().setRoomFocus(r.contradictionId);
               g.openRoom();
             }
