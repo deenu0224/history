@@ -218,7 +218,7 @@ describe('store — Ep1 correct path end to end', () => {
     // 현실 재기록
     expect(h.st().restore()).toBe('restored');
     const home = selectHome(EP1, h.st());
-    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '실록청(춘추관 안)', status: '고정됨', placeNote: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다' });
+    expect(home.card).toMatchObject({ date: '연산군 4년 7월 11일', place: '『성종실록』 편찬 실록청(춘추관 안)', status: '고정됨', placeNote: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다' });
     expect(home.buttons).toEqual(['memories', 'restored']);
     const kimR = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kimR.altered[0]).toMatchObject({ state: 'restored', provenance: 'verified' });

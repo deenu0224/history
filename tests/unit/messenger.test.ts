@@ -179,7 +179,7 @@ describe('messenger in the store (EP1 script)', () => {
     h.st().startEpisode();
     h.advance(30_000);
     expect(h.st().messenger.log.map((m) => m.from)).toEqual(['oh', 'oh', 'han', 'han']);
-    expect(h.st().messenger.log.slice(-2).map((m) => m.text)).toEqual(['명단에서 셋만 뽑아 카드 올려놨어.', '나머진 필요하면 찾기로 봐.']);
+    expect(h.st().messenger.log.map((m) => m.text)).toEqual(['07, 우선순위 낮은 건 하나 너한테 갔다.', '06시에 관측기 한 바퀴 도니까 그 전에 끝내.', '아까 그거야, 명단 하나 붙어 있더라.', '거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.']);
     h.st().openMessenger();
     h.advance(40_000);
     expect(h.st().messenger.log).toHaveLength(4);

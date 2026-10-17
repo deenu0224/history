@@ -238,7 +238,7 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'viewer-back').click();
     await readChat(page, false);
     // 소실 세계: 07 자신도 「기록이 없다」를 당연하게 여긴다(첫 선택지)
-    await expect(tid(page, 'my-msg').filter({ hasText: '그건 원래 기록이 없잖아요.' })).toHaveCount(1);
+    await expect(tid(page, 'my-msg').filter({ hasText: '거긴 원래 만든 사람 기록이 없잖아요.' })).toHaveCount(1);
     await expect(tid(page, 'chat')).toContainText('응, 한글은 쓰는데 만든 사람은 기록에 없지.');
     await expect(tid(page, 'ask-hint')).toBeVisible();
     await tid(page, 'ask-hint').click();
@@ -410,15 +410,16 @@ test.describe('v5 전체 플레이', () => {
     await tid(page, 'restore-next').click();
     // ── ③ 짧은 독백 → 다리
     await expect(page.locator('[data-screen=restore]')).toHaveAttribute('data-step', 'monologue');
-    await expect(tid(page, 'restore-monologue')).toContainText('모두가 아는 이름이');
+    await expect(tid(page, 'restore-monologue')).toContainText('모두가 아는 그 이름이');
     await page.waitForTimeout(4500);
     await shot0(page, 'restore-monologue');
     await tid(page, 'restore-next').click();
     await expect(tid(page, 'bridge-clock')).toHaveText('23:04');
     // 복원 뒤 대화는 보통 대화창 그대로 — 한 선임은 이미 바뀐 세상에서 말한다
-    await expect(tid(page, 'restore-bridge')).toContainText('기록 확인: 바뀐 것 없음.', { timeout: 30_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('관측기: 내 관측 기록은 그대로', { timeout: 30_000 });
     await tid(page, 'reply-hangul').click({ timeout: 60_000 });
     await expect(tid(page, 'restore-bridge')).toContainText('세종대왕이 만든 거 모르는 사람이 어디 있어', { timeout: 30_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('아까 우리 그 칸 얘기 했잖아.', { timeout: 30_000 });
     await expect(tid(page, 'restore-bridge')).toContainText('관측기: 같은 손상 흔적 1건 더', { timeout: 30_000 });
     await expect(page.locator('.app')).not.toContainText('좌표');
     await expect(tid(page, 'restore-bridge')).toContainText('어, 하나 더 떴다.', { timeout: 30_000 });
@@ -428,9 +429,9 @@ test.describe('v5 전체 플레이', () => {
 
     // ═══ 에피소드 1 「한 사관의 흔적」 — 다리 뒤 콜드 오픈 23:04 ═══
     await tid(page, 'restore-next').click();
-    await expect(tid(page, 'boot-line')).toContainText('23:04');
+    // 다리가 23:04 을 이미 보였다 — 콜드 오픈은 한 줄만
+    await expect(tid(page, 'boot-line')).toContainText('모니터에 배정 하나.');
     await shot(page, 'cold-open');
-    await tid(page, 'next').click();
     await tid(page, 'next').click();
     await expect(tid(page, 'assign-card')).toContainText('#C-2217');
     await expect(tid(page, 'home-date')).toHaveText('####');
@@ -443,22 +444,21 @@ test.describe('v5 전체 플레이', () => {
     const chat = tid(page, 'chat');
     await chat.evaluate((el) => (el.scrollTop = 0));
     await page.waitForTimeout(300);
-    const mineNow = tid(page, 'my-msg').filter({ hasText: '그건 세종대왕이 만든 거잖아요.' });
+    const mineNow = tid(page, 'my-msg').filter({ hasText: '거기도 뚫렸어요?' });
     await mineNow.scrollIntoViewIfNeeded();
     await expect(mineNow).toHaveCount(1);
     await expect(mineNow).toHaveAttribute('data-rewritten', 'true');
-    await expect(chat).toContainText('옆 기록은 세종대왕이 한글 지은 그 기록이야.');
-    await expect(chat).toContainText('응, 그러니까 더 이상하지.');
-    await expect(chat).not.toContainText('그건 원래 기록이 없잖아요.');
+    await expect(chat).toContainText('옆 기록은 한글 처음 나온 데야.');
+    await expect(chat).toContainText('응, 같은 칸이야.');
+    await expect(chat).not.toContainText('거긴 원래 만든 사람 기록이 없잖아요.');
     await expect(chat).not.toContainText('만든 사람은 기록에 없지');
-    await expect(chat).not.toContainText('한글 누가 만들었는지 적힌 데야.');
     // 길게 눌러도 아무것도 뜨지 않는다(원래 글은 화면 어디에도 없다)
     const hb = (await mineNow.boundingBox())!;
     await page.mouse.move(hb.x + hb.width - 20, hb.y + hb.height / 2);
     await page.mouse.down();
     await page.waitForTimeout(900);
     await page.mouse.up();
-    await expect(page.locator('.app')).not.toContainText('그건 원래 기록이 없잖아요.');
+    await expect(page.locator('.app')).not.toContainText('거긴 원래 만든 사람 기록이 없잖아요.');
     await expect(page.locator('.app')).not.toContainText('원래 문장');
     await page.waitForTimeout(800); // 먹 번짐이 지나간 뒤
     await mineNow.scrollIntoViewIfNeeded();

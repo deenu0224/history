@@ -1,6 +1,6 @@
 /**
  * Ep0 메신저 대본(DIALOGUE_GUIDE §4.0) — 한 선임(반말)·시스템 줄. 말풍선 하나 = 문장 하나(≤30자), 정답(이름 붙이기 전 인물 이름·연도·사건) 금지.
- * 세계 규칙을 대화 속 한 문장씩, 게임 전체에서 한 번만: 관측기(그날을 적은 사람의 눈으로만) · 소실(지워지면 기억도)과 관측기의 구멍 탐지 · 고정(세상이 그 기록대로 굳는다).
+ * 세계 규칙을 대화 속 한 문장씩, 게임 전체에서 한 번만: 관측기(그날 기록에 이름 남은 사람의 눈으로만) · 소실(지워지면 기억도)과 관측기의 구멍 탐지 · 고정(세상이 그 기록대로 굳는다).
  * 말수 예산(DIALOGUE_GUIDE §1-11, 검증기 ⑬): 사건 하나 ≤3 말풍선(ev.restore ≤4), Ep0 한 선임 ≤15줄. 틀린 시도·성공 맞장구엔 묶음이 없다(힌트 사다리만).
  * 아이러니: 이 세계의 모두(07 포함)는 「한글을 누가 만들었는지는 기록이 없다」를 당연하게 여긴다. 07 이 걸리는 것은 관측기의 「주어 칸 손상」 탐지뿐.
  * 현실 재기록(DIALOGUE_GUIDE §1-10): 소실 사실(ERASED0)에 기대는 줄은 facts 로 그 사실을 달고 restored(복원 뒤 글)를 갖는다 —
@@ -15,7 +15,7 @@ export const ERASED0: ErasedFact[] = [
   {
     id: 'e0.hangul_unknown',
     label: '한글을 누가 만들었는지는 기록이 없다(모두 그렇게 안다)',
-    tells: [/원래 기록이 없/, /기록에 없으면 없/, /(한글|언문).*(모르|기록이 없|기록에 없)/, /누가 만들었는지/],
+    tells: [/원래 기록이 없/, /기록에 없으면 없/, /(한글|언문).*(모르|기록이 없|기록에 없)/, /누가 만들었는지/, /만든 사람.{0,6}기록(이|에)? ?없/],
   },
 ];
 
@@ -30,21 +30,23 @@ export const BURSTS0: Burst[] = [
     id: 'ev.start',
     steps: [sys('관측기: #C-2209 · 문장 손상 2건'), han('07, 홈 카드 봐, 실록 한 꼭지가 다 뚫렸어.')],
   },
-  { id: 'ev0.eye_rule', steps: [han('관측기는 그날을 적은 사람 눈으로만 봐.')] },
+  { id: 'ev0.eye_rule', steps: [han('관측기는 그날 기록에 이름 남은 사람 눈으로만 봐.')] },
   {
     id: 'ev0.erasure',
     steps: [
-      named('m0_hangul', han('옆 기록은 한글 누가 만들었는지 적힌 데야.', { restored: '옆 기록은 세종대왕이 한글 지은 그 기록이야.', facts: HANGUL })),
+      // 두 현실 모두에서 참(소실 사실에 기대지 않는다) — 다시 쓰이지 않는다
+      named('m0_hangul', han('옆 기록은 한글 처음 나온 데야.')),
       {
         kind: 'choice',
         id: 'c0_hangul',
         allowNoReply: true,
         options: [
-          { id: 'none', text: '그건 원래 기록이 없잖아요.', restored: '그건 세종대왕이 만든 거잖아요.', facts: HANGUL, then: [] },
+          // 복원 뒤 글은 만든 사람을 말하지 않는다 — 복원 뒤 「한글 만든 사람?」과 부딪히지 않게(QA_STORY 발견 1)
+          { id: 'none', text: '거긴 원래 만든 사람 기록이 없잖아요.', restored: '거기도 뚫렸어요?', facts: HANGUL, then: [] },
           { id: 'also', text: '그것도 손상이에요?', then: [] },
         ],
         after: [
-          named('m0_nolog', han('응, 한글은 쓰는데 만든 사람은 기록에 없지.', { restored: '응, 그러니까 더 이상하지.', facts: HANGUL })),
+          named('m0_nolog', han('응, 한글은 쓰는데 만든 사람은 기록에 없지.', { restored: '응, 같은 칸이야.', facts: HANGUL })),
           han('지워지면 기억도 지워지는데, 관측기는 구멍을 잡아.', { heavy: true }),
         ],
       },
@@ -56,20 +58,21 @@ export const BURSTS0: Burst[] = [
     id: 'ev.restore',
     postRestore: true,
     steps: [
-      { kind: 'system', id: 'e0m_restore_sys', text: '기록 확인: 바뀐 것 없음.' },
+      { kind: 'system', id: 'e0m_restore_sys', text: '관측기: 내 관측 기록은 그대로' },
       han('07, 아까 그 구멍 난 거 끝났어?'),
       {
         kind: 'choice',
         id: 'c0_restore',
         options: [
           { id: 'hangul', text: '한글 만든 사람 칸이요.', then: [] },
-          { id: 'done', text: '네, 다 채웠어요.', then: [] },
+          { id: 'king', text: '세종대왕 칸이요.', then: [] },
         ],
         after: [
-          han('한글 만든 사람?'),
           han('세종대왕이 만든 거 모르는 사람이 어디 있어.'),
           { kind: 'pause', ms: 3500, fakeTyping: true },
           han('너 진짜 피곤하구나.'),
+          // 거슬러 올라가 볼 까닭만 준다(QA_FUN F8) — 무엇이 바뀌었는지는 말하지 않는다
+          han('아까 우리 그 칸 얘기 했잖아.'),
         ],
       },
     ],

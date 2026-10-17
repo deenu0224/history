@@ -19,7 +19,7 @@ function playEp0ToRestore(h: Harness) {
   h.st().startEpisode();
   EP0.eyes[0].cuts.forEach((_, i) => h.st().viewCut('E0', i));
   h.st().closeViewer();
-  drainMessages(h, 3); // 첫 선택지: c0_hangul 「그건 원래 기록이 없잖아요.」
+  drainMessages(h, 3); // 첫 선택지: c0_hangul 「거긴 원래 만든 사람 기록이 없잖아요.」
   h.st().tag('fig_choi', 'choi_manri', 'd_scroll_head', 'e0-1');
   h.st().followFactLink('f_choi_exam', 'sejong');
   expect(h.st().tag('fig_king', 'sejong', 'l_e0_gunsang', 'e0-3').judgement).toMatchObject({ verdict: 'ok' }); // 같은 기억 속 같은 사람(다른 컷)
@@ -45,7 +45,7 @@ describe('validator ⑫ — reality rewrite covers the whole chat log', () => {
   });
   it("the player's own Ep0 reply is rewritten too", () => {
     const l = dialogueLines(EP0).find((x) => x.where.endsWith('c0_hangul:none'))!;
-    expect(l).toMatchObject({ kind: 'mine', text: '그건 원래 기록이 없잖아요.', restored: '그건 세종대왕이 만든 거잖아요.' });
+    expect(l).toMatchObject({ kind: 'mine', text: '거긴 원래 만든 사람 기록이 없잖아요.', restored: '거기도 뚫렸어요?' });
   });
   it('catches a reply that asserts an erased fact without a restored variant', () => {
     const ep = structuredClone(EP0);
@@ -142,36 +142,38 @@ describe('store — Ep0 restoration rewrites the whole log, incl. my reply', () 
     const h = makeStore(5, 'ep0');
     playEp0ToRestore(h);
     const mine = h.st().messenger.log.find((m) => m.id === 'c0_hangul:none')!;
-    expect(mine).toMatchObject({ from: 'me', text: '그건 원래 기록이 없잖아요.', restored: '그건 세종대왕이 만든 거잖아요.' });
-    expect(selectMessenger(EP0, h.st(), h.clock.t).items.find((m) => m.id === 'c0_hangul:none')!.display).toBe('그건 원래 기록이 없잖아요.');
+    expect(mine).toMatchObject({ from: 'me', text: '거긴 원래 만든 사람 기록이 없잖아요.', restored: '거기도 뚫렸어요?' });
+    expect(selectMessenger(EP0, h.st(), h.clock.t).items.find((m) => m.id === 'c0_hangul:none')!.display).toBe('거긴 원래 만든 사람 기록이 없잖아요.');
 
     expect(h.st().restore()).toBe('restored');
     drainMessages(h, 3);
     const shown = selectMessenger(EP0, h.st(), h.clock.t).items;
-    expect(shown.find((m) => m.id === 'c0_hangul:none')).toMatchObject({ display: '그건 세종대왕이 만든 거잖아요.', rewritten: true, bleed: true });
-    expect(shown.find((m) => m.id === 'm0_nolog')!.display).toBe('응, 그러니까 더 이상하지.');
+    expect(shown.find((m) => m.id === 'c0_hangul:none')).toMatchObject({ display: '거기도 뚫렸어요?', rewritten: true, bleed: true });
+    expect(shown.find((m) => m.id === 'm0_nolog')!.display).toBe('응, 같은 칸이야.');
+    // 두 현실 모두에서 참인 줄은 그대로
+    expect(shown.find((m) => m.id === 'm0_hangul')).toMatchObject({ display: '옆 기록은 한글 처음 나온 데야.', rewritten: false });
     for (const m of shown) for (const re of allTells) expect(re.test(m.display), `${m.id} 「${m.display}」`).toBe(false);
 
     // 복원 단계 「메시지」: 내 말도 before → after
     const r = selectRestoration(EP0, h.st())!;
-    expect(r.messages).toContainEqual({ id: 'c0_hangul:none', from: 'me', before: '그건 원래 기록이 없잖아요.', after: '그건 세종대왕이 만든 거잖아요.' });
+    expect(r.messages).toContainEqual({ id: 'c0_hangul:none', from: 'me', before: '거긴 원래 만든 사람 기록이 없잖아요.', after: '거기도 뚫렸어요?' });
 
     // 저장 → 불러오기: 원래 글과 다시 쓴 글이 둘 다 남는다
-    h.st().markInkSeen(['m0_hangul']);
+    h.st().markInkSeen(['m0_nolog']);
     await h.st().save('manual');
     const h2 = makeStore(5, 'ep0');
     expect(await h2.st().load('manual')).toBe('loaded');
-    expect(h2.st().messenger.log.find((m) => m.id === 'c0_hangul:none')).toMatchObject({ text: '그건 원래 기록이 없잖아요.', restored: '그건 세종대왕이 만든 거잖아요.' });
-    expect(h2.st().messenger.inkSeen).toEqual(['m0_hangul']);
+    expect(h2.st().messenger.log.find((m) => m.id === 'c0_hangul:none')).toMatchObject({ text: '거긴 원래 만든 사람 기록이 없잖아요.', restored: '거기도 뚫렸어요?' });
+    expect(h2.st().messenger.inkSeen).toEqual(['m0_nolog']);
 
     // Ep1 로: 굳은 기록(원래 글은 bakedFrom)
     for (let i = 0; i < 10 && !h2.st().epilogueDone; i++) h2.st().advanceRestore();
     expect(h2.st().startEpisode('ep1')).toBe('started');
     const baked = h2.st().messenger.log.find((m) => m.id === 'c0_hangul:none')!;
-    expect(baked).toMatchObject({ text: '그건 세종대왕이 만든 거잖아요.', bakedFrom: '그건 원래 기록이 없잖아요.' });
+    expect(baked).toMatchObject({ text: '거기도 뚫렸어요?', bakedFrom: '거긴 원래 만든 사람 기록이 없잖아요.' });
     const ep1View = selectMessenger(EP1, h2.st(), h2.clock.t).items;
     for (const m of ep1View) for (const re of allTells) expect(re.test(m.display), `${m.id} 「${m.display}」`).toBe(false);
-    expect(ep1View.find((m) => m.id === 'm0_hangul')).toMatchObject({ rewritten: true, bleed: false });
+    expect(ep1View.find((m) => m.id === 'm0_nolog')).toMatchObject({ rewritten: true, bleed: false });
   });
 });
 

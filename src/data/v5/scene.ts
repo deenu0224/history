@@ -15,10 +15,11 @@ const R = 'reconstructed' as const;
 const V = 'verified' as const;
 
 export const FIGURES: Figure[] = [
-  { id: 'fig_yun', truePersonId: 'yun_hyoson', provenance: V, label: '초록 관복', visibleTraits: ['초록 관복'] },
+  // 화면 글(label)에는 관복 색을 품계처럼 쓰지 않는다(복색 규정 미검증 — ART_DIRECTION 「관복 색」). 색은 그림의 구분용(visibleTraits)에만
+  { id: 'fig_yun', truePersonId: 'yun_hyoson', provenance: V, label: '맞은편 관원', visibleTraits: ['초록 관복'] },
   { id: 'fig_yi', truePersonId: 'yi_geukdon', provenance: V, label: '붉은 관복', visibleTraits: ['붉은 관복'] },
   { id: 'fig_eo', truePersonId: 'eo_segyeom', provenance: R, label: '윗자리 관원', visibleTraits: ['붉은 관복(진한 톤)', '병풍 앞'] },
-  { id: 'fig_hong', truePersonId: 'hong_gwidal', provenance: R, label: '남색 관복', visibleTraits: ['남색 관복'] },
+  { id: 'fig_hong', truePersonId: 'hong_gwidal', provenance: R, label: '구석 관원', visibleTraits: ['남색 관복'] },
   {
     id: 'fig_u',
     provenance: V,

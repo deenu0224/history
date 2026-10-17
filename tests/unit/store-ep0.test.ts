@@ -72,7 +72,7 @@ describe('store — Ep0 correct path', () => {
     expect(h.st().clock).toBe('22:31');
     expect(h.st().cardsFound).toEqual(['choi_manri', 'jeong_changson', 'kim_mun']);
     const home = selectHome(EP0, h.st());
-    expect(home.card).toMatchObject({ code: '#C-2209', date: '####', place: '미확인', status: '부분 손상' });
+    expect(home.card).toMatchObject({ code: '#C-2209', date: '####', place: '미확인', status: '빈자리' });
     expect(home.episode.verbs).toEqual({ search: false, room: false, rewrite: true });
     expect(home.buttons).toEqual(['memories']);
     expect(selectEyes(EP0, h.st())[0]).toMatchObject({ state: 'open', ownerUnknown: false, label: '하위지가 본 것' });
@@ -177,8 +177,9 @@ describe('store — Ep0 correct path', () => {
     expect(selectCard(EP0, h.st(), 'sejong')!.facts.map((f) => f.id)).toContain('f_sj_eonmun');
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('세종대왕이 만든 거 모르는 사람이 어디 있어.');
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')?.restored).toBe('옆 기록은 세종대왕이 한글 지은 그 기록이야.');
-    expect(selectRestoration(EP0, h.st())!.messages.map((m) => m.id)).toEqual(expect.arrayContaining(['m0_hangul', 'm0_nolog']));
+    expect(texts(h.store)).toContain('관측기: 내 관측 기록은 그대로');
+    expect(texts(h.store)).toContain('아까 우리 그 칸 얘기 했잖아.');
+    // 대화 기록 다시 쓰기(내 답 포함)는 reality-rewrite.test.ts 가 메시지를 다 받은 경로로 확인한다
 
     // 다리 → 23:04 → Ep1
     h.st().ackFx();
@@ -200,9 +201,8 @@ describe('store — Ep0 correct path', () => {
     expect(selectEpisodes(h.st()).map((e) => e.state)).toEqual(['done', 'current']);
     // 대화는 이어지고, Ep0 의 ⟲ 말풍선은 복원 뒤 글로 굳었다
     expect(h.st().messenger.log.length).toBe(logBefore);
-    expect(h.st().messenger.log.find((m) => m.id === 'm0_hangul')).toMatchObject({ text: '옆 기록은 세종대왕이 한글 지은 그 기록이야.', bakedFrom: '옆 기록은 한글 누가 만들었는지 적힌 데야.' });
     h.advance(10_000);
-    expect(h.st().messenger.log.slice(logBefore).map((m) => m.text)[0]).toBe('07, #C-2217 너한테 갔다.');
+    expect(h.st().messenger.log.slice(logBefore).map((m) => m.text)[0]).toBe('07, 우선순위 낮은 건 하나 너한테 갔다.');
     expect(h.st().cardsFound).toEqual(['yi_geukdon', 'eo_segyeom', 'sin_seungseon']);
   });
 

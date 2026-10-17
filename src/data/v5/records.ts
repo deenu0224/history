@@ -2,7 +2,7 @@
  * 찾기(통합 DB)의 기록 카드·내 관측 로그 문서·홈 배정 카드·에필로그(DESIGN_V5 §2.4, §4.7, §4.9).
  * 기록 카드는 verified 국역 축약(낱말을 바꾸지 않고 줄이기만). 사화의 달 기사는 복원 뒤에만 검색된다.
  */
-import type { HomeCard, LogDocument, RecordCard } from '@/core/types';
+import type { HomeCard, LogDocument, RecordCard, SourceRef } from '@/core/types';
 import { BURN_0728, CHEONGDO_0712, PROCLAIM_0727, VERDICT_0726 } from './cards';
 import { ARTICLE_0711_KO } from './puzzle';
 import { SRC } from './sources';
@@ -181,7 +181,7 @@ export const HOME: HomeCard = {
   date: { before: '####', after: '연산군 4년 7월 11일' },
   place: {
     before: '미확인',
-    after: '실록청(춘추관 안)',
+    after: '『성종실록』 편찬 실록청(춘추관 안)',
     source: SRC.seongjongSillok,
     note: '장소와 전달 방식은 재구성 — 그날 실록에는 장소가 없다',
   },
@@ -190,11 +190,18 @@ export const HOME: HomeCard = {
   status: { before: '빈자리', after: '고정됨' },
 };
 
+/**
+ * 복원 카드에 보일 사건 이름(복원 뒤에만, 출처와 함께) — 메신저 선택지 「무오사화요.」보다 먼저 화면에 나와야 한다(QA_STORY 발견 7).
+ * HISTORICAL_SOURCES §3(「무오사화」 E0019174). 아직 HomeCard 타입·복원 카드가 읽지 않는다 — 연결은 엔진/UI 쪽(HomeCard.event 로 옮길 것).
+ */
+export const HOME_EVENT: { name: string; source: SourceRef } = { name: '무오사화(戊午士禍)', source: SRC.muoSahwa };
+
 export const EPILOGUE = {
   monologue: [
-    '그날 그 방에서 여러 사람이 그의 글을 보았다.',
-    '나는 그중 네 사람의 눈을 빌려, 그가 남기지 못한 날을 다시 적었다.',
-    '그의 관측은 끝내 이뤄지지 않았다.',
+    // 김일손을 찾아보지 않은 플레이어도 주어를 잃지 않게(그 이름은 1-4 전교에서 들었다)
+    '그날 그 방에서 여러 사람이 한 사관의 사초를 보았다.',
+    '나는 그중 네 사람의 눈을 빌려, 그 사관이 남기지 못한 날을 다시 적었다.',
+    '그 사초를 쓴 사람, 김일손의 눈은 끝내 열리지 않았다.',
   ],
   teaserDocId: 'doc_c0408',
   oldReportDocId: 'doc_old_report',

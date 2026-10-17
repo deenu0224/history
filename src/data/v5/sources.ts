@@ -41,5 +41,6 @@ export const SRC = {
   kimJongjik: ency('E0010507', '김종직'),
   yiGeukdon: ency('E0043804', '이극돈', 'Contents/Item'),
   jouijemun: ency('E0052503', '조의제문'),
+  muoSahwa: ency('E0019174', '무오사화'),
   daegam: ency('E0013991', '대감'),
 } as const satisfies Record<string, SourceRef>;

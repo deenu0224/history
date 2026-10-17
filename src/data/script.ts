@@ -22,13 +22,11 @@ export const EPISODE_1 = {
     { text: '책장이 찢기는 것도, 파일이 지워지는 것도 아니다. 기록도, 기억도 — 처음부터 없었던 것처럼.', provenance: F },
     { text: '사람들은 그것을 「역사 소실」이라 부른다. 무엇이 사라졌는지는, 아무도 모른다.', provenance: F },
     { text: '정부는 오래전부터 알고 있었다. 그리고 소실의 영향을 받지 않는 장치를 만들었다. 관측기.', provenance: F },
-    { text: '관측기는 과거를 직접 본다. 단, 그날을 기록으로 남긴 사람의 눈으로만.', provenance: F },
+    { text: '관측기는 과거를 직접 본다. 단, 그날의 기록에 이름이 남은 사람의 눈으로만.', provenance: F },
     { text: '實錄廳 실록청. 사라진 기록을 찾아 과거를 보고, 다시 적는 국가기관.', provenance: F },
     { text: '나는 그곳의 대조관이다. 남은 기록을 따라, 그 자리에 있던 사람의 눈을 빌린다.', provenance: F },
     { text: '그리고 사라진 하루를, 다시 적는다.', provenance: F },
   ] as ScriptLine[],
-  coldOpen: [
-    { text: '23:04. 기록대조과. 야근.', provenance: F },
-    { text: '모니터에 배정 하나. 우선순위 낮음.', provenance: F },
-  ] as ScriptLine[],
+  /** Ep0 다리(시계 23:04)에서 바로 이어진다 — 시각·장소를 되풀이하지 않고 한 줄만 */
+  coldOpen: [{ text: '모니터에 배정 하나.', provenance: F }] as ScriptLine[],
 };

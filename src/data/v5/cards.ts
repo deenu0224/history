@@ -130,7 +130,7 @@ export const CARDS: PersonCard[] = [
     facts: [
       {
         id: 'f_eo_r17', plain: '사관이 벼슬 정하는 자리에 꼭 있어야 하냐고 했다',
-        text: '연산 3년(1497) 8월, 당직 사관을 정청(政廳)에 참예시키는 일을 의논할 때 어세겸 등이 「어찌 사관이 꼭 참예를 해야만 됩니까?」라고 의논하였다.',
+        text: '연산 3년(1497) 8월, 당직 사관을 정청(政廳)에 참예시키는 일을 두고 어세겸 등이 의논하기를, 「어찌 사관이 꼭 참예를 해야만 됩니까?」',
         keys: ['opposed_historian_attend_1497'],
         provenance: V,
         source: SRC.r17,
@@ -164,7 +164,7 @@ export const CARDS: PersonCard[] = [
     facts: [
       {
         id: 'f_sin_r17', plain: '사관이 그 자리에 함께해도 괜찮다고 했다',
-        text: '연산 3년(1497) 8월, 당직 사관의 정청 참청을 두고 「이제부터 시행하는 것도 역시 무방하다고 생각됩니다.」라고 의논하였다.',
+        text: '연산 3년(1497) 8월, 당직 사관의 정청 참청을 두고 의논하기를, 「이제부터 시행하는 것도 역시 무방하다고 생각됩니다.」',
         keys: ['supported_historian_attend_1497'],
         provenance: V,
         source: SRC.r17,

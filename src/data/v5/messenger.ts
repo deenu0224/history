@@ -31,10 +31,12 @@ export const BURSTS: Burst[] = [
   {
     id: 'ev.start',
     steps: [
-      oh('07, #C-2217 너한테 갔다.'),
-      named('m_oh_priority', oh('우선순위 낮음. 아침 전에 정리해.', { restored: '다 아는 건이니 아침 전에 정리해.', facts: DAY })),
-      han('명단에서 셋만 뽑아 카드 올려놨어.'),
-      han('나머진 필요하면 찾기로 봐.'),
+      named('m_oh_priority', oh('07, 우선순위 낮은 건 하나 너한테 갔다.', { restored: '07, 다 아는 건 하나 너한테 갔다.', facts: DAY })),
+      // 06:00 닫힘의 예고(QA_STORY 발견 4) — 오 실장은 두 번만 말한다(시작·06:00)
+      oh('06시에 관측기 한 바퀴 도니까 그 전에 끝내.'),
+      // Ep0 다리(「어, 하나 더 떴다.」)를 받고, 「명단」을 먼저 세운다(발견 5)
+      han('아까 그거야, 명단 하나 붙어 있더라.'),
+      han('거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.'),
     ],
   },
   { id: 'ev.eye_open.E2', steps: [han('첫 번째 관측은 이름 칸이 깎여 있었어.')] },
@@ -43,6 +45,8 @@ export const BURSTS: Burst[] = [
     steps: [
       named('m_kim_unknown', han('처음 듣는 이름인데.', { restored: '김일손이면 무오사화 그 사관이잖아.', facts: KIM })),
       named('m_kim_cause', han('사인 칸이 비어 있네.', { restored: '사인 다 나와 있는데?', facts: CAUSE })),
+      // 관측기의 말을 전한다 — 두 현실 모두에서 참(그의 눈은 복원 뒤에도 열리지 않는다)
+      han('관측도 안 된다고 나오네.'),
     ],
   },
   { id: 'ev.eye_open.E3', steps: [han('나 잠깐 다른 건 좀 볼게.'), { kind: 'status', presence: 'away' }] },
@@ -94,14 +98,15 @@ export const BURSTS: Burst[] = [
     id: 'ev.restore',
     postRestore: true,
     steps: [
-      sys('기록 확인: 바뀐 것 없음.'),
+      sys('관측기: 내 관측 기록은 그대로'),
       han('07, 아까부터 뭘 그렇게 붙들고 있어?'),
       {
         kind: 'choice',
         id: 'c_restore',
         options: [
-          { id: 'muo', text: '무오사화요.', then: [] },
           { id: 'day', text: '그날 기록이요.', then: [] },
+          // 사건 이름은 복원 카드(HOME.event)에서 먼저 보인다
+          { id: 'muo', text: '무오사화요.', then: [] },
         ],
         after: [
           han('우리 부서에 그걸 모르는 사람이 어디 있어.'),
@@ -201,7 +206,7 @@ export const LADDERS: HintLadder[] = [
     steps: [
       { id: 'h_t4_1', text: '그 사람이 한 말, 그대로 찾아 봐.', afterS: 45, fails: 2 },
       { id: 'h_t4_2', text: '기록에 명단이 나오면, 이 방 기록 있는 사람부터.', afterS: 60, fails: 3 },
-      { id: 'h_t4_3', text: '카드에 실록청(실록 만드는 곳) 줄 있는지 봐.', afterS: 60, fails: 4 },
+      { id: 'h_t4_3', text: '카드에 실록 엮는 관청 줄 있는지 봐.', afterS: 60, fails: 4 },
     ],
   },
   {
