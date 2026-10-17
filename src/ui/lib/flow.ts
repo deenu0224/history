@@ -29,6 +29,6 @@ export function goNextEpisode(next: string | null | undefined): boolean {
   const r = g.startEpisode(next);
   if (r !== 'started' && r !== 'already') return false;
   void useGameStore.getState().save('auto').catch(() => {});
-  useUi.setState({ phase: 'boot', boot: 'cold', stack: ['home'], card: null, picked: null, logOpen: false, docId: null, roomFocus: null, searchSeed: null, banner: null, toast: null });
+  useUi.setState({ phase: 'boot', boot: 'cold', stack: ['home'], card: null, picked: null, logOpen: false, docId: null, roomFocus: null, searchSeed: null, banner: null, toast: null, tagPicks: {} });
   return true;
 }

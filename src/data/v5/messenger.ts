@@ -41,7 +41,7 @@ export const BURSTS: Burst[] = [
       han('거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.'),
     ],
   },
-  { id: 'ev.eye_open.E2', steps: [han('그 기록, 이름 칸만 깎여 있더라.')] },
+  { id: 'ev.eye_open.E2', steps: [han('첫 번째 관측 기록, 이름 칸만 깎여 있더라.')] },
   {
     id: 'ev.search_kim',
     steps: [

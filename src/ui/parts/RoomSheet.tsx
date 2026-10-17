@@ -345,6 +345,16 @@ export function RoomSheet() {
 
   const view = useView((ep, s) => (mode ? selectContradictionView(ep, s, mode) : null), [mode]);
   const chipsRef = useRef<HTMLDivElement>(null);
+  const fbRef = useRef<HTMLDivElement>(null);
+  // 잇기·놓기 안내가 생기면 보이게(시트 안에서 가장 가까이로)
+  useEffect(() => {
+    if (linkFb) fbRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [linkFb]);
+  // 모순 보기(화면을 다 차지하는 시트)가 열리면 떠 있던 배너를 거둔다 — 새 소식은 메신저 점으로만(닫히면 배너, QA_UX_R4)
+  const holding = !!mode;
+  useEffect(() => {
+    if (holding) useUi.getState().clearBanner();
+  }, [holding]);
   const evRef = useRef<HTMLDivElement>(null);
   // 고른 시각 칩이 보이게 밀어 두고, 넘치는 쪽 가장자리를 흐린다
   useEffect(() => {
@@ -553,6 +563,7 @@ export function RoomSheet() {
           />
         }
       >
+        {view && !view.resolved ? <span data-float-hold="" hidden /> : null}
         {!view ? (
           <>
             <div className="chips" data-testid="room-chips" ref={chipsRef} onScroll={(e) => fadeChips(e.currentTarget)}>
@@ -658,7 +669,8 @@ export function RoomSheet() {
               )}
             </div>
             {linkFb ? (
-              <div className={`fb${linkFb.ok ? ' ok' : ''}`} role="status" data-testid="link-feedback" data-ok={linkFb.ok ? 'true' : 'false'}>
+              // 시트 아래 막대 위에 붙어 늘 보인다(sticky) — 360 에서 잇기 안내가 막대 밑에 숨었다(QA_UX_R4)
+              <div ref={fbRef} className={`fb stick${linkFb.ok ? ' ok' : ''}`} role="status" data-testid="link-feedback" data-ok={linkFb.ok ? 'true' : 'false'}>
                 <span className="t-b">{linkFb.text}</span>
               </div>
             ) : null}

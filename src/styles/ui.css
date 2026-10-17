@@ -515,10 +515,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 12px 0 8px;
+  /* 모순으로 들어가는 입구 — 높이 44(QA_UX_R4) */
+  height: 44px;
+  padding: 0 14px 0 10px;
   margin-right: 8px;
-  border-radius: 18px;
+  border-radius: 22px;
   background: var(--alert-soft);
   color: var(--alert);
   font-weight: 600;
@@ -617,7 +618,7 @@
   position: absolute;
   top: -2px;
   left: 50%;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, var(--chip-ty, -100%));
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
@@ -733,7 +734,7 @@
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  padding-top: 8px;
+  padding-top: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -787,9 +788,22 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* 「…더 보기」는 이름 줄 오른쪽에 — 아래에 줄을 더 쓰지 않는다(360 에서 컷 아래 자리에 다 들어가게, QA_UX_R4 ux4-03).
+   탭 영역 44px 는 말풍선 위 가장자리 너머로 나온다(.bubbles-below 위 여백 14px) */
+.bubble {
+  position: relative;
+}
+.bubble.hasmore .who {
+  padding-right: 92px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .bubble .bmore {
+  position: absolute;
+  top: -12px;
+  right: 6px;
   display: block;
-  margin: 0 0 -8px auto;
   min-height: 44px;
   min-width: 88px;
   padding: 0 4px;
@@ -825,12 +839,12 @@
   padding: 0 2px;
   cursor: pointer;
 }
-/* 풀이 낱말: 점선 밑줄만 — 탭하면 짧은 풀이(찾기는 없다) */
+/* 풀이 낱말: 점선 밑줄만 — 탭하면 짧은 풀이(찾기는 없다). 탭 높이 44px 는 위아래 투명 덧칸(인라인 — 줄 높이엔 보태지 않는다, QA_UX_R4) */
 .gloss {
   font: inherit;
   color: inherit;
   display: inline;
-  padding: 0;
+  padding: 13px 0;
   text-decoration: underline dotted;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -2210,13 +2224,12 @@
   border-bottom: 1.5px dotted #2d6f96;
   border-radius: 0;
   box-shadow: none;
-  padding: 0 1px;
+  /* 탭 영역은 여전히 44px(QA_UX_R4 — 찾은 뒤 35×29 로 줄었다): 위아래·옆 투명 덧칸, 줄 높이엔 보태지 않는다 */
+  padding: 12px 6px;
+  margin: -12px -5px;
 }
 .flink.found::after {
-  content: '';
-  position: absolute;
-  inset: -10px -8px;
-  margin: 0;
+  content: none;
 }
 /* 카드 줄: 빽빽한 인용 위의 쉬운 한 줄(우리가 쓴 말), 아래 인용은 조금 옅게 */
 .fact .fplain {
@@ -2620,15 +2633,15 @@
 }
 @keyframes name-pop {
   0% {
-    transform: translate(-50%, -100%) scale(0.4);
+    transform: translate(-50%, var(--chip-ty, -100%)) scale(0.4);
     opacity: 0;
   }
   55% {
-    transform: translate(-50%, -100%) scale(1.25);
+    transform: translate(-50%, var(--chip-ty, -100%)) scale(1.25);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -100%) scale(1);
+    transform: translate(-50%, var(--chip-ty, -100%)) scale(1);
   }
 }
 .sheet.stampout {
@@ -3000,4 +3013,39 @@
   margin-top: 18px;
   font-size: 18px;
   line-height: 28px;
+}
+
+/* 방 시트의 잇기·놓기 안내: 시트 아래 막대 바로 위에 붙어 늘 보인다(QA_UX_R4) */
+.sheet .sbody .fb.stick {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: linear-gradient(var(--teal-soft), var(--teal-soft)), var(--ink1);
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.45);
+}
+.sheet .sbody .fb.stick.ok {
+  background: linear-gradient(var(--amber-soft), var(--amber-soft)), var(--ink1);
+}
+/* 한국어 칩 글은 낱말 중간에서 끊지 않는다(「지난/해」, 「사/관」 — QA_UX_R4) */
+.heardchip .tx,
+.claimchip,
+.evrow .tx,
+.fb .t-b {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 컷 위 가장자리에 붙은 사람: 이름표(「?」)를 상자 안 위쪽에 — 컷 밖으로 잘리지 않게(QA_UX_R4 ux4-05) */
+.figure.chipin .tagchip {
+  --chip-ty: 0%;
+  top: 2px;
+}
+
+/* 바깥 출처 링크(복원 카드·인물 카드·역사 고정): 글 속 인라인 그대로, 탭 높이 44px 는 위아래 투명 덧칸(QA_UX_R4) */
+a[href][target='_blank'] {
+  padding-block: 13px;
+}
+/* 그날의 방 모순 도면의 거리 글은 읽는 글 — 탭을 받지 않고 밑의 자리로 지나간다(QA_UX_R4) */
+.plan .lbl {
+  pointer-events: none;
 }

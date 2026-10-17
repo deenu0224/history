@@ -158,3 +158,24 @@ describe('컷 넘기기 — 엿보기·빠른 튕김(QA_UX_R3)', async () => {
     expect(swipeStep(-40, 0.8, 382)).toBe(0);
   });
 });
+
+describe('컷 넘기기 — 손 떼기 표본·짧은 튕김(QA_UX_R4)', async () => {
+  const { releaseVelocity, swipeStep, QUICK_MS } = await import('@/game/logic/swipe');
+  it('속도는 pointermove 표본만 — 표본 간격이 들쭉날쭉해도 짧은 튕김(18%)이 넘어간다', () => {
+    // 360 폭(슬라이드 352): 63px 를 4번 움직임, 표본 사이 60ms(느린 기기) — 최근 속도 16/60 < 0.35 이지만 짧은 시간 안의 튕김
+    const moves = [{ x: 246, t: 0 }, { x: 230, t: 60 }, { x: 214, t: 120 }, { x: 198, t: 180 }, { x: 183, t: 240 }];
+    const v = releaseVelocity(moves, 245);
+    expect(v).toBeLessThan(0);
+    expect(swipeStep(-63, v, 352, 245)).toBe(1);
+    expect(swipeStep(-63, v, 352, QUICK_MS + 200)).toBe(0); // 느린 밀기(18%)는 제자리
+  });
+  it('멈췄다가 떼면 최근 속도는 0', () => {
+    const moves = [{ x: 300, t: 0 }, { x: 250, t: 20 }];
+    expect(releaseVelocity(moves, 30)).toBeLessThan(-1);
+    expect(releaseVelocity(moves, 400)).toBe(0);
+  });
+  it('짧은 시간이라도 떨림(폭의 12% 미만)이나 반대 방향은 넘기지 않는다', () => {
+    expect(swipeStep(-30, 0, 352, 80)).toBe(0);
+    expect(swipeStep(-60, 1, 352, 80)).toBe(0);
+  });
+});

@@ -15,7 +15,7 @@ import { EyeRow } from '../parts/EyeRow';
 import { IDoc, IPlan, IWarn } from '../parts/icons';
 import { NavBar } from '../parts/NavBar';
 import { EDGE_PX } from '../lib/nav';
-import { flickVelocity, swipeStep, type SwipeSample } from '@/game/logic/swipe';
+import { releaseVelocity, swipeStep, type SwipeSample } from '@/game/logic/swipe';
 import { useUi } from '../uiStore';
 
 const CUT_W = 390;
@@ -23,6 +23,8 @@ const CUT_H = 520;
 
 /** 다음 컷 가장자리 엿보기(px) — 「옆에 더 있다」를 컷 안에서 알린다(UI_STYLE_GUIDE §2.3, QA_UX_R3) */
 export const PEEK_PX = 8;
+/** 컷 아래 말풍선 자리의 위 여백(.bubbles-below padding-top — 「…더 보기」 탭 영역이 위로 나온다) + 아래 여유 */
+const BELOW_PAD = 18;
 
 /** pw = 컷 한 장(슬라이드)의 폭 = 무대 폭 − 엿보기 */
 function useBox(ref: React.RefObject<HTMLElement | null>, peek = 0) {
@@ -49,7 +51,7 @@ function useBox(ref: React.RefObject<HTMLElement | null>, peek = 0) {
 // 한 번에 하나만(가장 최근 말), 세 줄까지 — 넘치면 「…더 보기」. 컷 아래에 자리가 있으면 컷 밖(아래)에,
 // 없으면 사람 상자를 덜 가리는 쪽(위/아래)에 놓는다. 말풍선 자체는 탭을 통과시킨다(밑의 사람이 눌린다).
 export type BubblePlace = 'below' | 'top' | 'bottom';
-function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; active: boolean; hidden: boolean; place: BubblePlace; lines: number; tap: number }) {
+function Bubbles({ cut, active, hidden, place, lines, tap, maxH }: { cut: CutView; active: boolean; hidden: boolean; place: BubblePlace; lines: number; tap: number; maxH?: number }) {
   const ep = useEpisode();
   const canSearch = ep.verbs.search;
   const [shown, setShown] = useState(0);
@@ -57,6 +59,9 @@ function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; act
   const [more, setMore] = useState<string | null>(null);
   const [over, setOver] = useState(false);
   const txtRef = useRef<HTMLDivElement>(null);
+  const bubRef = useRef<HTMLDivElement>(null);
+  /** 남는 높이(maxH)에 맞춘 접힌 줄 수 — 「…더 보기」까지 컷 아래 자리에 다 들어가게(QA_UX_R4 ux4-03) */
+  const [fit, setFit] = useState(lines);
   const reduce = useGameStore((s) => s.settings.reduceMotion);
   const total = cut.bubbles.length;
 
@@ -95,9 +100,21 @@ function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; act
 
   const b = shown > 0 ? cut.bubbles[shown - 1] : undefined;
   useLayoutEffect(() => {
+    const bub = bubRef.current;
+    const el = txtRef.current;
+    if (!bub || !el || !maxH) {
+      setFit(lines);
+      return;
+    }
+    // 말풍선의 나머지(이름 줄·안쪽 여백·테두리) + 접힌 줄 n × 줄 높이 ≤ 남는 높이
+    const lineH = parseFloat(getComputedStyle(el).lineHeight) || 26;
+    const rest = bub.offsetHeight - el.offsetHeight;
+    setFit(Math.max(1, Math.min(lines, Math.floor((maxH - rest) / lineH))));
+  }, [b?.lineId, lines, place, maxH]);
+  useLayoutEffect(() => {
     const el = txtRef.current;
     setOver(!!el && el.scrollHeight > el.clientHeight + 2);
-  }, [b?.lineId, lines, place]);
+  }, [b?.lineId, fit, place]);
 
   if (!active || !total || hidden || !b) return null;
   // 풀이: 이 말의 풀이 + 에피소드 풀이 사전(국역 인용 속 어려운 말). 찾기 낱말은 데이터가 정한 것만
@@ -107,9 +124,9 @@ function Bubbles({ cut, active, hidden, place, lines, tap }: { cut: CutView; act
   const expanded = more === b.lineId;
   return (
     <div className={`bubbles ${place}`} aria-live="polite" data-place={place}>
-      <div key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}`} data-testid="bubble" data-line={b.lineId}>
+      <div ref={bubRef} key={b.lineId} className={`bubble${b.garbled ? ' garbled' : ''}${over || expanded ? ' hasmore' : ''}`} data-testid="bubble" data-line={b.lineId}>
         <div className="who">{b.garbled ? `${who} · 흐릿하게 들림` : who}</div>
-        <div ref={txtRef} className={`txt${expanded ? '' : ' clamp'}`} style={expanded ? undefined : { WebkitLineClamp: lines }}>
+        <div ref={txtRef} className={`txt${expanded ? '' : ' clamp'}`} style={expanded ? undefined : { WebkitLineClamp: fit }}>
           {segs.map((sg, i) =>
             sg.term || sg.gloss ? (
               <button
@@ -236,8 +253,8 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
   const room = box.ph - box.h;
   const below = room >= 100;
   const place: BubblePlace = below ? 'below' : pickPlace(entry, box.h);
-  const lines = below && room < 126 ? 2 : 3;
-  const bubbles = <Bubbles cut={cut} active={active} hidden={!!openDetail} place={place} lines={lines} tap={tap} />;
+  // 컷 아래에 놓을 때는 남는 높이에 맞춰 접는 줄 수를 줄인다(말풍선 안 재기 — 글자 크기 설정에도 맞는다)
+  const bubbles = <Bubbles cut={cut} active={active} hidden={!!openDetail} place={place} lines={3} tap={tap} maxH={below ? room - BELOW_PAD : undefined} />;
   return (
     <div className="vslide" data-cut={cutId} data-avail={cut.availability} onClick={(e) => e.target === e.currentTarget && setTap((t) => t + 1)}>
       <div
@@ -274,7 +291,7 @@ function CutSlide({ cutId, entry, box, active, eyeClosed, selected }: { cutId: s
           return (
             <button
               key={b.id}
-              className={`figure ${f.named ? 'named' : 'unnamed'}${sel ? ' sel' : ''}${f.named && freshName === b.id ? ' fresh' : ''}`}
+              className={`figure ${f.named ? 'named' : 'unnamed'}${sel ? ' sel' : ''}${f.named && freshName === b.id ? ' fresh' : ''}${y < 32 ? ' chipin' : ''}`}
               style={{ left: x, top: y, width: w, height: h, zIndex: zOf.get(b.id) }}
               data-figure={b.id}
               data-named={f.named ? 'true' : 'false'}
@@ -439,13 +456,11 @@ export function Viewer() {
     useGameStore.getState().setTouching(false);
     if (!s.on) return;
     setSnap(true);
-    if (e.type === 'pointerup') {
-      s.samples.push({ x: e.clientX, t: performance.now() });
-      s.dx = e.clientX - s.x;
-    }
     setDrag(0);
-    // 멀리 밀었거나(30%) 빠르게 튕겼으면(최근 속도) 넘긴다 — game/logic/swipe
-    const step = swipeStep(s.dx, flickVelocity(s.samples), box.pw);
+    // 멀리 밀었거나(30%) 빠르게 튕겼으면(pointermove 표본의 최근 속도, 또는 짧은 시간 안의 튕김) 넘긴다 — game/logic/swipe.
+    // pointerup 표본은 넣지 않는다(움직임 없이 시간만 더해 속도를 깎는다 — QA_UX_R4)
+    const now = performance.now();
+    const step = swipeStep(s.dx, releaseVelocity(s.samples, now), box.pw, now - s.t);
     if (step) goTo(index + step);
   };
   const onWheel = (e: React.WheelEvent) => {

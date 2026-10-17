@@ -13,6 +13,11 @@ export const FLICK_SPEED = 0.35;
 /** 튕김으로 치는 최소 이동(px) — 떨림을 넘기기로 읽지 않게 */
 export const FLICK_MIN_DX = 16;
 export const FAR_RATIO = 0.3;
+/** 짧은 튕김: 누른 때부터 뗀 때까지 이 시간 안에 슬라이드 폭의 QUICK_RATIO 넘게 밀었으면 넘긴다(표본 간격이 들쭉날쭉해도 — QA_UX_R4) */
+export const QUICK_MS = 260;
+export const QUICK_RATIO = 0.12;
+/** 마지막 움직임이 이보다 오래전이면(손가락을 멈췄다가 뗐으면) 최근 속도는 0 */
+export const STALE_MS = 120;
 
 /** 최근 창 안의 수평 속도(px/ms, 오른쪽 +) */
 export function flickVelocity(samples: readonly SwipeSample[], windowMs = FLICK_WINDOW_MS): number {
@@ -28,10 +33,24 @@ export function flickVelocity(samples: readonly SwipeSample[], windowMs = FLICK_
   return dt > 0 ? (last.x - first.x) / dt : 0;
 }
 
-/** -1 = 앞 컷, +1 = 다음 컷, 0 = 제자리. dx = 누른 곳부터 뗀 곳까지(오른쪽 +) */
-export function swipeStep(dx: number, velocity: number, slideW: number): -1 | 0 | 1 {
+/**
+ * 손을 뗄 때의 속도: **pointermove 표본만** 쓴다(pointerup 표본은 움직임 없이 시간만 더해 속도를 깎는다 — QA_UX_R4).
+ * 마지막 움직임이 STALE_MS 보다 오래전이면 0(멈췄다가 뗐다).
+ */
+export function releaseVelocity(moves: readonly SwipeSample[], upT: number): number {
+  const last = moves[moves.length - 1];
+  if (!last || upT - last.t > STALE_MS) return 0;
+  return flickVelocity(moves);
+}
+
+/**
+ * -1 = 앞 컷, +1 = 다음 컷, 0 = 제자리. dx = 누른 곳부터 마지막 움직임까지(오른쪽 +).
+ * durationMs(누른 때부터 뗀 때까지)를 주면 짧은 튕김(QUICK_MS 안 · 폭의 QUICK_RATIO 넘게)도 넘긴다.
+ */
+export function swipeStep(dx: number, velocity: number, slideW: number, durationMs?: number): -1 | 0 | 1 {
   const dir = dx < 0 ? 1 : -1;
   if (slideW > 0 && Math.abs(dx) > slideW * FAR_RATIO) return dir;
+  if (slideW > 0 && durationMs !== undefined && durationMs <= QUICK_MS && Math.abs(dx) >= Math.max(FLICK_MIN_DX, slideW * QUICK_RATIO) && Math.sign(velocity || dx) === Math.sign(dx)) return dir;
   if (Math.abs(dx) >= FLICK_MIN_DX && Math.abs(velocity) >= FLICK_SPEED && Math.sign(velocity) === Math.sign(dx)) return dir;
   return 0;
 }

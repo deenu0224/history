@@ -190,7 +190,7 @@ export const HOME: HomeCard = {
     // 장소는 칸 안에서 재구성임을 밝힌다(QA_STORY_R3 R3-4) — 그날 실록에는 장소가 없다
     after: '『성종실록』 편찬 실록청(춘추관 안) · 재구성',
     source: SRC.seongjongSillok,
-    note: '전달 방식은 재구성',
+    note: '전교를 전한 방식은 재구성',
   },
   task: '이 날의 기록이 비어 있다. 그날 그 자리에 있던 사람들의 눈으로 본다.',
   detection: '관측기가 찾음 · #C-2217 · 일시 #### · 이 지점을 가리키는 기록 3건',

@@ -50,6 +50,8 @@ export interface UiStore {
   closedFlash: Id | null;
   /** 막 이름이 붙은 사람(컷 위 이름표가 한 번 튄다) */
   freshName: Id | null;
+  /** 이름 붙이기 시트에서 고른 카드(「컷/사람」 → 카드) — 시트를 닫았다 다시 열어도 그대로(QA_UX_R4) */
+  tagPicks: Record<string, Id>;
 
   setBoot(b: BootStep): void;
   enterGame(): void;
@@ -95,18 +97,20 @@ export const useUi = create<UiStore>()((set, get) => ({
   mergePos: null,
   closedFlash: null,
   freshName: null,
+  tagPicks: {},
 
   setBoot: (boot) => set({ boot }),
   enterGame: () => set({ phase: 'game', stack: ['home'] }),
   push: (s) => {
     const st = get().stack;
-    if (st[st.length - 1] !== s) set({ stack: [...st, s] });
+    // 메신저로 넘어가면 앞 화면의 알림은 따라오지 않는다(QA_UX_R4 — 06:00 알림이 첫 말풍선을 덮었다)
+    if (st[st.length - 1] !== s) set({ stack: [...st, s], ...(s === 'messenger' ? { toast: null, banner: null } : {}) });
   },
   pop: () => {
     const st = get().stack;
     if (st.length > 1) set({ stack: st.slice(0, -1) });
   },
-  go: (s) => set({ stack: s === 'home' ? ['home'] : ['home', s] }),
+  go: (s) => set({ stack: s === 'home' ? ['home'] : ['home', s], ...(s === 'messenger' ? { toast: null, banner: null } : {}) }),
   home: () => set({ stack: ['home'] }),
   openCard: (id, picking) => set({ card: { id, picking } }),
   closeCard: () => set({ card: null }),
@@ -127,10 +131,17 @@ export const useUi = create<UiStore>()((set, get) => ({
     const key = ++seq;
     // 화면이 보상 연출 중이면(역사 고정의 복원 연출·고정률 차오름 — [data-float-wait]) 끝난 뒤에 띄운다(QA_UX_R3 ux3-04). 최대 4초
     const busy = () => typeof document !== 'undefined' && !!document.querySelector('[data-float-wait]');
+    // 화면을 다 차지한 시트(모순 보기 — [data-float-hold])가 열려 있으면 닫힐 때까지 미룬다(메신저 점만, QA_UX_R4)
+    const hold = () => typeof document !== 'undefined' && !!document.querySelector('[data-float-hold]');
     const t0 = Date.now();
     pendingBanner = key;
     const show = () => {
       if (pendingBanner !== key) return; // 그 사이 새 배너가 왔다
+      if (get().stack[get().stack.length - 1] === 'messenger') return; // 이미 메신저 — 배너가 필요 없다
+      if (hold()) {
+        setTimeout(show, 300);
+        return;
+      }
       if (busy() && Date.now() - t0 < 4000) {
         setTimeout(show, 200);
         return;

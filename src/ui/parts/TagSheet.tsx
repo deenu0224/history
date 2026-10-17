@@ -13,7 +13,6 @@ import { useUi } from '../uiStore';
 
 const KIND = { line: '들은 말', detail: '본 것', fact: '기록' } as const;
 /** 작은 카드: 이름(한자)만 — 생몰·판정에 쓰이는 사실 줄은 펼쳐야 보인다(타일 모양이 답을 흘리지 않게). 길게 누르면 카드를 펼친다 */
-/** 작은 카드: 이름(한자) + 중립 한 줄(생몰) — 판정에 쓰이는 사실 줄은 펼쳐야 보인다. 길게 누르면 카드를 펼친다 */
 function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const held = useRef(false);
@@ -51,14 +50,26 @@ export function TagSheet() {
   const picked = useUi((s) => s.picked);
   const tagCard = useGameStore((s) => s.ui.tagCard);
   const verbs = useEpisode().verbs;
-  const [cardId, setCardId] = useState<string | undefined>();
+  const [cardId, setCardIdRaw] = useState<string | undefined>();
+  /** 고른 카드는 「컷/사람」마다 기억한다 — 시트를 끌어 닫고 다시 열어도 그대로(QA_UX_R4) */
+  const pickKey = useRef('');
+  const setCardId = (id: string | undefined) => {
+    setCardIdRaw(id);
+    const k = pickKey.current;
+    if (!k) return;
+    const picks = { ...useUi.getState().tagPicks };
+    if (id) picks[k] = id;
+    else delete picks[k];
+    useUi.setState({ tagPicks: picks });
+  };
   const [evId, setEvId] = useState<string | undefined>();
   const [fb, setFb] = useState<{ text: string; warn: boolean } | null>(null);
 
   const key = target ? `${target.cutId}/${target.figureId}` : '';
   useEffect(() => {
-    // 찾기에서 돌아오면 고른 카드를 그대로(스토어 ui.tagCard)
-    setCardId(useGameStore.getState().ui.tagCard ?? undefined);
+    // 찾기·방에서 돌아오면 고른 카드를 그대로(스토어 ui.tagCard), 아니면 이 사람에게 마지막으로 고른 카드
+    pickKey.current = key;
+    setCardIdRaw(useGameStore.getState().ui.tagCard ?? (key ? useUi.getState().tagPicks[key] : undefined));
     setEvId(undefined);
     setFb(null);
   }, [key, tagCard]);
