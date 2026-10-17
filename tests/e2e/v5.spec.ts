@@ -896,11 +896,14 @@ test.describe('v5 전체 플레이', () => {
     await fill('pc_L1', 'scope', '모두');
     // 화자 칸은 한 번 고르면 L2·L3 같이
     await fill('pc_L2', 'speaker', '책상에 둘러앉은 관원들');
-    await expect(tid(page, 'slot-pc_L3-speaker')).toContainText('당상(이극돈 등)');
+    // 칩·칸은 보이는 겉모습 말(이름을 박지 않는다 — QA_FUN_R4 R4-3). 고정하면 실록의 말 「실록청 당상」으로 돌아온다
+    await expect(tid(page, 'slot-pc_L3-speaker')).toContainText('책상에 둘러앉은 관원들');
+    await expect(tid(page, 'slot-pc_L3-speaker')).not.toContainText('이극돈');
     // 세 문장만 먼저 고정 → 그날 고정률 75%(필수 L1~L4 중 셋). 줄마다의 수치는 없다
     await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');
     await holdSubmit(page);
     await expect(tid(page, 'line-pc_L1')).toHaveAttribute('data-result', 'restored');
+    await expect(tid(page, 'line-pc_L2')).toContainText('실록청 당상');
     await expect(tid(page, 'fix-rate')).toHaveAttribute('data-pct', '75');
     await expect(tid(page, 'fix-rate-pct')).toHaveText('75%', { timeout: 4000 });
     await shot(page, 'rewrite-fix-75');
