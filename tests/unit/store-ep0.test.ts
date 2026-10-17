@@ -178,7 +178,9 @@ describe('store — Ep0 correct path', () => {
     drainMessages(h, 3);
     expect(texts(h.store)).toContain('세종대왕이 만든 거 모르는 사람이 어디 있어.');
     expect(texts(h.store)).toContain('관측기: 내 관측 기록은 그대로');
-    expect(texts(h.store)).toContain('아까 우리 그 칸 얘기 했잖아.');
+    expect(texts(h.store)).toContain('07, 아까 그 건 끝났어?');
+    // 한은 구멍을 기억하지 않는다(QA_STORY_R2 N1) — 다시 쓰인 줄을 알리는 끝줄은 없다
+    expect(texts(h.store).some((t) => t.includes('그 칸 얘기'))).toBe(false);
     // 대화 기록 다시 쓰기(내 답 포함)는 reality-rewrite.test.ts 가 메시지를 다 받은 경로로 확인한다
 
     // 다리 → 23:04 → Ep1

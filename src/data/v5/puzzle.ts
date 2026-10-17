@@ -191,7 +191,7 @@ export const PIECES: RecordPiece[] = [
     time: '15:00',
   },
   // 증인만 본 것(재구성) — 써도 기록이 되지 않는다(회색 잉크)
-  { id: 'w_long_page', label: '붉은 관복이 한 장을 오래 들고 있었다', from: ['d_long_page', 'l_e1_2b'], witnessOnly: true, provenance: 'reconstructed', time: '11:40' },
+  { id: 'w_long_page', label: '책상 너머 관원이 한 장을 오래 들고 있었다', from: ['d_long_page', 'l_e1_2b'], witnessOnly: true, provenance: 'reconstructed', time: '11:40' },
   { id: 'w_upper', label: '윗자리 대감도 지난해 벼슬 정하는 자리에 사관이 꼭 끼어야 하느냐 했다더라', from: ['l_e1_3'], witnessOnly: true, provenance: 'reconstructed', time: '13:20' },
   { id: 'w_funeral', label: '국장 도감 일보다 길다', from: ['l_e3_1'], witnessOnly: true, provenance: 'reconstructed', time: '13:40' },
   { id: 'w_corner', label: '구석의 대감은 임금의 첫 명령을 또렷이 듣지 못했다', from: ['d_far_reading'], witnessOnly: true, provenance: 'reconstructed', time: '14:00' },

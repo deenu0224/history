@@ -73,7 +73,7 @@ describe('validator — catches broken content', () => {
     ep.ladders[1].steps[0].text = '이극돈 카드 봐.';
     expect(rules(ep)).toContain('⑥');
     const ep2 = clone();
-    (ep2.bursts[0].steps[2] as { text: string }).text = '야근이네요.';
+    (ep2.bursts[0].steps[3] as { text: string }).text = '야근이네요.';
     expect(rules(ep2)).toContain('⑥');
   });
   it('⑦ verified text must match the 국역; mistranslation forbidden', () => {

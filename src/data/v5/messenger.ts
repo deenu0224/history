@@ -32,8 +32,9 @@ export const BURSTS: Burst[] = [
     id: 'ev.start',
     steps: [
       named('m_oh_priority', oh('07, 우선순위 낮은 건 하나 너한테 갔다.', { restored: '07, 다 아는 건 하나 너한테 갔다.', facts: DAY })),
-      // 06:00 닫힘의 예고(QA_STORY 발견 4) — 오 실장은 두 번만 말한다(시작·06:00)
-      oh('06시에 관측기 한 바퀴 도니까 그 전에 끝내.'),
+      // 06:00 의 예고(QA_STORY 발견 4) — 지킬 수 있는 경고로(QA_STORY_R2 N2). 오 실장은 두 번만 말한다(시작·06:00)
+      oh('06시에 관측기 한 바퀴 돈다.'),
+      oh('흐린 데는 그때 끊길 수 있어.'),
       // Ep0 다리(「어, 하나 더 떴다.」)를 받고, 「명단」을 먼저 세운다(발견 5)
       han('아까 그거야, 명단 하나 붙어 있더라.'),
       han('거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.'),
@@ -50,7 +51,7 @@ export const BURSTS: Burst[] = [
     ],
   },
   { id: 'ev.eye_open.E3', steps: [han('나 잠깐 다른 건 좀 볼게.'), { kind: 'status', presence: 'away' }] },
-  { id: 'ev.eye_open.E4', steps: [{ kind: 'status', presence: 'online' }, han('이 사람 자리 꽤 구석이다.')] },
+  { id: 'ev.eye_open.E4', steps: [{ kind: 'status', presence: 'online' }, han('나 왔어. 하나 더 열렸네.')] },
   { id: 'ev.x1', steps: [han('잠깐, 첫 번째 관측이랑 말이 다르네.', heavy)] },
   {
     id: 'ev.closure',
@@ -58,7 +59,7 @@ export const BURSTS: Burst[] = [
       sys('관측기 06:00 · 이 지점을 가리키는 기록 1건 사라짐 · 관측 1개 끊김'),
       oh('관측기 한 바퀴 돌았다.'),
       named('m_oh_closed', oh('끊긴 관측은 끊긴 거야. 남은 걸로 해.', { restored: '교과서 건이니 남은 걸로 깔끔하게 해.', facts: DAY })),
-      han('…닫혔어?', heavy),
+      han('…끊겼어?', heavy),
       {
         kind: 'choice',
         id: 'c_closure',
@@ -99,7 +100,7 @@ export const BURSTS: Burst[] = [
     postRestore: true,
     steps: [
       sys('관측기: 내 관측 기록은 그대로'),
-      han('07, 아까부터 뭘 그렇게 붙들고 있어?'),
+      han('07, 아직도 그거 보고 있어?'),
       {
         kind: 'choice',
         id: 'c_restore',
@@ -124,6 +125,8 @@ export const BURSTS: Burst[] = [
     steps: [
       han('아까 기록 뒤지다 본 건데.'),
       han('너, 2년 전에도 뭐 하나 붙들고 있었더라.'),
+      // Ep2 예고의 물음 하나(QA_FUN_R2 상위 5-5) — 답은 주지 않는다
+      han('그때 넌 뭘 찾고 있었던 거야?'),
       { kind: 'attach', id: 'm_att_c0408', docId: 'doc_c0408', label: '#C-0408 · 2년 전 · 대조관 07 · 관측 오류 · 종결' },
       {
         kind: 'choice',
@@ -140,7 +143,7 @@ export const BURSTS: Burst[] = [
   { id: 'ev.resume.notag', repeatable: true, steps: [han('왔어? 카드 세 장 그대로 있어.')] },
   { id: 'ev.resume.room', repeatable: true, steps: [han('방 그림 그대로야.')] },
   { id: 'ev.resume.x1', repeatable: true, steps: [han('그 「모두」 얘기 아직이지?')] },
-  { id: 'ev.resume.after0600', repeatable: true, steps: [han('관측기 다시 돌았어. 더 닫힌 건 없어.')] },
+  { id: 'ev.resume.after0600', repeatable: true, steps: [han('관측기 다시 돌았어. 더 끊긴 건 없어.')] },
   { id: 'ev.resume.write', repeatable: true, steps: [han('쓰던 거 그대로 있어.')] },
 ];
 
@@ -215,9 +218,10 @@ export const LADDERS: HintLadder[] = [
     activeWhen: { revealed: ['X1'], unresolved: ['X1'] },
     doneWhen: { resolved: ['X1'] },
     steps: [
-      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 2 },
-      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 3 },
-      { id: 'h_x1_3', text: '멀리 앉은 사람은 들은 걸까, 전해 들은 걸까.', afterS: 60, fails: 4 },
+      // 「듣던 자리」 류의 아하는 대본 묶음이 아니라 이 사다리에만 둔다(QA_FUN_R2 N4) — 볼 곳만
+      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 1 },
+      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 2 },
+      { id: 'h_x1_3', text: '구석 자리부터 문 앞까지 그려 봐.', afterS: 60, fails: 3 },
     ],
   },
   {

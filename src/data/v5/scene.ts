@@ -17,7 +17,7 @@ const V = 'verified' as const;
 export const FIGURES: Figure[] = [
   // 화면 글(label)에는 관복 색을 품계처럼 쓰지 않는다(복색 규정 미검증 — ART_DIRECTION 「관복 색」). 색은 그림의 구분용(visibleTraits)에만
   { id: 'fig_yun', truePersonId: 'yun_hyoson', provenance: V, label: '맞은편 관원', visibleTraits: ['초록 관복'] },
-  { id: 'fig_yi', truePersonId: 'yi_geukdon', provenance: V, label: '붉은 관복', visibleTraits: ['붉은 관복'] },
+  { id: 'fig_yi', truePersonId: 'yi_geukdon', provenance: V, label: '책상 너머 관원', visibleTraits: ['붉은 관복'] },
   { id: 'fig_eo', truePersonId: 'eo_segyeom', provenance: R, label: '윗자리 관원', visibleTraits: ['붉은 관복(진한 톤)', '병풍 앞'] },
   { id: 'fig_hong', truePersonId: 'hong_gwidal', provenance: R, label: '구석 관원', visibleTraits: ['남색 관복'] },
   {
@@ -216,7 +216,7 @@ export const LINES: Line[] = [
 
 export const DETAILS: Detail[] = [
   { id: 'd_bundles', label: '꾸러미마다 이름표가 붙어 있다. 멀어서 읽히지 않는다.', provenance: R, targetPosId: 'SP', size: 'action' },
-  { id: 'd_long_page', label: '붉은 관복이 한 장을 오래 들고 있다.', provenance: R, targetPosId: 'Y', size: 'action' },
+  { id: 'd_long_page', label: '책상 너머 관원이 한 장을 오래 들고 있다.', provenance: R, targetPosId: 'Y', size: 'action' },
   { id: 'd_slips_five', label: '기록 더미 너머, 종이 조각 다섯 장.', provenance: R, targetPosId: 'SP', size: 'small', occludedView: true },
   { id: 'd_slips_six', label: '손 앞에 종이 조각 여섯 장.', provenance: R, targetPosId: 'SP', size: 'small' },
   { id: 'd_nametag', label: '꾸러미 이름표: 김일손(金馹孫).', provenance: R, targetPosId: 'SP', size: 'small', terms: ['김일손', '金馹孫'] },
@@ -442,7 +442,7 @@ export const EYES: Eye[] = [
     personId: 'kim_ilson',
     anchor: null,
     cuts: [],
-    openWhen: { kind: 'never', reason: '그날을 가리키는 그의 기록이 남아 있지 않다' },
+    openWhen: { kind: 'never', reason: '그날 그 방에 없었다' },
     order: 5,
   },
 ];

@@ -59,7 +59,8 @@ export const BURSTS0: Burst[] = [
     postRestore: true,
     steps: [
       { kind: 'system', id: 'e0m_restore_sys', text: '관측기: 내 관측 기록은 그대로' },
-      han('07, 아까 그 구멍 난 거 끝났어?'),
+      // 한은 구멍을 기억하지 않는다(기억 규칙 — 빈자리는 관측기 기록만 안다, QA_STORY_R2 N1)
+      han('07, 아까 그 건 끝났어?'),
       {
         kind: 'choice',
         id: 'c0_restore',
@@ -70,9 +71,8 @@ export const BURSTS0: Burst[] = [
         after: [
           han('세종대왕이 만든 거 모르는 사람이 어디 있어.'),
           { kind: 'pause', ms: 3500, fakeTyping: true },
+          // 끝줄 없음: 다시 쓰인 줄을 알리는 말은 기억 규칙과 부딪힌다. 거슬러 볼 까닭은 07 의 바뀐 답 자체에 맡긴다
           han('너 진짜 피곤하구나.'),
-          // 거슬러 올라가 볼 까닭만 준다(QA_FUN F8) — 무엇이 바뀌었는지는 말하지 않는다
-          han('아까 우리 그 칸 얘기 했잖아.'),
         ],
       },
     ],

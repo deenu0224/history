@@ -28,7 +28,7 @@ export const CUT_TIMES: Readonly<Record<CutId, string>> = {
 
 export const FIGURE_IDS = [
   'fig_yun', // 초록 관복 — 윤효손(E1 의 주인)
-  'fig_yi', // 붉은 관복 — 이극돈(E2)
+  'fig_yi', // 책상 너머 관원 — 이극돈(E2)
   'fig_eo', // 윗자리 관원 — 어세겸(E3)
   'fig_hong', // 남색 관복 — 홍귀달(E4)
   'fig_u', // 「?」 — 유순·안침(짝)

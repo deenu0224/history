@@ -430,7 +430,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'restore-bridge')).toContainText('관측기: 내 관측 기록은 그대로', { timeout: 30_000 });
     await tid(page, 'reply-hangul').click({ timeout: 60_000 });
     await expect(tid(page, 'restore-bridge')).toContainText('세종대왕이 만든 거 모르는 사람이 어디 있어', { timeout: 30_000 });
-    await expect(tid(page, 'restore-bridge')).toContainText('아까 우리 그 칸 얘기 했잖아.', { timeout: 30_000 });
+    await expect(tid(page, 'restore-bridge')).toContainText('너 진짜 피곤하구나.', { timeout: 30_000 });
     await expect(tid(page, 'restore-bridge')).toContainText('관측기: 같은 손상 흔적 1건 더', { timeout: 30_000 });
     await expect(page.locator('.app')).not.toContainText('좌표');
     await expect(tid(page, 'restore-bridge')).toContainText('어, 하나 더 떴다.', { timeout: 30_000 });
@@ -680,7 +680,7 @@ test.describe('v5 전체 플레이', () => {
     await expect(tid(page, 'resolve-waiting')).toBeVisible();
     await shot(page, 'room-contradiction');
     await tid(page, 'resolve-wait').click();
-    // ── 메신저: 06:00 → 「…닫혔어?」 → 1년 전 보고서
+    // ── 메신저: 06:00 → 「…끊겼어?」 → 1년 전 보고서
     await expect(page.locator('[data-screen=messenger]')).toBeVisible();
     await shot(page, 'messenger');
     await chatUntil(page, '맨 끝 봐, 1년 전에도 너 거기서 멈췄어.');

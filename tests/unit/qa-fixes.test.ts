@@ -89,7 +89,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
       const m = h.st().messenger;
       if (m.choice) {
         h.st().chooseReply(m.choice.step.options[0].id);
-        t0 = h.clock.t; // 「…닫혔어?」에 답한 때
+        t0 = h.clock.t; // 「…끊겼어?」에 답한 때
       }
     }
     expect(h.st().docs).toContain('doc_old_report');

@@ -72,13 +72,13 @@ describe('store — Ep1 correct path end to end', () => {
     expect(sk.results[0]).toEqual({ kind: 'person', id: 'kim_ilson' });
     const kim = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kim.altered[0]).toMatchObject({ state: 'altered', text: '사망 1498년 7월 · 사인: 기록 없음' });
-    expect(kim.eyeLine).toBe('관측: 불가 — 그날을 가리키는 그의 기록이 남아 있지 않다');
+    expect(kim.eyeLine).toBe('관측: 불가 — 그날 그 방에 없었다');
     expect(h.st().search('대내로 들여오라').status).toBe('no_article');
 
     // T1 — 시트: 이 방 카드 먼저, 근거는 이 사람이 나온 컷 것 먼저
     expect(h.st().tapFigure('e1-2', 'fig_yi').tappable).toBe(true);
     const sheet = selectTagSheet(EP1, h.st(), 'e1-2', 'fig_yi', 'yi_geukdon');
-    expect(sheet.figure.label).toBe('붉은 관복');
+    expect(sheet.figure.label).toBe('책상 너머 관원');
     expect(sheet.evidence[0].fromThisPersonCut).toBe(true);
     expect(sheet.evidence.every((e) => e.kind !== 'fact')).toBe(true); // 카드 줄은 근거가 아니다
     expect(sheet.roomLink).toBeNull(); // 방은 아직
@@ -267,7 +267,7 @@ describe('store — Ep1 correct path end to end', () => {
     const kimR = selectCard(EP1, h.st(), 'kim_ilson')!;
     expect(kimR.altered[0]).toMatchObject({ state: 'restored', provenance: 'verified' });
     expect(kimR.altered[0].text).toContain('능지 처사(凌遲處死)');
-    expect(kimR.eyeExtra.map((l) => l.source.id)).toEqual(['kja_10407028_003', 'kja_10407012_002']);
+    expect(kimR.eyeExtra.map((l) => l.source.id)).toEqual(['kja_10407012_002', 'kja_10407028_003']);
     expect(selectCard(EP1, h.st(), 'eo_segyeom')!.altered[0].text).toContain('파직하고');
     expect(selectCard(EP1, h.st(), 'hong_gwidal')!.facts.map((f) => f.id)).toContain('f_hong_gongjo');
     const rest = selectRestoration(EP1, h.st())!;

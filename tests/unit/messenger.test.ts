@@ -174,15 +174,16 @@ describe('messenger timing model (DIALOGUE_GUIDE §2)', () => {
 });
 
 describe('messenger in the store (EP1 script)', () => {
-  it('ev.start: 오 실장 둘 → 한 선임 둘, 답장 없이 끝난다(말수 예산)', () => {
+  it('ev.start: 오 실장 셋(06:00 경고 둘) → 한 선임 둘, 답장 없이 끝난다(말수 예산)', () => {
     const h = makeStore(21);
     h.st().startEpisode();
     h.advance(30_000);
-    expect(h.st().messenger.log.map((m) => m.from)).toEqual(['oh', 'oh', 'han', 'han']);
-    expect(h.st().messenger.log.map((m) => m.text)).toEqual(['07, 우선순위 낮은 건 하나 너한테 갔다.', '06시에 관측기 한 바퀴 도니까 그 전에 끝내.', '아까 그거야, 명단 하나 붙어 있더라.', '거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.']);
     h.st().openMessenger();
     h.advance(40_000);
-    expect(h.st().messenger.log).toHaveLength(4);
+    expect(h.st().messenger.log.map((m) => m.from)).toEqual(['oh', 'oh', 'oh', 'han', 'han']);
+    expect(h.st().messenger.log.map((m) => m.text)).toEqual(['07, 우선순위 낮은 건 하나 너한테 갔다.', '06시에 관측기 한 바퀴 돈다.', '흐린 데는 그때 끊길 수 있어.', '아까 그거야, 명단 하나 붙어 있더라.', '거기서 셋만 뽑아 카드 올려놨고, 나머진 찾기로 봐.']);
+    h.advance(40_000);
+    expect(h.st().messenger.log).toHaveLength(5);
     expect(h.st().messenger.choice).toBeFalsy();
   });
 
