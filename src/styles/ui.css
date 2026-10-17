@@ -766,6 +766,21 @@
 .bubble .txt {
   font-size: var(--fs-b);
   line-height: 26px;
+  /* 낱말 버튼의 위아래 탭 여백이 잘리지 않게(줄 배치는 그대로) */
+  padding-block: 9px;
+  margin-block: -9px;
+}
+/* 말풍선 낱말(찾기·풀이): 줄 높이는 그대로, 탭 영역만 위아래로 넓혀 높이 44px(QA_UX_R3) */
+.bubble .txt .term,
+.bubble .txt .gloss {
+  padding-block: 9px;
+  background-clip: content-box;
+}
+.bubble .txt .term {
+  border-bottom: none;
+  text-decoration: underline solid var(--seal);
+  text-decoration-thickness: 2.5px;
+  text-underline-offset: 4px;
 }
 .bubble .txt.clamp {
   display: -webkit-box;
@@ -775,8 +790,8 @@
 }
 .bubble .bmore {
   display: block;
-  margin: 0 0 -6px auto;
-  min-height: 36px;
+  margin: 0 0 -8px auto;
+  min-height: 44px;
   min-width: 88px;
   padding: 0 4px;
   text-align: right;
@@ -955,6 +970,22 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
   animation: banner-in 0.3s var(--ease);
   width: calc(100% - 20px);
+  /* 몸통은 탭을 지나 보낸다(컷 빈 곳 탭 = 다음 말). 「보기 ›」만 받는다 */
+  pointer-events: none;
+}
+.banner .banner-go {
+  pointer-events: auto;
+  flex: none;
+  min-width: 56px;
+  min-height: 44px;
+  margin: -4px -6px -4px 0;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--amber);
+  background: transparent;
+  color: var(--amber);
+  font-size: var(--fs-m);
+  font-weight: 700;
 }
 .banner .from {
   color: var(--amber);
@@ -2038,19 +2069,29 @@
   color: var(--amber);
   font-weight: 600;
 }
+/* 탭 영역 56×44(트랙은 그 안에 32px 높이로 그린다, QA_UX_R3) */
 .switch {
   width: 56px;
+  height: 44px;
+  background: none;
+  position: relative;
+  flex: none;
+}
+.switch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
   height: 32px;
   border-radius: 16px;
   background: var(--ink3);
-  position: relative;
-  flex: none;
   transition: background 0.15s;
 }
 .switch::after {
   content: '';
   position: absolute;
-  top: 4px;
+  top: 10px;
   left: 4px;
   width: 24px;
   height: 24px;
@@ -2058,7 +2099,7 @@
   background: var(--hanji-muted);
   transition: transform 0.15s, background 0.15s;
 }
-.switch[aria-checked='true'] {
+.switch[aria-checked='true']::before {
   background: rgba(226, 168, 92, 0.35);
 }
 .switch[aria-checked='true']::after {
@@ -2137,9 +2178,14 @@
   font-weight: 700;
   color: #174f72;
   position: relative;
-  display: inline;
-  padding: 1px 6px 1px 8px;
-  margin: 0 2px;
+  /* 버튼 모양 그대로 44×44 이상(QA_UX_R3 — 「세종 ›」 58×31 이던 것). 그 줄만 조금 높아진다 */
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px 0 12px;
+  margin: 2px 2px;
   background: rgba(45, 111, 150, 0.16);
   border: 1.5px solid #2d6f96;
   border-radius: 8px;
@@ -2148,16 +2194,9 @@
   box-decoration-break: clone;
 }
 .flink::after {
-  content: ' ›';
+  content: '›';
+  margin-left: 4px;
   font-weight: 700;
-}
-/* 탭 영역은 44px 이상(줄 사이를 벌리지 않게 보이지 않는 덧칸으로 — 위아래 ≥ 7px, 옆 ≥ 8px) */
-.flink::before {
-  content: '';
-  position: absolute;
-  inset: -8px -8px;
-  min-height: 44px;
-  min-width: 44px;
 }
 .flink.found {
   font-weight: 600;
@@ -2371,12 +2410,17 @@
 .tag-pin .ghostlink {
   margin-top: 0;
 }
+/* 이름 붙이기 시트의 카드 줄: 셋이면 셋 다 한 화면에(360 폭에서도), 넘치면 3.3장씩 보여 다음 장이 엿보이고 한 장씩 멈춘다(QA_UX_R3) */
 .cards.compact {
   padding: 8px 16px 6px;
   gap: 8px;
+  container-type: inline-size;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
 }
 .cards.compact .pcard {
-  width: 150px;
+  width: calc((100cqw - 48px) / 3);
+  scroll-snap-align: start;
   height: 76px;
   padding: 7px 10px 6px;
   border-radius: 8px;
@@ -2387,6 +2431,9 @@
   width: 6px;
   height: 6px;
 }
+.cards.compact.scroll .pcard {
+  width: calc((100cqw - 40px) / 3.35);
+}
 .cards.compact .pcard .nm {
   margin-top: 0;
   font-size: var(--fs-b);
@@ -2395,10 +2442,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 한자는 이름 아래 줄에(좁은 타일에서도 잘리지 않게) */
 .cards.compact .pcard .nm .hj {
+  display: block;
   font-size: 13px;
+  line-height: 18px;
   font-weight: 400;
-  margin-left: 2px;
+  margin-left: 0;
 }
 .cards.compact .pcard .ft {
   margin-top: 3px;
@@ -2829,18 +2879,51 @@
   gap: 6px;
   margin-top: 10px;
 }
+/* 들은 말 칩 = 눌러 볼 버튼(실선 + 호박 테두리 + 「놓기 ›」). 처음 보일 때·잇기가 틀렸을 때 한 번 숨쉰다 */
 .heardchip {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 48px;
   padding: 8px 12px;
-  border: 1.5px dashed var(--ink3);
+  border: 1.5px solid var(--amber);
   border-radius: 10px;
-  background: transparent;
+  background: var(--ink2);
   color: var(--hanji);
   text-align: left;
   font-size: var(--fs-b);
+}
+.heardchip .go {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  color: var(--amber);
+  font-size: var(--fs-m);
+  font-weight: 700;
+}
+.heardchip.pulse {
+  animation: heard-breathe 1.2s var(--ease) 0.2s 1 both;
+}
+@keyframes heard-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(226, 168, 92, 0);
+  }
+  45% {
+    box-shadow: 0 0 0 6px rgba(226, 168, 92, 0.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heardchip.pulse {
+    animation: none;
+  }
+}
+.heardchip.done {
+  border-style: dashed;
+  border-color: var(--ink3);
+  background: transparent;
+  opacity: 0.7;
 }
 .heardchip.on {
   border-style: solid;

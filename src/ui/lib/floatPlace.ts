@@ -1,10 +1,16 @@
 /**
  * 알림(토스트)·메신저 배너의 자리 — 머리글과 탭 대상을 가리지 않는 띠를 찾는다(QA_UX ux-05~08, UI_STYLE_GUIDE §2.3).
- * 머리글 아래부터 아래 막대 위까지 4px 씩 내려가며, 버튼·링크·도면 표시·시트 머리와 겹치지 않는 첫 자리를 고른다.
+ * 머리글 아래부터 아래 막대 위까지 4px 씩 내려가며, 버튼·링크·도면 표시·시트 머리·말풍선·이름표·고정률 막대와 겹치지 않는 첫 자리를 고른다.
  * 그런 자리가 없으면 겹침이 가장 적은 자리. 좌표는 .app 기준 px(top).
  */
 const HEADERS = '.vtop, .paperbar, .bar, .home-top, .chat-head';
-const OBSTACLES = 'button, a[href], [role="button"], input, textarea, .mk, .shead, .navbar, svg.plan, .fb, [data-float-avoid]';
+/** 언제나 머리글로 치는 것(시트에 덮였다고 잘못 재도 그 위에 뜨지 않게 — QA_UX_R3 ux3-05) */
+const ALWAYS_HEADERS = '.vtop, .paperbar';
+/**
+ * 피할 것: 탭 대상 + 읽어야 할 글(말풍선·컷 위 이름표) + 보상 연출(고정률 막대·복원 연출 [data-float-wait]) (QA_UX_R3 ux3-02~04, QA_FUN_R3 R3-8)
+ */
+const OBSTACLES =
+  'button, a[href], [role="button"], input, textarea, .mk, .shead, .navbar, svg.plan, .fb, .bubble, .tagchip, .detail-note, .fixmeter, [data-float-wait], [data-float-avoid]';
 
 interface R {
   top: number;
@@ -50,7 +56,7 @@ function measure(el: HTMLElement, avoid: HTMLElement[]): number | null {
   let headBottom = ar.top;
   for (const hd of app.querySelectorAll<HTMLElement>(HEADERS)) {
     const r = hd.getBoundingClientRect();
-    if (!visible(r) || r.top > ar.top + 140 || covered(hd, r)) continue;
+    if (!visible(r) || r.top > ar.top + 140 || (!hd.matches(ALWAYS_HEADERS) && covered(hd, r))) continue;
     headBottom = Math.max(headBottom, r.bottom);
   }
   let floor = ar.bottom;

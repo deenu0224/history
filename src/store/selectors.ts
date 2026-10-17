@@ -417,6 +417,12 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
   const heard = all
     .filter((a): a is Extract<Appearance, { kind: 'mention' }> => a.kind === 'mention' && !mentionShown(s, a.key))
     .map((a) => ({ key: a.key, cutId: a.cutId, eyeId: a.eyeId, text: I.line.get(a.lineId)?.text ?? '' }));
+  // 이미 놓은 들은 말(복원 전) — 칩 자리를 「놓음 ✓」으로 남겨 도면이 밀리지 않게(QA_UX_R3 ux3-07)
+  const placedHeard = s.restored
+    ? []
+    : all
+        .filter((a): a is Extract<Appearance, { kind: 'mention' }> => a.kind === 'mention' && (s.placedMentions ?? []).includes(a.key))
+        .map((a) => ({ key: a.key, cutId: a.cutId, eyeId: a.eyeId, text: I.line.get(a.lineId)?.text ?? '' }));
   const byPos = new Map<Id, Appearance[]>();
   for (const a of apps) byPos.set(a.posId, [...(byPos.get(a.posId) ?? []), a]);
   const markers: RoomMarker[] = [];
@@ -496,6 +502,8 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
     markers,
     /** 이 시각에 들은 말 중 다른 자리의 사람을 가리키는 것(아직 도면에 놓지 않음) — 칩을 고르고 자리를 탭해 놓는다 */
     heard,
+    /** 이 시각에 이미 놓은 들은 말(칩 자리를 지킨다) */
+    placedHeard,
     contradictions: selectContradictions(ep, s).filter((x) => x.status !== 'hidden'),
   };
 }

@@ -73,6 +73,8 @@ export interface UiStore {
 }
 
 let seq = 0;
+/** 띄우기를 기다리는 배너(연출이 끝나길 기다리는 동안 새 배너가 오면 옛것은 버린다) */
+let pendingBanner = 0;
 
 export const useUi = create<UiStore>()((set, get) => ({
   phase: 'boot',
@@ -123,10 +125,22 @@ export const useUi = create<UiStore>()((set, get) => ({
   },
   showBanner: (from, text) => {
     const key = ++seq;
-    set({ banner: { key, from, text } });
-    setTimeout(() => {
-      if (get().banner?.key === key) set({ banner: null });
-    }, 2800);
+    // 화면이 보상 연출 중이면(역사 고정의 복원 연출·고정률 차오름 — [data-float-wait]) 끝난 뒤에 띄운다(QA_UX_R3 ux3-04). 최대 4초
+    const busy = () => typeof document !== 'undefined' && !!document.querySelector('[data-float-wait]');
+    const t0 = Date.now();
+    pendingBanner = key;
+    const show = () => {
+      if (pendingBanner !== key) return; // 그 사이 새 배너가 왔다
+      if (busy() && Date.now() - t0 < 4000) {
+        setTimeout(show, 200);
+        return;
+      }
+      set({ banner: { key, from, text } });
+      setTimeout(() => {
+        if (get().banner?.key === key) set({ banner: null });
+      }, 2800);
+    };
+    show();
   },
   clearBanner: () => set({ banner: null }),
   flashMerge: (posId) => {

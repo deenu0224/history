@@ -140,3 +140,21 @@ describe('walk routes', () => {
     expect(facingFromVector(0, 0, 'left')).toBe('left');
   });
 });
+
+describe('컷 넘기기 — 엿보기·빠른 튕김(QA_UX_R3)', async () => {
+  const { flickVelocity, swipeStep } = await import('@/game/logic/swipe');
+  it('최근 창의 속도로 튕김을 잰다(오래 대고 있다가 튕겨도)', () => {
+    const s = [{ x: 300, t: 0 }, { x: 300, t: 400 }, { x: 290, t: 410 }, { x: 250, t: 430 }];
+    expect(flickVelocity(s)).toBeLessThan(-1);
+    expect(swipeStep(-50, flickVelocity(s), 382)).toBe(1); // 13% 밀기 + 빠름 → 다음 컷
+  });
+  it('짧고 느린 밀기는 제자리, 30% 넘게 밀면 속도와 관계없이 넘긴다', () => {
+    expect(swipeStep(-60, -0.1, 382)).toBe(0);
+    expect(swipeStep(-120, 0, 382)).toBe(1);
+    expect(swipeStep(130, 0, 382)).toBe(-1);
+  });
+  it('떨림(16px 미만)이나 반대 방향 속도는 넘기지 않는다', () => {
+    expect(swipeStep(-10, -2, 382)).toBe(0);
+    expect(swipeStep(-40, 0.8, 382)).toBe(0);
+  });
+});

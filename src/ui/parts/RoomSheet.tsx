@@ -3,7 +3,7 @@
  * 일반 보기(시각 칩 · 눈의 시야 · 「같은 사람 잇기」: 표시 A 를 고르고 → 잇기 → 다른 관측의 표시 B 를 탭, 엔진이 시각·자리로 판정)
  * 모순 보기(기하만 — 반경 원·시선·가림 빗금·자리·거리. 자리를 탭하면 선이 그려진다. 결론 낱말은 없다 · 판단 + 근거 2칸).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { currentEpisode, useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectContradictionView, selectContradictions, selectRoom, type NeutralGeometry, type RoomMarker } from '@/store/selectors';
@@ -229,8 +229,24 @@ function Conflict({ geo, room, focusClaim, selSeat, onSeat }: { geo: NeutralGeom
   const sy = P(geo.source.y);
   const sel = geo.witnesses.find((w) => w.eyeId === selSeat);
   const uniq = geo.witnesses.filter((w, i, all) => all.findIndex((v) => v.eyeId === w.eyeId) === i);
+  // 도면이 작게 그려져도(360 폭·낮은 화면) 자리 탭 영역은 화면에서 지름 ≥44px — 그려진 배율로 탭 반경을 잰다(QA_UX_R3 ux3-08)
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hit, setHit] = useState(22);
+  useLayoutEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const upd = () => {
+      const r = el.getBoundingClientRect();
+      const k = Math.min(r.width / W, r.height / H);
+      if (k > 0) setHit(Math.max(22, Math.ceil(23 / k)));
+    };
+    upd();
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [W, H]);
   return (
-    <svg className="plan" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="모순 도면" data-testid="conflict-plan">
+    <svg ref={svgRef} className="plan" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="모순 도면" data-testid="conflict-plan">
       <Base room={room}>
         {geo.kind === 'hearing' ? (
           <>
@@ -264,7 +280,7 @@ function Conflict({ geo, room, focusClaim, selSeat, onSeat }: { geo: NeutralGeom
         const on = !focusClaim || geo.witnesses.some((v) => v.eyeId === w.eyeId && v.claimId === focusClaim);
         return (
           <g key={w.eyeId} opacity={on ? 1 : 0.35} data-testid={`witness-${w.eyeId}`}>
-            <PersonMark x={w.x} y={w.y} label={name(w.eyeId)} eye sel={selSeat === w.eyeId} onClick={() => onSeat(w.eyeId)} testId={`seat-${w.eyeId}`} aria={`${name(w.eyeId)} 자리`} />
+            <PersonMark x={w.x} y={w.y} label={name(w.eyeId)} eye sel={selSeat === w.eyeId} hit={hit} onClick={() => onSeat(w.eyeId)} testId={`seat-${w.eyeId}`} aria={`${name(w.eyeId)} 자리`} />
           </g>
         );
       })}
@@ -297,6 +313,8 @@ export function RoomSheet() {
   const [linkFb, setLinkFb] = useState<{ text: string; ok: boolean } | null>(null);
   /** 「들은 말」을 놓는 중: 그 말의 등장 키 */
   const [placing, setPlacing] = useState<string | null>(null);
+  /** 놓지 않은 들은 말이 있는데 잇기가 틀렸다 → 칩이 한 번 숨쉰다(볼 곳을 가리킨다, QA_UX_R3 ux3-06) */
+  const [chipPulse, setChipPulse] = useState(0);
   const [claim, setClaim] = useState<string | null>(null);
   const [retry, setRetry] = useState<string | null>(null);
   /** 근거 2칸의 ② 근거(자리 사실 id). ① 판단은 claim */
@@ -367,6 +385,21 @@ export function RoomSheet() {
     const r = g.placeMention(placing, posId);
     if (r.verdict === 'ok') {
       fx('merge');
+      // 그 자리·그 시각에 다른 관측의 사람이 꼭 하나면 짝이 이미 정해졌다 — 확인 탭 없이 바로 잇는다(QA_FUN_R3 R3-6).
+      // 판정은 그대로 엔진(linkMarkers). 후보가 없거나 여럿이면 지금처럼 플레이어가 탭한다.
+      const st = useGameStore.getState();
+      const fresh = selectRoom(currentEpisode(st), st);
+      const placed = fresh.markers.find((m) => m.keys.includes(r.key));
+      const others = placed ? fresh.markers.filter((m) => m.posId === r.posId && !m.keys.some((k) => placed.keys.includes(k)) && !sameEye(placed, m)) : [];
+      if (placed && others.length === 1) {
+        const j = g.linkMarkers(r.key, others[0]!.keys.find((k) => eyeOfKey(k) !== eyeOfKey(r.key)) ?? markerKey(others[0]!));
+        if (j.verdict === 'ok') {
+          setLinkFb({ text: '말이 가리킨 자리에 놓았다 — 같은 사람으로 이었다', ok: true });
+          setSelKey(r.key);
+          setPlacing(null);
+          return true;
+        }
+      }
       setLinkFb({ text: '말이 가리킨 자리에 「?」 를 놓았다 — 같은 사람이면 이어 보자', ok: true });
       setSelKey(r.key); // 놓은 「?」 가 골라진 채 — 바로 다른 관측의 사람을 탭하면 잇는다
     } else if (r.verdict === 'wrong') {
@@ -390,7 +423,11 @@ export function RoomSheet() {
       setSelKey(markerKey(m));
     } else if (j.feedback) {
       fx('tag_no');
-      setLinkFb({ text: j.feedback, ok: false });
+      // 아직 놓지 않은 들은 말이 있으면 그 칩을 가리킨다(정답은 말하지 않는다 — 볼 곳만)
+      if (room.heard.length) {
+        setLinkFb({ text: `${j.feedback} — 들은 말부터 자리에 놓아 보자`, ok: false });
+        setChipPulse((n) => n + 1);
+      } else setLinkFb({ text: j.feedback, ok: false });
     }
   };
   /**
@@ -564,13 +601,21 @@ export function RoomSheet() {
               mergePos={mergePos}
               placing={!!placing}
             />
-            {room.heard.length ? (
+            {room.heard.length || room.placedHeard.length ? (
               <div className="heard" data-testid="room-heard">
                 <span className="t-m">들은 말 — 어느 자리 얘기일까</span>
+                {room.placedHeard.map((h) => (
+                  // 놓은 말은 칩 자리를 지킨다(도면이 밀리지 않게) — 누를 수 없다
+                  <div key={h.key} className="heardchip done" data-testid={`heard-done-${h.key}`}>
+                    <span className="clock t-m">{cutNo(h.cutId)}</span>
+                    <span className="tx">「{h.text}」</span>
+                    <span className="t-m amber">놓음 ✓</span>
+                  </div>
+                ))}
                 {room.heard.map((h) => (
                   <button
-                    key={h.key}
-                    className={`heardchip${placing === h.key ? ' on' : ''}`}
+                    key={`${h.key}:${chipPulse}`}
+                    className={`heardchip pulse${placing === h.key ? ' on' : ''}`}
                     data-testid={`heard-${h.key}`}
                     aria-pressed={placing === h.key}
                     onClick={() => {
@@ -582,6 +627,9 @@ export function RoomSheet() {
                   >
                     <span className="clock t-m">{cutNo(h.cutId)}</span>
                     <span className="tx">「{h.text}」</span>
+                    <span className="go" aria-hidden="true">
+                      {placing === h.key ? '도면에서 탭' : '놓기'} <IChevR size={16} />
+                    </span>
                   </button>
                 ))}
               </div>

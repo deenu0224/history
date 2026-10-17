@@ -165,11 +165,20 @@ export function Rewrite() {
     useGameStore.getState().composeRewrite();
   }, []);
 
+  /** 복원 연출(빈칸이 먹으로 차오름) 중 — 배너·알림은 끝난 뒤에(data-float-wait, QA_UX_R3 ux3-04) */
+  const [inking, setInking] = useState(false);
+  useEffect(() => {
+    if (!inking) return;
+    const t = setTimeout(() => setInking(false), 1800);
+    return () => clearTimeout(t);
+  }, [inking]);
+
   const submit = () => {
     const g = useGameStore.getState();
     const out = g.submitRewrite();
     if ('results' in out) {
       const vals = Object.values(out.results);
+      if (vals.includes('restored') || vals.includes('witness')) setInking(true);
       if (vals.includes('restored')) fx('write');
       else if (vals.includes('witness')) fx('write_grey');
       else fx('write_fail');
@@ -198,7 +207,7 @@ export function Rewrite() {
       <div style={{ padding: '0 16px 10px' }}>
         <FixMeter pct={rw.fixRate.pct} />
       </div>
-      <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}${blink ? ' blink' : ''}`} data-testid="paper">
+      <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}${blink ? ' blink' : ''}`} data-testid="paper" {...(inking ? { 'data-float-wait': '' } : {})}>
         {rw.lines.length === 0 ? (
           <p className="read keep" style={{ margin: '28px 4px', fontSize: 17, lineHeight: '30px', color: '#6b5e45' }}>
             {rw.pieces.length ? '본 것으로만 고정한다. 고정할 문장을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 고정한다.'}

@@ -73,7 +73,9 @@ function handle(f: Fx) {
         // 한 묶음이 연달아 와도 배너는 처음 하나만(위 띠를 계속 가리지 않는다). 안 읽음 점은 홈에 남는다.
         if (Date.now() - lastBannerAt > 9000) {
           lastBannerAt = Date.now();
-          ui.showBanner(FROM_LABEL[f.from] ?? '한 선임', f.text);
+          // 이름표와 글머리가 같으면(「관측기」 + 「관측기: …」) 글머리를 뗀다 — 「관측기 관측기:」 겹침(QA_UX_R3 ux3-01)
+          const from = FROM_LABEL[f.from] ?? '한 선임';
+          ui.showBanner(from, f.text.startsWith(`${from}:`) ? f.text.slice(from.length + 1).trimStart() : f.text);
         }
       }
       break;

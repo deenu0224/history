@@ -36,9 +36,19 @@ function useFloat(key: number | undefined, ref: React.RefObject<HTMLElement | nu
       }
     };
     put();
-    // 떠 있는 동안 화면이 바뀌면(시트가 올라옴·방이 열림) 다시 잰다
+    // 떠 있는 동안 화면이 바뀌면(시트가 올라옴·방이 열림·화면이 바뀜) 다시 잰다
     const t = setInterval(put, 350);
-    return () => clearInterval(t);
+    const unsub = useUi.subscribe((s, p) => {
+      if (s.stack !== p.stack || s.card !== p.card || s.logOpen !== p.logOpen || s.docId !== p.docId) requestAnimationFrame(put);
+    });
+    const unsubG = useGameStore.subscribe((s, p) => {
+      if (s.ui !== p.ui) requestAnimationFrame(put);
+    });
+    return () => {
+      clearInterval(t);
+      unsub();
+      unsubG();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 }
@@ -47,7 +57,7 @@ function Layers() {
   const toast = useUi((s) => s.toast);
   const banner = useUi((s) => s.banner);
   const toastRef = useRef<HTMLDivElement>(null);
-  const bannerRef = useRef<HTMLButtonElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
   useFloat(banner?.key, bannerRef, () => []);
   useFloat(toast?.key, toastRef, () => (bannerRef.current ? [bannerRef.current] : []));
   return (
@@ -58,18 +68,16 @@ function Layers() {
         </div>
       ) : null}
       {banner ? (
-        <button
-          ref={bannerRef}
-          key={banner.key}
-          className="banner"
-          data-testid="banner"
-          onClick={() => openMessenger()}
-        >
+        // 배너 몸통은 탭을 받지 않는다(밑의 컷·버튼으로 지나간다, QA_UX_R3 ux3-01) — 「보기 ›」 한 곳만 메신저로
+        <div ref={bannerRef} key={banner.key} className="banner" data-testid="banner" role="status">
           <span className="from">{banner.from}</span>
           <span className="txt t-b" style={{ flex: 1, minWidth: 0 }}>
             {banner.text}
           </span>
-        </button>
+          <button className="banner-go" data-testid="banner-go" aria-label={`메신저에서 보기 — ${banner.from}`} onClick={() => openMessenger()}>
+            보기 ›
+          </button>
+        </div>
       ) : null}
     </>
   );

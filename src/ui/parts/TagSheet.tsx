@@ -12,7 +12,7 @@ import { Sheet } from './Sheet';
 import { useUi } from '../uiStore';
 
 const KIND = { line: '들은 말', detail: '본 것', fact: '기록' } as const;
-
+/** 작은 카드: 이름(한자)만 — 생몰·판정에 쓰이는 사실 줄은 펼쳐야 보인다(타일 모양이 답을 흘리지 않게). 길게 누르면 카드를 펼친다 */
 /** 작은 카드: 이름(한자) + 중립 한 줄(생몰) — 판정에 쓰이는 사실 줄은 펼쳐야 보인다. 길게 누르면 카드를 펼친다 */
 function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -160,7 +160,7 @@ export function TagSheet() {
       <div className="t-m" style={{ paddingTop: 6 }}>
         ① 카드
       </div>
-      <div className="cards compact" data-testid="tag-cards">
+      <div className={`cards compact${sheet.cards.length + (verbs.search ? 1 : 0) > 3 ? ' scroll' : ''}`} data-testid="tag-cards">
         {sheet.cards.map((c) => (
           <CardTile
             key={c.id}

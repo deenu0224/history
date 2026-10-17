@@ -15,18 +15,23 @@ import { EyeRow } from '../parts/EyeRow';
 import { IDoc, IPlan, IWarn } from '../parts/icons';
 import { NavBar } from '../parts/NavBar';
 import { EDGE_PX } from '../lib/nav';
+import { flickVelocity, swipeStep, type SwipeSample } from '@/game/logic/swipe';
 import { useUi } from '../uiStore';
 
 const CUT_W = 390;
 const CUT_H = 520;
 
-function useBox(ref: React.RefObject<HTMLElement | null>) {
+/** 다음 컷 가장자리 엿보기(px) — 「옆에 더 있다」를 컷 안에서 알린다(UI_STYLE_GUIDE §2.3, QA_UX_R3) */
+export const PEEK_PX = 8;
+
+/** pw = 컷 한 장(슬라이드)의 폭 = 무대 폭 − 엿보기 */
+function useBox(ref: React.RefObject<HTMLElement | null>, peek = 0) {
   const [box, setBox] = useState({ pw: 0, ph: 0, w: CUT_W, h: CUT_H });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const upd = () => {
-      const pw = el.clientWidth;
+      const pw = el.clientWidth - peek;
       const ph = el.clientHeight;
       if (!pw || !ph) return;
       const k = Math.min(pw / CUT_W, ph / CUT_H);
@@ -36,7 +41,7 @@ function useBox(ref: React.RefObject<HTMLElement | null>) {
     const ro = new ResizeObserver(upd);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ref]);
+  }, [ref, peek]);
   return box;
 }
 
@@ -346,7 +351,6 @@ export function Viewer() {
   const v = useView(selectViewer);
   const manifest = useManifest();
   const stageRef = useRef<HTMLDivElement>(null);
-  const box = useBox(stageRef);
   const [drag, setDrag] = useState(0);
   const [snap, setSnap] = useState(true);
   const tagTarget = useGameStore((s) => s.ui.tagTarget);
@@ -360,6 +364,7 @@ export function Viewer() {
 
   const index = v?.index ?? 0;
   const total = v?.total ?? 0;
+  const box = useBox(stageRef, total > 1 ? PEEK_PX : 0);
 
   const goTo = useCallback(
     (i: number) => {
@@ -397,13 +402,13 @@ export function Viewer() {
   }, [goTo, index]);
 
   // 밀기
-  const st = useRef<{ x: number; y: number; t: number; id: number; on: boolean; dx: number } | null>(null);
+  const st = useRef<{ x: number; y: number; t: number; id: number; on: boolean; dx: number; samples: SwipeSample[] } | null>(null);
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     // 왼쪽 가장자리에서 시작한 밀기는 뒤로 가기(lib/nav) — 컷을 넘기지 않는다
     const sl = stageRef.current?.getBoundingClientRect().left ?? 0;
     if (e.clientX - sl <= EDGE_PX) return;
-    st.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, on: false, dx: 0 };
+    st.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, on: false, dx: 0, samples: [{ x: e.clientX, t: performance.now() }] };
     useGameStore.getState().setTouching(true);
   };
   const onMove = (e: React.PointerEvent) => {
@@ -411,6 +416,8 @@ export function Viewer() {
     if (!s || s.id !== e.pointerId) return;
     const dx = e.clientX - s.x;
     const dy = e.clientY - s.y;
+    s.samples.push({ x: e.clientX, t: performance.now() });
+    if (s.samples.length > 8) s.samples.shift();
     if (!s.on) {
       if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
       s.on = true;
@@ -432,11 +439,14 @@ export function Viewer() {
     useGameStore.getState().setTouching(false);
     if (!s.on) return;
     setSnap(true);
-    const dt = Math.max(1, performance.now() - s.t);
-    const fast = Math.abs(s.dx) / dt > 0.5 && Math.abs(s.dx) > 24;
-    const far = Math.abs(s.dx) > box.pw * 0.3;
+    if (e.type === 'pointerup') {
+      s.samples.push({ x: e.clientX, t: performance.now() });
+      s.dx = e.clientX - s.x;
+    }
     setDrag(0);
-    if (fast || far) goTo(index + (s.dx < 0 ? 1 : -1));
+    // 멀리 밀었거나(30%) 빠르게 튕겼으면(최근 속도) 넘긴다 — game/logic/swipe
+    const step = swipeStep(s.dx, flickVelocity(s.samples), box.pw);
+    if (step) goTo(index + step);
   };
   const onWheel = (e: React.WheelEvent) => {
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 30) goTo(index + (e.deltaX > 0 ? 1 : -1));
@@ -445,7 +455,8 @@ export function Viewer() {
   if (!v || !eye) return <div className="scr" />;
   const cutIds = eye.cuts;
   const curCut = v.cut;
-  const offset = -index * box.pw + drag;
+  // 마지막 컷은 오른쪽에 붙여 앞 컷 가장자리가 보이게(엿보기 폭은 늘 같다)
+  const offset = -index * box.pw + (total > 1 && index === total - 1 ? PEEK_PX : 0) + drag;
   const hasWarn = contradictions.length > 0;
   const back = () => {
     const g = useGameStore.getState();

@@ -30,7 +30,7 @@ export function FixMeter({ pct, tone = 'dark', testId = 'fix-rate' }: { pct: num
     return () => cancelAnimationFrame(raf);
   }, [pct, reduce]);
   return (
-    <div className={`fixmeter ${tone}${pct >= 100 ? ' full' : ''}`} data-testid={testId} data-pct={pct} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="그날 고정률">
+    <div className={`fixmeter ${tone}${pct >= 100 ? ' full' : ''}`} data-testid={testId} data-pct={pct} {...(shown !== pct ? { 'data-float-wait': '' } : {})} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="그날 고정률">
       <div className="fm-row">
         <span className="t-m">그날 고정률</span>
         <span className="fm-pct" data-testid={`${testId}-pct`}>

@@ -291,3 +291,22 @@ describe('QA_FUN_R3 — 판단 칩의 들은 곳', () => {
     for (const c of x1.claims) for (const cut of c.heardIn) expect(h.st().viewedCuts).toContain(cut);
   });
 });
+
+describe('QA_UX_R3 — 놓은 들은 말은 칩 자리를 지킨다', () => {
+  it('selectRoom: 놓기 전 heard 1 · 놓은 뒤 placedHeard 1(복원 전)', async () => {
+    const { selectRoom } = await import('@/store/gameStore');
+    const h = makeStore();
+    toT3(h);
+    h.st().openRoom('13:20');
+    expect(selectRoom(EP1, h.st()).heard).toHaveLength(1);
+    expect(selectRoom(EP1, h.st()).placedHeard).toHaveLength(0);
+    h.st().placeMention('e1-3#say:l_e1_3', 'O');
+    expect(selectRoom(EP1, h.st()).heard).toHaveLength(0);
+    expect(selectRoom(EP1, h.st()).placedHeard).toHaveLength(1);
+    // 그 자리·그 시각에 다른 관측의 사람은 꼭 하나(병풍 앞 관원) — UI 는 확인 탭 없이 잇는다
+    const r = selectRoom(EP1, h.st());
+    const placed = r.markers.find((m) => m.keys.includes('e1-3#say:l_e1_3'))!;
+    const others = r.markers.filter((m) => m.posId === placed.posId && m !== placed && !m.eyeIds.every((e) => placed.eyeIds.includes(e)));
+    expect(others).toHaveLength(1);
+  });
+});
