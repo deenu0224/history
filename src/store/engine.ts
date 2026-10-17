@@ -389,8 +389,11 @@ export interface TagOutcome {
   firstTry?: boolean;
 }
 
-/** 이 사람(figure)에게 처음 판정된 이름 붙이기가 맞았나(틀린 시도 없이) */
-export const firstTryOk = (s: Pick<PersistedState, 'tagLog'>, figureId: Id) => s.tagLog.find((t) => t.figureId === figureId)?.verdict === 'ok';
+/**
+ * 이 사람(figure)에게 처음 판정된 「정체」 판정이 맞았나(틀린 시도 없이).
+ * `not_linked`(그 말이 이 사람 얘기인지 아직 모른다)는 정체를 틀린 것이 아니다 — 게임이 가르치는 길(판정 → 방 → 다시)이라 세지 않는다(QA_FUN_R3 R3-2).
+ */
+export const firstTryOk = (s: Pick<PersistedState, 'tagLog'>, figureId: Id) => s.tagLog.find((t) => t.figureId === figureId && t.verdict !== 'not_linked')?.verdict === 'ok';
 
 export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, evidenceId: Id): TagOutcome {
   const ep = c.ep;

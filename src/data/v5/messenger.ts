@@ -215,13 +215,14 @@ export const LADDERS: HintLadder[] = [
   {
     id: 'h_x1',
     failKey: 'contra:X1',
-    activeWhen: { revealed: ['X1'], unresolved: ['X1'] },
+    // 시간 기준은 1년 전 보고서가 온 때부터(그 전엔 판정할 수 없다) — 혼자 생각할 시간 90초(QA_FUN_R3 R3-3)
+    activeWhen: { revealed: ['X1'], unresolved: ['X1'], docs: ['doc_old_report'] },
     doneWhen: { resolved: ['X1'] },
     steps: [
       // 「듣던 자리」 류의 아하는 대본 묶음이 아니라 이 사다리에만 둔다(QA_FUN_R2 N4) — 볼 곳만
-      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 45, fails: 1 },
-      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 60, fails: 2 },
-      { id: 'h_x1_3', text: '구석 자리부터 문 앞까지 그려 봐.', afterS: 60, fails: 3 },
+      { id: 'h_x1_1', text: '둘 다 거짓말은 아닐 거야. 듣던 자리가 달랐겠지.', afterS: 90, fails: 1 },
+      { id: 'h_x1_2', text: '방에서 그 시각 눌러 봐. 소리 닿는 데 그려 줘.', afterS: 90, fails: 2 },
+      { id: 'h_x1_3', text: '구석 자리부터 문 앞까지 그려 봐.', afterS: 90, fails: 3 },
     ],
   },
   {

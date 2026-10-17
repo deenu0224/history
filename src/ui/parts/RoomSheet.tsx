@@ -648,12 +648,17 @@ export function RoomSheet() {
                     if (claim !== c.id) setTimeout(() => evRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
                   }}
                 >
-                  {c.label}
+                  <span>{c.label}</span>
+                  {c.heardIn.length ? (
+                    <small className="claimsrc t-m" data-testid={`claim-src-${c.id}`}>
+                      들은 곳: 컷 {c.heardIn.map(cutNo).join(' · ')}
+                    </small>
+                  ) : null}
                 </button>
               ))}
             </div>
             <div className="contra-plan">
-            <Conflict geo={view.geometry} room={room} focusClaim={claim} selSeat={seat} onSeat={(id) => { fx('tap'); setSeat(seat === id ? null : id); }} />
+            <Conflict geo={view.geometry} room={room} focusClaim={view.resolved ? claim : null} selSeat={seat} onSeat={(id) => { fx('tap'); setSeat(seat === id ? null : id); }} />
             </div>
             <div className="t-m" style={{ marginTop: 8 }} data-testid="conflict-caption" data-float-avoid>
               {view.geometry.kind === 'hearing'
@@ -699,6 +704,11 @@ export function RoomSheet() {
                   {cx?.claims.find((c) => c.lost)?.lostLabel ?? '한쪽이 가라앉았다'}
                   {cx?.claims.find((c) => c.lost)?.lostNote ? ` — ${cx.claims.find((c) => c.lost)!.lostNote}` : ''}
                 </span>
+                {view.firstTry ? (
+                  <span className="okfirst inline" data-testid="contra-first-try">
+                    단번에 풀림
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </>

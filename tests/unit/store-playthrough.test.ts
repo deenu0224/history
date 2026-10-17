@@ -398,9 +398,9 @@ describe('store — mistakes are free and informative', () => {
     expect(ev.map((e) => e.id)).toContain('X1:E1');
     expect(ev.find((e) => e.id === 'X1:E1')!.text).toBe('윤효손 자리 — 문 앞에서 약 5.5칸, 들림 반경 8칸');
     // 틀린 판단 + 가르는 자리 / 맞는 판단 + 가르지 않는 자리 — 둘 다 같은 문구(어느 칸인지 말하지 않는다)
-    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1')).toEqual({ status: 'retry', text: '그 자리에서 그 말이 닿았는지 보자' });
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1')).toEqual({ status: 'retry', text: '다른 말을 한 자리에 그 말이 닿았는지 보자' });
     expect(h.st().fails['contra:X1']).toBe(1);
-    if (ev.some((e) => e.id === 'X1:E2')) expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E2')).toEqual({ status: 'retry', text: '그 자리에서 그 말이 닿았는지 보자' });
+    if (ev.some((e) => e.id === 'X1:E2')) expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E2')).toEqual({ status: 'retry', text: '다른 말을 한 자리에 그 말이 닿았는지 보자' });
     expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E9')).toEqual({ status: 'invalid' });
     expect(h.st().resolved).toEqual({});
     expect(h.st().composeRewrite()).toBe('locked'); // X1 이 풀려야 結

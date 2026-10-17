@@ -1424,6 +1424,19 @@
   font-size: var(--fs-m);
   line-height: var(--lh-m);
 }
+.claimchip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.claimchip .claimsrc {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0.75;
+  text-decoration: none;
+}
 .claimchip.on {
   background: var(--alert-soft);
   border-color: var(--alert);
@@ -2617,6 +2630,20 @@
   font-weight: 700;
   color: var(--amber);
   animation: stamp-in 0.32s 0.28s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+/* 모순이 단번에 풀렸다 — 풀림 글 옆의 작은 도장 */
+.okfirst.inline {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1.5px solid var(--amber);
+  border-radius: 4px;
+  font-family: var(--f-ui);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  color: var(--amber);
+  transform: rotate(-5deg);
+  animation: stamp-in 0.32s 0.2s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 /* 복원 카드 아래 작은 집계(단번에 맞힘 n/m · 선택 줄 · 증인 줄) */
 .tally {

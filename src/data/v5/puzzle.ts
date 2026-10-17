@@ -66,7 +66,7 @@ export const CONTRADICTIONS: Contradiction[] = [
     revealWhen: 'claims',
     loserLabel: '뒤섞인 전해 들은 말',
     loserNote: '순서와 말한 사람이 섞였다',
-    retryText: '그 자리에서 그 말이 닿았는지 보자',
+    retryText: '다른 말을 한 자리에 그 말이 닿았는지 보자',
     buttons: ['「모두」를 남긴다', '「여섯 조목만」을 남긴다'],
     // 긴장 순서: 06:00 닫힘 → 1년 전 보고서가 온 뒤에야 판정한다(엔진이 보고서를 앞당긴다)
     resolvableWhen: { docs: ['doc_old_report'] },
@@ -78,7 +78,7 @@ export const CONTRADICTIONS: Contradiction[] = [
     resolvedBy: { kind: 'sight', targetPosId: 'SP', time: '15:00', occluderId: 'stack' },
     revealWhen: 'slot_open',
     loserLabel: '가려서 덜 보인 것',
-    retryText: '그 자리에서 그것이 보였는지 보자',
+    retryText: '다른 말을 한 자리에서 그것이 보였는지 보자',
     buttons: ['「여섯 장」을 남긴다', '「다섯 장」을 남긴다'],
   },
 ];

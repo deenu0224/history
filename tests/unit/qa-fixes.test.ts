@@ -126,15 +126,14 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
 });
 
 describe('시트가 답을 흘리지 않는다', () => {
-  it('카드 타일은 이름 + 생몰만, 순서는 이름순 · 근거는 시각순 고정(방을 다녀와도 같다)', () => {
+  it('카드 타일은 이름(한자)만(생몰 줄도 없다 — 모양이 같다), 순서는 이름순 · 근거는 시각순 고정(방을 다녀와도 같다)', () => {
     const h = makeStore();
     toT3(h);
     const before = selectTagSheet(EP1, h.st(), 'e2-2', 'fig_eo');
     const names = before.cards.map((c) => c.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'ko')));
     for (const c of before.cards) {
-      expect(Object.keys(c).sort()).toEqual(['hanja', 'id', 'lifespan', 'name', 'sub']);
-      expect(c.sub).toBe(c.lifespan ?? '');
+      expect(Object.keys(c).sort()).toEqual(['hanja', 'id', 'name']);
     }
     const order = before.evidenceAll.map((e) => e.id);
     const times = before.evidenceAll.map((e) => e.time ?? '99:99');
@@ -212,5 +211,83 @@ describe('역사 고정 줄의 조사', () => {
     const text = (who: string, r?: 'restored') => renderLine(EP0, { id: 'x', pieceId: piece.id, values: { who } }, r).parts.map((p) => p.text).join('');
     expect(text('최만리')).toMatch(/^최만리가 /);
     expect(text('세종', 'restored')).toMatch(/^임금이 /);
+  });
+});
+
+describe('QA_FUN_R3 — 단번에·힌트 시간·모순 칩', () => {
+  function toX1(h: Harness) {
+    toT3(h);
+    // 게임이 가르치는 길: 먼저 판정 → 「아직 모른다」 → 방에서 잇고 → 다시
+    expect(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2').judgement).toMatchObject({ verdict: 'not_linked' });
+    h.st().openRoom('13:20');
+    h.st().placeMention('e1-3#say:l_e1_3', 'O');
+    h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
+    const out = h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
+    expect(out.judgement).toMatchObject({ verdict: 'ok' });
+    expect(out.firstTry).toBe(true); // R3-2: not_linked 는 정체를 틀린 것이 아니다
+    h.st().viewCut('E3', 0);
+    h.st().search('국장 도감');
+    h.st().openRecord('rec_r02');
+    h.st().tag('fig_hong', 'hong_gwidal', 'l_e3_1', 'e3-1');
+    viewAll(h, 'E4');
+    h.st().closeViewer();
+  }
+  /** 메신저를 열어 두고 답하며 보고서가 올 때까지 */
+  function untilReport(h: Harness) {
+    h.st().openMessenger();
+    for (let i = 0; i < 1200 && !h.st().docs.includes('doc_old_report'); i++) {
+      h.advance(250);
+      const m = h.st().messenger;
+      if (m.choice) h.st().chooseReply(m.choice.step.options[0].id);
+    }
+    expect(h.st().docs).toContain('doc_old_report');
+  }
+
+  it('X1 힌트 1단은 보고서가 온 뒤 90초가 지나야(실패 없이) — 그 전엔 오지 않는다', () => {
+    const h = makeStore();
+    toX1(h);
+    untilReport(h);
+    for (let i = 0; i < 85 * 4; i++) {
+      h.advance(250);
+      const m = h.st().messenger;
+      if (m.choice) h.st().chooseReply(m.choice.step.options[0].id);
+    }
+    expect(h.st().messenger.fired).not.toContain('hint.h_x1_1');
+    for (let i = 0; i < 60 * 4 && !h.st().messenger.fired.includes('hint.h_x1_1'); i++) h.advance(250);
+    expect(h.st().messenger.fired).toContain('hint.h_x1_1');
+  });
+
+  it('X1 힌트 1단은 한 번 틀리면 곧바로(시간과 관계없이)', () => {
+    const h = makeStore();
+    toX1(h);
+    untilReport(h);
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1').status).toBe('retry');
+    for (let i = 0; i < 40 * 4 && !h.st().messenger.fired.includes('hint.h_x1_1'); i++) h.advance(250);
+    expect(h.st().messenger.fired).toContain('hint.h_x1_1');
+  });
+
+  it('모순: 칩마다 들은 곳(본 컷), 단번에 풀면 firstTry · 한 번 틀리면 아님', () => {
+    const h = makeStore();
+    toX1(h);
+    untilReport(h);
+    expect(selectContradictionView(EP1, h.st(), 'X1')!.firstTry).toBe(false); // 아직 풀지 않았다
+    const h2 = makeStore();
+    toX1(h2);
+    untilReport(h2);
+    expect(h2.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(selectContradictionView(EP1, h2.st(), 'X1')!.firstTry).toBe(true);
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E4').status).toBe('retry');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(selectContradictionView(EP1, h.st(), 'X1')!.firstTry).toBe(false);
+  });
+});
+
+describe('QA_FUN_R3 — 판단 칩의 들은 곳', () => {
+  it('selectContradictions: 주장마다 본 컷의 들은 곳', async () => {
+    const { selectContradictions } = await import('@/store/gameStore');
+    const h = makeStore();
+    toT3(h);
+    const x1 = selectContradictions(EP1, h.st()).find((x) => x.id === 'X1')!;
+    for (const c of x1.claims) for (const cut of c.heardIn) expect(h.st().viewedCuts).toContain(cut);
   });
 });

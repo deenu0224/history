@@ -254,11 +254,12 @@ export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figure
   const cut = I.cut.get(cutId);
   return {
     figure: figureLabel(ep, s, figureId),
-    // 작은 카드 = 이름(한자) + 중립 한 줄(생몰). 판정에 쓰이는 사실 줄은 타일에 두지 않는다 — 「이 카드 펼쳐 보기」 안에(짝 맞추기 금지).
+    // 작은 카드 = 이름(한자)만. 생몰도 타일에 두지 않는다 — 생몰이 있는 카드가 드물어(Ep1 은 이극돈뿐) 타일 모양이 답을 흘린다
+    // (QA_FUN_R3 R3-4). 생몰과 판정에 쓰이는 사실 줄은 「이 카드 펼쳐 보기」 안에. 검증 안 된 생몰은 채우지 않는다(규칙 1).
     // 순서는 이름순(core/tag cardOrder) — 이 방의 카드를 앞에 모으지 않는다
     cards: cardOrder(ep, k).map((id) => {
       const c = I.card.get(id)!;
-      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, sub: c.lifespan ?? '' };
+      return { id, name: c.name, hanja: c.hanja };
     }),
     selectedCard: cardId,
     evidence: cardId ? all : [],
@@ -515,6 +516,8 @@ export function selectContradictions(ep: Episode, s: PersistedState) {
           /** 이 주장이 칸에 넣는 값(역사 고정 칸에서 고른 값과 맞춰 판단을 미리 고른다) */
           value: c.value,
           held: claimHeld(ep, k, c),
+          /** 이 말을 들은 컷(본 컷만) — 칩 밑 「들은 곳」. 자리와의 대응은 플레이어가 한다(판정 전 증인 자리를 밝히지 않는다) */
+          heardIn: [...new Set(c.from.flatMap((e) => idx(ep).evidenceCuts.get(e) ?? []))].filter((cut) => s.viewedCuts.includes(cut)),
           lost: !!winner && winner !== cid,
           lostLabel: winner && winner !== cid ? x.loserLabel : undefined,
           lostNote: winner && winner !== cid ? x.loserNote : undefined,
@@ -532,6 +535,8 @@ export function selectContradictionView(ep: Episode, s: PersistedState, id: Id) 
     id,
     heading: '근거끼리 모순된다',
     resolved: !!s.resolved[id],
+    /** 풀렸고, 틀린 시도가 없었다 — 도장 「단번에 풀림」(QA_FUN_R3 R3-1) */
+    firstTry: !!s.resolved[id] && !s.fails[`contra:${id}`],
     buttons: x.claims.map((cid, i) => ({ claimId: cid, text: x.buttons[i] })),
     /** 근거 2칸: ① 판단(주장 하나) ② 근거(그날의 방의 자리 사실 하나). 두 칸이 차야 확인할 수 있다 */
     slots: 2 as const,
