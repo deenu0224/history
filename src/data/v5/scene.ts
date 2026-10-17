@@ -42,7 +42,8 @@ export const FIGURES: Figure[] = [
 export const GROUPS: SpeakerGroup[] = [
   {
     id: 'g_dangsang',
-    label: '당상(이극돈 등)',
+    // 복원 전엔 보이는 겉모습만(QA_FUN_R4 R4-3). 복원 뒤 실록이 적은 단위 「실록청 당상」으로
+    label: '책상에 둘러앉은 관원들',
     restoredLabel: '실록청 당상(이극돈 등)',
     members: ['yi_geukdon', 'yu_sun', 'yun_hyoson', 'an_chim'],
     source: SRC.order0711,

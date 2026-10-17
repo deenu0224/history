@@ -56,30 +56,58 @@ describe('그날의 방 — DESIGN_V5 §4.2 계산 표', () => {
   });
 });
 
-describe('모순 근거 2칸(규칙 11): 판단 + 자리 사실', () => {
+describe('모순 근거 2칸(규칙 11): 판단 + 자리 × 사실', () => {
+  const allK = () => ({ viewedCuts: EP1.cuts.map((c) => c.id), named: {}, merges: [], openedEyes: EP1.eyes.filter((e) => e.seatId).map((e) => e.id), closedEyes: [], cardsFound: [], restored: false });
+
   it('승패를 가르는 자리 = 진 주장을 깨는 자리만 — X1: 반경 밖의 홍귀달(E4), X2: 가려진 윤효손(E1)', async () => {
-    const { decisiveWitnesses, resolve, supportingWitnesses } = await import('@/core/contradiction');
+    const { decisiveWitnesses, supportingWitnesses } = await import('@/core/contradiction');
     const [x1, x2] = EP1.contradictions;
     expect(decisiveWitnesses(EP1, x1)).toEqual(['E4']);
     expect(decisiveWitnesses(EP1, x2)).toEqual(['E1']);
     expect(supportingWitnesses(EP1, x1).sort()).toEqual(['E1', 'E3']);
     expect(supportingWitnesses(EP1, x2)).toEqual(['E2']);
+  });
+
+  it('근거 줄은 자리마다 두 사실(거리·사이에 있는 것)이고, 받는 줄은 그 말을 막은 사실 하나다(QA_FUN_R4 R4-1)', async () => {
+    const { decisiveFacts, resolve, witnessFacts } = await import('@/core/contradiction');
+    const [x1, x2] = EP1.contradictions;
+    // X1: 홍귀달 자리는 반경 밖(거리 줄), 사이에 벽은 없다 → 거리 줄만
+    expect(decisiveFacts(EP1, x1)).toEqual(['X1:E4:dist']);
+    // X2: 윤효손 자리는 셀 수 있는 거리 안이지만 시선 위에 기록 더미 → 시선 줄만
+    expect(decisiveFacts(EP1, x2)).toEqual(['X2:E1:line']);
+    const f2 = witnessFacts(EP1, allK(), x2);
+    const yun = f2.find((f) => f.id === 'X2:E1:dist')!;
+    expect(yun.distance).toBeLessThan(yun.limit);
+    expect(f2.find((f) => f.id === 'X2:E1:line')!.between).toEqual(['기록 더미']);
+    expect(witnessFacts(EP1, allK(), x1).find((f) => f.id === 'X1:E4:line')!.between).toEqual([]);
     // 두 칸이 다 차야 판정
     expect(resolve(EP1, x1, 'c_scope_all')).toEqual({ status: 'invalid' });
-    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E4').status).toBe('resolved');
-    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E1').status).toBe('retry'); // 이긴 쪽을 받치는 자리는 통과하지 않는다
-    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E3').status).toBe('retry');
-    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E2').status).toBe('retry'); // 주장이 없는 자리는 가르지 않는다
-    expect(resolve(EP1, x1, 'c_scope_six', 'X1:E4').status).toBe('retry');
-    expect(resolve(EP1, x2, 'c_count_6', 'X2:E1').status).toBe('resolved');
-    expect(resolve(EP1, x2, 'c_count_6', 'X2:E2').status).toBe('retry');
-    expect(resolve(EP1, x2, 'c_count_6', 'X2:E4').status).toBe('retry');
-    // 찍기: 판단 2 × 자리 4 중 통과 1 → 1/8
-    for (const x of [x1, x2]) {
-      const seats = ['E1', 'E2', 'E3', 'E4'];
-      const pass = x.claims.flatMap((c) => seats.map((e) => resolve(EP1, x, c, `${x.id}:${e}`).status)).filter((st) => st === 'resolved').length;
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E4:dist').status).toBe('resolved');
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E4:line').status).toBe('retry'); // 진 쪽 자리라도 막은 사실이 아니면
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E1:dist').status).toBe('retry'); // 이긴 쪽을 받치는 자리
+    expect(resolve(EP1, x1, 'c_scope_all', 'X1:E2:dist').status).toBe('retry'); // 주장이 없는 자리
+    expect(resolve(EP1, x1, 'c_scope_six', 'X1:E4:dist').status).toBe('retry');
+    expect(resolve(EP1, x2, 'c_count_6', 'X2:E1:line').status).toBe('resolved');
+    expect(resolve(EP1, x2, 'c_count_6', 'X2:E1:dist').status).toBe('retry');
+    expect(resolve(EP1, x2, 'c_count_6', 'X2:E2:line').status).toBe('retry');
+    expect(resolve(EP1, x2, 'c_count_5', 'X2:E2:dist')).toEqual({ status: 'retry', text: x2.retryText });
+  });
+
+  it('찍기 확률: 무작위 ≤ 1/8(실제 1/16), 진 쪽 자리를 알아도 1/2 — ② 는 ① 에 묶이지 않는다', async () => {
+    const { decisiveWitnesses, resolve, witnessFacts } = await import('@/core/contradiction');
+    for (const x of EP1.contradictions) {
+      const facts = witnessFacts(EP1, allK(), x).map((f) => f.id);
+      expect(facts.length).toBe(8); // 자리 4 × 사실 2
+      const tries = x.claims.flatMap((c) => facts.map((f) => resolve(EP1, x, c, f).status));
+      const pass = tries.filter((st) => st === 'resolved').length;
       expect(pass).toBe(1);
+      expect(pass / tries.length).toBeLessThanOrEqual(1 / 8);
+      expect(pass / tries.length).toBe(1 / 16);
+      // 「진 말의 자리」를 안 사람: 판단은 맞혀도 그 자리의 두 줄 중 하나 → 1/2
+      const loserSeat = decisiveWitnesses(EP1, x)[0]!;
+      const win = x.claims.find((c) => facts.some((f) => resolve(EP1, x, c, f).status === 'resolved'))!;
+      const seatRows = facts.filter((f) => f.startsWith(`${x.id}:${loserSeat}:`));
+      expect(seatRows.filter((f) => resolve(EP1, x, win, f).status === 'resolved').length / seatRows.length).toBe(1 / 2);
     }
-    expect(resolve(EP1, x2, 'c_count_5', 'X2:E2')).toEqual({ status: 'retry', text: x2.retryText });
   });
 });

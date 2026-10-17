@@ -713,7 +713,7 @@ export function RoomSheet() {
                 ? `${view.geometry.time} · 원 = 들림 반경 ${view.geometry.radius}칸 · 자리를 탭하면 거리`
                 : `${view.geometry.time} · 원 = 셀 수 있는 거리 ${view.geometry.detailRange}칸 · 빗금 = 가리는 것 · 자리를 탭하면 시선`}
             </div>
-            <div className="t-m" style={{ marginTop: 8 }} ref={evRef}>② 근거 — 다른 말이 왜 틀렸나, 그 자리 하나</div>
+            <div className="t-m" style={{ marginTop: 8 }} ref={evRef}>② 근거 — 다른 말이 왜 틀렸나, 사실 한 줄</div>
             <div className="contra-ev" data-testid="contra-evidence" style={{ marginTop: 4 }}>
               {view.evidence.map((e) => (
                 <button

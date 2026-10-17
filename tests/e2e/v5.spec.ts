@@ -880,7 +880,7 @@ test.describe('v5 전체 플레이', () => {
     await fill('pc_L1', 'whose', '김일손');
     await fill('pc_L1', 'scope', '모두');
     // 화자 칸은 한 번 고르면 L2·L3 같이
-    await fill('pc_L2', 'speaker', '당상(이극돈 등)');
+    await fill('pc_L2', 'speaker', '책상에 둘러앉은 관원들');
     await expect(tid(page, 'slot-pc_L3-speaker')).toContainText('당상(이극돈 등)');
     // 세 문장만 먼저 고정 → 그날 고정률 75%(필수 L1~L4 중 셋). 줄마다의 수치는 없다
     await expect(tid(page, 'fix-rate-pct')).toHaveText('0%');

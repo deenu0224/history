@@ -81,7 +81,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
     toX1(h);
     expect(h.st().closures).toHaveLength(1);
     expect(selectContradictionView(EP1, h.st(), 'X1')!.waiting).toBe(true);
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1')).toEqual({ status: 'wait' });
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1:dist')).toEqual({ status: 'wait' });
     expect(selectNextTask(EP1, h.st())).toEqual({ kind: 'contradiction', id: 'X1' });
     // 닫힘의 선택지에 답한 뒤 보고서는 비동기 상한(120초)보다 훨씬 빨리 온다
     h.st().openMessenger();
@@ -103,7 +103,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
     expect(h.clock.t - tClosure).toBeLessThan(20_000);
 
     expect(selectContradictionView(EP1, h.st(), 'X1')!.waiting).toBe(false);
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4:dist').status).toBe('resolved');
     expect(h.st().composeRewrite()).toBe('opened');
     // 보고서가 「이제 고정해 봐」보다 먼저
     drainMessages(h, 3);
@@ -119,7 +119,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
     expect(p).toMatchObject({ done: 4, total: 4, complete: true, allClear: false });
     expect(selectHome(EP1, h.st()).next.kind).toBe('contradiction');
     drainMessages(h, 8);
-    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4');
+    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4:dist');
     expect(selectTagProgress(EP1, h.st()).allClear).toBe(true);
     expect(selectHome(EP1, h.st()).next).toEqual({ kind: 'rewrite' });
   });
@@ -261,7 +261,7 @@ describe('QA_FUN_R3 — 단번에·힌트 시간·모순 칩', () => {
     const h = makeStore();
     toX1(h);
     untilReport(h);
-    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1').status).toBe('retry');
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E1:dist').status).toBe('retry');
     for (let i = 0; i < 40 * 4 && !h.st().messenger.fired.includes('hint.h_x1_1'); i++) h.advance(250);
     expect(h.st().messenger.fired).toContain('hint.h_x1_1');
   });
@@ -274,10 +274,10 @@ describe('QA_FUN_R3 — 단번에·힌트 시간·모순 칩', () => {
     const h2 = makeStore();
     toX1(h2);
     untilReport(h2);
-    expect(h2.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(h2.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4:dist').status).toBe('resolved');
     expect(selectContradictionView(EP1, h2.st(), 'X1')!.firstTry).toBe(true);
-    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E4').status).toBe('retry');
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_six', 'X1:E4:dist').status).toBe('retry');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4:dist').status).toBe('resolved');
     expect(selectContradictionView(EP1, h.st(), 'X1')!.firstTry).toBe(false);
   });
 });
@@ -308,5 +308,27 @@ describe('QA_UX_R3 — 놓은 들은 말은 칩 자리를 지킨다', () => {
     const placed = r.markers.find((m) => m.keys.includes('e1-3#say:l_e1_3'))!;
     const others = r.markers.filter((m) => m.posId === placed.posId && m !== placed && !m.eyeIds.every((e) => placed.eyeIds.includes(e)));
     expect(others).toHaveLength(1);
+  });
+});
+
+describe('QA_FUN_R4 R4-2 — T3 틀린 놓기는 「단번에」를 건다(손해는 없음)', () => {
+  it('틀린 자리에 놓았다가 맞게 놓고 맞히면 firstTry 아님 · 처음부터 맞게 놓으면 firstTry', () => {
+    const h = makeStore();
+    toT3(h);
+    h.st().openRoom('13:20');
+    expect(h.st().placeMention('e1-3#say:l_e1_3', 'Y').verdict).toBe('wrong');
+    expect(h.st().fails['place:fig_eo']).toBe(1);
+    expect(h.st().placeMention('e1-3#say:l_e1_3', 'O').verdict).toBe('ok'); // 손해 없음 — 그대로 놓인다
+    h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
+    const out = h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
+    expect(out.judgement).toMatchObject({ verdict: 'ok' });
+    expect(out.firstTry).toBe(false);
+
+    const h2 = makeStore();
+    toT3(h2);
+    h2.st().openRoom('13:20');
+    h2.st().placeMention('e1-3#say:l_e1_3', 'O');
+    h2.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
+    expect(h2.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2').firstTry).toBe(true);
   });
 });

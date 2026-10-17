@@ -7,7 +7,7 @@
  */
 import { appearances, heldEvidence, idx, mergesAt, type Knowledge } from '@/core/ep';
 import { closureDue, cutAvailability, eyesOpenedByTag, givenEyes } from '@/core/eyes';
-import { geometry, isRevealed, resolve as resolveX, witnessEvidenceId } from '@/core/contradiction';
+import { isRevealed, resolve as resolveX, witnessFacts } from '@/core/contradiction';
 import { askHint as nextAskHint, check, dueHint, markSent, trackActive, type Progress } from '@/core/hints';
 import * as M from '@/core/messenger';
 import { nextRandom } from '@/core/rng';
@@ -392,8 +392,11 @@ export interface TagOutcome {
 /**
  * 이 사람(figure)에게 처음 판정된 「정체」 판정이 맞았나(틀린 시도 없이).
  * `not_linked`(그 말이 이 사람 얘기인지 아직 모른다)는 정체를 틀린 것이 아니다 — 게임이 가르치는 길(판정 → 방 → 다시)이라 세지 않는다(QA_FUN_R3 R3-2).
+ * 그 이름 붙이기의 근거가 되는 「들은 말」을 도면의 틀린 자리에 놓았으면(`fails['place:<figureId>']`) 단번이 아니다 —
+ * 손해는 없고 도장만 걸린다(QA_FUN_R4 R4-2: 자리를 차례로 두드려 뚫지 않게).
  */
-export const firstTryOk = (s: Pick<PersistedState, 'tagLog'>, figureId: Id) => s.tagLog.find((t) => t.figureId === figureId && t.verdict !== 'not_linked')?.verdict === 'ok';
+export const firstTryOk = (s: Pick<PersistedState, 'tagLog' | 'fails'>, figureId: Id) =>
+  !s.fails?.[`place:${figureId}`] && s.tagLog.find((t) => t.figureId === figureId && t.verdict !== 'not_linked')?.verdict === 'ok';
 
 export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, evidenceId: Id): TagOutcome {
   const ep = c.ep;
@@ -520,7 +523,7 @@ export type PlaceResult = { verdict: 'ok'; key: string; posId: Id } | { verdict:
 /**
  * 「들은 말」을 도면에 놓기(T3): 방에서 들은 말 칩(말이 다른 자리의 사람을 가리킨다)을 고르고 → 도면의 자리를 탭.
  * 판정은 데이터(Line.refers.posId)만. 맞으면 그 자리에 「?」 (말이 가리킨 사람)가 생기고, 이제 같은 사람 잇기를 할 수 있다.
- * 틀리면 보이는 이유 한 줄(「그 말이 가리킨 자리가 아니다」) — 정답 자리는 말하지 않는다. 실패는 공짜(fails.place 만 센다).
+ * 틀리면 보이는 이유 한 줄(「그 말이 가리킨 자리가 아니다」) — 정답 자리는 말하지 않는다. 실패는 공짜(fails.place 와, 그 말을 근거로 받는 이름 붙이기의 「단번에」만 건다).
  */
 export function placeMention(w: Work, c: Ctx, key: string, posId: Id): PlaceResult {
   if (!w.s.roomOpened || !roomUnlocked(c.ep, w.s)) return { verdict: 'invalid' };
@@ -529,6 +532,9 @@ export function placeMention(w: Work, c: Ctx, key: string, posId: Id): PlaceResu
   if (mentionShown(w.s, key)) return { verdict: 'already' };
   if (a.posId !== posId) {
     bump(w, 'place');
+    // 이 말을 근거로 받는 이름 붙이기의 「단번에」를 건다(QA_FUN_R4 R4-2) — 판정·진행에는 손해 없음
+    const lineId = key.slice(key.indexOf('#say:') + 5);
+    for (const t of c.ep.tags) if (t.acceptedEvidence.includes(lineId)) bump(w, `place:${t.figureId}`);
     return { verdict: 'wrong', feedback: PLACE_FEEDBACK };
   }
   w.s.placedMentions = [...(w.s.placedMentions ?? []), key];
@@ -572,11 +578,11 @@ export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 
 }
 
 // ── 모순 ─────────────────────────────────────────────────────────
-/** 모순 풀기 = 근거 2칸: 판단(claimId) + 근거(그날의 방의 자리 사실 — 지금 방에 보이는 눈의 것만) */
+/** 모순 풀기 = 근거 2칸: 판단(claimId) + 근거(그날의 방의 자리 × 사실 한 줄 — 지금 방에 보이는 눈의 것만) */
 export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id, evidenceId?: Id) {
   const x = c.ep.contradictions.find((y) => y.id === id);
   if (!x || !w.s.revealed.includes(id) || w.s.resolved[id]) return { status: 'invalid' as const };
-  const shown = geometry(c.ep, knowledge(w.s), x).witnesses.map((m) => witnessEvidenceId(x, m.eyeId));
+  const shown = witnessFacts(c.ep, knowledge(w.s), x).map((f) => f.id);
   if (!evidenceId || !shown.includes(evidenceId) || !x.claims.includes(claimId)) return { status: 'invalid' as const };
   // 긴장 순서: 아직 기다리는 것(1년 전 보고서 등)이 오기 전엔 판정하지 않는다 — 고른 것은 그대로, 손해 없음
   if (!contradictionGateOpen(c.ep, w.s, x)) return { status: 'wait' as const };

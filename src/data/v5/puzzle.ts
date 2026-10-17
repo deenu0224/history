@@ -52,7 +52,7 @@ export const CLAIMS: Claim[] = [
   { id: 'c_scope_six', slot: 'scope', value: '여섯 조목만', label: '여섯 조목만', from: ['l_e4_5a'], hearsay: true },
   { id: 'c_count_6', slot: 'count', value: '6', label: '여섯', from: ['d_slips_six'] },
   { id: 'c_count_5', slot: 'count', value: '5', label: '다섯', from: ['d_slips_five'] },
-  { id: 'c_speaker_dangsang', slot: 'speaker', value: '당상(이극돈 등)', label: '당상(이극돈 등)', from: ['l_remon1', 'l_remon2'] },
+  { id: 'c_speaker_dangsang', slot: 'speaker', value: '책상에 둘러앉은 관원들', label: '책상에 둘러앉은 관원들', from: ['l_remon1', 'l_remon2'] },
   { id: 'c_speaker_upper', slot: 'speaker', value: '윗자리 대감', label: '윗자리 대감', from: ['l_e1_3'] },
   { id: 'c_speaker_msg', slot: 'speaker', value: '명령을 전하러 온 사람', label: '명령을 전하러 온 사람', from: ['l_order1', 'l_order2', 'l_order3'] },
 ];
@@ -66,7 +66,7 @@ export const CONTRADICTIONS: Contradiction[] = [
     revealWhen: 'claims',
     loserLabel: '뒤섞인 전해 들은 말',
     loserNote: '순서와 말한 사람이 섞였다',
-    retryText: '다른 말을 한 자리에 그 말이 닿았는지 보자',
+    retryText: '그 자리에서 무엇이 그 말을 막았는지 보자',
     buttons: ['「모두」를 남긴다', '「여섯 조목만」을 남긴다'],
     // 긴장 순서: 06:00 닫힘 → 1년 전 보고서가 온 뒤에야 판정한다(엔진이 보고서를 앞당긴다)
     resolvableWhen: { docs: ['doc_old_report'] },
@@ -78,13 +78,14 @@ export const CONTRADICTIONS: Contradiction[] = [
     resolvedBy: { kind: 'sight', targetPosId: 'SP', time: '15:00', occluderId: 'stack' },
     revealWhen: 'slot_open',
     loserLabel: '가려서 덜 보인 것',
-    retryText: '다른 말을 한 자리에서 그것이 보였는지 보자',
+    retryText: '그 자리에서 무엇이 그 셈을 막았는지 보자',
     buttons: ['「여섯 장」을 남긴다', '「다섯 장」을 남긴다'],
   },
 ];
 
 const ed = (text: string) => ({ text, editorial: true as const });
-const SPEAKER = { kind: 'speaker' as const, accepts: '당상(이극돈 등)', display: '실록청 당상(이극돈 등)', shared: true as const }; // L2·L3 화자는 한 번 고르면 같이
+// L2·L3 화자는 한 번 고르면 같이. 칩·값은 보이는 겉모습(QA_FUN_R4 R4-3 — 이름을 박지 않는다), 맞게 고정한 줄은 실록의 말(「실록청 당상」)로 돌아온다
+const SPEAKER = { kind: 'speaker' as const, accepts: '책상에 둘러앉은 관원들', display: '실록청 당상(이극돈 등)', shared: true as const };
 
 /** 출처: kja_10407011_001 국역(HISTORICAL_SOURCES §11.1). editorial 조각은 실록 문장이 아니다(「( )」). */
 export const SENTENCES: RecordSentence[] = [

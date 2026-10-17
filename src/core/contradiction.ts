@@ -3,12 +3,12 @@
  * 이기는 쪽은 저장하지 않고 방의 기하로 계산한다:
  *  - hearing: 그 말(lineId)을 반경 안에서 직접 또렷이 들은 증인의 주장이 이긴다. 전해 들은 말(hearsay)은 지지 않을 수 없다.
  *  - sight:   가림 없이 셀 수 있었던 증인의 주장이 이긴다.
- * 근거 2칸(DEDUCTION_RULES 규칙 11): 「판단」(어느 주장을 남기나) + 「근거」(그날의 방의 자리 사실 하나 —
- * 그 눈의 자리에서 말이 닿았나/셀 수 있었나). 두 칸이 다 차야 판정한다. 판단이 계산된 승자이고 근거가 그 승패를
- * 가르는 자리(decisiveWitnesses — 진 주장을 깨는 자리)일 때만 풀린다. 어느 칸이 틀렸는지는 말하지 않는다(retryText 하나). 틀려도 손해 없음.
+ * 근거 2칸(DEDUCTION_RULES 규칙 11): 「판단」(어느 주장을 남기나) + 「근거」(그날의 방의 자리 × 사실 한 줄 —
+ * 거리와 기준, 또는 사이에 막는 것). 두 칸이 다 차야 판정한다. 판단이 계산된 승자이고 근거가 진 주장을 깨는 자리에서
+ * 그 말을 막은 사실(decisiveFacts)일 때만 풀린다. 어느 칸이 틀렸는지는 말하지 않는다(retryText 하나). 틀려도 손해 없음.
  */
 import { appearances, heldEvidence, idx, type Knowledge } from './ep';
-import { hearing, posOf, sameMoment, sight } from './room';
+import { dist, hearing, posOf, sameMoment, segmentHitsRect, sight, wallBetween } from './room';
 import type { Claim, Contradiction, Episode, Id } from './types';
 
 export const claimHeld = (ep: Episode, k: Knowledge, c: Claim) => {
@@ -70,14 +70,93 @@ export function isRevealed(ep: Episode, k: Knowledge, x: Contradiction, slotsOpe
 
 export type ResolveResult = { status: 'resolved'; winner: Id; loser: Id } | { status: 'retry'; text: string } | { status: 'invalid' };
 
-/** 근거 칸의 id: 「모순 id:눈 id」(그 눈의 자리 사실) */
-export const witnessEvidenceId = (x: Contradiction, eyeId: Id) => `${x.id}:${eyeId}`;
+/**
+ * 근거 칸(② )의 줄 = 「자리 × 사실」(QA_FUN_R4 R4-1). 그날의 방에 보이는 눈의 자리마다 두 줄:
+ *  - dist: 그 자리에서 말이 난 곳(셀 것)까지의 거리와 기준(들림 반경 / 셀 수 있는 거리)
+ *  - line: 그 자리와 그곳 사이(시선 위)에 막는 것 — 방의 규칙이 막는다고 보는 것만(들림: 벽, 보임: 벽·가리는 가구)
+ * 둘 다 중립 기하 사실이고 결론(안/밖, 가려짐)은 적지 않는다. id 는 「모순 id:눈 id:dist|line」.
+ */
+export type FactKind = 'dist' | 'line';
+export const witnessEvidenceId = (x: Contradiction, eyeId: Id, kind: FactKind) => `${x.id}:${eyeId}:${kind}`;
+
+export interface WitnessFact {
+  id: Id;
+  eyeId: Id;
+  kind: FactKind;
+  /** dist: 거리·기준 */
+  distance: number;
+  limit: number;
+  /** line: 사이(시선 위)에 있는 막는 것의 이름(없으면 빈 배열) */
+  between: string[];
+}
+
+/** 자리 → 소리 자리(셀 것) 사이에 방의 규칙이 막는다고 보는 것 */
+function blockersBetween(ep: Episode, x: Contradiction, at: { x: number; y: number }): string[] {
+  const r = x.resolvedBy;
+  const out: string[] = [];
+  if (r.kind === 'hearing') {
+    const l = idx(ep).line.get(r.lineId)!;
+    const o = posOf(ep.room, hearing(ep.room, at, l.origin, l.volume).originId);
+    if (wallBetween(ep.room, at, o)) out.push('벽');
+    return out;
+  }
+  const t = posOf(ep.room, r.targetPosId);
+  if (wallBetween(ep.room, at, t)) out.push('벽');
+  for (const f of ep.room.furniture) if (f.occludes && segmentHitsRect(at, t, f.rect)) out.push(f.label);
+  return out;
+}
+
+/** 지금 방에 보이는 눈마다 사실 두 줄(같은 눈은 한 번) */
+export function witnessFacts(ep: Episode, k: Knowledge, x: Contradiction): WitnessFact[] {
+  const g = geometry(ep, k, x);
+  const limit = (g.kind === 'hearing' ? g.radius : g.detailRange) ?? 0;
+  const seen = new Set<Id>();
+  const out: WitnessFact[] = [];
+  for (const w of g.witnesses) {
+    if (seen.has(w.eyeId)) continue;
+    seen.add(w.eyeId);
+    const between = blockersBetween(ep, x, w);
+    out.push({ id: witnessEvidenceId(x, w.eyeId, 'dist'), eyeId: w.eyeId, kind: 'dist', distance: w.distance, limit, between });
+    out.push({ id: witnessEvidenceId(x, w.eyeId, 'line'), eyeId: w.eyeId, kind: 'line', distance: w.distance, limit, between });
+  }
+  return out;
+}
+
+/**
+ * 승패를 가르는 사실(근거 id) = 진 주장을 깨는 자리에서 **그 말을 막은 사실 하나**:
+ * 사이에 막는 것이 있으면 line(X2 윤효손 — 시선 위의 기록 더미), 없고 거리가 기준 밖이면 dist(X1 홍귀달 — 반경 밖).
+ * 같은 자리의 다른 줄, 이긴 쪽 자리, 주장 없는 자리는 가르지 않는다. 찍기: 판단 2 × (자리 4 × 사실 2) → 1/16.
+ */
+export function decisiveFacts(ep: Episode, x: Contradiction): Id[] {
+  const I = idx(ep);
+  const out = new Set<Id>();
+  for (const eyeId of decisiveWitnesses(ep, x)) {
+    const eye = I.eye.get(eyeId)!;
+    const seat = posOf(ep.room, eye.seatId!);
+    const between = blockersBetween(ep, x, seat);
+    if (between.length) {
+      out.add(witnessEvidenceId(x, eyeId, 'line'));
+      continue;
+    }
+    const r = x.resolvedBy;
+    const d =
+      r.kind === 'hearing'
+        ? (() => {
+            const l = I.line.get(r.lineId)!;
+            const h = hearing(ep.room, seat, l.origin, l.volume);
+            return { distance: h.distance, limit: h.radius };
+          })()
+        : { distance: dist(seat, posOf(ep.room, r.targetPosId)), limit: ep.room.sight.detailRange };
+    if (d.distance > d.limit + 1e-9) out.add(witnessEvidenceId(x, eyeId, 'dist'));
+  }
+  return [...out];
+}
 
 /**
  * 승패를 가르는 자리(눈 id) = **진 주장을 깨는 자리**만: 진 주장의 증인 중 그 시각 말이 닿지 않았던/가려졌던
  * (또는 전해 들은) 자리. 이긴 주장을 받치는 자리(또렷이 들은/셀 수 있었던 자리)는 근거로 받지 않는다 —
  * 「왜 다른 말이 틀렸나」를 플레이어가 찾아야 풀린다(X1 홍귀달, X2 윤효손). 주장이 없는 다른 눈도 가르지 않는다.
- * 찍기: 판단 2 × 자리 4 → 1/8.
+ * 근거 칸에서 받는 것은 이 자리의 「막은 사실」 하나다(decisiveFacts).
  */
 export function decisiveWitnesses(ep: Episode, x: Contradiction): Id[] {
   const I = idx(ep);
@@ -117,11 +196,11 @@ export function supportingWitnesses(ep: Episode, x: Contradiction): Id[] {
   return [...out];
 }
 
-/** 판단(주장) + 근거(자리 사실 id). 두 칸이 다 차야 판정한다 */
+/** 판단(주장) + 근거(자리 × 사실 id). 두 칸이 다 차야 판정한다. 판단이 승자이고 근거가 가르는 사실일 때만 풀린다 */
 export function resolve(ep: Episode, x: Contradiction, chosenClaimId: Id, evidenceId?: Id): ResolveResult {
   if (!x.claims.includes(chosenClaimId) || !evidenceId) return { status: 'invalid' };
   const w = winningClaims(ep, x);
-  const decisive = decisiveWitnesses(ep, x).map((e) => witnessEvidenceId(x, e));
+  const decisive = decisiveFacts(ep, x);
   if (w.length === 1 && w[0] === chosenClaimId && decisive.includes(evidenceId))
     return { status: 'resolved', winner: chosenClaimId, loser: x.claims.find((c) => c !== chosenClaimId)! };
   return { status: 'retry', text: x.retryText };

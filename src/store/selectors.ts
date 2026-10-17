@@ -3,7 +3,7 @@ import { cellsText, josa } from '@/core/josa';
  * 화면별 보기(셀렉터) — UI_STYLE_GUIDE §1 화면 목록에 맞춘다. 모두 (ep, state) → 순수한 보기 객체.
  * 원칙: 정답·숨은 정체를 내보내지 않는다(이름은 붙인 뒤에만, 연도·장소는 복원 뒤에만).
  */
-import { geometry, claimById, claimHeld, type ContradictionGeometry, type WitnessMark } from '@/core/contradiction';
+import { geometry, claimById, claimHeld, witnessFacts, type ContradictionGeometry, type WitnessMark } from '@/core/contradiction';
 import { appearances, heldEvidence, idx, personGroups, type Appearance } from '@/core/ep';
 import { cutAvailability, eyeLabel, eyeState, ownerKnown, type CutAvailability, type EyeState } from '@/core/eyes';
 import { view as messengerView, type MessengerView } from '@/core/messenger';
@@ -574,32 +574,34 @@ function neutralGeometry(g: ContradictionGeometry): NeutralGeometry {
 
 
 /**
- * 모순의 근거 칸에 고를 수 있는 자리 사실(지금 방에 보이는 눈마다 하나). 글은 데이터에서 계산한다 — 거리와 기준만 적고
- * 결론(안/밖, 가림)은 적지 않는다(플레이어가 도면에서 읽는다):
- * 들림 「홍귀달 자리 — 문 앞에서 9.2칸, 들림 반경 8칸」 / 보임 「윤효손 자리 — 봉하는 자리까지 4.4칸, 셀 수 있는 거리 5칸」.
- * 어느 것이 승패를 가르는지는 여기서 알려 주지 않는다(판정은 엔진).
+ * 모순의 근거 칸(② )에 고를 수 있는 줄 = 「자리 × 사실」(QA_FUN_R4 R4-1). 지금 방에 보이는 눈마다 두 줄, 글은 데이터에서 계산한다.
+ * 거리와 기준, 사이(시선 위)에 있는 것만 적고 결론(안/밖, 가림)은 적지 않는다(플레이어가 도면에서 읽는다):
+ * 들림 「홍귀달 자리 — 문 앞에서 약 9칸, 들림 반경 8칸」 / 「홍귀달 자리 — 문 앞 사이에 있는 것: 없음」,
+ * 보임 「윤효손 자리 — 봉하는 자리까지 약 4.5칸, 셀 수 있는 거리 5칸」 / 「윤효손 자리 — 봉하는 자리를 보는 시선 위: 기록 더미」.
+ * 어느 줄이 승패를 가르는지는 여기서 알려 주지 않는다(판정은 엔진).
  */
-export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): { id: Id; eyeId: Id; text: string }[] {
+export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): { id: Id; eyeId: Id; kind: 'dist' | 'line'; text: string }[] {
   const x = ep.contradictions.find((y) => y.id === id);
   if (!x) return [];
   const I = idx(ep);
   const k = knowledge(s);
-  const g = geometry(ep, k, x);
-  const srcLabel = ep.room.points.find((p) => p.id === g.source.posId)?.label ?? ep.room.seats.find((p) => p.id === g.source.posId)?.label ?? '그 자리';
-  const seen = new Set<Id>();
-  const out: { id: Id; eyeId: Id; text: string }[] = [];
-  for (const w of g.witnesses) {
-    if (seen.has(w.eyeId)) continue;
-    seen.add(w.eyeId);
-    const eye = I.eye.get(w.eyeId)!;
+  const srcId = x.resolvedBy.kind === 'hearing' ? x.resolvedBy.sourcePosId : x.resolvedBy.targetPosId;
+  const srcLabel = ep.room.points.find((p) => p.id === srcId)?.label ?? ep.room.seats.find((p) => p.id === srcId)?.label ?? '그 자리';
+  const hearingKind = x.resolvedBy.kind === 'hearing';
+  return witnessFacts(ep, k, x).map((f) => {
+    const eye = I.eye.get(f.eyeId)!;
     const who = ownerKnown(ep, k, eye) ? (I.card.get(eye.personId)?.name ?? '?') : eyeLabel(ep, k, eye);
+    const between = f.between.length ? f.between.join(' · ') : '없음';
     const text =
-      g.kind === 'hearing'
-        ? `${who} 자리 — ${srcLabel}에서 ${cellsText(w.distance, g.radius)}, 들림 반경 ${g.radius}칸`
-        : `${who} 자리 — ${srcLabel}까지 ${cellsText(w.distance, g.detailRange)}, 셀 수 있는 거리 ${g.detailRange}칸`;
-    out.push({ id: `${x.id}:${w.eyeId}`, eyeId: w.eyeId, text });
-  }
-  return out;
+      f.kind === 'dist'
+        ? hearingKind
+          ? `${who} 자리 — ${srcLabel}에서 ${cellsText(f.distance, f.limit)}, 들림 반경 ${f.limit}칸`
+          : `${who} 자리 — ${srcLabel}까지 ${cellsText(f.distance, f.limit)}, 셀 수 있는 거리 ${f.limit}칸`
+        : hearingKind
+          ? `${who} 자리 — ${srcLabel} 사이에 있는 것: ${between}`
+          : `${who} 자리 — ${josa(srcLabel, '을/를')} 보는 시선 위: ${between}`;
+    return { id: f.id, eyeId: f.eyeId, kind: f.kind, text };
+  });
 }
 
 // ── 찾기 ─────────────────────────────────────────────────────────
