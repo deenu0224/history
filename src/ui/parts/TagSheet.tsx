@@ -69,10 +69,10 @@ export function TagSheet() {
   useEffect(() => setLinked(false), [key]);
   const cut = useView((ep, s) => (target ? selectCut(ep, s, target.cutId) : null), [key]);
   /** 맞았다: 시트가 도장과 함께 닫힌다(스토어는 이미 닫았다 — 잠깐 남는 그림만) */
-  const [stamp, setStamp] = useState<{ name: string; hanja: string } | null>(null);
+  const [stamp, setStamp] = useState<{ name: string; hanja: string; firstTry: boolean } | null>(null);
   useEffect(() => {
     if (!stamp) return;
-    const t = setTimeout(() => setStamp(null), 1100);
+    const t = setTimeout(() => setStamp(null), stamp.firstTry ? 1500 : 1100);
     return () => clearTimeout(t);
   }, [stamp]);
 
@@ -92,6 +92,11 @@ export function TagSheet() {
           <b>{stamp.name}</b>
           <small>{stamp.hanja}</small>
           <span className="oklab">이름 붙음</span>
+          {stamp.firstTry ? (
+            <span className="okfirst" data-testid="tag-first-try">
+              단번에 맞힘
+            </span>
+          ) : null}
         </div>
       </section>
     ) : null;
@@ -107,7 +112,7 @@ export function TagSheet() {
       if (j.verdict === 'ok') {
         // 시트는 스토어가 닫는다 — 도장 하나를 남기고 내려간다
         const c = sheet.cards.find((x) => x.id === cardId);
-        if (c) setStamp({ name: c.name, hanja: c.hanja });
+        if (c) setStamp({ name: c.name, hanja: c.hanja, firstTry: !!out.firstTry });
         return;
       }
       setFb({ text: j.feedback ?? '근거가 이 사람을 가리키지 않는다', warn: j.verdict === 'contradicts' });
@@ -207,9 +212,8 @@ export function TagSheet() {
         {sheet.evidenceAll.map((e) => (
           <button key={e.id} className={`evrow${evId === e.id ? ' sel' : ''}`} data-testid={`ev-${e.id}`} aria-pressed={evId === e.id} onClick={() => { fx('tap'); setEvId(evId === e.id ? undefined : e.id); }}>
             <span className="k">
-              <span className="t-m" style={{ color: e.fromThisPersonCut ? 'var(--amber)' : undefined }}>
-                {KIND[e.kind]}
-              </span>
+              {/* 「이 사람이 나온 컷」 표시는 판정 전에는 하지 않는다(색으로 답을 좁히지 않는다 — QA_FUN_R2 N1) */}
+              <span className="t-m">{KIND[e.kind]}</span>
               {e.time ? <span className="clock t-m">{e.time}</span> : null}
             </span>
             <span className="tx">{e.kind === 'line' ? `「${e.text}」` : e.text}</span>

@@ -38,6 +38,7 @@ function playToE4(h: Harness) {
   expect(h.st().openRoom()).toBe('opened');
   h.st().viewCut('E2', 1);
   h.st().selectRoomTime('13:20');
+  h.st().placeMention('e1-3#say:l_e1_3', 'O'); // 들은 말을 그 말이 가리킨 자리(병풍 앞)에 놓는다
   expect(h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3').verdict).toBe('ok'); // 같은 사람 잇기(플레이어 동작)
   expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('ok');
   h.st().viewCut('E3', 0);
@@ -118,9 +119,14 @@ describe('store — Ep1 correct path end to end', () => {
     h.st().viewCut('E2', 1);
     h.st().selectRoomTime('13:20');
     expect(h.st().merges.length).toBe(2);
-    const at1320 = selectRoom(EP1, h.st()).markers.filter((m) => m.posId === 'O');
-    expect(at1320.map((m) => m.keys)).toEqual([['e1-3#say:l_e1_3'], ['e2-2#fig_eo']]);
-    expect(at1320.map((m) => m.ox)).toEqual([-0.4, 0.4]);
+    // 13:20 의 「들은 말」(윗자리 대감…)은 아직 도면에 없다 — 칩으로만 있고, 플레이어가 자리에 놓아야 「?」 가 생긴다
+    const r1320 = selectRoom(EP1, h.st());
+    expect(r1320.markers.filter((m) => m.posId === 'O').map((m) => m.keys)).toEqual([['e2-2#fig_eo']]);
+    expect(r1320.heard).toEqual([{ key: 'e1-3#say:l_e1_3', cutId: 'e1-3', eyeId: 'E1', text: expect.any(String) }]);
+    // 표시끼리 중심 간격 ≥ 1.7칸(360 폭에서 ≈46px — 44px 탭 영역이 겹치지 않는다)
+    const ms = r1320.markers;
+    for (let i = 0; i < ms.length; i++)
+      for (let j = i + 1; j < ms.length; j++) expect(Math.hypot(ms[i]!.x + ms[i]!.ox - ms[j]!.x - ms[j]!.ox, ms[i]!.y + ms[i]!.oy - ms[j]!.y - ms[j]!.oy)).toBeGreaterThanOrEqual(1.69);
     h.st().closeRoom();
 
     // T3 — 들은 말은 시트에 늘 뜬다. 겹치기 전엔 「그 말이 이 사람 얘기인지 아직 모른다」 → 「이 시각, 그날의 방」
@@ -145,6 +151,15 @@ describe('store — Ep1 correct path end to end', () => {
     expect(h.st().linkMarkers('e2-2#fig_eo', 'e1-2#fig_yi')).toEqual({ verdict: 'not_same_time', feedback: '같은 시각이 아니다' });
     expect(h.st().linkMarkers('e2-2#fig_eo', 'e2-2#fig_yun')).toEqual({ verdict: 'same_eye', feedback: '한 관측 안의 두 사람이다' });
     expect(h.st().merges.length).toBe(2);
+    // 놓기 전에는 이을 수 없다 · 틀린 자리에 놓으면 보이는 이유만(공짜)
+    expect(h.st().linkMarkers('e1-3#say:l_e1_3', 'e2-2#fig_eo').verdict).toBe('invalid');
+    expect(h.st().placeMention('e1-3#say:l_e1_3', 'Y')).toEqual({ verdict: 'wrong', feedback: '그 말이 가리킨 자리가 아니다' });
+    expect(h.st().fails.place).toBe(1);
+    expect(h.st().placeMention('e1-3#say:l_e1_3', 'O')).toEqual({ verdict: 'ok', key: 'e1-3#say:l_e1_3', posId: 'O' });
+    expect(h.st().placeMention('e1-3#say:l_e1_3', 'O').verdict).toBe('already');
+    const placed = selectRoom(EP1, h.st());
+    expect(placed.heard).toEqual([]);
+    expect(placed.markers.filter((m) => m.posId === 'O').map((m) => m.keys)).toEqual([['e1-3#say:l_e1_3'], ['e2-2#fig_eo']]);
     const ln = h.st().linkMarkers('e1-3#say:l_e1_3', 'e2-2#fig_eo');
     expect(ln).toEqual({ verdict: 'ok', keys: ['e1-3#say:l_e1_3', 'e2-2#fig_eo'], posId: 'O' });
     expect(h.st().fx.some((f) => f.kind === 'merge' && f.posId === 'O')).toBe(true);
@@ -203,7 +218,7 @@ describe('store — Ep1 correct path end to end', () => {
     expect(xv.evidence.find((e) => e.id === 'X1:E4')!.text).toBe('홍귀달 자리 — 문 앞에서 약 9칸, 들림 반경 8칸');
     expect(xv.waiting).toBe(false);
     expect(texts(h.store)).toContain('맨 끝 봐, 1년 전에도 너 거기서 멈췄어.');
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
     expect(h.st().messenger.fired).not.toContain('ev.x1_resolved'); // 풀린 것은 화면이 알린다
     expect(h.st().search('#C-2217').results).toEqual([{ kind: 'log', id: 'doc_old_report' }]);
 
@@ -342,6 +357,7 @@ describe('store — mistakes are free and informative', () => {
     expect(verdict(h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_linked');
     expect(verdict(h.st().tag('fig_clerk', 'eo_segyeom', 'l_e1_3', 'e2-2'))).toBe('not_pointing'); // 그 자리가 아닌 사람
     h.st().openRoom('13:20');
+    h.st().placeMention('e1-3#say:l_e1_3', 'O'); // 들은 말을 그 말이 가리킨 자리(병풍 앞)에 놓는다
     h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
     expect(verdict(h.st().tag('fig_eo', 'sin_seungseon', 'l_e1_3', 'e2-2'))).toBe('not_pointing');
     expect(h.st().messenger.fired).not.toContain('ev.decoy.T3'); // 틀린 시도에는 말이 없다(힌트 사다리만)
@@ -388,7 +404,7 @@ describe('store — mistakes are free and informative', () => {
     expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E9')).toEqual({ status: 'invalid' });
     expect(h.st().resolved).toEqual({});
     expect(h.st().composeRewrite()).toBe('locked'); // X1 이 풀려야 結
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
     expect(h.st().composeRewrite()).toBe('opened');
     // 진 쪽 조각의 새 이름
     expect(selectRewrite(EP1, h.st()).pieces.find((p) => p.id === 'w_six_only')!.label).toBe('뒤섞인 전해 들은 말 — 여섯 조목만 올리라 했다더라');
@@ -400,7 +416,7 @@ describe('store — mistakes are free and informative', () => {
     viewAll(h, 'E4');
     h.st().closeViewer();
     drainMessages(h, 8);
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
     viewAll(h, 'E2');
     h.st().closeViewer();
     h.st().composeRewrite();
@@ -454,7 +470,7 @@ describe('store — closing eye (06:00) and the two-route guarantee', () => {
     h.st().closeViewer();
     expect(h.st().revealed).toContain('X1');
     drainMessages(h, 8);
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
     h.st().composeRewrite();
     const add = (pid: string) => h.st().rewrite.lines.find((l) => l.pieceId === pid)!.id;
     const L1 = add('pc_L1');

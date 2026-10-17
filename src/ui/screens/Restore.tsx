@@ -87,6 +87,23 @@ export function Restore() {
       </div>
       <div className="rbody" key={step} ref={bodyRef}>
         {step === 'home' ? <RestoredCard animate testId="restore-home" /> : null}
+        {step === 'home' ? (
+          <div className="tally t-m" data-testid="restore-tally">
+            <span>
+              단번에 맞힘 <b>{r.tally.firstTry}/{r.tally.total}</b>
+            </span>
+            {r.tally.optional !== undefined ? (
+              <span>
+                선택 줄 <b>{r.tally.optional}</b>
+              </span>
+            ) : null}
+            {r.tally.witness !== undefined ? (
+              <span>
+                증인 줄 <b>{r.tally.witness}</b>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {step === 'cards' ? (
           <div data-testid="restore-cards">

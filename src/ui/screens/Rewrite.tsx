@@ -8,7 +8,7 @@ import { useGameStore } from '@/store/gameStore';
 import { useView } from '@/store/hooks';
 import { selectRewrite, selectSlotOptions, type RewriteLineView } from '@/store/selectors';
 import { fx } from '../lib/fx';
-import { HoldButton } from '../parts/HoldButton';
+import { FreshButton, HoldButton } from '../parts/HoldButton';
 import { IClose, IExt, IWarn } from '../parts/icons';
 import { NavBar } from '../parts/NavBar';
 import { FixMeter } from '../parts/FixMeter';
@@ -151,6 +151,13 @@ export function Rewrite() {
   const holdMode = useGameStore((s) => s.settings.holdMode);
   const [picker, setPicker] = useState(false);
   const [slot, setSlot] = useState<{ lineId: string; kind: SlotKind } | null>(null);
+  /** 짧은 탭: 빈칸이 한 번 깜빡인다 */
+  const [blink, setBlink] = useState(0);
+  useEffect(() => {
+    if (!blink) return;
+    const t = setTimeout(() => setBlink(0), 1000);
+    return () => clearTimeout(t);
+  }, [blink]);
 
   useEffect(() => {
     useGameStore.getState().composeRewrite();
@@ -189,7 +196,7 @@ export function Rewrite() {
       <div style={{ padding: '0 16px 10px' }}>
         <FixMeter pct={rw.fixRate.pct} />
       </div>
-      <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}`} data-testid="paper">
+      <div className={`sheetpaper hanji${rw.complete ? ' done' : ''}${blink ? ' blink' : ''}`} data-testid="paper">
         {rw.lines.length === 0 ? (
           <p className="read keep" style={{ margin: '28px 4px', fontSize: 17, lineHeight: '30px', color: '#6b5e45' }}>
             {rw.pieces.length ? '본 것으로만 고정한다. 고정할 문장을 더해, 칸을 내가 확인한 값으로 채운다.' : '본 것으로만 고정한다.'}
@@ -210,11 +217,12 @@ export function Rewrite() {
         backTestId="rewrite-back"
         primary={
           rw.complete ? (
-            <button className="btn primary navprimary breath" data-testid="btn-restore" onClick={restore}>
+            // 길게 누르기를 끝낸 손가락이 떼어질 때 이 버튼이 같이 눌리지 않게(QA_UX ux-01) — 새 pointerdown 부터만
+            <FreshButton className="btn primary navprimary breath" testId="btn-restore" onClick={restore}>
               기록이 돌아왔다 ›
-            </button>
+            </FreshButton>
           ) : (
-            <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0} className="btn primary navprimary">
+            <HoldButton onDone={submit} mode={holdMode} testId="btn-submit" disabled={rw.lines.length === 0} className="btn primary navprimary" onShortTap={() => setBlink((b) => b + 1)}>
               {holdMode === 'hold' ? '길게 눌러 역사 고정' : '두 번 눌러 역사 고정'}
             </HoldButton>
           )

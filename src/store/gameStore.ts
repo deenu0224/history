@@ -11,6 +11,7 @@
  *           followFactLink(factId, cardId) — 카드 줄 낱말 링크 → 인물 카드 +1(fx cards_gained)
  *  방       openRoom(time?) · openRoomAtCut(cutId) · openRoomFromTag(cardId?)(시트의 「이 시각, 그날의 방」 — 방을 닫으면 시트로 돌아온다)
  *           selectRoomTime(time) · linkMarkers(keyA, keyB)(「같은 사람 잇기」 — 시범 시각 밖의 겹침은 플레이어가 잇는다)
+ *           placeMention(key, posId)(「들은 말」을 도면의 자리에 놓기 — selectRoom().heard, 놓아야 그 「?」 가 생긴다)
  *           closeRoom() · leaveRoom()(시트로 돌아가지 않고 닫기) · resolveContradiction(id, claimId, evidenceId)(근거 2칸: 판단 + 자리 사실, 기다릴 땐 'wait')
  *  찾기     search(query) · openCard(id) · openRecord(id)(fx cards_gained) · openDoc(id)
  *           searchFromTag() — 시트를 접고 돌아올 자리를 기억(ui.tagReturn) · returnToTag(cardId?) — 시트를 다시 연다(ui.tagCard)
@@ -37,7 +38,7 @@ import { DEFAULT_SETTINGS, FIRST_EPISODE_ID, freshState, pickPersisted, PERSISTE
 
 export * from './state';
 export * from './selectors';
-export type { Fx, TagOutcome, SearchOutcome, SubmitOutcome, ViewStatus, RestoreStep } from './engine';
+export type { Fx, TagOutcome, SearchOutcome, SubmitOutcome, ViewStatus, RestoreStep, PlaceResult } from './engine';
 export { RESTORE_STEPS, rewriteAvailable, roomUnlocked, timeChips, switchEpisode } from './engine';
 export { EPISODES, EPISODE_ORDER } from '@/data/v5';
 
@@ -65,6 +66,8 @@ export interface GameActions {
   openRoomFromTag(cardId?: Id): ReturnType<typeof E.openRoomAtCut>;
   /** 「같은 사람 잇기」: 한 관측의 표시 A 와 다른 관측의 표시 B(등장 키) */
   linkMarkers(keyA: string, keyB: string): LinkJudgement;
+  /** 「들은 말」을 도면의 자리에 놓는다(말이 가리킨 자리) — 맞으면 그 자리에 「?」 가 생긴다 */
+  placeMention(key: string, posId: Id): E.PlaceResult;
   /** 방을 닫되 시트로 돌아가지 않는다(방에서 컷으로 갈 때) */
   leaveRoom(): void;
   askHint(): ReturnType<typeof E.askHint>;
@@ -205,6 +208,7 @@ export function createGameStore(opts: StoreOptions = {}) {
         return r;
       },
       linkMarkers: (a, b) => run((w, c) => E.linkMarkers(w, c, a, b)),
+      placeMention: (key, posId) => run((w, c) => E.placeMention(w, c, key, posId)),
       leaveRoom: () => set({ ui: { ...get().ui, roomOpen: false, roomReturnsToTag: false, ...(get().ui.roomReturnsToTag ? { tagReturn: null } : {}) } }),
       askHint: () => run((w, c) => E.askHint(w, c)),
       searchFromTag: (cardId) => {

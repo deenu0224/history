@@ -42,6 +42,7 @@ describe('같은 사람 잇기', () => {
     expect(h.st().merges).toHaveLength(2);
     h.st().selectRoomTime('13:20');
     expect(h.st().merges).toHaveLength(2);
+    h.st().placeMention('e1-3#say:l_e1_3', 'O'); // 들은 말을 그 말이 가리킨 자리(병풍 앞)에 놓는다
     expect(h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3').verdict).toBe('ok');
     expect(h.st().merges).toHaveLength(3);
     expect(h.st().fails.link ?? 0).toBe(0);
@@ -54,6 +55,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
   function toX1(h: Harness) {
     toT3(h);
     h.st().openRoom('13:20');
+    h.st().placeMention('e1-3#say:l_e1_3', 'O'); // 들은 말을 그 말이 가리킨 자리(병풍 앞)에 놓는다
     h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
     h.st().tag('fig_eo', 'eo_segyeom', 'l_e1_3', 'e2-2');
     h.st().viewCut('E3', 0);
@@ -83,20 +85,25 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
     expect(selectNextTask(EP1, h.st())).toEqual({ kind: 'contradiction', id: 'X1' });
     // 닫힘의 선택지에 답한 뒤 보고서는 비동기 상한(120초)보다 훨씬 빨리 온다
     h.st().openMessenger();
+    expect(h.st().settings.fastMessages).toBe(false); // 보통 속도
+    let tClosure = 0; // 06:00 닫힘 줄이 온 때(그 앞의 밀린 대화는 시험 하네스가 읽지 않은 것)
     let t0 = 0;
     for (let i = 0; i < 1200 && !h.st().docs.includes('doc_old_report'); i++) {
       h.advance(250);
       const m = h.st().messenger;
+      if (!tClosure && h.st().messenger.log.some((x) => x.text.startsWith('관측기 06:00'))) tClosure = h.clock.t;
       if (m.choice) {
         h.st().chooseReply(m.choice.step.options[0].id);
         t0 = h.clock.t; // 「…끊겼어?」에 답한 때
       }
     }
     expect(h.st().docs).toContain('doc_old_report');
-    expect(h.clock.t - t0).toBeLessThan(30_000); // 비동기 40~90초(상한 120초) 대신
+    expect(h.clock.t - t0).toBeLessThan(12_000); // 비동기 40~90초(상한 120초) 대신
+    // QA_FUN_R2 N5: 닫힘 줄부터(바로 답하면) 약 20초 안에 보고서
+    expect(h.clock.t - tClosure).toBeLessThan(20_000);
 
     expect(selectContradictionView(EP1, h.st(), 'X1')!.waiting).toBe(false);
-    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1').status).toBe('resolved');
+    expect(h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4').status).toBe('resolved');
     expect(h.st().composeRewrite()).toBe('opened');
     // 보고서가 「이제 고정해 봐」보다 먼저
     drainMessages(h, 3);
@@ -112,7 +119,7 @@ describe('모순 도면 = 기하만 · 긴장 순서', () => {
     expect(p).toMatchObject({ done: 4, total: 4, complete: true, allClear: false });
     expect(selectHome(EP1, h.st()).next.kind).toBe('contradiction');
     drainMessages(h, 8);
-    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E1');
+    h.st().resolveContradiction('X1', 'c_scope_all', 'X1:E4');
     expect(selectTagProgress(EP1, h.st()).allClear).toBe(true);
     expect(selectHome(EP1, h.st()).next).toEqual({ kind: 'rewrite' });
   });
@@ -133,6 +140,7 @@ describe('시트가 답을 흘리지 않는다', () => {
     const times = before.evidenceAll.map((e) => e.time ?? '99:99');
     expect(times).toEqual([...times].sort());
     h.st().openRoom('13:20');
+    h.st().placeMention('e1-3#say:l_e1_3', 'O'); // 들은 말을 그 말이 가리킨 자리(병풍 앞)에 놓는다
     h.st().linkMarkers('e2-2#fig_eo', 'e1-3#say:l_e1_3');
     const after = selectTagSheet(EP1, h.st(), 'e2-2', 'fig_eo');
     expect(after.evidenceAll.map((e) => e.id)).toEqual(order);

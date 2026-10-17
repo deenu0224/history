@@ -108,6 +108,8 @@ export interface PersistedState {
   roomOpenedAfterRestore: boolean;
   roomTime: Hhmm | null;
   merges: string[][];
+  /** 「들은 말」을 도면의 자리에 놓았다(말이 가리킨 자리의 등장 키) — 놓아야 그 자리에 「?」 가 생기고 이을 수 있다 */
+  placedMentions: string[];
   // ── 모순 ──
   revealed: Id[];
   /** 모순 id → 이긴 주장 id */
@@ -163,6 +165,7 @@ export function freshState(seed = 1, now = 0, episodeId: Id = FIRST_EPISODE_ID):
     roomOpenedAfterRestore: false,
     roomTime: null,
     merges: [],
+    placedMentions: [],
     revealed: [],
     resolved: {},
     slotsOpened: [],

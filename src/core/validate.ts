@@ -4,7 +4,7 @@
  *  ① 이름 붙이기: TagRule 근거의 사실 키(함의 포함) ⊆ 카드 키, refers 가 그 figure 를 가리킴, 원장 기준 유일
  *     (이 방의 카드 ∪ 그날 방의 실명 인물), 카드 키 ⊇ 원장의 판정 관련 키(사실 숨기기 금지), 판정 시뮬레이션 ok
  *  ② 컷의 들림·보임 = 방 계산(또렷/흐림, 시야·거리·가림), 가리키는 사람은 그 컷에 보인다
- *  ③ 모순의 계산된 승자 = 검증 문장의 값
+ *  ③ 모순의 계산된 승자 = 검증 문장의 값 · 근거는 진 주장을 깨는 자리만
  *  ④ 두 길 규칙: 다시 쓰기에 필요한 값은 닫힐 수 있는 눈 밖에서도 얻는다. 닫힘은 그 눈이 연 다음 단계 뒤에만
  *  ⑤ 해결 전 컷·방·홈·메시지에 4자리 연도·장소 이름 없음
  *  ⑥ 힌트·피드백·복원 전 메시지에 정답(인물 이름·연도·사건 이름) 없음 + 메신저 규칙(≤30자, 반말/존댓말, 선택지 수)
@@ -20,7 +20,7 @@
  *  + 낱말(words): 찾기 밑줄은 찾기 데이터에 있는 말만(찾기 없는 에피소드엔 없음), 풀이는 글 안에 있고 20자 이내
  *  + 컷 id 는 CUT_IDS 안에, 모든 컷 id 에 판정 데이터가 있다, id 중복 없음, provenance·출처
  */
-import { claimById, decisiveWitnesses, geometry, winningClaims } from './contradiction';
+import { claimById, decisiveWitnesses, geometry, supportingWitnesses, winningClaims } from './contradiction';
 import { appearances, cutAppearances, idx, trueFigureOf } from './ep';
 import { closureDue } from './eyes';
 import { homeRecordText } from './reality';
@@ -390,6 +390,9 @@ export function validateEpisode(ep: Episode, x: ValidateExtras): Issue[] {
     const shown = [...new Set(geometry(ep, allK, xc).witnesses.map((m) => m.eyeId))];
     if (dec.some((e) => !shown.includes(e))) bad('③', `${xc.id}: 가르는 자리가 방에 보이지 않는다`);
     if (shown.every((e) => dec.includes(e))) bad('③', `${xc.id}: 모든 자리가 근거로 통과한다(찍기 가능)`);
+    // 근거는 진 주장을 깨는 자리만 — 이긴 주장을 받치는 자리가 통과하면 「왜 다른 말이 틀렸나」를 건너뛴다
+    const sup = supportingWitnesses(ep, xc);
+    if (dec.some((e) => sup.includes(e))) bad('③', `${xc.id}: 이긴 주장을 받치는 자리가 근거로 통과한다`);
   }
 
   // ── ④ 두 길 ──

@@ -71,8 +71,16 @@ export const msgCtx = (w: Work, c: Ctx): M.MsgCtx => ({
   bursts: burstsOf(c.ep),
   touching: c.touching,
   messengerOpen: c.messengerOpen,
-  fast: w.s.settings.fastMessages,
+  fast: w.s.settings.fastMessages || awaitingGatedDoc(c.ep, w.s),
 });
+
+/**
+ * 드러난 모순이 문서(1년 전 보고서)를 기다리는 동안은 메시지를 빠르게(× FAST_FACTOR) 흘린다 — 막 모순을 찾은 들뜬 순간에
+ * 1분씩 막히지 않게(QA_FUN_R2 N5: 보통 속도로도 약 20초 안에 보고서). 순서(닫힘 → 「뒤져 볼게」 → 보고서)는 그대로.
+ */
+export function awaitingGatedDoc(ep: Episode, s: PersistedState): boolean {
+  return ep.contradictions.some((x) => !!x.resolvableWhen?.docs?.length && s.revealed.includes(x.id) && !s.resolved[x.id] && !contradictionGateOpen(ep, s, x));
+}
 
 export function knowledge(s: PersistedState): Knowledge {
   return {
@@ -251,8 +259,8 @@ function attaches(steps: readonly Step[], docId: Id): boolean {
 /** 모순을 지금 판정할 수 있는가(Contradiction.resolvableWhen — 예: 1년 전 보고서를 받은 뒤) */
 export const contradictionGateOpen = (ep: Episode, s: PersistedState, x: Contradiction) => !x.resolvableWhen || check(baseProgress(ep, s), x.resolvableWhen);
 
-/** 앞당겨 배달할 때: 비동기를 시작에서 이 시간 안으로(메시지 빠르게면 × 0.4) */
-export const EXPEDITE_MS = 8_000;
+/** 앞당겨 배달할 때: 비동기를 시작에서 이 시간 안으로(메시지 빠르게면 × 0.4) — QA_FUN_R2 N5 */
+export const EXPEDITE_MS = 3_000;
 
 /**
  * 긴장 순서 보장: 드러난 모순이 문서를 기다리면(resolvableWhen.docs) 그 문서를 싣고 오는 비동기 결과를 앞당긴다.
@@ -377,7 +385,12 @@ export interface TagOutcome {
   ownerNamed?: Id;
   /** 성공: 먹선이 그어진 카드 줄 */
   matchedFacts?: { cardId: Id; factId: Id }[];
+  /** 성공이고, 이 사람에게 틀린 시도가 없었다 — 도장 「단번에 맞힘」 */
+  firstTry?: boolean;
 }
+
+/** 이 사람(figure)에게 처음 판정된 이름 붙이기가 맞았나(틀린 시도 없이) */
+export const firstTryOk = (s: Pick<PersistedState, 'tagLog'>, figureId: Id) => s.tagLog.find((t) => t.figureId === figureId)?.verdict === 'ok';
 
 export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, evidenceId: Id): TagOutcome {
   const ep = c.ep;
@@ -400,6 +413,7 @@ export function tag(w: Work, c: Ctx, cutId: Id, figureId: Id, cardId: Id, eviden
     return out;
   }
   w.s.named[figureId] = cardId;
+  out.firstTry = firstTryOk(w.s, figureId);
   completion(w, c);
   for (const m of matchedFacts(ep, cardId, evidenceId)) {
     out.matchedFacts = [...(out.matchedFacts ?? []), m];
@@ -481,6 +495,8 @@ export function selectRoomTime(w: Work, c: Ctx, time: Hhmm): { merges: string[][
  */
 export function linkMarkers(w: Work, c: Ctx, keyA: string, keyB: string): LinkJudgement {
   if (!w.s.roomOpened || !roomUnlocked(c.ep, w.s)) return { verdict: 'invalid' };
+  // 아직 도면에 놓지 않은 「들은 말」은 표시가 없다 — 이을 수 없다
+  if (!mentionShown(w.s, keyA) || !mentionShown(w.s, keyB)) return { verdict: 'invalid' };
   const j = judgeLink(c.ep, knowledge(w.s), keyA, keyB);
   if (j.verdict === 'ok' && j.keys) {
     w.s.merges.push(j.keys);
@@ -489,6 +505,32 @@ export function linkMarkers(w: Work, c: Ctx, keyA: string, keyB: string): LinkJu
     fireEvent(w, c, 'ev.merge_first');
   } else if (j.verdict !== 'invalid' && j.verdict !== 'already') bump(w, 'link');
   return j;
+}
+
+/** 등장 키가 「들은 말」(말이 가리킨 자리)이면 놓였거나 복원 뒤여야 도면에 보인다 */
+export const isMentionKey = (key: string) => key.includes('#say:');
+export const mentionShown = (s: Pick<PersistedState, 'placedMentions' | 'restored'>, key: string) => !isMentionKey(key) || s.restored || (s.placedMentions ?? []).includes(key);
+
+export const PLACE_FEEDBACK = '그 말이 가리킨 자리가 아니다';
+export type PlaceResult = { verdict: 'ok'; key: string; posId: Id } | { verdict: 'wrong'; feedback: string } | { verdict: 'already' | 'invalid' };
+
+/**
+ * 「들은 말」을 도면에 놓기(T3): 방에서 들은 말 칩(말이 다른 자리의 사람을 가리킨다)을 고르고 → 도면의 자리를 탭.
+ * 판정은 데이터(Line.refers.posId)만. 맞으면 그 자리에 「?」 (말이 가리킨 사람)가 생기고, 이제 같은 사람 잇기를 할 수 있다.
+ * 틀리면 보이는 이유 한 줄(「그 말이 가리킨 자리가 아니다」) — 정답 자리는 말하지 않는다. 실패는 공짜(fails.place 만 센다).
+ */
+export function placeMention(w: Work, c: Ctx, key: string, posId: Id): PlaceResult {
+  if (!w.s.roomOpened || !roomUnlocked(c.ep, w.s)) return { verdict: 'invalid' };
+  const a = appearances(c.ep, w.s.viewedCuts).find((x) => x.key === key);
+  if (!a || a.kind !== 'mention') return { verdict: 'invalid' };
+  if (mentionShown(w.s, key)) return { verdict: 'already' };
+  if (a.posId !== posId) {
+    bump(w, 'place');
+    return { verdict: 'wrong', feedback: PLACE_FEEDBACK };
+  }
+  w.s.placedMentions = [...(w.s.placedMentions ?? []), key];
+  completion(w, c);
+  return { verdict: 'ok', key, posId };
 }
 
 export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {

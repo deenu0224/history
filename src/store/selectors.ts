@@ -12,7 +12,7 @@ import { availablePieces, fixRate, pieceLabel, renderLine, sentenceOf, sentenceS
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
 import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
-import { canAskHint, contradictionGateOpen, isPreplacedPiece, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary, tagsDone } from './engine';
+import { canAskHint, contradictionGateOpen, isPreplacedPiece, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary, tagsDone, firstTryOk, mentionShown } from './engine';
 import type { PersistedState, SearchLogEntry } from './state';
 
 const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
@@ -336,8 +336,9 @@ export interface RoomMarker {
   /** 자리 좌표(칸) */
   x: number;
   y: number;
-  /** 같은 자리에 아직 잇지 않은 표시가 여럿이면 옆으로 벌린 간격(칸) — 그림에서만 */
+  /** 표시끼리 손가락 44px 이 겹치지 않게 벌린 간격(칸) — 그림에서만(같은 자리의 잇지 않은 표시, 가까운 자리의 표시) */
   ox: number;
+  oy: number;
   /** 성 한 글자 · 「?」 · (복원 뒤) 짝 이름 */
   label: string;
   /** 서로 다른 관측의 표시가 같은 사람으로 이어졌다 */
@@ -354,15 +355,65 @@ export interface RoomMarker {
   kind: 'person' | 'mention';
 }
 
-/** 같은 자리에 아직 잇지 않은 표시가 여럿일 때 벌리는 간격(칸) — 손가락 44px 이 겹치지 않게 */
-export const MARKER_SPREAD = 0.8;
+/**
+ * 표시 중심 사이의 최소 간격(칸). 도면 1칸 = 27 단위, 360 폭 도면(약 328px)에서 1칸 ≈ 27px → 1.7칸 ≈ 46px:
+ * 탭 영역(지름 44 단위)이 서로 겹치지 않는다(QA_UX ux-04).
+ */
+export const MARKER_SPREAD = 1.7;
+
+/** 표시를 서로 MARKER_SPREAD 이상 벌린다(결정적: 같은 자리는 옆으로 나란히, 그다음 가까운 쌍을 밀어낸다). 방 안에 머문다 */
+function spreadMarkers(ms: RoomMarker[], w: number, h: number) {
+  const D = MARKER_SPREAD;
+  const byPos = new Map<Id, RoomMarker[]>();
+  for (const m of ms) byPos.set(m.posId, [...(byPos.get(m.posId) ?? []), m]);
+  for (const list of byPos.values()) list.forEach((m, i) => (m.ox = list.length > 1 ? (i - (list.length - 1) / 2) * D : 0));
+  const clamp = (m: RoomMarker) => {
+    m.ox = Math.min(w - 0.7, Math.max(0.7, m.x + m.ox)) - m.x;
+    m.oy = Math.min(h - 0.7, Math.max(0.7, m.y + m.oy)) - m.y;
+  };
+  for (let it = 0; it < 40; it++) {
+    let moved = false;
+    for (let i = 0; i < ms.length; i++)
+      for (let j = i + 1; j < ms.length; j++) {
+        const a = ms[i]!;
+        const b = ms[j]!;
+        let dx = b.x + b.ox - (a.x + a.ox);
+        let dy = b.y + b.oy - (a.y + a.oy);
+        let d = Math.hypot(dx, dy);
+        if (d >= D - 1e-6) continue;
+        if (d < 1e-6) {
+          dx = 1;
+          dy = 0;
+          d = 1;
+        }
+        const push = (D - d) / 2 + 0.01;
+        a.ox -= (dx / d) * push;
+        a.oy -= (dy / d) * push;
+        b.ox += (dx / d) * push;
+        b.oy += (dy / d) * push;
+        clamp(a);
+        clamp(b);
+        moved = true;
+      }
+    if (!moved) break;
+  }
+  for (const m of ms) {
+    m.ox = Math.round(m.ox * 100) / 100;
+    m.oy = Math.round(m.oy * 100) / 100;
+  }
+}
 
 export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
   const I = idx(ep);
   const k = knowledge(s);
   const chips = timeChips(ep, s.viewedCuts);
   const t = time ? (chipFor(ep, s.viewedCuts, time) ?? time) : (s.roomTime ?? chips[chips.length - 1]);
-  const apps = t ? appearances(ep, s.viewedCuts).filter((a) => sameMoment(a.time, t)) : [];
+  const all = t ? appearances(ep, s.viewedCuts).filter((a) => sameMoment(a.time, t)) : [];
+  // 「들은 말」(다른 자리의 사람을 가리키는 말)은 플레이어가 도면에 놓아야 그 자리에 표시가 생긴다(복원 뒤엔 보상으로 모두)
+  const apps = all.filter((a) => mentionShown(s, a.key));
+  const heard = all
+    .filter((a): a is Extract<Appearance, { kind: 'mention' }> => a.kind === 'mention' && !mentionShown(s, a.key))
+    .map((a) => ({ key: a.key, cutId: a.cutId, eyeId: a.eyeId, text: I.line.get(a.lineId)?.text ?? '' }));
   const byPos = new Map<Id, Appearance[]>();
   for (const a of apps) byPos.set(a.posId, [...(byPos.get(a.posId) ?? []), a]);
   const markers: RoomMarker[] = [];
@@ -376,7 +427,7 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
       comps.set(root, [...(comps.get(root) ?? []), a]);
     }
     const parts = [...comps.values()];
-    parts.forEach((g, i) => {
+    parts.forEach((g) => {
       let label = '?';
       for (const a of g) {
         if (a.kind === 'figure') {
@@ -395,7 +446,8 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
         posId,
         x: p.x,
         y: p.y,
-        ox: parts.length > 1 ? (i - (parts.length - 1) / 2) * MARKER_SPREAD : 0,
+        ox: 0,
+        oy: 0,
         label,
         merged: eyeIds.length > 1,
         count: eyeIds.length,
@@ -407,6 +459,7 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
       });
     });
   }
+  spreadMarkers(markers, ep.room.w, ep.room.h);
   const eyes = [...ep.eyes]
     .filter((e) => e.seatId && (s.openedEyes.includes(e.id) || s.closedEyes.includes(e.id)))
     .map((e) => {
@@ -414,6 +467,7 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
       const facing = ep.room.seats.find((x) => x.id === e.seatId)?.facingDeg ?? 0;
       return {
         eyeId: e.id,
+        seatId: e.seatId!,
         x: seat.x,
         y: seat.y,
         facingDeg: facing,
@@ -437,6 +491,8 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
     time: t ?? null,
     eyes,
     markers,
+    /** 이 시각에 들은 말 중 다른 자리의 사람을 가리키는 것(아직 도면에 놓지 않음) — 칩을 고르고 자리를 탭해 놓는다 */
+    heard,
     contradictions: selectContradictions(ep, s).filter((x) => x.status !== 'hidden'),
   };
 }
@@ -676,6 +732,28 @@ export function selectSlotOptions(ep: Episode, s: PersistedState, kind: SlotKind
 }
 
 // ── 복원 ─────────────────────────────────────────────────────────
+/**
+ * 작은 집계(복원 카드): 단번에 맞힌 이름 n/m(꼭 붙일 이름 중 틀린 시도 없이 맞힌 것) · 고정한 선택 줄 n · 증인 줄 n.
+ * 벌은 없다 — 읽고 맞힌 것에 대한 작은 보상(QA_FUN_R2 N6). 그 에피소드에 없는 갈래(선택 줄·증인 줄)는 undefined.
+ */
+export function selectTally(ep: Episode, s: PersistedState) {
+  const req = ep.requiredTags ?? ep.tags.map((t) => t.id);
+  const rules = ep.tags.filter((t) => req.includes(t.id));
+  const firstTry = rules.filter((t) => s.named[t.figureId] === t.personId && firstTryOk(s, t.figureId)).length;
+  const optionalIds = ep.sentences.filter((x) => !ep.requiredSentences.includes(x.id)).map((x) => x.id);
+  const pieceOf = (pid: Id) => ep.pieces.find((p) => p.id === pid);
+  const hasOptional = ep.pieces.some((p) => p.sentenceId && optionalIds.includes(p.sentenceId));
+  const hasWitness = ep.pieces.some((p) => p.witnessOnly);
+  const optional = s.rewrite.lines.filter((l) => s.rewrite.results[l.id] === 'restored' && optionalIds.includes(pieceOf(l.pieceId)?.sentenceId ?? '')).length;
+  const witness = s.rewrite.lines.filter((l) => s.rewrite.results[l.id] === 'witness').length;
+  return {
+    firstTry,
+    total: rules.length,
+    ...(hasOptional ? { optional } : {}),
+    ...(hasWitness ? { witness } : {}),
+  };
+}
+
 export function selectRestoration(ep: Episode, s: PersistedState) {
   if (!s.restored) return null;
   const written = s.rewrite.lines
@@ -715,6 +793,7 @@ export function selectRestoration(ep: Episode, s: PersistedState) {
     teaser: resultView(ep, s, { kind: 'log', id: ep.epilogue.teaserDocId }),
     asides: ep.records.filter((r) => r.aside).map((r) => ({ id: r.id, when: r.aside!, title: r.title, lines: r.lines, tag: r.tag, ...(r.inWorld ? { before: r.inWorld } : {}) })),
     epilogueDone: s.epilogueDone,
+    tally: selectTally(ep, s),
     /** 끝나면 열리는 다음 에피소드 */
     next: ep.next ?? null,
   };

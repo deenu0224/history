@@ -1715,21 +1715,32 @@
 }
 .slot {
   display: inline-block;
-  min-height: 32px;
+  /* 탭 대상 ≥44px(QA_UX) — 줄 사이가 조금 벌어진다 */
+  min-height: 44px;
   min-width: 44px;
   padding: 0 8px;
-  margin: 0 1px;
+  margin: 1px 1px;
   border: 1.5px dashed #8a7a58;
   border-radius: 6px;
   background: rgba(160, 130, 80, 0.12);
   color: var(--paper-ink);
-  line-height: 29px;
-  vertical-align: 1px;
+  line-height: 41px;
+  vertical-align: middle;
   font-family: var(--f-read);
   text-align: center;
 }
 .slot.empty {
   color: #8a7a58;
+}
+/* 짧게 눌렀는데 빈칸이 남았다: 그 칸이 한 번 깜빡인다 */
+.sheetpaper.blink .slot.empty {
+  animation: slot-blink 0.5s ease-in-out 2;
+}
+@keyframes slot-blink {
+  50% {
+    background: rgba(226, 168, 92, 0.45);
+    border-color: var(--amber);
+  }
 }
 .slot.warn {
   border: 1.5px solid #a04540;
@@ -1802,6 +1813,37 @@
 }
 .hold .lbl {
   position: relative;
+}
+/* 짧은 탭: 「길게 누르세요」가 한 번 숨쉬고, 채움이 어디까지 갔었는지 잠깐 남았다 사라진다 */
+.hold.hinted .lbl {
+  animation: hold-hint 0.9s ease-in-out 1;
+}
+.hold.hinted .fill {
+  animation: hold-fill-fade 1.6s ease-out forwards;
+}
+@keyframes hold-hint {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 0.75;
+    transform: scale(1.06);
+  }
+}
+@keyframes hold-fill-fade {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.app[data-motion='reduced'] .hold.hinted .lbl,
+.app[data-motion='reduced'] .hold.hinted .fill {
+  animation: none;
 }
 .pick {
   width: 100%;
@@ -2540,6 +2582,29 @@
   font-size: var(--fs-m);
   font-weight: 700;
   color: var(--amber);
+}
+.okstamp .okfirst {
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1.5px solid var(--amber);
+  border-radius: 4px;
+  font-family: var(--f-ui);
+  font-size: var(--fs-m);
+  font-weight: 700;
+  color: var(--amber);
+  animation: stamp-in 0.32s 0.28s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+/* 복원 카드 아래 작은 집계(단번에 맞힘 n/m · 선택 줄 · 증인 줄) */
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin: 12px 0 4px;
+}
+.tally b {
+  color: var(--amber);
+  font-weight: 700;
 }
 @keyframes stamp-in {
   from {
