@@ -13,8 +13,8 @@ import { useUi } from '../uiStore';
 
 const KIND = { line: '들은 말', detail: '본 것', fact: '기록' } as const;
 
-/** 작은 카드: 이름(한자) + 사실 한 줄. 길게 누르면 카드를 펼친다 */
-function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string; keyFact: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
+/** 작은 카드: 이름(한자) + 중립 한 줄(생몰) — 판정에 쓰이는 사실 줄은 펼쳐야 보인다. 길게 누르면 카드를 펼친다 */
+function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: string; hanja: string; sub: string }; sel: boolean; dim: boolean; onPick: () => void; onHold: () => void }) {
   const t = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const held = useRef(false);
   return (
@@ -42,7 +42,7 @@ function CardTile({ c, sel, dim, onPick, onHold }: { c: { id: string; name: stri
         {c.name}
         <span className="hj">({c.hanja})</span>
       </span>
-      <span className="ft">{c.keyFact}</span>
+      {c.sub ? <span className="ft">{c.sub}</span> : null}
     </button>
   );
 }
@@ -121,11 +121,9 @@ export function TagSheet() {
   };
   const openRoom = () => {
     const g = useGameStore.getState();
-    const r = g.openRoomAtCut(target.cutId);
-    if (r.status === 'opened') {
-      g.closeTagSheet();
-      useUi.getState().setRoomFocus(null);
-    }
+    // 시트는 접어 두고 그 시각의 방으로 — 방에서 같은 사람을 이은 뒤 닫으면 이 시트로 돌아온다(고른 카드 그대로)
+    useUi.getState().setRoomFocus(null);
+    g.openRoomFromTag(cardId);
   };
   const toSearch = () => {
     const g = useGameStore.getState();

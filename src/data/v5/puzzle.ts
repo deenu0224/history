@@ -68,6 +68,8 @@ export const CONTRADICTIONS: Contradiction[] = [
     loserNote: '순서와 말한 사람이 섞였다',
     retryText: '그 자리에서 그 말이 닿았는지 보자',
     buttons: ['「모두」를 남긴다', '「여섯 조목만」을 남긴다'],
+    // 긴장 순서: 06:00 닫힘 → 1년 전 보고서가 온 뒤에야 판정한다(엔진이 보고서를 앞당긴다)
+    resolvableWhen: { docs: ['doc_old_report'] },
   },
   {
     id: 'X2',
@@ -82,7 +84,7 @@ export const CONTRADICTIONS: Contradiction[] = [
 ];
 
 const ed = (text: string) => ({ text, editorial: true as const });
-const SPEAKER = { kind: 'speaker' as const, accepts: '당상(이극돈 등)', display: '실록청 당상(이극돈 등)' };
+const SPEAKER = { kind: 'speaker' as const, accepts: '당상(이극돈 등)', display: '실록청 당상(이극돈 등)', shared: true as const }; // L2·L3 화자는 한 번 고르면 같이
 
 /** 출처: kja_10407011_001 국역(HISTORICAL_SOURCES §11.1). editorial 조각은 실록 문장이 아니다(「( )」). */
 export const SENTENCES: RecordSentence[] = [
@@ -91,6 +93,7 @@ export const SENTENCES: RecordSentence[] = [
     label: 'L1',
     source: SRC.order0711,
     provenance: 'verified',
+    preplaced: true,
     order: 1,
     time: '14:00',
     segments: [
@@ -106,6 +109,7 @@ export const SENTENCES: RecordSentence[] = [
     label: 'L2',
     source: SRC.order0711,
     provenance: 'verified',
+    preplaced: true,
     order: 2,
     time: '14:05',
     segments: [ed('('), { text: '', editorial: true, slot: SPEAKER }, ed('이 아뢰기를) '), { text: '"예로부터 사초(史草)는 임금이 스스로 보지 않습니다.' }],
@@ -115,6 +119,7 @@ export const SENTENCES: RecordSentence[] = [
     label: 'L3',
     source: SRC.order0711,
     provenance: 'verified',
+    preplaced: true,
     order: 3,
     time: '14:05',
     segments: [ed('('), { text: '', editorial: true, slot: SPEAKER }, ed(') '), { text: '임금이 만약 사초를 보면 후세에 직필(直筆)이 없기 때문입니다."' }],
@@ -154,6 +159,7 @@ export const SENTENCES: RecordSentence[] = [
     label: 'L4',
     source: SRC.order0711,
     provenance: 'verified',
+    preplaced: true,
     order: 7,
     time: '15:00',
     segments: [

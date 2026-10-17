@@ -1169,6 +1169,11 @@
   border-left: 3px solid var(--teal);
   animation: shake 0.3s;
 }
+.fb.ok {
+  background: var(--amber-soft);
+  border-left-color: var(--amber);
+  animation: none;
+}
 .fb.warn {
   background: var(--alert-soft);
   border-left-color: var(--alert);
@@ -1318,6 +1323,19 @@
 }
 .plan .mk {
   cursor: pointer;
+}
+.plan .linkring {
+  animation: linkring 1.2s linear infinite;
+}
+@keyframes linkring {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan .linkring {
+    animation: none;
+  }
 }
 .plan .merged-anim {
   animation: merge-pop 0.5s var(--ease);

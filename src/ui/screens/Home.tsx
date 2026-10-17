@@ -26,11 +26,6 @@ function GapGraphic() {
   );
 }
 
-/** 열린 눈 중 아직 안 본 컷이 있는 첫 눈(없으면 첫 열린 눈) */
-function pickEye(eyes: { eyeId: string; state: string }[]): string | undefined {
-  const open = eyes.filter((e) => e.state === 'open');
-  return open[0]?.eyeId;
-}
 
 export function enterMemory(eyeId: string) {
   const g = useGameStore.getState();
@@ -45,11 +40,19 @@ export function Home() {
   const restored = home.buttons.includes('restored');
   const unseen = home.unread > 0;
 
+  // 관측하기 = 다음 할 일의 눈: 순서대로 아직 안 본 컷이 있는 첫 열린 눈(없으면 첫 열린 눈)
   const memories = () => {
-    // 아직 안 본 컷이 가장 많은 눈이 아니라, 순서대로 첫 열린 눈
-    const id = pickEye(home.eyes);
+    const id = home.next.kind === 'observe' ? home.next.eyeId : home.eyes.find((e) => e.state === 'open')?.eyeId;
     if (id) enterMemory(id);
   };
+  /** 다음 할 일이 모순이면: 그날의 방 모순 보기로 바로 */
+  const toContradiction = () => {
+    if (home.next.kind !== 'contradiction') return;
+    fx('tap');
+    useUi.getState().setRoomFocus(home.next.id);
+    useGameStore.getState().openRoom();
+  };
+  const contra = home.next.kind === 'contradiction';
 
   return (
     <div className="scr" data-screen="home">
@@ -121,7 +124,7 @@ export function Home() {
         {home.tags.total ? (
           <p className={`t-m tagprog-line${home.tags.complete ? ' done' : ''}`} style={{ margin: '4px 0 0' }} data-testid="home-tag-progress">
             이름 붙이기 {home.tags.done}/{home.tags.total}
-            {home.tags.complete ? ' · 모두 밝혀졌다' : ''}
+            {home.tags.allClear ? ' · 모두 밝혀졌다' : ''}
             {home.resume.contradictionsLeft ? ` · 남은 모순 ${home.resume.contradictionsLeft}` : ''}
           </p>
         ) : null}
@@ -135,9 +138,14 @@ export function Home() {
             역사 고정 ›
           </button>
         ) : null}
+        {contra ? (
+          <button className="btn primary breath" data-testid="btn-contradiction" onClick={toContradiction}>
+            ⚠ 모순 풀기 ›
+          </button>
+        ) : null}
         {home.buttons.includes('memories') && !home.nextEpisode ? (
           <button
-            className={`btn ${home.rewriteReady ? 'secondary' : 'primary'}${!home.rewriteReady && home.resume.eyesOpen <= 1 && !home.tags.done ? ' breath' : ''}`}
+            className={`btn ${home.rewriteReady || contra ? 'secondary' : 'primary'}${!home.rewriteReady && home.resume.eyesOpen <= 1 && !home.tags.done ? ' breath' : ''}`}
             data-testid="btn-memories"
             onClick={() => {
               fx('tap');

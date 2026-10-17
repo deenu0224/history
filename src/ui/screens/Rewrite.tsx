@@ -69,7 +69,7 @@ function LineView({ l, onSlot, onRemove }: { l: RewriteLineView; onSlot: (kind: 
       ) : null}
       {l.result === 'not_recorded' ? <div className="res">흐릿함 — 그날에 붙지 않았다</div> : null}
       {l.result === 'incomplete' ? <div className="res">빈 칸이 있다</div> : null}
-      {!restored ? (
+      {!restored && !l.preplaced ? (
         <button className="x" aria-label="이 문장 빼기" onClick={onRemove}>
           <IClose />
         </button>

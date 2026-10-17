@@ -342,6 +342,8 @@ export interface Contradiction {
   /** 틀린 쪽을 골랐을 때 */
   retryText: string;
   buttons: [string, string];
+  /** 이 조건이 맞아야 판정한다(예: 1년 전 보고서를 받은 뒤 — 긴장 순서). 맞지 않으면 엔진이 그 문서를 앞당겨 보낸다 */
+  resolvableWhen?: Cond;
 }
 
 // ── 기록 다시 쓰기 ───────────────────────────────────────────────
@@ -349,7 +351,8 @@ export interface RecordSegment {
   text: string;
   /** 편집 표시(실록 문장이 아님, 「( )」) */
   editorial?: true;
-  slot?: { kind: SlotKind; accepts: string; display: string };
+  /** shared: 같은 종류의 shared 칸은 한 번 고르면 놓인 모든 줄에 같이 들어간다(예: L2·L3 의 화자) */
+  slot?: { kind: SlotKind; accepts: string; display: string; shared?: true };
 }
 
 export interface RecordSentence {
@@ -509,6 +512,8 @@ export interface Cond {
   roomUnlocked?: boolean;
   /** 이 카드들을 가지고 있다 */
   cardsFound?: Id[];
+  /** 이 문서(관측 기록 첨부)를 받았다 */
+  docs?: Id[];
   allRestored?: boolean;
   restored?: boolean;
   /** 지금 이 눈의 컷을 보고 있다 */
@@ -597,6 +602,11 @@ export interface Episode {
   derivedKeys?: DerivedKey[];
   /** '이 방의 카드' 사실 키(기본 sillokcheong_staff). null = 모든 카드가 그 방의 카드(판정 4단계 없음) */
   roomKey?: FactKey | null;
+  /**
+   * 겹침 시범: 이 시각들의 겹침만 그날의 방이 저절로 보여 준다(처음 여는 방 = 이 시각). 나머지 겹침은 플레이어가
+   * 「같은 사람 잇기」로 직접 잇는다(core/link.ts).
+   */
+  autoMergeAt?: Hhmm[];
   /** 그날의 방이 열리는 조건(눈 둘 이상 + 이 조건). 없으면 눈 둘 */
   roomWhen?: Cond;
   /** 기록 다시 쓰기가 열리는 조건 */

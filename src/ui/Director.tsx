@@ -16,8 +16,21 @@ let lastBannerAt = 0;
 /** 한 묶음 안에서 알림이 이미 떴는가(「모두 밝혀졌다」는 그 뒤로 미룬다) */
 let toastInBatch = false;
 let allNamed = false;
+/** 「모두 밝혀졌다」를 이미 알린 에피소드(한 번만) */
+const announced = new Set<string>();
 const TICK_MS = 300;
 const SAVE_MS = 2000;
+
+/**
+ * 「모두 밝혀졌다」는 꼭 할 일이 하나도 남지 않았을 때만(이름 + 역사 고정 전의 닫힘·모순·보고서 — selectTagProgress().allClear).
+ * 이름만 다 붙고 할 일이 남았으면(Ep1 T4 뒤) 알리지 않는다 — 진행 칩 「이름 붙이기 4/4」 만.
+ */
+function checkAllClear(g: ReturnType<typeof useGameStore.getState>) {
+  const ep = currentEpisode(g);
+  if (announced.has(ep.id) || !selectTagProgress(ep, g).allClear) return;
+  announced.add(ep.id);
+  allNamed = true;
+}
 
 function handle(f: Fx) {
   const ui = useUi.getState();
@@ -36,16 +49,12 @@ function handle(f: Fx) {
       fx(f.verdict === 'ok' ? 'tag_ok' : 'tag_no');
       if (f.verdict === 'ok') {
         ui.flashName(f.figureId);
-        // 꼭 붙여야 할 이름의 마지막 하나였다 → 「모두 밝혀졌다」(묶음이 끝난 뒤에)
-        const ep = currentEpisode(g);
-        const rule = ep.tags.find((t) => t.figureId === f.figureId);
-        const req = ep.requiredTags ?? ep.tags.map((t) => t.id);
-        if (rule && req.includes(rule.id) && selectTagProgress(ep, g).complete) allNamed = true;
+        checkAllClear(g);
       }
       break;
     case 'merge':
       fx('merge');
-      ui.flashMerge();
+      ui.flashMerge(f.posId);
       break;
     case 'reveal':
       fx('contradiction');
@@ -53,6 +62,7 @@ function handle(f: Fx) {
       break;
     case 'resolve':
       fx('resolve');
+      checkAllClear(g);
       break;
     case 'restore':
       // 소리는 다시 쓰기 화면이 복원의 순간(구멍이 채워질 때)에 이미 냈다

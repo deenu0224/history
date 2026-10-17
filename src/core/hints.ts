@@ -19,6 +19,8 @@ export interface Progress {
   rewriteAvailable?: boolean;
   roomUnlocked?: boolean;
   cardsFound?: readonly Id[];
+  /** 받은 문서 */
+  docs?: readonly Id[];
   allRestored: boolean;
   restored: boolean;
   viewingEye: Id | null;
@@ -42,6 +44,7 @@ export function check(p: Progress, c: Cond): boolean {
   if (c.rewriteAvailable !== undefined && !!p.rewriteAvailable !== c.rewriteAvailable) return false;
   if (c.roomUnlocked !== undefined && !!p.roomUnlocked !== c.roomUnlocked) return false;
   if (!all(p.cardsFound ?? [], c.cardsFound)) return false;
+  if (!all(p.docs ?? [], c.docs)) return false;
   if (c.allRestored !== undefined && p.allRestored !== c.allRestored) return false;
   if (c.restored !== undefined && p.restored !== c.restored) return false;
   if (c.viewingEye !== undefined && p.viewingEye !== c.viewingEye) return false;

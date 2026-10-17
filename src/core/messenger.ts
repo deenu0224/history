@@ -472,3 +472,35 @@ export function carryOver(s: MessengerState, now: number, prevRestored: boolean)
     lastReadAt: now,
   };
 }
+
+/**
+ * 아직 배달되지 않은 묶음을 버린다(keep 이 false 인 것): 줄·지금 묶음(계획 포함)·선택지·비동기.
+ * 복원 때 복원 전 묶음을 버리거나(postRestore 만 남김), 철 지난 힌트를 보내기 직전에 거둘 때 쓴다. 이미 배달된 말풍선은 그대로.
+ */
+export function dropBursts(s: MessengerState, keep: (burstId: Id) => boolean): MessengerState {
+  const activeGone = !!s.active && !keep(s.active.burstId);
+  const choiceGone = !!s.choice && !keep(s.choice.burstId);
+  const queue = s.queue.filter((q) => keep(q.burstId));
+  const tasks = s.tasks.filter((t) => keep(t.event));
+  if (!activeGone && !choiceGone && queue.length === s.queue.length && tasks.length === s.tasks.length) return s;
+  return {
+    ...s,
+    queue,
+    tasks,
+    ...(activeGone ? { active: null, planned: null, stalled: false, heldForTouch: false } : {}),
+    ...(choiceGone ? { choice: null } : {}),
+  };
+}
+
+/** 이 사건을 기다리는 비동기 결과를 앞당긴다: 시작에서 withinMs 뒤(이미 지났으면 지금) 안에 온다 */
+export function expediteTask(s: MessengerState, event: Id, now: number, withinMs: number): MessengerState {
+  let changed = false;
+  const tasks = s.tasks.map((t) => {
+    if (t.event !== event) return t;
+    const due = Math.max(t.startAt + withinMs, Math.min(now, t.capAt));
+    if (t.capAt <= due) return t;
+    changed = true;
+    return { ...t, capAt: due, earliestAt: Math.min(t.earliestAt, due) };
+  });
+  return changed ? { ...s, tasks } : s;
+}

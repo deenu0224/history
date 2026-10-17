@@ -117,6 +117,8 @@ export interface WitnessMark {
   x: number;
   y: number;
   distance: number;
+  /** 그 시각 그 눈이 보던 쪽(시야 부채꼴을 그릴 때) */
+  dirDeg: number;
   /** hearing: 또렷/흐림/안 들림 · sight: 셀 수 있음/가림/멂 */
   status: 'clear' | 'garbled' | 'none' | 'countable' | 'occluded' | 'far' | 'out_of_view';
   hearsay?: boolean;
@@ -130,6 +132,8 @@ export interface ContradictionGeometry {
   radius?: number;
   garbleRadius?: number;
   detailRange?: number;
+  /** 시야 부채꼴의 반각 */
+  halfAngleDeg: number;
   occluder?: { id: Id; rect: [number, number, number, number] };
   witnesses: WitnessMark[];
   /** 그 시각 방의 다른 사람(본 컷 기준): 반경 안/밖 */
@@ -153,7 +157,7 @@ export function geometry(ep: Episode, k: Knowledge, x: Contradiction): Contradic
       const eye = I.eye.get(cut.eyeId)!;
       if (!eye.seatId || witnesses.some((w) => w.eyeId === eye.id && w.claimId === cid)) continue;
       const seat = posOf(ep.room, eye.seatId);
-      witnesses.push({ eyeId: eye.id, claimId: cid, seatId: eye.seatId, x: seat.x, y: seat.y, ...markAt(ep, x, seat, cut.viewpoint.dirDeg), ...(c.hearsay ? { hearsay: true } : {}) });
+      witnesses.push({ eyeId: eye.id, claimId: cid, seatId: eye.seatId, x: seat.x, y: seat.y, dirDeg: cut.viewpoint.dirDeg, ...markAt(ep, x, seat, cut.viewpoint.dirDeg), ...(c.hearsay ? { hearsay: true } : {}) });
     }
   }
   // 그 시각의 다른 눈 자리(열린·닫힌 눈) — 원 안/밖을 보여 준다
@@ -161,7 +165,10 @@ export function geometry(ep: Episode, k: Knowledge, x: Contradiction): Contradic
     const eye = I.eye.get(eyeId);
     if (!eye?.seatId || witnesses.some((w) => w.eyeId === eyeId)) continue;
     const seat = posOf(ep.room, eye.seatId);
-    witnesses.push({ eyeId, seatId: eye.seatId, x: seat.x, y: seat.y, ...markAt(ep, x, seat, ep.room.seats.find((s) => s.id === eye.seatId)?.facingDeg ?? 0) });
+    // 그 시각의 그 눈의 컷이 있으면 그 컷이 보던 쪽, 없으면 자리의 방향
+    const atCut = eye.cuts.map((id) => I.cut.get(id)!).find((c) => k.viewedCuts.includes(c.id) && sameMoment(c.time, r.time));
+    const dir = atCut?.viewpoint.dirDeg ?? ep.room.seats.find((s) => s.id === eye.seatId)?.facingDeg ?? 0;
+    witnesses.push({ eyeId, seatId: eye.seatId, x: seat.x, y: seat.y, dirDeg: dir, ...markAt(ep, x, seat, dir) });
   }
   const listeners = appearances(ep, k.viewedCuts)
     .filter((a) => a.kind === 'figure' && sameMoment(a.time, r.time))
@@ -175,6 +182,7 @@ export function geometry(ep: Episode, k: Knowledge, x: Contradiction): Contradic
     kind: r.kind,
     time: r.time,
     source: { posId: srcId, x: src.x, y: src.y },
+    halfAngleDeg: ep.room.sight.halfAngleDeg,
     ...(r.kind === 'hearing'
       ? (() => {
           const l = I.line.get(r.lineId)!;

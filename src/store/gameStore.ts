@@ -9,7 +9,9 @@
  *  넘기기   openEye(eyeId) · viewCut(eyeId, index) · closeViewer()
  *  이름     tapFigure(cutId, figureId) → 시트 보기 · tag(figureId, cardId, evidenceId, cutId?) → TagOutcome
  *           followFactLink(factId, cardId) — 카드 줄 낱말 링크 → 인물 카드 +1(fx cards_gained)
- *  방       openRoom(time?) · openRoomAtCut(cutId)(「이 시각, 그날의 방」) · selectRoomTime(time) · closeRoom() · resolveContradiction(id, claimId, evidenceId)(근거 2칸: 판단 + 자리 사실)
+ *  방       openRoom(time?) · openRoomAtCut(cutId) · openRoomFromTag(cardId?)(시트의 「이 시각, 그날의 방」 — 방을 닫으면 시트로 돌아온다)
+ *           selectRoomTime(time) · linkMarkers(keyA, keyB)(「같은 사람 잇기」 — 시범 시각 밖의 겹침은 플레이어가 잇는다)
+ *           closeRoom() · leaveRoom()(시트로 돌아가지 않고 닫기) · resolveContradiction(id, claimId, evidenceId)(근거 2칸: 판단 + 자리 사실, 기다릴 땐 'wait')
  *  찾기     search(query) · openCard(id) · openRecord(id)(fx cards_gained) · openDoc(id)
  *           searchFromTag() — 시트를 접고 돌아올 자리를 기억(ui.tagReturn) · returnToTag(cardId?) — 시트를 다시 연다(ui.tagCard)
  *  힌트     askHint() — 07 「어디부터 볼까요?」 → 켜진 사다리의 다음 단을 바로
@@ -27,6 +29,7 @@ import { EP1, EPISODE_ORDER, EPISODES } from '@/data/v5';
 import { loadGame, migrate, saveGame, SaveError, type SaveSlot } from '@/core/save';
 import { seedFrom } from '@/core/rng';
 import * as M from '@/core/messenger';
+import type { LinkJudgement } from '@/core/link';
 import type { Episode, Hhmm, Id, SlotKind } from '@/core/types';
 import * as E from './engine';
 import { selectCut, selectSearchSeed } from './selectors';
@@ -49,6 +52,8 @@ export interface UiState {
   tagReturn: { cutId: Id; figureId: Id; cardId?: Id } | null;
   /** 시트를 다시 열 때 미리 고른 카드 */
   tagCard: Id | null;
+  /** 시트의 「이 시각, 그날의 방」으로 열었다 — 방을 닫으면 그 시트로 돌아온다(tagReturn) */
+  roomReturnsToTag: boolean;
 }
 
 export interface GameActions {
@@ -56,6 +61,12 @@ export interface GameActions {
   startEpisode(id?: Id): 'started' | 'already' | 'locked' | 'unknown';
   followFactLink(factId: Id, cardId: Id): ReturnType<typeof E.followFactLink>;
   openRoomAtCut(cutId: Id): ReturnType<typeof E.openRoomAtCut>;
+  /** 열린 이름 붙이기 시트에서 그 컷의 시각으로 방을 연다(시트는 접어 두고, 방을 닫으면 돌아온다) */
+  openRoomFromTag(cardId?: Id): ReturnType<typeof E.openRoomAtCut>;
+  /** 「같은 사람 잇기」: 한 관측의 표시 A 와 다른 관측의 표시 B(등장 키) */
+  linkMarkers(keyA: string, keyB: string): LinkJudgement;
+  /** 방을 닫되 시트로 돌아가지 않는다(방에서 컷으로 갈 때) */
+  leaveRoom(): void;
   askHint(): ReturnType<typeof E.askHint>;
   /** 이름 붙이기 시트 → 찾기(돌아올 자리 기억). 미리 채울 낱말을 돌려준다 */
   searchFromTag(cardId?: Id): { seed: string[] };
@@ -124,7 +135,7 @@ export interface StoreOptions {
   episodeId?: Id;
 }
 
-const initialUi = (): UiState => ({ touching: false, messengerOpen: false, roomOpen: false, tagTarget: null, tagReturn: null, tagCard: null });
+const initialUi = (): UiState => ({ touching: false, messengerOpen: false, roomOpen: false, tagTarget: null, tagReturn: null, tagCard: null, roomReturnsToTag: false });
 
 /** 상태의 에피소드 데이터 */
 export const episodeById = (id: Id): Episode => EPISODES[id] ?? EP1;
@@ -185,6 +196,16 @@ export function createGameStore(opts: StoreOptions = {}) {
         if (r.status === 'opened') set({ ui: { ...get().ui, roomOpen: true } });
         return r;
       },
+      openRoomFromTag: (cardId) => {
+        const t = get().ui.tagTarget;
+        if (!t) return { status: 'no_cut', merges: [] };
+        const r = run((w, c) => E.openRoomAtCut(w, c, t.cutId));
+        if (r.status === 'opened')
+          set({ ui: { ...get().ui, roomOpen: true, tagTarget: null, tagCard: null, tagReturn: { ...t, ...(cardId ? { cardId } : {}) }, roomReturnsToTag: true } });
+        return r;
+      },
+      linkMarkers: (a, b) => run((w, c) => E.linkMarkers(w, c, a, b)),
+      leaveRoom: () => set({ ui: { ...get().ui, roomOpen: false, roomReturnsToTag: false, ...(get().ui.roomReturnsToTag ? { tagReturn: null } : {}) } }),
       askHint: () => run((w, c) => E.askHint(w, c)),
       searchFromTag: (cardId) => {
         const t = get().ui.tagTarget;
@@ -223,7 +244,18 @@ export function createGameStore(opts: StoreOptions = {}) {
         return r;
       },
       selectRoomTime: (time) => run((w, c) => E.selectRoomTime(w, c, time)),
-      closeRoom: () => set({ ui: { ...get().ui, roomOpen: false } }),
+      closeRoom: () => {
+        const ui = get().ui;
+        const back = ui.roomReturnsToTag && ui.tagReturn;
+        set({
+          ui: {
+            ...ui,
+            roomOpen: false,
+            roomReturnsToTag: false,
+            ...(back ? { tagTarget: { cutId: back.cutId, figureId: back.figureId }, tagCard: back.cardId ?? null, tagReturn: null } : {}),
+          },
+        });
+      },
       resolveContradiction: (id, claimId, evidenceId) => run((w, c) => E.resolveContradiction(w, c, id, claimId, evidenceId)),
       search: (q) => run((w, c) => E.search(w, c, q)),
       openCard: (id) => run((w, c) => E.openCard(w, c, id)),

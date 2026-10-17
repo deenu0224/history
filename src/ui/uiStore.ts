@@ -42,6 +42,8 @@ export interface UiStore {
   banner: Banner | null;
   /** 겹침 라벨을 보일 마감 시각(ms) */
   mergeUntil: number;
+  /** 막 이어진 자리(「같은 사람」 라벨 위치) */
+  mergePos: Id | null;
   /** 열린 눈에서 막 닫힘이 일어난 눈(연출용) */
   closedFlash: Id | null;
   /** 막 이름이 붙은 사람(컷 위 이름표가 한 번 튄다) */
@@ -63,7 +65,7 @@ export interface UiStore {
   showToast(text: string, tone?: Toast['tone']): void;
   showBanner(from: string, text: string): void;
   clearBanner(): void;
-  flashMerge(): void;
+  flashMerge(posId?: Id): void;
   flashName(figureId: Id): void;
 }
 
@@ -84,6 +86,7 @@ export const useUi = create<UiStore>()((set, get) => ({
   toast: null,
   banner: null,
   mergeUntil: 0,
+  mergePos: null,
   closedFlash: null,
   freshName: null,
 
@@ -121,8 +124,8 @@ export const useUi = create<UiStore>()((set, get) => ({
     }, 2800);
   },
   clearBanner: () => set({ banner: null }),
-  flashMerge: () => {
-    set({ mergeUntil: Date.now() + 1500 });
+  flashMerge: (posId) => {
+    set({ mergeUntil: Date.now() + 1500, mergePos: posId ?? null });
     setTimeout(() => set({ mergeUntil: 0 }), 1550);
   },
   flashName: (figureId) => {

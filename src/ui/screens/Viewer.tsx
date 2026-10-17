@@ -453,9 +453,10 @@ export function Viewer() {
     g.closeViewer();
     useUi.getState().pop();
   };
+  // 풀리지 않은 모순이 있으면 방은 그 모순 보기로 바로 연다(다음 할 일)
   const openRoom = () => {
     const g = useGameStore.getState();
-    useUi.getState().setRoomFocus(null);
+    useUi.getState().setRoomFocus(hasWarn ? contradictions[0]!.id : null);
     g.openRoom();
   };
   const openLog = () => useUi.getState().setLog(true);

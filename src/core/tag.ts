@@ -14,7 +14,7 @@
  *  8. P 가 A 의 숨은 정체                                                          → ok (아니면 not_pointing — 검증기가 미리 막는다)
  */
 import { appearances, cutAppearances, figureKey, heldEvidence, idx, mergesAt, personGroups, referredAppearances, type Appearance, type Knowledge } from './ep';
-import { sameMoment } from './room';
+import { minutes, sameMoment } from './room';
 import type { Episode, FactKey, Id, PersonCard, TagVerdict } from './types';
 
 export const TAG_FEEDBACK: Record<Exclude<TagVerdict, 'ok'>, string> = {
@@ -189,7 +189,7 @@ export interface EvidenceOption {
 
 /**
  * 이름 붙이기 시트 ② 「근거 하나」 목록 = 관측 로그의 들은 말·본 것만(카드의 사실 줄은 근거가 아니다 —
- * 성공하면 맞는 카드 줄에 먹선이 그어진다: matchedFacts). 이 사람이 나온 컷의 것이 맨 위.
+ * 성공하면 맞는 카드 줄에 먹선이 그어진다: matchedFacts). 순서는 그날의 시각순 고정(이 사람이 나온 컷은 표시만 — fromThisPersonCut).
  * 자리를 가리키는 말(겹침 근거)도 뜬다 — 아직 겹치지 않았으면 판정이 not_linked 로 알려 준다.
  * (cardId 는 옛 호출과의 호환용으로 받기만 한다.)
  */
@@ -219,8 +219,18 @@ export function evidenceOptions(ep: Episode, k: Knowledge, t: TagTarget, cardId?
     });
   }
   void cardId;
-  out.sort((a, b) => Number(b.fromThisPersonCut) - Number(a.fromThisPersonCut));
-  return out;
+  // 순서는 그날의 시각순으로 고정한다(방을 다녀와도·이 사람이 나온 컷이어도 순서가 바뀌지 않는다 — 순서가 답을 흘리지 않게)
+  const rank = (e: EvidenceOption) => {
+    const c = e.cutIds.length ? I.cut.get(e.cutIds[0])! : undefined;
+    return c ? [minutes(c.time), ep.eyes.findIndex((y) => y.id === c.eyeId), c.n] : [Infinity, 0, 0];
+  };
+  return out
+    .map((e, i) => ({ e, r: [...rank(e), i] }))
+    .sort((a, b) => {
+      for (let j = 0; j < a.r.length; j++) if (a.r[j] !== b.r[j]) return a.r[j] - b.r[j];
+      return 0;
+    })
+    .map((x) => x.e);
 }
 
 /** 성공한 태그의 먹선: 근거의 사실 키와 겹치는 그 카드의 줄(파생 키면 via 카드의 줄) */
@@ -234,8 +244,9 @@ export function matchedFacts(ep: Episode, cardId: Id, evidenceId: Id): { cardId:
   return out;
 }
 
-/** 카드 목록(이 방의 카드 먼저) */
+/** 카드 목록: 이름 가나다순(답과 상관없는 순서 — 이 방의 카드를 앞에 모으지 않는다) */
 export function cardOrder(ep: Episode, k: Knowledge): Id[] {
   const I = idx(ep);
-  return [...k.cardsFound].sort((a, b) => Number(I.card.get(b)?.roomAnchored) - Number(I.card.get(a)?.roomAnchored));
+  const name = (id: Id) => I.card.get(id)?.name ?? id;
+  return [...k.cardsFound].sort((a, b) => name(a).localeCompare(name(b), 'ko') || a.localeCompare(b));
 }

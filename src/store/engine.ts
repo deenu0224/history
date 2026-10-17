@@ -11,11 +11,12 @@ import { geometry, isRevealed, resolve as resolveX, witnessEvidenceId } from '@/
 import { askHint as nextAskHint, check, dueHint, markSent, trackActive, type Progress } from '@/core/hints';
 import * as M from '@/core/messenger';
 import { nextRandom } from '@/core/rng';
-import { allRequiredRestored, availablePieces, checkSlotValue, judgeLine, type LineResult, type SetSlotResult } from '@/core/rewrite';
+import { allRequiredRestored, availablePieces, checkSlotValue, judgeLine, sentenceOf, sentenceSlots, type LineResult, type SetSlotResult } from '@/core/rewrite';
 import { minutes, sameMoment } from '@/core/room';
 import { searchIndex, searchMessage, normalizeQuery } from '@/core/search';
+import { judgeLink, type LinkJudgement } from '@/core/link';
 import { judgeTag, matchedFacts, type TagJudgement } from '@/core/tag';
-import type { Burst, Episode, Hhmm, Id, SlotKind } from '@/core/types';
+import type { Burst, Contradiction, Episode, Hhmm, Id, SlotKind, Step } from '@/core/types';
 import { freshState, type PersistedState } from './state';
 
 export interface Ctx {
@@ -108,6 +109,7 @@ function baseProgress(ep: Episode, s: PersistedState): Progress {
     swipes: s.swipes,
     fails: s.fails,
     cardsFound: s.cardsFound,
+    docs: s.docs,
   };
 }
 
@@ -208,12 +210,76 @@ function runTriggers(w: Work, c: Ctx) {
   for (const tr of t) if (!fired(w, tr.event) && check(p, tr.when)) fireEvent(w, c, tr.event);
 }
 
+/** 힌트 묶음(hint.*) → 그 사다리 */
+const hintLadderCache = new WeakMap<Episode, Map<Id, Id>>();
+function hintLadderOf(ep: Episode, burstId: Id): Id | undefined {
+  let m = hintLadderCache.get(ep);
+  if (!m) {
+    m = new Map(ep.ladders.flatMap((l) => l.steps.map((st) => [`hint.${st.id}`, l.id] as [Id, Id])));
+    hintLadderCache.set(ep, m);
+  }
+  return m.get(burstId);
+}
+
+/**
+ * 철 지난 힌트를 거둔다: 힌트는 보낼 때 정한 뒤 입력 중·줄 서기로 몇 초 늦게 배달된다. 그사이 문제가 풀렸거나
+ * 상황이 바뀌었으면(사다리가 꺼졌으면) 배달 직전에 버린다(맞힌 사람에게 「틀린 길」 신호를 주지 않는다).
+ */
+function pruneStaleHints(w: Work, c: Ctx) {
+  const m = w.s.messenger;
+  const ids = [...m.queue.map((q) => q.burstId), ...(m.active ? [m.active.burstId] : [])].filter((id) => id.startsWith('hint.'));
+  if (!ids.length) return;
+  const p = progress(c.ep, w.s);
+  const stale = new Set(
+    ids.filter((id) => {
+      const l = c.ep.ladders.find((x) => x.id === hintLadderOf(c.ep, id));
+      return !l || !check(p, l.activeWhen) || check(p, l.doneWhen);
+    }),
+  );
+  if (stale.size) w.s.messenger = M.dropBursts(m, (id) => !stale.has(id));
+}
+
+/** 묶음이 이 문서를 첨부하는가(선택지 갈래 안까지) */
+function attaches(steps: readonly Step[], docId: Id): boolean {
+  return steps.some((st) => {
+    if (st.kind === 'attach') return st.docId === docId;
+    if (st.kind === 'choice') return st.options.some((o) => attaches(o.then, docId)) || attaches(st.after ?? [], docId);
+    return false;
+  });
+}
+
+/** 모순을 지금 판정할 수 있는가(Contradiction.resolvableWhen — 예: 1년 전 보고서를 받은 뒤) */
+export const contradictionGateOpen = (ep: Episode, s: PersistedState, x: Contradiction) => !x.resolvableWhen || check(baseProgress(ep, s), x.resolvableWhen);
+
+/** 앞당겨 배달할 때: 비동기를 시작에서 이 시간 안으로(메시지 빠르게면 × 0.4) */
+export const EXPEDITE_MS = 8_000;
+
+/**
+ * 긴장 순서 보장: 드러난 모순이 문서를 기다리면(resolvableWhen.docs) 그 문서를 싣고 오는 비동기 결과를 앞당긴다.
+ * (Ep1: 06:00 닫힘 → 「관측기 기록 좀 뒤져 볼게」 → 1년 전 보고서 → 그 뒤에야 X1 을 판정할 수 있다)
+ */
+function expediteGatedDocs(w: Work, c: Ctx) {
+  for (const x of c.ep.contradictions) {
+    if (!w.s.revealed.includes(x.id) || w.s.resolved[x.id] || contradictionGateOpen(c.ep, w.s, x)) continue;
+    for (const docId of x.resolvableWhen?.docs ?? []) {
+      if (w.s.docs.includes(docId)) continue;
+      for (const t of w.s.messenger.tasks) {
+        const b = burstsOf(c.ep).get(t.event);
+        if (b && attaches(b.steps, docId)) w.s.messenger = M.expediteTask(w.s.messenger, t.event, c.now, EXPEDITE_MS * (w.s.settings.fastMessages ? M.FAST_FACTOR : 1));
+      }
+    }
+  }
+}
+
 export function afterAction(w: Work, c: Ctx) {
   checkClosures(w, c);
   checkReveals(w, c);
   runTriggers(w, c);
   runLinger(w, c);
   runHints(w, c);
+  if (w.s.rewrite.open && !w.s.restored) placePreplaced(w, c);
+  pruneStaleHints(w, c);
+  expediteGatedDocs(w, c);
   tickMessenger(w, c);
 }
 
@@ -382,17 +448,24 @@ export function chipFor(ep: Episode, viewed: readonly Id[], time: Hhmm): Hhmm | 
   return timeChips(ep, viewed).find((ch) => sameMoment(ch, time) || (minutes(time) >= minutes(ch) && minutes(time) - minutes(ch) <= 5));
 }
 
+/** 이 시각이 겹침 시범(Episode.autoMergeAt)인가 */
+const isDemoTime = (ep: Episode, time: Hhmm) => (ep.autoMergeAt ?? []).some((t) => sameMoment(t, time));
+
+/**
+ * 방의 시각을 고른다. 겹침은 시범 시각(Episode.autoMergeAt)에서만 저절로 생긴다 — 그 밖의 「같은 사람」은
+ * 플레이어가 linkMarkers 로 직접 잇는다. 돌려주는 merges 는 새로 생긴 시범 겹침.
+ */
 export function selectRoomTime(w: Work, c: Ctx, time: Hhmm): { merges: string[][] } {
   w.s.roomTime = time;
-  const found = mergesAt(c.ep, w.s.viewedCuts, time);
   const fresh: string[][] = [];
-  for (const m of found) {
-    const key = m.keys.join('|');
-    if (w.s.merges.some((x) => x.join('|') === key)) continue;
-    w.s.merges.push(m.keys);
-    fresh.push(m.keys);
-    w.fx.push({ kind: 'merge', keys: m.keys, posId: m.posId });
-  }
+  if (isDemoTime(c.ep, time))
+    for (const m of mergesAt(c.ep, w.s.viewedCuts, time)) {
+      const key = m.keys.join('|');
+      if (w.s.merges.some((x) => x.join('|') === key)) continue;
+      w.s.merges.push(m.keys);
+      fresh.push(m.keys);
+      w.fx.push({ kind: 'merge', keys: m.keys, posId: m.posId });
+    }
   if (fresh.length) {
     completion(w, c);
     fireEvent(w, c, 'ev.merge_first');
@@ -400,9 +473,27 @@ export function selectRoomTime(w: Work, c: Ctx, time: Hhmm): { merges: string[][
   return { merges: fresh };
 }
 
+/**
+ * 「같은 사람 잇기」: 한 관측의 표시(등장 키 A)와 다른 관측의 표시(B)를 잇는다. 판정은 core/link(시각·자리 데이터).
+ * 맞으면 겹침이 저장되고(이름 붙이기 근거가 이어진다) fx merge, 아니면 보이는 이유 한 줄(같은 시각이 아니다 / 같은 자리가 아니다).
+ * 실패는 공짜다(벌·카운트 없음 — 힌트 사다리의 실패 수에만 센다).
+ */
+export function linkMarkers(w: Work, c: Ctx, keyA: string, keyB: string): LinkJudgement {
+  if (!w.s.roomOpened || !roomUnlocked(c.ep, w.s)) return { verdict: 'invalid' };
+  const j = judgeLink(c.ep, knowledge(w.s), keyA, keyB);
+  if (j.verdict === 'ok' && j.keys) {
+    w.s.merges.push(j.keys);
+    w.fx.push({ kind: 'merge', keys: j.keys, posId: j.posId! });
+    completion(w, c);
+    fireEvent(w, c, 'ev.merge_first');
+  } else if (j.verdict !== 'invalid' && j.verdict !== 'already') bump(w, 'link');
+  return j;
+}
+
 export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {
   if (!roomUnlocked(c.ep, w.s)) return 'locked';
   leaveCut(w, c);
+  const first = !w.s.roomOpened;
   if (!w.s.roomOpened) {
     w.s.roomOpened = true;
     fireEvent(w, c, 'ev.room_open');
@@ -412,7 +503,9 @@ export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {
     fireEvent(w, c, 'ev.restore_room');
   }
   const viewingCut = w.s.viewer ? idx(c.ep).eye.get(w.s.viewer.eyeId)?.cuts[w.s.viewer.index] : undefined;
-  const at = time ?? (viewingCut && w.s.viewedCuts.includes(viewingCut) ? idx(c.ep).cut.get(viewingCut)!.time : undefined);
+  // 처음 여는 방은 겹침 시범의 시각으로(그 시각의 겹침이 보일 때) — 「같은 사람」을 한 번 보여 준 뒤 플레이어가 직접 잇는다
+  const demo = first && !time ? (c.ep.autoMergeAt ?? []).find((t) => mergesAt(c.ep, w.s.viewedCuts, t).length) : undefined;
+  const at = demo ?? time ?? (viewingCut && w.s.viewedCuts.includes(viewingCut) ? idx(c.ep).cut.get(viewingCut)!.time : undefined);
   const chips = timeChips(c.ep, w.s.viewedCuts);
   const chip = at ? (chipFor(c.ep, w.s.viewedCuts, at) ?? chips[chips.length - 1]) : (w.s.roomTime ?? chips[chips.length - 1]);
   if (chip) selectRoomTime(w, c, chip);
@@ -420,8 +513,8 @@ export function openRoom(w: Work, c: Ctx, time?: Hhmm): 'opened' | 'locked' {
 }
 
 /**
- * 「이 시각, 그날의 방」(이름 붙이기 시트의 링크): 그 컷의 시각으로 방을 열고 겹침을 저절로 만든다.
- * 돌려주는 merges 는 새로 드러난 겹침.
+ * 「이 시각, 그날의 방」(이름 붙이기 시트의 링크): 그 컷의 시각으로 방을 연다. 겹침은 저절로 만들지 않는다 —
+ * 플레이어가 그 방에서 「같은 사람 잇기」로 잇는다(시범 시각이면 시범 겹침만). 돌려주는 merges 는 새로 생긴 시범 겹침.
  */
 export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 'locked' | 'no_cut'; time?: Hhmm; merges: string[][] } {
   const cut = idx(c.ep).cut.get(cutId);
@@ -437,6 +530,8 @@ export function openRoomAtCut(w: Work, c: Ctx, cutId: Id): { status: 'opened' | 
 export function resolveContradiction(w: Work, c: Ctx, id: Id, claimId: Id, evidenceId?: Id) {
   const x = c.ep.contradictions.find((y) => y.id === id);
   if (!x || !w.s.revealed.includes(id) || w.s.resolved[id]) return { status: 'invalid' as const };
+  // 긴장 순서: 아직 기다리는 것(1년 전 보고서 등)이 오기 전엔 판정하지 않는다 — 고른 것은 그대로, 손해 없음
+  if (!contradictionGateOpen(c.ep, w.s, x)) return { status: 'wait' as const };
   const shown = geometry(c.ep, knowledge(w.s), x).witnesses.map((m) => witnessEvidenceId(x, m.eyeId));
   if (!evidenceId || !shown.includes(evidenceId)) return { status: 'invalid' as const };
   const r = resolveX(c.ep, x, claimId, evidenceId);
@@ -562,27 +657,62 @@ export function composeRewrite(w: Work, c: Ctx): 'opened' | 'locked' | 'restored
   if (!rewriteAvailable(c.ep, w.s)) return 'locked';
   if (!w.s.rewrite.open) {
     w.s.rewrite.open = true;
-    // 미리 놓이는 줄(RecordSentence.preplaced): 조각을 가지고 있으면 줄을 세워 둔다
-    const have = availablePieces(c.ep, knowledge(w.s));
-    for (const sent of c.ep.sentences.filter((x) => x.preplaced)) {
-      const piece = have.find((p) => p.sentenceId === sent.id);
-      if (piece && !w.s.rewrite.lines.some((l) => l.pieceId === piece.id)) w.s.rewrite.lines.push({ id: `ln${++w.s.rewrite.seq}`, pieceId: piece.id, values: {} });
-    }
+    placePreplaced(w, c);
     fireEvent(w, c, 'ev.write_open');
   }
   return 'opened';
 }
+
+/** 미리 놓이는 줄(RecordSentence.preplaced)인가 */
+export const isPreplacedPiece = (ep: Episode, pieceId: Id) => {
+  const p = ep.pieces.find((x) => x.id === pieceId);
+  return !!p?.sentenceId && !!ep.sentences.find((x) => x.id === p.sentenceId)?.preplaced;
+};
+
+/**
+ * 미리 놓이는 줄: 꼭 돌아와야 할 문장은 조각을 가지고 있으면 시각순 자리에 미리 세워 둔다(고를 일이 아니다 — 칸만 채운다).
+ * 다시 쓰기를 연 뒤에 조각을 얻어도 그때 놓인다. 함께 쓰는 칸(shared)은 이미 고른 값을 물려받는다.
+ */
+function placePreplaced(w: Work, c: Ctx) {
+  const have = availablePieces(c.ep, knowledge(w.s));
+  for (const sent of c.ep.sentences.filter((x) => x.preplaced)) {
+    const piece = have.find((p) => p.sentenceId === sent.id);
+    if (!piece || w.s.rewrite.lines.some((l) => l.pieceId === piece.id)) continue;
+    w.s.rewrite.lines.push({ id: `ln${++w.s.rewrite.seq}`, pieceId: piece.id, values: inheritShared(c.ep, w.s.rewrite.lines, sent.id) });
+  }
+}
+
+/** 이 문장의 shared 칸에 넣을, 이미 다른 줄에서 고른 값 */
+function inheritShared(ep: Episode, lines: readonly { pieceId: Id; values: Partial<Record<SlotKind, string>> }[], sentenceId: Id): Partial<Record<SlotKind, string>> {
+  const out: Partial<Record<SlotKind, string>> = {};
+  const sent = ep.sentences.find((x) => x.id === sentenceId);
+  for (const sl of sent ? sentenceSlots(sent) : [])
+    if (sl.shared)
+      for (const l of lines) {
+        const v = l.values[sl.kind];
+        if (v !== undefined && lineHasShared(ep, l.pieceId, sl.kind)) out[sl.kind] = v;
+      }
+  return out;
+}
+
+const lineHasShared = (ep: Episode, pieceId: Id, kind: SlotKind) => {
+  const s = sentenceOf(ep, ep.pieces.find((p) => p.id === pieceId)?.sentenceId);
+  return !!s && sentenceSlots(s).some((sl) => sl.kind === kind && sl.shared);
+};
 
 export function placePiece(w: Work, c: Ctx, pieceId: Id): { status: 'ok'; lineId: Id } | { status: 'not_held' | 'locked' | 'already' } {
   if (!w.s.rewrite.open || w.s.restored) return { status: 'locked' };
   if (!availablePieces(c.ep, knowledge(w.s)).some((p) => p.id === pieceId)) return { status: 'not_held' };
   if (w.s.rewrite.lines.some((l) => l.pieceId === pieceId)) return { status: 'already' };
   const lineId = `ln${++w.s.rewrite.seq}`;
-  w.s.rewrite.lines.push({ id: lineId, pieceId, values: {} });
+  const sid = c.ep.pieces.find((p) => p.id === pieceId)?.sentenceId;
+  w.s.rewrite.lines.push({ id: lineId, pieceId, values: sid ? inheritShared(c.ep, w.s.rewrite.lines, sid) : {} });
   return { status: 'ok', lineId };
 }
 
-export function removeLine(w: Work, _c: Ctx, lineId: Id): boolean {
+export function removeLine(w: Work, c: Ctx, lineId: Id): boolean {
+  const line = w.s.rewrite.lines.find((l) => l.id === lineId);
+  if (line && isPreplacedPiece(c.ep, line.pieceId)) return false; // 미리 놓인 줄은 빼지 않는다
   const before = w.s.rewrite.lines.length;
   w.s.rewrite.lines = w.s.rewrite.lines.filter((l) => l.id !== lineId);
   delete w.s.rewrite.results[lineId];
@@ -600,19 +730,29 @@ export function fillSlot(w: Work, c: Ctx, lineId: Id, kind: SlotKind, value: str
   if (!w.s.slotsOpened.includes(kind)) w.s.slotsOpened.push(kind);
   checkReveals(w, c);
   const r = checkSlotValue(c.ep, knowledge(w.s), line, kind, value, contraState(w.s));
-  if (r.status === 'ok') {
-    line.values[kind] = value;
-    delete w.s.rewrite.results[lineId];
-  }
+  if (r.status === 'ok')
+    for (const l of sharedLines(c.ep, w.s.rewrite.lines, line, kind)) {
+      if (l !== line && w.s.rewrite.results[l.id] === 'restored') continue; // 이미 고정된 줄은 그대로
+      l.values[kind] = value;
+      delete w.s.rewrite.results[l.id];
+    }
   return r;
 }
 
-export function clearSlot(w: Work, _c: Ctx, lineId: Id, kind: SlotKind) {
+/** 이 칸을 함께 쓰는 줄들(shared 칸이면 같은 종류의 shared 칸을 가진 고정 안 된 줄 모두, 아니면 그 줄 하나) */
+function sharedLines<L extends { id: Id; pieceId: Id }>(ep: Episode, lines: L[], line: L, kind: SlotKind): L[] {
+  if (!lineHasShared(ep, line.pieceId, kind)) return [line];
+  return lines.filter((l) => l === line || lineHasShared(ep, l.pieceId, kind));
+}
+
+export function clearSlot(w: Work, c: Ctx, lineId: Id, kind: SlotKind) {
   const line = w.s.rewrite.lines.find((l) => l.id === lineId);
-  if (line) {
-    delete line.values[kind];
-    delete w.s.rewrite.results[lineId];
-  }
+  if (line)
+    for (const l of sharedLines(c.ep, w.s.rewrite.lines, line, kind)) {
+      if (w.s.rewrite.results[l.id] === 'restored' && l !== line) continue;
+      delete l.values[kind];
+      delete w.s.rewrite.results[l.id];
+    }
 }
 
 export interface SubmitOutcome {
@@ -670,6 +810,9 @@ export function restore(w: Work, c: Ctx): 'restored' | 'not_ready' | 'already' {
   w.s.restored = true;
   w.s.restoreStep = 0;
   w.s.rewrite.open = false;
+  // 아직 오지 않은 복원 전 묶음(힌트·답 기다리는 선택지·비동기)은 버린다 — 바뀐 세상에서 옛 말이 늦게 도착하지 않게
+  const bursts = burstsOf(c.ep);
+  w.s.messenger = M.dropBursts(w.s.messenger, (id) => !!bursts.get(id)?.postRestore);
   w.fx.push({ kind: 'restore' });
   fireEvent(w, c, 'ev.restore');
   return 'restored';

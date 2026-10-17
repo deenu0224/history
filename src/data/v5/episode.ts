@@ -35,7 +35,9 @@ export const EP1: Episode = {
   glossary: GLOSSARY1,
   // 한 번에 하나: 찾기(T2 「윤」)를 먼저, 그날의 방은 T2 뒤나 T3 의 얼굴(e2-2)을 본 뒤에
   roomWhen: { any: [{ tagsDone: ['T2'] }, { allViewed: ['e2-2'] }] },
-  rewriteWhen: { closureDone: true, resolved: ['X1'] },
+  rewriteWhen: { closureDone: true, resolved: ['X1'], docs: ['doc_old_report'] },
+  // 겹침 시범(한 번): 처음 여는 방 11:40 의 겹침만 저절로 — 그 밖의 같은 사람은 플레이어가 잇는다
+  autoMergeAt: ['11:40'],
   searchEvents: [{ personId: 'kim_ilson', event: 'ev.search_kim' }],
   askText: '어디부터 볼까요?',
   askFallback: '지금은 막힌 데 없어 보이는데.',

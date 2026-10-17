@@ -3,8 +3,8 @@ import { josa } from '@/core/josa';
  * 화면별 보기(셀렉터) — UI_STYLE_GUIDE §1 화면 목록에 맞춘다. 모두 (ep, state) → 순수한 보기 객체.
  * 원칙: 정답·숨은 정체를 내보내지 않는다(이름은 붙인 뒤에만, 연도·장소는 복원 뒤에만).
  */
-import { geometry, claimById, claimHeld } from '@/core/contradiction';
-import { appearances, heldEvidence, idx, type Appearance } from '@/core/ep';
+import { geometry, claimById, claimHeld, type ContradictionGeometry, type WitnessMark } from '@/core/contradiction';
+import { appearances, heldEvidence, idx, personGroups, type Appearance } from '@/core/ep';
 import { cutAvailability, eyeLabel, eyeState, ownerKnown, type CutAvailability, type EyeState } from '@/core/eyes';
 import { view as messengerView, type MessengerView } from '@/core/messenger';
 import { alteredView, articleView, figureRestoredLabel, glossInline, homeView, visibleFacts, type AlteredView, type ArticlePartView } from '@/core/reality';
@@ -12,7 +12,7 @@ import { availablePieces, fixRate, pieceLabel, renderLine, sentenceOf, sentenceS
 import { posOf, sameMoment } from '@/core/room';
 import { cardOrder, evidenceOptions, type EvidenceOption } from '@/core/tag';
 import type { Episode, FactLink, Gloss, Hhmm, Id, SlotKind, SourceRef } from '@/core/types';
-import { canAskHint, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary, tagsDone } from './engine';
+import { canAskHint, contradictionGateOpen, isPreplacedPiece, knowledge, rewriteAvailable, roomUnlocked, timeChips, chipFor, resumeSummary, tagsDone } from './engine';
 import type { PersistedState, SearchLogEntry } from './state';
 
 const world = (s: PersistedState) => ({ restored: s.restored, closures: s.closures });
@@ -53,7 +53,27 @@ export function selectEyes(ep: Episode, s: PersistedState): EyeView[] {
 export function selectTagProgress(ep: Episode, s: PersistedState) {
   const req = ep.requiredTags ?? ep.tags.map((t) => t.id);
   const done = tagsDone(ep, s).filter((id) => req.includes(id)).length;
-  return { done, total: req.length, complete: req.length > 0 && done >= req.length };
+  const complete = req.length > 0 && done >= req.length;
+  /**
+   * allClear: 꼭 할 일이 하나도 남지 않았다(이름 + 역사 고정 전의 닫힘·모순·보고서 — Episode.rewriteWhen) → 「모두 밝혀졌다」.
+   * 이름만 다 붙었으면 「이름 붙이기 m/m」 만(끝 신호는 아니다).
+   */
+  const allClear = complete && (s.restored || rewriteAvailable(ep, s));
+  return { done, total: req.length, complete, allClear };
+}
+
+/** 다음 할 일 하나(홈·뷰어의 주요 버튼이 가리킨다). 정답은 없다 — 남은 동작의 종류만 */
+export type NextTask = { kind: 'rewrite' } | { kind: 'contradiction'; id: Id } | { kind: 'observe'; eyeId?: Id } | { kind: 'done' };
+
+export function selectNextTask(ep: Episode, s: PersistedState): NextTask {
+  if (s.restored) return { kind: 'done' };
+  if (rewriteAvailable(ep, s)) return { kind: 'rewrite' };
+  const x = s.revealed.find((id) => !s.resolved[id]);
+  if (x && roomUnlocked(ep, s)) return { kind: 'contradiction', id: x };
+  const k = knowledge(s);
+  const eyes = [...ep.eyes].sort((a, b) => a.order - b.order).filter((e) => s.openedEyes.includes(e.id));
+  const fresh = eyes.find((e) => e.cuts.some((id) => !s.viewedCuts.includes(id) && cutAvailability(ep, k, id) === 'viewable'));
+  return { kind: 'observe', eyeId: (fresh ?? eyes[0])?.id };
 }
 
 /** 그날 고정률 NN% — 복원 뒤엔 100 */
@@ -88,6 +108,8 @@ export function selectHome(ep: Episode, s: PersistedState) {
     fixRate: selectFixRate(ep, s),
     /** 다음 할 일 = 역사 고정(주요 버튼이 그쪽으로 바뀐다) */
     rewriteReady: rewriteAvailable(ep, s) && !s.restored,
+    /** 다음 할 일 하나(주요 버튼) */
+    next: selectNextTask(ep, s),
   };
 }
 
@@ -230,11 +252,11 @@ export function selectTagSheet(ep: Episode, s: PersistedState, cutId: Id, figure
   const cut = I.cut.get(cutId);
   return {
     figure: figureLabel(ep, s, figureId),
+    // 작은 카드 = 이름(한자) + 중립 한 줄(생몰). 판정에 쓰이는 사실 줄은 타일에 두지 않는다 — 「이 카드 펼쳐 보기」 안에(짝 맞추기 금지).
+    // 순서는 이름순(core/tag cardOrder) — 이 방의 카드를 앞에 모으지 않는다
     cards: cardOrder(ep, k).map((id) => {
       const c = I.card.get(id)!;
-      // 한 줄 사실: 지금 보이는 첫 사실 줄(따옴표만 벗긴다) — 시트의 작은 카드에 한 줄로
-      const key = visibleFacts(c, world(s))[0]?.text.replace(/[「」]/g, '') ?? '';
-      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, roomAnchored: c.roomAnchored, keyFact: key };
+      return { id, name: c.name, hanja: c.hanja, lifespan: c.lifespan, sub: c.lifespan ?? '' };
     }),
     selectedCard: cardId,
     evidence: cardId ? all : [],
@@ -308,20 +330,32 @@ export function selectCard(ep: Episode, s: PersistedState, cardId: Id): CardView
 
 // ── 그날의 방 ────────────────────────────────────────────────────
 export interface RoomMarker {
-  /** 등장 키들(겹치면 여럿) */
+  /** 등장 키들(같은 사람으로 이어졌으면 여럿) */
   keys: string[];
   posId: Id;
+  /** 자리 좌표(칸) */
   x: number;
   y: number;
+  /** 같은 자리에 아직 잇지 않은 표시가 여럿이면 옆으로 벌린 간격(칸) — 그림에서만 */
+  ox: number;
   /** 성 한 글자 · 「?」 · (복원 뒤) 짝 이름 */
   label: string;
+  /** 서로 다른 관측의 표시가 같은 사람으로 이어졌다 */
   merged: boolean;
+  /** 이어진 관측 수 */
   count: number;
   cutIds: Id[];
+  /** 이 표시가 나온 관측(눈) */
+  eyeIds: Id[];
+  /** 눈의 주인 자신(그 관측의 자리) */
+  owner: boolean;
   /** 이 표시의 사람을 태그할 수 있는 컷 속 figure(있으면) */
   figure?: { cutId: Id; figureId: Id };
   kind: 'person' | 'mention';
 }
+
+/** 같은 자리에 아직 잇지 않은 표시가 여럿일 때 벌리는 간격(칸) — 손가락 44px 이 겹치지 않게 */
+export const MARKER_SPREAD = 0.8;
 
 export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
   const I = idx(ep);
@@ -332,12 +366,17 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
   const byPos = new Map<Id, Appearance[]>();
   for (const a of apps) byPos.set(a.posId, [...(byPos.get(a.posId) ?? []), a]);
   const markers: RoomMarker[] = [];
-  const mergedKeys = new Set(s.merges.flat());
+  // 같은 사람 묶음(한 기억 안의 같은 사람 + 이어진 겹침) — 한 자리에서 묶음 하나 = 표시 하나
+  const groups = personGroups(ep, k);
   for (const [posId, list] of byPos) {
     const p = posOf(ep.room, posId);
-    const isMerged = list.length > 1 && list.every((a) => mergedKeys.has(a.key));
-    const groups = isMerged ? [list] : list.map((a) => [a]);
-    for (const g of groups) {
+    const comps = new Map<string, Appearance[]>();
+    for (const a of list) {
+      const root = groups.get(a.key) ?? a.key;
+      comps.set(root, [...(comps.get(root) ?? []), a]);
+    }
+    const parts = [...comps.values()];
+    parts.forEach((g, i) => {
       let label = '?';
       for (const a of g) {
         if (a.kind === 'figure') {
@@ -350,19 +389,23 @@ export function selectRoom(ep: Episode, s: PersistedState, time?: Hhmm) {
         }
       }
       const fig = g.find((a): a is Extract<Appearance, { kind: 'figure' }> => a.kind === 'figure');
+      const eyeIds = [...new Set(g.map((a) => a.eyeId))];
       markers.push({
         keys: g.map((a) => a.key),
         posId,
         x: p.x,
         y: p.y,
+        ox: parts.length > 1 ? (i - (parts.length - 1) / 2) * MARKER_SPREAD : 0,
         label,
-        merged: isMerged,
-        count: g.length,
+        merged: eyeIds.length > 1,
+        count: eyeIds.length,
         cutIds: [...new Set(g.map((a) => a.cutId))],
+        eyeIds,
+        owner: g.some((a) => a.kind === 'owner'),
         ...(fig ? { figure: { cutId: fig.cutId, figureId: fig.figureId } } : {}),
         kind: g.every((a) => a.kind === 'mention') ? 'mention' : 'person',
       });
-    }
+    });
   }
   const eyes = [...ep.eyes]
     .filter((e) => e.seatId && (s.openedEyes.includes(e.id) || s.closedEyes.includes(e.id)))
@@ -434,15 +477,35 @@ export function selectContradictionView(ep: Episode, s: PersistedState, id: Id) 
     slots: 2 as const,
     judgements: x.claims.map((cid, i) => ({ claimId: cid, text: x.buttons[i] })),
     evidence: contradictionEvidence(ep, s, id),
-    geometry: geometry(ep, knowledge(s), x),
+    geometry: neutralGeometry(geometry(ep, knowledge(s), x)),
+    /** 아직 판정할 수 없다(기다리는 문서가 오기 전 — Contradiction.resolvableWhen). 고르기는 된다 */
+    waiting: !s.resolved[id] && !contradictionGateOpen(ep, s, x),
   };
 }
 
-const SIGHT_WORD = { countable: '가림 없이 셀 수 있음', occluded: '가림', far: '세어 볼 수 있는 거리 밖', out_of_view: '시야 밖' } as const;
+/**
+ * 모순 도면에 주는 기하: 판정 전에는 자리마다의 결론(또렷/흐림·셀 수 있음/가려짐)을 내보내지 않는다 —
+ * 원(들림 반경)·시선·가림 빗금·자리·거리만. 결론은 플레이어가 그림에서 읽는다(규칙 2).
+ */
+export type NeutralGeometry = Omit<ContradictionGeometry, 'witnesses' | 'listeners'> & {
+  witnesses: Omit<WitnessMark, 'status'>[];
+  listeners: { key: string; x: number; y: number }[];
+};
+function neutralGeometry(g: ContradictionGeometry): NeutralGeometry {
+  return {
+    ...g,
+    witnesses: g.witnesses.map(({ status: _s, ...w }) => w),
+    listeners: g.listeners.map(({ status: _s, ...l }) => l),
+  };
+}
+
+/** 칸 거리(사람 말처럼 소수 한 자리) */
+const cells = (n: number) => `${Math.round(n * 10) / 10}칸`;
 
 /**
- * 모순의 근거 칸에 고를 수 있는 자리 사실(지금 방에 보이는 눈마다 하나). 글은 데이터에서 계산한다 —
- * 들림: 「홍귀달 자리 — 문 앞에서 9.21칸, 들림 반경 8칸」 / 보임: 「이극돈 자리 — 봉함 자리까지 1.1칸, 가림 없이 셀 수 있음」.
+ * 모순의 근거 칸에 고를 수 있는 자리 사실(지금 방에 보이는 눈마다 하나). 글은 데이터에서 계산한다 — 거리와 기준만 적고
+ * 결론(안/밖, 가림)은 적지 않는다(플레이어가 도면에서 읽는다):
+ * 들림 「홍귀달 자리 — 문 앞에서 9.2칸, 들림 반경 8칸」 / 보임 「윤효손 자리 — 봉하는 자리까지 4.4칸, 셀 수 있는 거리 5칸」.
  * 어느 것이 승패를 가르는지는 여기서 알려 주지 않는다(판정은 엔진).
  */
 export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): { id: Id; eyeId: Id; text: string }[] {
@@ -452,7 +515,6 @@ export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): {
   const k = knowledge(s);
   const g = geometry(ep, k, x);
   const srcLabel = ep.room.points.find((p) => p.id === g.source.posId)?.label ?? ep.room.seats.find((p) => p.id === g.source.posId)?.label ?? '그 자리';
-  const occ = x.resolvedBy.kind === 'sight' ? ep.room.furniture.find((f) => f.id === (x.resolvedBy as { occluderId: Id }).occluderId)?.label : undefined;
   const seen = new Set<Id>();
   const out: { id: Id; eyeId: Id; text: string }[] = [];
   for (const w of g.witnesses) {
@@ -462,8 +524,8 @@ export function contradictionEvidence(ep: Episode, s: PersistedState, id: Id): {
     const who = ownerKnown(ep, k, eye) ? (I.card.get(eye.personId)?.name ?? '?') : eyeLabel(ep, k, eye);
     const text =
       g.kind === 'hearing'
-        ? `${who} 자리 — ${srcLabel}에서 ${w.distance}칸, 들림 반경 ${g.radius}칸`
-        : `${who} 자리 — ${srcLabel}까지 ${w.distance}칸, ${w.status === 'occluded' && occ ? `${occ}에 가림` : (SIGHT_WORD[w.status as keyof typeof SIGHT_WORD] ?? '')}`;
+        ? `${who} 자리 — ${srcLabel}에서 ${cells(w.distance)}, 들림 반경 ${g.radius}칸`
+        : `${who} 자리 — ${srcLabel}까지 ${cells(w.distance)}, 셀 수 있는 거리 ${g.detailRange}칸`;
     out.push({ id: `${x.id}:${w.eyeId}`, eyeId: w.eyeId, text });
   }
   return out;
@@ -553,6 +615,8 @@ export interface RewriteLineView {
   pieceId: Id;
   label: string;
   witnessOnly: boolean;
+  /** 미리 놓인 줄(빼기 없음) */
+  preplaced: boolean;
   render: LineRender;
   result?: LineResult;
   resultText?: string;
@@ -581,6 +645,7 @@ export function selectRewrite(ep: Episode, s: PersistedState) {
         pieceId: l.pieceId,
         label: pieceLabel(ep, piece, cs),
         witnessOnly: !!piece.witnessOnly,
+        preplaced: isPreplacedPiece(ep, l.pieceId),
         render: renderLine(ep, l, result),
         ...(result ? { result, resultText: RESULT_TEXT[result] } : {}),
         slots: sent
