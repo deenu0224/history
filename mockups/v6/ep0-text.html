@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>결록 v6 · Ep0 글 전용 목업</title>
+<style>
+/* 글꼴: 로컬 파일이 있으면 Pretendard, 없으면 시스템 고딕. 그림 파일은 없다. */
+@font-face{font-family:'Pretendard';font-weight:400;src:url('../fonts/Pretendard-Regular.woff2') format('woff2');}
+@font-face{font-family:'Pretendard';font-weight:500;src:url('../fonts/Pretendard-Medium.woff2') format('woff2');}
+@font-face{font-family:'Pretendard';font-weight:600;src:url('../fonts/Pretendard-SemiBold.woff2') format('woff2');}
+
+:root{
+  /* 라이트 = 한지 */
+  --bg:#f3ecd9; --surface:#fbf6e8; --surface-2:#ece3cb; --line:#c4b58f;
+  --text:#25211e; --muted:#5b5144; --accent:#1c6462; --accent-soft:#d6e7e0;
+  --gold:#7a560a; --gold-line:#b8891f; --gold-bg:#f6e6b4;
+  --alert:#a3402c; --alert-bg:#f4ddd3; --seal:#a04540; --backdrop:#d9d0b8; --scrim:rgba(37,33,30,.45);
+  --f-ui:'Pretendard',system-ui,-apple-system,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;
+  --f-read:'Nanum Myeongjo','Noto Serif KR','AppleMyungjo','Batang',serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141c; --surface:#182130; --surface-2:#243046; --line:#34445e;
+    --text:#dde3e7; --muted:#9fb0c0; --accent:#86c4bd; --accent-soft:#1c3a3b;
+    --gold:#e6c36a; --gold-line:#b8923a; --gold-bg:#2f2913;
+    --alert:#e39a8a; --alert-bg:#3a2420; --seal:#d9746d; --backdrop:#07090d; --scrim:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141c; --surface:#182130; --surface-2:#243046; --line:#34445e;
+  --text:#dde3e7; --muted:#9fb0c0; --accent:#86c4bd; --accent-soft:#1c3a3b;
+  --gold:#e6c36a; --gold-line:#b8923a; --gold-bg:#2f2913;
+  --alert:#e39a8a; --alert-bg:#3a2420; --seal:#d9746d; --backdrop:#07090d; --scrim:rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{word-break:keep-all;overflow-wrap:anywhere;background:var(--backdrop);color:var(--text);font-family:var(--f-ui);font-size:17px;line-height:27px;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:inherit}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.meta{font-size:16px;line-height:24px;color:var(--muted)}
+h1{font-size:22px;line-height:30px;font-weight:600}
+
+/* 틀 */
+.frame{width:100%;max-width:480px;height:100vh;height:100dvh;max-height:932px;margin:0 auto;position:relative;overflow:hidden;background:var(--bg);display:grid;grid-template-rows:auto 1fr auto}
+.goal{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;background:var(--surface-2);border-bottom:1px solid var(--line);font-weight:600;font-size:17px;width:100%}
+.goal .k{color:var(--muted);font-weight:500}
+.goal.done{background:var(--gold-bg);color:var(--gold);border-bottom-color:var(--gold-line)}
+.goal.done .k{color:var(--gold)}
+.main.sheeted{overflow:hidden}
+.main{overflow-y:auto;overflow-x:hidden;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.bar{display:grid;grid-template-columns:1fr 2.2fr 1fr;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--surface);border-top:1px solid var(--line)}
+.bar button{min-height:56px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;position:relative}
+.bar .mid{background:var(--accent);color:var(--bg);border-radius:0;overflow:hidden}
+:root[data-theme="dark"] .bar .mid{color:#0f141c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bar .mid{color:#0f141c}}
+.bar .mid[disabled]{background:var(--surface-2);color:var(--muted);cursor:default}
+.bar .mid.gold{background:var(--gold-line);color:#1d1606}
+.bar .dot{width:8px;height:8px;border-radius:50%;background:var(--alert);position:absolute;top:12px;right:calc(50% - 30px)}
+.bar .fill{position:absolute;inset:0;background:var(--gold-line);transform-origin:left;transform:scaleX(var(--p,0));opacity:.95}
+.bar .mid.hold{background:var(--surface-2);color:var(--text);touch-action:none;user-select:none;-webkit-user-select:none}
+.bar .mid.hold span{position:relative;z-index:1;mix-blend-mode:normal}
+
+/* 글 카드 */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tag{font-size:16px;line-height:22px;padding:0 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted);white-space:nowrap}
+.tag.fic{border-style:dashed}
+.tag.ver{border-color:var(--accent);color:var(--accent)}
+.tag.seal{border:2px solid var(--seal);color:var(--seal);font-weight:600;transform:rotate(-3deg)}
+.head-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:4px}
+.count{font-size:16px;color:var(--accent);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ln{font-family:var(--f-read);font-size:17px;line-height:27px;margin-top:10px}
+.ln.hole{border-left:3px solid var(--alert);padding-left:10px}
+.ln.restored{border-left:3px solid var(--gold-line);padding-left:10px}
+.hole-mark{color:var(--alert);font-weight:600;letter-spacing:.02em}
+.filled{background:var(--gold-bg);color:var(--gold);font-weight:600;padding:0 4px;border-radius:4px}
+
+/* 단서 낱말(밑줄) */
+.clue{font-family:inherit;display:inline;color:inherit;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:3px;text-underline-offset:5px;background:var(--accent-soft);border-radius:3px;padding:0 2px;position:relative}
+.clue::before{content:"";position:absolute;left:-6px;right:-6px;top:-12px;bottom:-12px} /* 터치 영역 확장 */
+.clue.got{background:none;text-decoration-style:dotted;text-decoration-thickness:2px;text-decoration-color:var(--muted);color:var(--muted)}
+.clue.got::after{content:" ✓";font-size:16px;color:var(--muted)}
+.srcbtn{display:inline-flex;vertical-align:baseline;align-items:center;gap:2px;font-family:var(--f-ui);font-size:16px;line-height:24px;color:var(--accent);margin-left:6px;position:relative;white-space:nowrap}
+.srcbtn::before{content:"";position:absolute;left:-6px;right:-6px;top:-10px;bottom:-10px}
+.srcbtn svg{width:16px;height:16px;transition:transform .15s}
+.srcbtn[aria-expanded="true"] svg{transform:rotate(180deg)}
+
+/* 밝힌 것 */
+.found{margin-top:10px;padding:8px 12px;border:1px dashed var(--line);border-radius:8px;font-size:16px;line-height:24px;color:var(--muted)}
+.found b{color:var(--text);font-weight:600}
+.found[hidden]{display:none}
+.found.has{border-style:solid;border-color:var(--gold-line);background:var(--gold-bg);color:var(--gold)}
+
+/* 연결 칩 */
+.sec-t{font-size:16px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px 8px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--accent);border-radius:22px;font-size:16px;color:var(--text);background:var(--surface)}
+.chip .kd{color:var(--accent);font-weight:600}
+.chip.new{animation:glow 1.6s ease-out 1;box-shadow:0 0 0 3px var(--accent-soft);background:var(--accent-soft)}
+.chip.seen{opacity:.55}
+.chip.locked{border-style:dashed;border-color:var(--muted);color:var(--muted);flex-wrap:wrap;padding:6px 14px;line-height:22px}
+.chip.locked .why{flex-basis:100%;font-size:16px}
+@keyframes glow{0%{box-shadow:0 0 0 0 var(--accent)}100%{box-shadow:0 0 0 3px var(--accent-soft)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* 관측 쪽 */
+.pager{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin:0 -16px;padding:0 16px;scrollbar-width:none;flex:none}
+.pager::-webkit-scrollbar{display:none}
+.page{flex:0 0 calc(100% - 24px);scroll-snap-align:center;display:flex;flex-direction:column;gap:12px}
+.page .obs{min-height:440px}
+.dots{display:flex;gap:8px;align-items:center;justify-content:center;min-height:24px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent);width:22px;border-radius:4px}
+.obs{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.obs .lab{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:600;color:var(--accent)}
+.obs .lab.heard{color:var(--gold)}
+.obs .stage{font-size:16px;color:var(--muted);line-height:24px;margin-top:2px}
+.scene{font-family:var(--f-read);color:var(--muted);padding:0 4px}
+
+/* 원문 보기 패널 */
+.panel{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--f-ui)}
+.panel dl{display:grid;grid-template-columns:56px 1fr;gap:0}
+.panel dt,.panel dd{padding:10px 12px;border-top:1px solid var(--line);font-size:16px;line-height:24px}
+.panel dt:first-of-type,.panel dt:first-of-type+dd{border-top:0}
+.panel dt{color:var(--muted);font-weight:600}
+.panel dd.zh{font-family:var(--f-read);font-size:17px;line-height:26px}
+.panel .rd{display:block;color:var(--muted);font-family:var(--f-ui);font-size:16px;margin-top:2px}
+.panel .url{word-break:break-all}
+.panel .na{color:var(--muted)}
+.panel .lock{display:flex;gap:6px;align-items:flex-start;color:var(--muted)}
+.panel .lock svg{margin-top:2px}
+
+/* 시트 */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:5}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:56px;z-index:6;background:var(--surface);border-top:2px solid var(--accent);border-radius:14px 14px 0 0;display:flex;flex-direction:column;box-shadow:0 -6px 18px rgba(0,0,0,.25)}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 16px 0}
+.slot{min-height:56px;border:1.5px dashed var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:16px;line-height:22px;color:var(--muted)}
+.slot.full{border-style:solid;border-color:var(--accent);background:var(--accent-soft);color:var(--text);font-weight:600}
+.slot.shake{animation:shake .5s 1;border-color:var(--alert);background:var(--alert-bg)}
+.slot .x{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;margin:-8px -10px -8px 0;color:var(--muted)}
+@keyframes shake{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.slot-n{padding:2px 16px 0;text-align:right;font-size:16px;color:var(--muted)}
+.fb{margin:8px 16px 0;border-radius:10px;padding:10px 14px;font-size:16px;line-height:24px;min-height:72px}
+.fb.idle{border:1px dashed var(--line);color:var(--muted)}
+.fb.no{background:var(--alert-bg);border:1px solid var(--alert);color:var(--text)}
+.fb.no .ft{display:flex;gap:6px;align-items:center;color:var(--alert);font-weight:600}
+.fb.yes{background:var(--gold-bg);border:2px solid var(--gold-line);color:var(--text);animation:stamp .5s ease-out 1}
+.fb.yes .ft{display:flex;gap:6px;align-items:center;color:var(--gold);font-weight:600}
+.fb .big{font-size:17px;font-weight:600;line-height:26px;margin-top:2px}
+@keyframes stamp{0%{transform:scale(1.06);opacity:.4}100%{transform:none;opacity:1}}
+.words{display:flex;gap:8px;align-items:center;padding:10px 16px 6px;overflow-x:auto;scrollbar-width:none}
+.words::-webkit-scrollbar{display:none}
+.words .lb{font-size:16px;color:var(--muted);white-space:nowrap}
+.wchip{min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:22px;font-size:16px;white-space:nowrap;background:var(--bg)}
+.wchip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.bag{flex:1;overflow-y:auto;padding:4px 16px 12px;display:flex;flex-direction:column;gap:8px}
+.cc{flex:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);width:100%;min-height:44px;display:block}
+.cc .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.cc .n{font-weight:600;font-size:17px;line-height:24px}
+.cc .kd{font-size:16px;color:var(--muted);white-space:nowrap}
+.cc .l{display:block;font-family:var(--f-read);font-size:16px;line-height:24px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc .w{display:block;font-size:16px;line-height:24px;color:var(--muted)}
+.cc.pick{border-color:var(--accent);background:var(--accent-soft)}
+.cc.concl{border:2px solid var(--gold-line);background:var(--gold-bg)}
+.cc.concl .n{color:var(--gold)}
+.cc.dim{opacity:.45}
+.cc .new{font-size:16px;font-weight:600;color:var(--gold)}
+
+/* 역사 고정 */
+.pinbox{text-align:center;padding:6px 4px 8px;margin-top:auto}
+.cmp{list-style:none;margin-top:8px}
+.cmp li{display:flex;gap:10px;align-items:center;min-height:36px;font-size:16px;color:var(--muted)}
+.cmp li.ok{color:var(--text)}
+.cmp li.ok svg{color:var(--gold)}
+.cmp .ring{width:20px;height:20px;border:1.8px solid var(--line);border-radius:50%;flex:none}
+.rate{display:flex;align-items:center;gap:12px;margin-top:14px}
+.rate .tr{flex:1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.rate .tr i{display:block;height:100%;background:var(--gold-line);width:var(--r,0%)}
+.rate b{font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+.msg{display:flex;gap:10px;align-items:flex-start;font-size:16px;line-height:24px;color:var(--muted);padding:0 4px}
+.msg b{color:var(--text)}
+.seal{display:inline-block}
+
+/* 목업 전용 선택기 */
+.picker{width:100%;max-width:480px;margin:0 auto;padding:12px 16px 24px;background:var(--surface-2);font-size:16px}
+.picker .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.picker button{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.picker button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+@media (min-width:700px){
+  body{min-height:100vh}
+  .picker{position:fixed;left:12px;top:12px;width:210px;border-radius:10px;padding:12px}
+  .picker .row{flex-direction:column}
+}
+body.shot .picker{display:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-match" viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="5"/><circle cx="15.5" cy="12" r="5"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="i-goal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-ear" viewBox="0 0 24 24"><path d="M7 9a5 5 0 0110 0c0 4-3 4-3 8a2.5 2.5 0 01-5 0"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3H7l3-3zM12 12v9"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 013 3v13H8a3 3 0 01-3-3zM5 17a3 3 0 013-3h10"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3A4 4 0 0011 18.7l1-1"/></symbol>
+</defs></svg>
+
+<div class="frame" id="frame"></div>
+
+<div class="picker" id="picker">
+  <b>목업 전용 · 화면 고르기</b>
+  <div class="row" id="screens"></div>
+  <div class="row" id="themes"></div>
+</div>
+
+<script>
+/* ===== 자료(목업용 표. 판정은 여기서 사실로 계산하지 않고, 짝 표만 비교한다) ===== */
+const L = {
+  head:{ko:'집현전 부제학(集賢殿副提學) 최만리(崔萬理) 등이 상소하기를,',zh:null,words:[['부제학','집현전의 높은 관직 가운데 하나']]},
+  eonmun:{ko:'신 등이 엎디어 보옵건대, 언문(諺文)을 제작하신 것이 지극히 신묘하와 만물을 창조하시고 지혜를 운전하심이 천고에 뛰어나시오나,',zh:null,words:[['언문','우리말을 적던 글자를 낮추어 부르던 말']]},
+  s_seol:{ko:'신라 설총(薛聰)의 이두(吏讀)는 비록 야비한 이언(俚言)이오나, 모두 중국에서 통행하는 글자를 빌어서 어조(語助)에 사용하였기에, 문자가 원래 서로 분리된 것이 아니므로,',zh:null,words:[['이두','한자를 빌려 우리말을 적던 법']]},
+  holed:{ko:'[ ? ] 소(疏)를 보고, [ ── ] 설총(薛聰)의 [ ── ] 운서(韻書)를 아느냐. [ ── ] 누가 이를 바로잡을 것이냐. …',zh:'hole',words:[['운서','한자의 소리를 운에 따라 정리한 책']]},
+  roster:{ko:'드디어 부제학(副提學) 최만리(崔萬理)·직제학(直提學) 신석조(辛碩祖)·직전(直殿) 김문(金汶), 응교(應敎) 정창손(鄭昌孫)·부교리(副校理) 하위지(河緯之)·부수찬(副修撰) 송처검(宋處儉), 저작랑(著作郞) 조근(趙瑾)을 의금부에 내렸다가 이튿날 석방하라 명하였는데, 오직 정창손만은 파직(罷職)시키고,',zh:'遂下副提學崔萬理、直提學辛碩祖、直殿金汶、應敎鄭昌孫、副校理河緯地、副修撰宋處儉、著作郞趙瑾于義禁府。 翌日, 命釋之, 唯罷昌孫職。',rd:'수하부제학최만리, 직제학신석조, 직전김문, 응교정창손, 부교리하위지, 부수찬송처검, 저작랑조근우의금부. 익일, 명석지, 유파창손직.',words:[['의금부','죄를 묻던 관청']],note:'국역 河緯之 — 원문 河緯地'},
+  gunsang:{ko:'너희들이 설총(薛聰)은 옳다 하면서 군상(君上)의 하는 일은 그르다 하는 것은 무엇이냐.',zh:'汝等以薛聰爲是, 而非其君上之事, 何哉?',rd:'여등이설총위시, 이비기군상지사, 하재?',words:[['군상(君上)','임금']]},
+  unseo:{ko:'만일 내가 그 운서를 바로잡지 아니하면 누가 이를 바로잡을 것이냐.',zh:'若非予正其韻書, 則伊誰正之乎?',rd:'약비여정기운서, 즉이수정지호?',words:[['운서(韻書)','한자의 소리를 운에 따라 정리한 책']]},
+  k_seol:{ko:'너희들이 이르기를, ‘음(音)을 사용하고 글자를 합한 것이 모두 옛 글에 위반된다.’ 하였는데, 설총(薛聰)의 이두(吏讀)도 역시 음이 다르지 않으냐.',zh:null,words:[['이두','한자를 빌려 우리말을 적던 법']]},
+  summon:{ko:'내가 너희들을 부른 것은 처음부터 죄주려 한 것이 아니고, 다만 소(疏) 안에 한두 가지 말을 물으려 하였던 것인데,',zh:null,words:[]}
+};
+const C = { /* 단서: 짧은 이름 · 종류 · 현대어 · 원문 id · 낱말 · 나온 곳 */
+  head:{n:'글머리',k:'기록',t:'집현전 부제학 최만리 등이 이렇게 글을 올렸다.',w:['부제학','이 글'],f:'시작 기록',L:'head'},
+  eonmun:{n:"'언문을 만드신 일' 줄",k:'기록',t:'저희가 엎드려 보건대, 언문을 만드신 일은 참으로 신묘하여, …',w:['언문','이 글'],f:'시작 기록',L:'eonmun'},
+  s_seol:{n:'글 속 설총 줄',k:'기록',t:'신라 설총의 이두는 거친 우리말이지만, 모두 중국에서 쓰는 글자를 빌려 …',w:['설총','이 글'],f:'시작 기록',L:'s_seol'},
+  tail:{n:'뚫린 줄의 남은 말',k:'본 것(기록)',t:'[ ? ] 올린 글을 보고, [ ── ] 설총의 [ ── ] 운서를 아느냐. …',w:['설총','운서','누가 바로잡겠느냐'],f:'시작 기록',L:'holed'},
+  r_choi:{n:'명단 · 부제학 최만리',k:'기록',t:'부제학 최만리',w:['부제학','명단'],f:'시작 기록',L:'roster'},
+  r_jeong:{n:'명단 · 응교 정창손',k:'기록',t:'응교 정창손',w:['명단'],f:'시작 기록',L:'roster'},
+  title:{n:'두루마리 첫머리',k:'본 것',t:'한 관원이 두루마리를 편다. 첫머리 석 자만 보인다 — 副提學(부제학).',w:['부제학'],f:'관측 1 · 1쪽'}
+};
+/* 맞는 묶음 표(데이터). 목업이 보여 줄 결론만 둔다. */
+const PAIRS = [
+  {set:['title','r_choi'],id:'A',txt:'두루마리를 편 관원 = 부제학 최만리',sub:'두루마리는 그가 올린 글'},
+  {set:['title','head'],id:'A',txt:'두루마리를 편 관원 = 부제학 최만리',sub:'두루마리는 그가 올린 글'}
+];
+const WHY = [
+  {set:['title','r_jeong'],bad:'r_jeong',txt:'두루마리 첫머리의 직함은 부제학이다. 고른 명단 줄은 응교 — 맞지 않는다.'}
+];
+const WHY_DEFAULT = '고른 두 단서를 이어 주는 것이 아직 없다. 하나를 바꿔 보자.';
+const same = (a,b)=>a.length===b.length&&a.every(x=>b.includes(x));
+
+/* ===== 조각 ===== */
+const ic = (n,c='')=>`<svg class="i ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const clue = (id,text,got)=>`<button class="clue${got?' got':''}" data-clue="${id}" aria-label="단서 ${got?'(주머니에 있음) ':''}${text.replace(/<[^>]*>/g,'')}">${text}</button>`;
+const srcBtn = (key,open)=>`<button class="srcbtn" data-src="${key}" aria-expanded="${!!open}">원문 보기 ${ic('down')}</button>`;
+function panel(key,{restored=false}={}){
+  const l=L[key];
+  const hole = l.zh==='hole';
+  const src = restored
+    ? `『세종실록』 103권, 세종 26년 2월 20일 경자<br><span class="meta url">sillok.history.go.kr/id/kda_12602020_001</span>`
+    : `<span class="lock">${ic('lock')}<span>실록 기사 · 출처는 복원 뒤에 보인다</span></span>`;
+  const zh = hole ? `<span class="na">같은 자리 손상 — 복원 뒤에 보인다</span>`
+    : l.zh ? `${l.zh}<span class="rd">${l.rd||''}</span>` : `<span class="na">확보 전 — 원문 대조 중</span>`;
+  const words = l.words.length ? l.words.map(w=>`${w[0]}: ${w[1]}`).join('<br>') : '<span class="na">풀이할 낱말 없음</span>';
+  return `<div class="panel" data-panel="${key}"><dl>
+    <dt>국역</dt><dd class="zh"><span class="tag ver" style="margin-right:6px">검증</span>${hole?'「'+l.ko+'」':'「'+l.ko+'」'}</dd>
+    <dt>원문</dt><dd class="zh">${zh}${l.note?`<span class="rd">${l.note}</span>`:''}</dd>
+    <dt>낱말</dt><dd>${words}</dd>
+    <dt>출처</dt><dd>${src}</dd></dl></div>`;
+}
+const chip = (kd,lab,cls='',why='')=>`<button class="chip ${cls}">${cls==='locked'?ic('lock'):''}<span class="kd">${kd}</span><span>${lab}</span>${why?`<span class="why">${why}</span>`:''}</button>`;
+const bar = (mid,{midCls='',dot=true,midAttr=''}={})=>`<nav class="bar" aria-label="아래 막대">
+  <button data-act="back" aria-label="뒤로">${ic('back')}<span>뒤로</span></button>
+  <button class="mid ${midCls}" ${midAttr}>${mid}</button>
+  <button data-act="msg" aria-label="메신저${dot?' (새 글 있음)':''}">${ic('chat')}<span>메신저</span>${dot?'<i class="dot"></i>':''}</button></nav>`;
+const goal = (done=false,txt)=>`<button class="goal ${done?'done':''}">${ic('goal')}<span class="k">목표 ·</span><span>${txt||"이 문장의 '누가'를 밝혀라"}</span></button>`;
+const bagLabel = n=>`${ic('match')}<span>맞춰 보기 · 단서 ${n}</span>`;
+
+/* ===== 화면 ===== */
+const S = {};
+
+/* 1. 시작 기록 N0 */
+S['1'] = {name:'시작 기록', render:()=>{
+  const got = new Set(['head','r_choi']);
+  const k = id=>got.has(id);
+  return {goal:goal(),
+  main:`<section class="card" aria-labelledby="t1">
+    <div class="tags"><span class="tag">실록 · 현대어 풀이</span><span class="tag fic">관측기 로그 · 허구</span></div>
+    <h1 id="t1">#C-2209 · 손상된 그날 실록</h1>
+    <div class="head-row"><p class="meta">관측기: 문장 손상 2건 · 자동 탐지</p><span class="count" aria-label="단서 6개 중 2개">단서 2/6</span></div>
+    <p class="ln">${clue('head','집현전 부제학 최만리 등이 이렇게 글을 올렸다.',k('head'))}${srcBtn('head')}</p>
+    <p class="ln">${clue('eonmun','저희가 엎드려 보건대, 언문을 만드신 일은 참으로 신묘하여 …',k('eonmun'))}${srcBtn('eonmun')}</p>
+    <p class="ln">${clue('s_seol','신라 설총의 이두는 거친 우리말이지만, …',k('s_seol'))}${srcBtn('s_seol')}</p>
+    <p class="ln hole">${clue('tail','<span class="hole-mark">[ ? ]</span> 올린 글을 보고, [ ── ] 설총의 [ ── ] 운서를 아느냐. [ ── ] 누가 바로잡겠느냐. …',k('tail'))}${srcBtn('holed')}</p>
+    <div class="found" aria-live="polite" hidden></div>
+    <p class="ln">그래서 ${clue('r_choi','부제학 최만리',k('r_choi'))}, … 응교 ${clue('r_jeong','정창손',k('r_jeong'))} … 을 가두었다가 이튿날 풀어 주라고 명했다. …${srcBtn('roster')}</p>
+  </section>
+  <section aria-label="이어진 기록"><p class="sec-t" style="margin-bottom:6px">${ic('link')} 이어진 기록</p><div class="chips">
+    ${chip('시간','같은 날 · 관측 1','new')}${chip('인물','최만리')}${chip('인물','정창손')}${chip('인물','하위지')}
+    ${chip('시간','나흘 전')}${chip('시간','이튿날')}${chip('사건','탐지 기록')}
+    ${chip('사건','같은 손상','locked','날짜 없음 — 관측 불가')}</div></section>`,
+  bar:bar(bagLabel(2))};
+}};
+
+/* 2. 관측 N1 */
+S['2'] = {name:'관측 1 쪽', render:()=>{
+  const dots = n=>`<div class="dots" aria-label="3쪽 중 ${n}쪽">${[1,2,3].map(i=>`<i class="${i===n?'on':''}"></i>`).join('')}</div>`;
+  return {goal:goal(),
+  main:`<div><h1>관측 1 · 하위지의 눈</h1><p class="meta">그날 기록에 이름이 남은 사람 · <span class="count" style="color:var(--accent)">단서 0/5</span></p></div>
+  <div class="pager" id="pager">
+    <article class="page" aria-label="1쪽">
+      <div class="obs"><div class="lab">${ic('eye')} 본 것 · 하위지가 본 것</div>
+        <p class="ln scene" style="margin-top:12px;padding:0">방 안이 조용하다. 숨소리가 들릴 만큼 조용하다.</p>
+        <p class="ln" style="margin-top:16px">한 관원이 높은 자리에 앉은 사람 앞으로 나아가 ${clue('title','두루마리를 편다. 첫머리 석 자만 보인다 — 副提學(부제학). 나머지는 말려 있다.',false)}</p>
+        <p class="ln scene" style="margin-top:16px;padding:0">앞에 앉은 사람은 말없이 그것을 내려다본다.</p>
+        <p class="meta" style="margin-top:16px">재구성 · 기록에는 이 모습이 없다</p></div>
+    </article>
+    <article class="page" aria-label="2쪽"><div class="obs"><div class="lab heard">${ic('ear')} 들은 말</div><p class="stage">높은 자리의 사람이 두루마리를 편 관원 쪽에게</p>
+      <p class="ln">너희는 ‘소리를 쓰고 글자를 합치는 것이 다 옛글에 어긋난다’고 했는데, 설총의 이두도 소리가 다르지 않으냐.</p></div></article>
+    <article class="page" aria-label="3쪽"><div class="obs"><div class="lab heard">${ic('ear')} 들은 말</div><p class="ln">내가 그 운서를 바로잡지 않으면, 누가 바로잡겠느냐.</p></div></article>
+  </div>
+  ${dots(1)}`,
+  bar:bar(bagLabel(6))};
+}};
+
+/* 맞춰 보기 시트 공통 */
+const BAG = ['title','head','eonmun','s_seol','tail','r_choi','r_jeong'];
+function sheetScreen(slots,{result,shake}={}){
+  const cards = [];
+  if(result==='A') cards.push(`<div class="cc concl"><div class="t"><span class="n">${ic('star')} 두루마리를 편 관원 = 부제학 최만리</span></div><div class="t"><span class="kd">결론</span><span class="new">새 결론</span></div></div>`);
+  BAG.forEach(id=>{
+    const c=C[id], pick=slots.includes(id);
+    cards.push(`<button class="cc ${pick?'pick':''}" data-card="${id}" aria-pressed="${pick}">
+      <span class="t"><span class="n">${c.n}</span><span class="kd">${c.k}</span></span>
+      <span class="l">${c.t}</span><span class="w">${c.f} · 낱말 ${c.w.join(' · ')}</span></button>`);
+  });
+  const slotHtml = [0,1].map(i=>{
+    const id=slots[i];
+    if(!id) return `<div class="slot"><span>단서 ${i+1}</span></div>`;
+    return `<div class="slot full ${shake&&id===shake?'shake':''}"><span>${C[id].n}</span><button class="x" aria-label="${C[id].n} 빼기">${ic('x')}</button></div>`;
+  }).join('');
+  let fb = `<div class="fb idle">단서 둘을 고르고 아래 「맞춰 보기」를 누른다. 틀려도 잃는 것은 없다.</div>`;
+  if(result==='A') fb = `<div class="fb yes" aria-live="polite"><div class="ft">${ic('star')} 맞다 · 결론 하나가 주머니에 들어갔다</div><div class="big">두루마리를 편 관원 = 부제학 최만리</div><div>두루마리는 그가 올린 글이다.</div></div>`;
+  if(result==='no'){
+    const w = WHY.find(x=>same(x.set,slots));
+    fb = `<div class="fb no" aria-live="polite"><div class="ft">${ic('x')} 왜 아닌지</div><div>${w?w.txt:WHY_DEFAULT}</div></div>`;
+  }
+  return {goal:goal(),
+    main:`<div style="opacity:.5"><h1>관측 1 · 하위지의 눈</h1></div><div class="scrim"></div>
+    <section class="sheet" aria-label="맞춰 보기">
+      <div class="sheet-h"><h1>맞춰 보기</h1><span class="meta">2개 고르기</span></div>
+      <div class="slots">${slotHtml}</div>
+      ${fb}
+      <div class="words" role="group" aria-label="낱말로 모아 보기"><span class="lb">낱말</span>
+        ${['부제학','설총','운서','언문'].map(w=>`<button class="wchip" aria-pressed="false">${w}</button>`).join('')}</div>
+      <div class="bag">${cards.join('')}</div>
+    </section>`,
+    bar:bar(`${ic('match')}<span>맞춰 보기</span>`,{midAttr: slots.length===2?'':'disabled'})};
+}
+S['3'] = {name:'맞춰 보기 · 결론', render:()=>sheetScreen(['title','r_choi'],{result:'A'})};
+S['4'] = {name:'왜 아닌지', render:()=>sheetScreen(['title','r_jeong'],{result:'no',shake:'r_jeong'})};
+
+/* 5. 원문 보기 */
+S['5'] = {name:'원문 보기', render:()=>({goal:goal(),
+  main:`<div><h1>관측 1 · 하위지의 눈</h1><p class="meta">그날 기록에 이름이 남은 사람 · 2쪽 · 단서 2/5</p></div>
+  <article class="obs" style="padding-bottom:16px"><div class="lab heard">${ic('ear')} 들은 말</div><p class="stage">높은 자리의 사람이 두루마리를 편 관원 쪽에게</p>
+    <p class="ln">${clue('gunsang','너희는 설총은 옳다 하면서, 임금이 하는 일은 그르다 하니 어찌 된 것이냐.',false)}${`<button class="srcbtn" data-src="gunsang" aria-expanded="true">원문 보기 ${ic('down')}</button>`}</p>
+    ${panel('gunsang')}</article>
+  <div class="dots" aria-label="3쪽 중 2쪽"><i></i><i class="on"></i><i></i></div>`,
+  bar:bar(bagLabel(8))})};
+
+/* 6. 역사 고정 */
+const FIXED = `임금이 올린 글을 보고, 만리 등에게 말했다. 너희는 ‘소리를 쓰고 글자를 합치는 것이 다 옛글에 어긋난다’고 했는데, 설총의 이두도 소리가 다르지 않으냐. … 너희는 설총은 옳다 하면서, 임금이 하는 일은 그르다 하니 어찌 된 것이냐. … 내가 그 운서를 바로잡지 않으면, 누가 바로잡겠느냐.`;
+S['6'] = {name:'역사 고정', render:(o={})=>{
+  const p=o.p||0;
+  return {goal:goal(true,"밝혔다 — '누가' = 임금"),
+  main:`<section class="card"><div class="tags"><span class="tag">역사 고정</span></div>
+    <h1>이 줄을 그날의 기록으로 굳힌다</h1>
+    <p class="ln restored"><span class="filled">임금</span>이 올린 글을 보고, 만리 등에게 말했다. …</p>
+    <p class="meta" style="margin-top:12px">검증된 국역과 맞는 줄만 굳는다.</p>
+    <ul class="cmp" aria-label="국역과 대조">${[['‘설총의 이두도 소리가 다르지 않으냐’','k_seol',.3],['‘임금이 하는 일은 그르다 하니’','gunsang',.6],['‘내가 바로잡지 않으면 누가’','unseo',.9]].map(([t,k,th])=>`<li data-th="${th}" class="${p>=th?'ok':''}">${p>=th?ic('check'):'<span class="ring"></span>'}<span>${t}</span></li>`).join('')}</ul>
+    <div class="rate"><span class="meta">고정률</span><div class="tr"><i id="rate-i" style="--r:${Math.round(p*100)}%"></i></div><b id="rate-n">${Math.round(p*100)}%</b></div></section>
+  <div class="msg">${ic('chat')}<span><b>한 선임</b> · 고정하면 세상이 그 기록대로 굳어.</span></div>
+  <p class="meta pinbox">아래 「역사 고정」을 길게 누른다.</p>`,
+  bar:bar(`<i class="fill" id="fill"></i><span>${ic('pin')} 길게 눌러 역사 고정</span>`,{midCls:'hold',midAttr:`id="hold" style="--p:${p}"`,dot:false})};
+}};
+S['6b'] = {name:'복원된 기록', render:()=>({goal:goal(true,'완료 — 그날이 고정되었다'),
+  main:`<section class="card"><div class="tags"><span class="tag">실록 · 현대어 풀이</span><span class="tag seal">고정됨</span></div>
+    <h1>#C-2209 · 돌아온 그날 실록</h1>
+    <p class="meta">손상 0건 · 고정률 100%</p>
+    <p class="ln restored">${FIXED}${srcBtn('restored',true)}</p>
+    <div class="panel"><dl>
+      <dt>국역</dt><dd class="zh"><span class="tag ver" style="margin-right:6px">검증</span>「임금이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, …」</dd>
+      <dt>원문</dt><dd class="zh"><span class="na">확보 전 — 원문 대조 중</span></dd>
+      <dt>출처</dt><dd>『세종실록』 103권, 세종 26년 2월 20일 경자<br><span class="meta url">sillok.history.go.kr/id/kda_12602020_001</span></dd></dl></div></section>
+  <section aria-label="돌아온 이웃 기록"><p class="sec-t">${ic('link')} 이웃 기록이 돌아왔다</p><div class="chips">${chip('인물','임금','new')}${chip('사건','같은 손상','new')}</div></section>`,
+  bar:bar('다음 ›',{midCls:'gold'})})};
+
+/* ===== 렌더 · 선택기 ===== */
+const frame = document.getElementById('frame');
+let cur='1', holdTimer=null;
+function show(id,opt){
+  cur=id;
+  const o = S[id].render(opt||{});
+  frame.innerHTML = o.goal + `<main class="main ${o.main.includes('class="sheet"')?'sheeted':''}" id="main">${o.main}</main>` + o.bar;
+  document.querySelectorAll('#screens button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.id===id));
+  if(id==='2'){ /* 쪽 넘김 힌트: 다음 쪽 모서리가 보인다 */ }
+  if(id==='5'){ const m=document.getElementById('main'); }
+  bind(); history.replaceState(null,'','#'+id+location.search);
+}
+function bind(){
+  const m = frame;
+  m.querySelectorAll('[data-src]').forEach(b=>b.addEventListener('click',()=>{
+    const key=b.dataset.src, open=b.getAttribute('aria-expanded')==='true';
+    const holder=b.closest('.ln,.obs,.card');
+    const ex=holder.querySelector(`[data-panel="${key}"]`);
+    if(ex){ex.remove(); b.setAttribute('aria-expanded','false');return;}
+    if(L[key]){ const t=document.createElement('div'); t.innerHTML=panel(key); b.closest('.ln').after(t.firstElementChild); b.setAttribute('aria-expanded','true'); }
+  }));
+  m.querySelectorAll('.clue').forEach(b=>b.addEventListener('click',()=>{ b.classList.add('got'); }));
+  if(cur==='3'||cur==='4') bindSheet();
+  if(cur==='6') bindHold();
+  if(cur==='6b'||cur==='6'){ }
+  const back = m.querySelector('[data-act="back"]'); if(back) back.addEventListener('click',()=>{});
+}
+function bindSheet(){
+  let slots = (cur==='3'?['title','r_choi']:['title','r_jeong']);
+  const redraw=(res)=>{ const o=sheetScreen(slots,res); frame.innerHTML=o.goal+`<main class="main ${o.main.includes('class="sheet"')?'sheeted':''}" id="main">${o.main}</main>`+o.bar; wire(); };
+  const wire=()=>{
+    frame.querySelectorAll('[data-card]').forEach(b=>b.addEventListener('click',()=>{
+      const id=b.dataset.card; const i=slots.indexOf(id);
+      if(i>=0) slots.splice(i,1); else if(slots.length<2) slots.push(id);
+      redraw({});
+    }));
+    frame.querySelectorAll('.slot .x').forEach((x,i)=>x.addEventListener('click',()=>{slots.splice(i,1);redraw({});}));
+    frame.querySelectorAll('.wchip').forEach(w=>w.addEventListener('click',()=>{ const on=w.getAttribute('aria-pressed')==='true'; w.setAttribute('aria-pressed',!on); }));
+    const mid=frame.querySelector('.bar .mid');
+    mid.addEventListener('click',()=>{
+      if(slots.length<2) return;
+      const hit=PAIRS.find(p=>same(p.set,slots));
+      if(hit) redraw({result:'A'});
+      else { const w=WHY.find(x=>same(x.set,slots)); redraw({result:'no',shake:w?w.bad:slots[1]}); }
+    });
+  };
+  wire();
+}
+function bindHold(){
+  const hold=document.getElementById('hold'); if(!hold) return;
+  const q=new URLSearchParams(location.search);
+  if(q.has('hold')) return; /* 고정된 진행 상태(촬영용) */
+  let t0=0, raf=0; const D=1200;
+  const upd=p=>{ hold.style.setProperty('--p',p); document.getElementById('rate-i').style.setProperty('--r',Math.round(p*100)+'%'); document.getElementById('rate-n').textContent=Math.round(p*100)+'%'; frame.querySelectorAll('.cmp li').forEach(li=>{const ok=p>=parseFloat(li.dataset.th); if(ok!==li.classList.contains('ok')){li.classList.toggle('ok',ok); li.firstElementChild.outerHTML= ok?`${ic('check')}`:'<span class="ring"></span>';}}); };
+  const tick=()=>{ const p=Math.min(1,(performance.now()-t0)/D); upd(p); if(p>=1){ cancelAnimationFrame(raf); show('6b'); } else raf=requestAnimationFrame(tick); };
+  const start=e=>{ e.preventDefault(); t0=performance.now(); raf=requestAnimationFrame(tick); };
+  const stop=()=>{ cancelAnimationFrame(raf); upd(0); };
+  hold.addEventListener('pointerdown',start);
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>hold.addEventListener(ev,stop));
+  hold.addEventListener('contextmenu',e=>e.preventDefault());
+}
+
+const sc=document.getElementById('screens');
+Object.keys(S).forEach((id,i)=>{ const b=document.createElement('button'); b.dataset.id=id; b.textContent=(i+1>6?'6b':i+1)+' '+S[id].name; b.setAttribute('aria-pressed','false'); b.addEventListener('click',()=>{ history.replaceState(null,'',location.pathname); show(id); }); sc.appendChild(b); });
+const th=document.getElementById('themes');
+[['','자동'],['light','라이트'],['dark','다크']].forEach(([v,l])=>{ const b=document.createElement('button'); b.textContent=l; b.addEventListener('click',()=>{ if(v) document.documentElement.dataset.theme=v; else delete document.documentElement.dataset.theme; }); th.appendChild(b); });
+
+const q=new URLSearchParams(location.search);
+if(q.get('theme')) document.documentElement.dataset.theme=q.get('theme');
+if(q.has('shot')) document.body.classList.add('shot');
+const startId=(location.hash||'#1').slice(1); const sid=S[startId]?startId:'1';
+if(sid==='6'&&q.has('hold')) show('6',{p:parseFloat(q.get('hold'))||0}); else show(sid);
+if(sid==='5'){ /* 2쪽 상태 */ }
+</script>
+</body>
+</html>
