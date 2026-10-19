@@ -41,7 +41,7 @@ export function Intro() {
           <span className="rule" />
           <div className="title-mark">결록</div>
           <p className="t-m keep" style={{ marginTop: 28 }}>
-            사라진 하루를, 그 자리에 있던 사람들의 눈으로 다시 적는다.
+            흐려진 하루를, 그 자리에 있던 사람들의 눈으로 붙든다.
           </p>
         </div>
         <div className="foot">
