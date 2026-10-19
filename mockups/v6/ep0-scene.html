@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>결록 v6 목업 — Ep0 장면 복원형</title>
+<!--
+  목업 전용(src/ 미변경). 「장면 복원형」(Golden Idol식) Ep0 비교용.
+  컷 그림: public/cuts/ep0 (reconstructed). 문장: 『세종실록』 103권, 세종 26년 2월 20일 국역(verified, src/data/v5/ep0/article.ts 그대로).
+  컷은 390 CSS px = 내부 130칸 × 3 — 정수 배율(UI/UX 판결 시정 명령 1).
+-->
+<link rel="stylesheet" href="/mockups/fonts/myeongjo.css" />
+<style>
+@font-face { font-family: 'Pretendard'; src: url('/mockups/fonts/Pretendard-Regular.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'Pretendard'; src: url('/mockups/fonts/Pretendard-SemiBold.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: 'Galmuri11'; src: url('/fonts/Galmuri11.woff2') format('woff2'); }
+:root {
+  --bg: #0f141c; --surface: #182130; --surface-2: #243046; --line: #34445e;
+  --text: #dde3e7; --muted: #a3b1c0; --accent: #c4975a; --accent-strong: #e3c48c;
+  --erase: #6aa5a3; --backdrop: #07090d;
+  --paper: #efe5cb; --paper-2: #dccfae; --ink: #3a342f; --ink-soft: #5a5040; --seal: #a04540;
+  --f-ui: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --f-read: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  --f-pixel: 'Galmuri11', 'Pretendard', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--backdrop); color: var(--text); font-family: var(--f-ui); -webkit-font-smoothing: antialiased; }
+.screen { position: relative; width: 390px; height: 844px; margin: 0 auto; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+.head { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 16px 10px; }
+.head h1 { margin: 0; font-size: 20px; font-weight: 600; }
+.head .sub { font-size: 16px; color: var(--muted); }
+.cut { position: relative; width: 390px; height: 520px; flex: none; }
+.cut img { width: 390px; height: 520px; display: block; image-rendering: pixelated; }
+.hot { position: absolute; border: 2px dashed rgba(227,196,140,.75); border-radius: 6px; }
+.hot.done { border-style: solid; border-color: var(--erase); }
+.hot .tag { position: absolute; left: -2px; top: -26px; font-size: 16px; line-height: 22px; padding: 0 6px; background: var(--erase); color: #0b1418; border-radius: 4px; white-space: nowrap; font-weight: 600; }
+.moments { display: flex; gap: 8px; padding: 10px 16px 0; }
+.moments b { flex: 1; text-align: center; font: 600 16px/44px var(--f-ui); border: 1px solid var(--line); border-radius: 10px; color: var(--muted); }
+.moments b.on { color: var(--text); border-color: var(--accent); background: var(--surface); }
+.moments b small { font-weight: 400; color: var(--muted); }
+.pocket { margin: 10px 16px 0; padding: 10px 12px; background: var(--surface); border-radius: 12px; }
+.pocket .lbl { font-size: 16px; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 600 17px/44px var(--f-ui); min-width: 44px; padding: 0 12px; border-radius: 10px; background: var(--surface-2); color: var(--text); text-align: center; }
+.chip.new { outline: 2px solid var(--accent-strong); }
+.chip.used { opacity: .45; }
+.chip.ghost { background: transparent; border: 1px dashed var(--line); color: var(--line); }
+.chip .k { font-weight: 400; color: var(--muted); font-size: 16px; }
+.bar { margin-top: auto; display: grid; grid-template-columns: 72px 1fr 72px; align-items: center; height: 76px; border-top: 1px solid var(--line); background: #0b1017; }
+.bar .side { text-align: center; font-size: 16px; color: var(--muted); }
+.bar .main { height: 52px; border-radius: 14px; border: 1.5px solid var(--accent); color: var(--accent-strong); font: 600 18px/50px var(--f-ui); text-align: center; }
+.bar .main.off { border-color: var(--line); color: var(--line); }
+.bubble { position: absolute; left: 12px; right: 12px; background: rgba(15,20,28,.94); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 17px; line-height: 27px; }
+.bubble .who { font-size: 16px; color: var(--muted); }
+.bubble u { text-decoration: none; border-bottom: 2px solid var(--accent-strong); color: var(--accent-strong); font-weight: 600; }
+.fly { position: absolute; font: 600 17px/40px var(--f-ui); padding: 0 12px; border-radius: 10px; background: var(--accent); color: #1a140c; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+/* 기록 판 */
+.sheet { position: relative; flex: 1; margin: 4px 12px 0; background: var(--paper); color: var(--ink); border-radius: 10px; padding: 18px 16px; font-family: var(--f-read); font-size: 18px; line-height: 34px; overflow: hidden; }
+.sheet .src { font-family: var(--f-ui); font-size: 16px; line-height: 24px; color: var(--ink-soft); margin: 2px 0 16px; }
+.sheet .no { font-family: var(--f-ui); font-size: 16px; color: var(--ink-soft); }
+.slot { display: inline-block; min-width: 74px; padding: 0 10px; margin: 0 2px; line-height: 38px; border: 2px dashed #8a7a58; border-radius: 8px; text-align: center; font-family: var(--f-ui); font-weight: 600; color: #6b5e45; }
+.slot.fill { border-style: solid; border-color: var(--ink); color: var(--ink); background: rgba(196,151,90,.18); }
+.slot.focus { border-color: var(--seal); box-shadow: 0 0 0 3px rgba(160,69,64,.2); }
+.slot.ok { border-style: solid; border-color: transparent; background: transparent; color: #1e1a16; padding: 0 2px; min-width: 0; font-family: var(--f-read); }
+.pool { padding: 10px 16px 0; }
+.pool .lbl { font-size: 16px; color: var(--muted); margin-bottom: 8px; }
+.verdict { margin: 10px 16px 0; padding: 12px 14px; border-radius: 12px; background: var(--surface); font-size: 17px; line-height: 26px; }
+.verdict .t { font-weight: 600; }
+.verdict .m { color: var(--muted); font-size: 16px; }
+.ink { color: #1e1a16; }
+.reveal { margin: 12px 16px 0; padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--accent); }
+.reveal .k { font-size: 16px; color: var(--accent-strong); }
+.reveal .n { font-family: var(--f-read); font-size: 26px; line-height: 38px; margin: 2px 0; }
+.reveal .m { font-size: 16px; color: var(--muted); line-height: 24px; }
+.stamp { position: absolute; right: 30px; top: 470px; width: 74px; height: 74px; border: 3px solid var(--seal); border-radius: 8px; color: var(--seal); font: 600 20px/22px var(--f-read); display: flex; align-items: center; justify-content: center; text-align: center; transform: rotate(-8deg); opacity: .9; }
+.dim { opacity: .5; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const CUT = (id) => `/cuts/ep0/${id}.webp`;
+// manifest.json 의 탭 영역(비율) → 390×520
+const box = (x, y, w, h) => `left:${x * 390}px;top:${y * 520}px;width:${w * 390}px;height:${h * 520}px`;
+const bar = (main, off = false) => `<div class="bar"><div class="side">‹<br>뒤로</div><div class="main${off ? ' off' : ''}">${main}</div><div class="side">💬<br>메신저</div></div>`;
+const moments = (on) => `<div class="moments">${['10:00', '10:10', '10:15'].map((t, i) => `<b class="${i === on ? 'on' : ''}">${t} <small>순간 ${i + 1}</small></b>`).join('')}</div>`;
+
+const S = {
+  // N1 — 한 장면, 세 순간. 탭할 곳은 점선, 얻은 낱말은 주머니로.
+  'n1-scene': () => `
+  <div class="screen">
+    <div class="head"><h1>그날의 장면</h1><span class="sub">빈자리 #C-2209</span></div>
+    <div class="cut"><img src="${CUT('e0-1')}" alt="">
+      <div class="hot" style="${box(0, 0.3144, 0.3077, 0.5221)}"></div>
+      <div class="hot" style="${box(0.1231, 0.3346, 0.1962, 0.225)}"></div>
+      <div class="hot" style="${box(0.3346, 0.3144, 0.1615, 0.1356)}"></div>
+      <div class="hot" style="${box(0.5923, 0.2827, 0.4077, 0.7173)}"></div>
+    </div>
+    ${moments(0)}
+    <div class="pocket"><div class="lbl"><span>낱말 주머니</span><span>0 / ?</span></div>
+      <div class="chips"><span class="chip ghost">탭해서 모은다</span></div></div>
+    ${bar('기록 판 ›', true)}
+  </div>`,
+
+  // N2 — 두루마리 탭 → 이름·직함, 읽는 소리 탭 → 밑줄 낱말
+  'n2-collect': () => `
+  <div class="screen">
+    <div class="head"><h1>그날의 장면</h1><span class="sub">빈자리 #C-2209</span></div>
+    <div class="cut"><img src="${CUT('e0-1')}" alt="">
+      <div class="hot done" style="${box(0.1231, 0.3346, 0.1962, 0.225)}"></div>
+      <div class="hot done" style="${box(0, 0.3144, 0.3077, 0.5221)}"></div>
+      <div class="bubble" style="top:12px"><div class="who">두루마리 첫머리</div>副提學 崔萬理 — <u>부제학</u> <u>최만리</u></div>
+      <div class="bubble" style="top:392px"><div class="who">두루마리를 든 관원 · 소리 내어 읽음</div>신(臣) 등이 엎디어 보옵건대, <u>언문</u>(諺文)을 제작하신 것이 지극히 신묘하와…</div>
+      <div class="fly" style="left:200px;top:520px;transform:rotate(-4deg)">최만리</div>
+    </div>
+    ${moments(0)}
+    <div class="pocket"><div class="lbl"><span>낱말 주머니</span><span>3</span></div>
+      <div class="chips"><span class="chip new">부제학</span><span class="chip new">최만리</span><span class="chip new">언문</span></div></div>
+    ${bar('기록 판 ›', true)}
+  </div>`,
+
+  // N2b — 순간 2: 임금의 말에서 사람 낱말(설총·군상)과 미끼
+  'n2b-moment2': () => `
+  <div class="screen">
+    <div class="head"><h1>그날의 장면</h1><span class="sub">빈자리 #C-2209</span></div>
+    <div class="cut"><img src="${CUT('e0-2')}" alt="">
+      <div class="hot done" style="${box(0.3, 0.3115, 0.4885, 0.4154)}"></div>
+      <div class="bubble" style="top:330px"><div class="who">높은 자리의 사람 · 말</div>…<u>설총</u>(薛聰)의 <u>이두</u>(吏讀)도 역시 음이 다르지 않으냐. 너희들이 설총은 옳다 하면서 <u>군상</u>(君上, 임금)의 하는 일은 그르다 하는 것은 무엇이냐.</div>
+    </div>
+    ${moments(1)}
+    <div class="pocket"><div class="lbl"><span>낱말 주머니</span><span>7</span></div>
+      <div class="chips"><span class="chip">부제학</span><span class="chip">최만리</span><span class="chip">언문</span><span class="chip">신</span><span class="chip new">설총</span><span class="chip new">이두</span><span class="chip new">임금</span></div></div>
+    ${bar('기록 판 ›')}
+  </div>`,
+
+  // N3 — 기록 판: 검증된 실록 문장 두 줄의 빈칸을 한꺼번에 채운다
+  'n3-sheet': () => `
+  <div class="screen">
+    <div class="head"><h1>기록 판</h1><span class="sub">빈칸 4 · 한꺼번에 맞춘다</span></div>
+    <div class="sheet">
+      <div class="no">첫째 줄</div>
+      집현전 <span class="slot fill">부제학</span> <span class="slot fill">최만리</span> 등이 상소하기를, "신 등이 엎디어 보옵건대, 언문(諺文)을 제작하신 것이 지극히 신묘하와…"
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일</div>
+      <div class="no">둘째 줄</div>
+      <span class="slot focus">　　　</span>이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…<span class="slot">　　　</span>의 이두(吏讀)도 역시 음이 다르지 않으냐."
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일</div>
+    </div>
+    <div class="pool"><div class="lbl">낱말 주머니 — 칸을 고르고 낱말을 탭</div>
+      <div class="chips"><span class="chip used">부제학</span><span class="chip used">최만리</span><span class="chip">임금</span><span class="chip">설총</span><span class="chip">신</span><span class="chip">언문</span><span class="chip">이두</span><span class="chip">운서</span></div></div>
+    ${bar('길게 눌러 맞춰 보기', true)}
+  </div>`,
+
+  // N4 — 틀린 판정: 어느 칸인지 말하지 않는다(찍기 방지 — 판 전체 단위)
+  'n4-miss': () => `
+  <div class="screen">
+    <div class="head"><h1>기록 판</h1><span class="sub">빈칸 4 · 한꺼번에 맞춘다</span></div>
+    <div class="sheet dim">
+      <div class="no">첫째 줄</div>
+      집현전 <span class="slot fill">부제학</span> <span class="slot fill">최만리</span> 등이 상소하기를, "신 등이 엎디어 보옵건대, 언문(諺文)을 제작하신 것이 지극히 신묘하와…"
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일</div>
+      <div class="no">둘째 줄</div>
+      <span class="slot fill">설총</span>이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…<span class="slot fill">임금</span>의 이두(吏讀)도 역시 음이 다르지 않으냐."
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일</div>
+    </div>
+    <div class="verdict"><div class="t">아직 기록이 되지 않는다.</div><div class="m">판 전체가 맞아야 굳는다. 어느 칸인지는 알려 주지 않는다 — 장면으로 돌아가 다시 들어 보자. (잃는 것은 없다)</div></div>
+    ${bar('장면으로')}
+  </div>`,
+
+  // N5 — 굳음: 원문 복원 + 지워졌던 이름이 돌아온다(보상은 퍼즐이 아니라 결과)
+  'n5-fixed': () => `
+  <div class="screen">
+    <div class="head"><h1>빈자리 #C-2209</h1><span class="sub" style="color:var(--accent-strong)">고정됨</span></div>
+    <div class="sheet">
+      <div class="stamp">그날<br>굳음</div>
+      <div class="no">첫째 줄</div>
+      <span class="ink">집현전 <span class="slot ok">부제학</span> <span class="slot ok">최만리</span> 등이 상소하기를, "신 등이 엎디어 보옵건대, 언문(諺文)을 제작하신 것이 지극히 신묘하와…"</span>
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일 · 출처 ↗</div>
+      <div class="no">둘째 줄</div>
+      <span class="ink"><span class="slot ok">임금</span>이 소(疏)를 보고, 만리(萬理) 등에게 이르기를, "…<span class="slot ok">설총</span>(薛聰)의 이두(吏讀)도 역시 음이 다르지 않으냐."</span>
+      <div class="src">『세종실록』 103권, 세종 26년 2월 20일 · 출처 ↗</div>
+    </div>
+    <div class="reveal"><div class="k">지워졌던 이름이 돌아왔다</div><div class="n">세종</div>
+      <div class="m">「이달에 임금이 친히 언문(諺文) 28자(字)를 지었는데」 — 『세종실록』 102권, 세종 25년 12월 30일</div></div>
+    ${bar('기록이 돌아왔다 ›')}
+  </div>`,
+};
+window.__SCREENS = Object.keys(S);
+const render = () => { const id = location.hash.slice(2) || 'n1-scene'; document.getElementById('app').innerHTML = (S[id] || S['n1-scene'])(); };
+addEventListener('hashchange', render); render();
+</script>
+</body>
+</html>
