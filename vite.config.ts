@@ -32,6 +32,8 @@ function swPlugin(): Plugin {
       for (const f of files.sort()) {
         hash.update(f).update(readFileSync(join(outDir, f)));
         // 지연 로딩 뷰어(Phaser) 청크는 설치를 막지 않는다.
+        // 시제품 페이지(dial.html)와 그 전용 청크는 게임 캐시에 넣지 않는다.
+        if (f === 'dial.html' || /^assets\/dial-/.test(f)) continue;
         if (/^assets\/createViewer-.*\.js$/.test(f)) lazy.push(f);
         else core.push(f);
       }
@@ -53,6 +55,11 @@ export default defineConfig({
     target: 'es2020',
     chunkSizeWarningLimit: 1700,
     rollupOptions: {
+      // index.html = 게임, dial.html = 「그날은 주파수다」 다이얼 시제품(src/proto/dial, 게임과 상태를 나누지 않음)
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        dial: fileURLToPath(new URL('./dial.html', import.meta.url)),
+      },
       output: {
         manualChunks: (id) =>
           /node_modules\/(react|react-dom|scheduler)\//.test(id) ? 'react' : undefined,
