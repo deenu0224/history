@@ -1,15 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { bus } from '@/core/bus';
-import { useGameStore } from '@/store/gameStore';
+import { getV6Store } from '@/store/v6/store';
 import { App } from './App';
 import { PhoneFrame } from './shell/PhoneFrame';
 import { registerServiceWorker } from './shell/registerSw';
-import { useUi } from './ui/uiStore';
 import './styles/ui.css';
+import './styles/v6.css';
 
 if (new URLSearchParams(location.search).get('test') === '1') {
-  Object.assign(window, { __STORE__: useGameStore, __BUS__: bus, __UI__: useUi });
+  Object.assign(window, { __STORE__: getV6Store() });
 }
 
 createRoot(document.getElementById('root')!).render(

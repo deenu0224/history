@@ -9,9 +9,8 @@ export const NODES: Record<string, RecordNode> = {
   N0: {
     id: 'N0',
     kind: 'sillok',
-    title: '#C-2209 · 손상된 그날 실록',
+    title: '손상된 그날 실록',
     provenance: 'reconstructed',
-    header: { text: '관측기: 문장 손상 2건 · 자동 탐지', provenance: 'fictional' },
     goalTarget: true,
     pages: [
       {

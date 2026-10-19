@@ -6,7 +6,7 @@
  */
 import fs from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { bareHanja } from '../../src/ui/lib/text';
+import { bareHanja } from '../../../src/ui/lib/text';
 
 const SHOTS = 'mockups/out/v5-ui';
 let shotNo = 0;

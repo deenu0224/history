@@ -1,1 +1,1 @@
-export { App } from './ui/App';
+export { V6App as App } from './ui/v6/V6App';

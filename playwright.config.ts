@@ -4,6 +4,8 @@ const base = process.env.E2E_BASE ?? 'http://localhost:4173';
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // v5 플레이 경로(눈 빌리기·이름 붙이기)는 v6 로 대체되어 돌리지 않는다. 지우지 않고 보관한다.
+  testIgnore: '**/legacy/**',
   timeout: 240_000,
   workers: 1,
   reporter: [['list']],
